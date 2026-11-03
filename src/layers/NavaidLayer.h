@@ -17,6 +17,7 @@
 #include "LabelPlacer.h"
 #include "Layer.h"
 #include "data/NavDatabase.h"
+#include "ui/UiDraw.h"
 
 enum class NavaidType
 {

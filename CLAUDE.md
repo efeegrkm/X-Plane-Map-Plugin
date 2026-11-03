@@ -40,10 +40,17 @@ tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku).
   X-Plane açıkken dosya kilitli olur.
 - Ayar dosyası: `...\plugins\HaritaPlugin\harita_ayarlar.ini`.
 - Dokunma: `_qt_template_yedek/`, `_to_delete/`, `build/`, `.qtcreator/`.
-- Ekipte hazır bir apt.dat parse motoru var; yeniden yazılmayacak
-  (kullanıcıya soruldu, cevap bekleniyor).
 
-## Mimari (sürüm 0.4)
+## apt.dat kararı (kullanıcı, 2026-11-03)
+- Ekibin apt.dat motoru iş bilgisayarında; güvenlik nedeniyle bize **hiçbir
+  zaman** gelmeyecek. Kullanıcı işyerinde, izin verilen yerel bir AI ile
+  bizim okuyucumuzun yerine ekip motorunu kendisi bağlayacak.
+- Bizim görevimiz (aşama 5): `IAirportGeometrySource` gibi dar bir arayüz +
+  bunu uygulayan GEÇİCİ okuyucu (`AptDatReader`, X-Plane 11 apt.dat spec'ine
+  göre). Değişim tek yerden olsun: arayüz, veri yapıları ve "motoru buraya
+  bağla" noktası açık ve belgelenmiş; katmanlar sadece arayüzü bilsin.
+
+## Mimari (sürüm 0.5)
 - `legacy/xplmmap_prototype/`: eski XPLMMap prototipi (0.3), derlenmiyor.
 - `src/Plugin.cpp`: giriş noktaları, menü, komutlar (`ozdev/harita/toggle`,
   `kontroller`, `teshis`), flight loop. Katman sırası `CreateLayers()`'ta.
@@ -53,10 +60,20 @@ tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku).
   Scissor için boxel->piksel her çizimde GL matrisinden okunur (`GlScreen`).
 - `MapView`: Web Mercator, merkez Mercator biriminde (0..1), sürekli zoom.
 - `Layer` arayüzü + `LayerManager` (görünürlük `[katmanlar]` bölümüne kaydedilir).
-- `layers/`: `GridLayer`, `AircraftLayer`. `ui/`: `Toolbar`, `LayerPanel`,
-  `StatusBar`, `UiDraw`. `data/AircraftData`: uçak dataref'leri.
+- `layers/`: `GridLayer`, `AirportLayer`, `NavaidLayer` (Vor/Ndb/Ils/Fix,
+  stil tablosu `kStyles`), `AircraftLayer`, ortak `MapSymbols`.
+  `ui/`: `Toolbar`, `LayerPanel`, `StatusBar`, `UiDraw`.
+- `data/AircraftData`: uçak dataref'leri. `data/NavDatabase`: kayıtlar +
+  1x1 derece ızgara (CSR: mCellStart/mItems), DME eşleştirme.
+  `data/NavLoader`: XPLMNavigation'ı flight loop'ta 4 ms'lik adımlarla gezer.
+- `LabelPlacer`: etiket seyreltme; `DrawContext::mLabels` ortak, katman
+  sırası = etiket önceliği. Katmanlar `Draw`'da görünen listeyi toplar,
+  `DrawLabels` aynı listeyi kullanır.
 - X-Plane'siz çekirdek (testlere girer): `Geo`, `Drawings`, `ScreenMath`,
-  `MapView`, `MapFormat`, `Settings`, `LayerManager`.
+  `MapView`, `MapFormat`, `Settings`, `LayerManager`, `LabelPlacer`,
+  `NavDatabase`.
+- UI görünümü (koyu, yarı saydam şeritler, `Ui::k...` renkleri) kullanıcı
+  tarafından beğenildi; yeni arayüz parçaları aynı paletle yapılmalı.
 
 ## Prototipten dersler (GOREV.md Bölüm 4)
 - GL_CULL_FACE kapat (`CullFaceOff`), `XPLMSetGraphicsState` her geometri
@@ -64,14 +81,18 @@ tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku).
 - Tıklamayı alttaki pencereye geçirme (fare takibi bozuluyor).
 
 ## Durum
-- Aşama 1 (hazırlık) ve aşama 2 (harita motoru) yazıldı: sürüm 0.4.
-  MSVC /W4 uyarısız derleniyor, 132 test geçiyor, X-Plane'e kuruldu.
-  **X-Plane'de henüz denenmedi.**
-- Denenecek belirsizlikler: pop-out penceresinde çizim/scissor/imleç;
-  cursor callback'in her karede gelip gelmediği; UI ölçek %150'de kırpma.
+- 0.4 (aşama 1+2): kullanıcı X-Plane'de denedi, beğendi; log'da katman
+  aç/kapa ve pop-out var, hata yok. Pop-out'ta imleç/scissor ayrıca
+  doğrulanmadı.
+- 0.5 (aşama 3): nav katmanları yazıldı. /W4 uyarısız, 166 test geçiyor,
+  X-Plane'e kuruldu. **X-Plane'de henüz denenmedi.** Gerçek veriyle ölçüm:
+  255 bin kayıt, `Build` 10 ms; zoom 9'da en yoğun fix sorgusu ~1900 kayıt.
+- Doğrulanacak: SDK'nın ILS yönünü ham mı (manyetik*360+gerçek) yoksa
+  çözülmüş mü verdiği (Log'daki `ILS ornegi` satırları); fix açıkken FPS.
 
 ## Sıradaki
-1. [ ] Kullanıcı README'deki aşama 2 test listesini X-Plane'de uygulasın
-2. [ ] Kullanıcıdan apt.dat motoru cevabı (klasöre konabilir mi, arayüzü?)
-3. [ ] Aşama 3: NavDatabase (1x1 derece ızgara) + havalimanı/VOR/NDB/ILS/fix
-       katmanları + etiket seyreltme
+1. [ ] Kullanıcı README'deki aşama 3 test listesini uygulasın, Log'u oku
+2. [ ] Aşama 4: kullanıcı çizimleri (Drawings + DrawingLayer, araç
+       şeridine Gezin/Nokta/Rota/Bolge/Bitir/Geri al/Temizle), uçuş izi, FMS
+3. [ ] Aşama 5: pistler (arayüz + geçici apt.dat okuyucu, yukarıdaki karar),
+       earth_awy.dat hava yolları (önce dosyanın gerçek satırlarına bak)

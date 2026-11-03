@@ -552,6 +552,181 @@ void TestLayerManager()
     CHECK(!tLayers.At(0)->IsVisible() && tLayers.At(1)->IsVisible(), "ayar yoksa mevcut durum korunur");
 }
 
+// ---------------------------------------------------------------------------
+
+NavRecord MakeRecord(NavKind pKind, const char* pId, float pLat, float pLon)
+{
+    NavRecord tRecord;
+    tRecord.mKind = pKind;
+    tRecord.mId = pId;
+    tRecord.mLat = pLat;
+    tRecord.mLon = pLon;
+    return tRecord;
+}
+
+bool Contains(const std::vector<int>& pIndices, int pValue)
+{
+    for (int tValue : pIndices)
+    {
+        if (tValue == pValue)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void TestNavDatabase()
+{
+    // ILS yonu: "manyetik * 360 + gercek"
+    float tTrue = 0.0f;
+    short tMagnetic = 0;
+    DecodeLocalizerCourse(84112.655, &tTrue, &tMagnetic);
+    CHECK(Near(tTrue, 232.655, 1e-3) && tMagnetic == 233, "ILS kodlu yon: %.3f / %d", tTrue, tMagnetic);
+    DecodeLocalizerCourse(11556.087, &tTrue, &tMagnetic);
+    CHECK(Near(tTrue, 36.087, 1e-3) && tMagnetic == 32, "LTAC 03L yonu: %.3f / %d", tTrue, tMagnetic);
+    DecodeLocalizerCourse(36.5, &tTrue, &tMagnetic);
+    CHECK(Near(tTrue, 36.5, 1e-6) && tMagnetic == -1, "kodsuz yon");
+
+    CHECK(IsMajorAirportId("LTFM") && IsMajorAirportId("KSEA"), "ICAO kodu buyuk");
+    CHECK(!IsMajorAirportId("LT51") && !IsMajorAirportId("K1A2") && !IsMajorAirportId("XPA0001") &&
+              !IsMajorAirportId("ABC"),
+          "rakamli / farkli uzunluk kucuk");
+
+    NavDatabase tDatabase;
+    CHECK(!tDatabase.IsReady(), "Build'den once hazir degil");
+    tDatabase.Add(MakeRecord(NavKind::Airport, "LTFM", 41.262f, 28.742f));   // 0
+    tDatabase.Add(MakeRecord(NavKind::Airport, "LTAC", 40.128f, 32.995f));   // 1
+    tDatabase.Add(MakeRecord(NavKind::Vor, "IST", 40.9615f, 28.8107f));      // 2
+    tDatabase.Add(MakeRecord(NavKind::Dme, "IST", 40.9615f, 28.8107f));      // 3: VOR ile eslesmeli
+    tDatabase.Add(MakeRecord(NavKind::Dme, "IST", 43.5327f, 16.2891f));      // 4: cok uzak, tek basina
+    tDatabase.Add(MakeRecord(NavKind::Ils, "IAKR", 40.1442f, 33.0088f));     // 5
+    tDatabase.Add(MakeRecord(NavKind::Dme, "IAKR", 40.1200f, 32.9900f));     // 6: ILS DME (~1.6 NM)
+    tDatabase.Add(MakeRecord(NavKind::Fix, "ABISI", 40.3627f, 31.9524f));    // 7
+    tDatabase.Add(MakeRecord(NavKind::Fix, "WEST1", 10.5f, -179.5f));        // 8: 180. boylamin batisi
+    tDatabase.Add(MakeRecord(NavKind::Fix, "EAST1", 10.5f, 179.5f));         // 9: 180. boylamin dogusu
+    tDatabase.Build();
+    CHECK(tDatabase.IsReady() && tDatabase.Count() == 10, "hazir, 10 kayit");
+
+    CHECK(tDatabase.At(2).mHasDme && tDatabase.At(3).mHidden, "VOR/DME eslesti");
+    CHECK(!tDatabase.At(4).mHidden, "uzak DME eslesmez");
+    CHECK(tDatabase.At(5).mHasDme && tDatabase.At(6).mHidden, "ILS DME eslesti");
+    CHECK(tDatabase.CountOf(NavKind::Dme) == 1, "izgarada tek basina 1 DME: %d", tDatabase.CountOf(NavKind::Dme));
+    CHECK(tDatabase.CountOf(NavKind::Airport) == 2 && tDatabase.CountOf(NavKind::Fix) == 3, "tur sayilari");
+
+    // Istanbul cevresi: sadece LTFM gelmeli (LTAC baska hucrede)
+    GeoBounds tIstanbul;
+    tIstanbul.mSouth = 40.5;
+    tIstanbul.mNorth = 41.5;
+    tIstanbul.mWest = 28.0;
+    tIstanbul.mEast = 29.5;
+    std::vector<int> tResult;
+    tDatabase.Query(NavKind::Airport, tIstanbul, tResult);
+    CHECK(tResult.size() == 1 && tResult[0] == 0, "Istanbul sorgusu: %d sonuc", static_cast<int>(tResult.size()));
+    tResult.clear();
+    tDatabase.Query(NavKind::Vor, tIstanbul, tResult);
+    CHECK(tResult.size() == 1 && tResult[0] == 2, "Istanbul VOR");
+    tResult.clear();
+    tDatabase.Query(NavKind::Dme, tIstanbul, tResult);
+    CHECK(tResult.empty(), "eslesen DME sorguda gelmez");
+
+    // Turkiye: iki havalimani
+    GeoBounds tTurkey;
+    tTurkey.mSouth = 35.0;
+    tTurkey.mNorth = 43.0;
+    tTurkey.mWest = 25.0;
+    tTurkey.mEast = 45.0;
+    tResult.clear();
+    tDatabase.Query(NavKind::Airport, tTurkey, tResult);
+    CHECK(tResult.size() == 2 && Contains(tResult, 0) && Contains(tResult, 1), "Turkiye sorgusu");
+
+    // 180. boylami gecen alan (bati 179, dogu 181): iki fix de gelmeli
+    GeoBounds tDateLine;
+    tDateLine.mSouth = 10.0;
+    tDateLine.mNorth = 11.0;
+    tDateLine.mWest = 179.0;
+    tDateLine.mEast = 181.0;
+    tResult.clear();
+    tDatabase.Query(NavKind::Fix, tDateLine, tResult);
+    CHECK(tResult.size() == 2 && Contains(tResult, 8) && Contains(tResult, 9), "180. boylam sorgusu: %d",
+          static_cast<int>(tResult.size()));
+
+    // Tum dunya: her kayit bir kez
+    GeoBounds tWorld;
+    tWorld.mSouth = -90.0;
+    tWorld.mNorth = 90.0;
+    tWorld.mWest = -200.0;
+    tWorld.mEast = 300.0;
+    tResult.clear();
+    tDatabase.Query(NavKind::Fix, tWorld, tResult);
+    CHECK(tResult.size() == 3, "dunya sorgusu tekrarsiz: %d", static_cast<int>(tResult.size()));
+
+    tDatabase.Clear();
+    tResult.clear();
+    tDatabase.Query(NavKind::Fix, tWorld, tResult);
+    CHECK(!tDatabase.IsReady() && tResult.empty(), "temizlendi");
+}
+
+RectD Box(double pLeft, double pBottom, double pRight, double pTop)
+{
+    RectD tBox;
+    tBox.mLeft = pLeft;
+    tBox.mBottom = pBottom;
+    tBox.mRight = pRight;
+    tBox.mTop = pTop;
+    return tBox;
+}
+
+void TestLabelPlacer()
+{
+    LabelPlacer tPlacer;
+    tPlacer.Reset(Box(0, 0, 500, 300));
+    CHECK(tPlacer.TryPlace(Box(10, 10, 60, 22)), "ilk etiket");
+    CHECK(!tPlacer.TryPlace(Box(50, 15, 100, 27)), "cakisan reddedilir");
+    CHECK(tPlacer.TryPlace(Box(60, 10, 110, 22)), "kenar kenara degen kabul");
+    CHECK(!tPlacer.TryPlace(Box(480, 10, 520, 22)), "alan disina tasan reddedilir");
+    CHECK(tPlacer.TryPlace(Box(200, 100, 400, 200)), "buyuk kutu (cok hucre)");
+    CHECK(!tPlacer.TryPlace(Box(250, 150, 260, 160)), "buyuk kutunun icindeki reddedilir");
+    CHECK(tPlacer.PlacedCount() == 3, "3 kutu yerlesti");
+
+    tPlacer.Reset(Box(-1000, -500, -200, 100));  // eksi koordinatli alan (sol monitor)
+    CHECK(tPlacer.PlacedCount() == 0, "reset bosaltir");
+    CHECK(tPlacer.TryPlace(Box(-990, -490, -950, -470)) && tPlacer.TryPlace(Box(-240, 80, -201, 99)),
+          "eksi koordinatlar");
+
+    // Cok sayida kucuk etiket: izgara gibi dizilenler hep kabul
+    tPlacer.Reset(Box(0, 0, 1000, 1000));
+    int tPlaced = 0;
+    for (int tIndex = 0; tIndex < 400; ++tIndex)
+    {
+        const double tX = (tIndex % 20) * 50.0;
+        const double tY = (tIndex / 20) * 50.0;
+        if (tPlacer.TryPlace(Box(tX, tY, tX + 40, tY + 12)))
+        {
+            ++tPlaced;
+        }
+    }
+    CHECK(tPlaced == 400, "400 ayrik etiket: %d", tPlaced);
+}
+
+void TestMapViewBounds()
+{
+    const MapView tView = MakeView();
+    const GeoBounds tVisible = tView.VisibleBounds();
+    RectD tLarger = tView.Viewport();
+    tLarger.mLeft -= 100;
+    tLarger.mRight += 100;
+    tLarger.mBottom -= 100;
+    tLarger.mTop += 100;
+    const GeoBounds tExpanded = tView.BoundsOf(tLarger);
+    CHECK(tExpanded.mWest < tVisible.mWest && tExpanded.mEast > tVisible.mEast &&
+              tExpanded.mSouth < tVisible.mSouth && tExpanded.mNorth > tVisible.mNorth,
+          "genisletilmis alan daha buyuk");
+    const LatLon tCorner = tView.BoxelToLatLon(tView.Viewport().mLeft, tView.Viewport().mTop);
+    CHECK(Near(tVisible.mWest, tCorner.mLon, 1e-9) && Near(tVisible.mNorth, tCorner.mLat, 1e-9),
+          "sinir kosesi BoxelToLatLon ile ayni");
+}
+
 }  // namespace
 
 int main()
@@ -564,6 +739,9 @@ int main()
     TestMapFormat();
     TestSettings();
     TestLayerManager();
+    TestNavDatabase();
+    TestLabelPlacer();
+    TestMapViewBounds();
     std::printf("%d test gecti, %d hata\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

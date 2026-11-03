@@ -1,12 +1,35 @@
-# Harita Plugin 0.4 — X-Plane 11
+# Harita Plugin 0.5 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita (AR-GE). Dış harita servisi (Kaşif, OSM) yok; tüm veri
 X-Plane'in kendi dosyalarından ve SDK'sından gelir.
 
-Sürüm 0.4 = GÖREV.md aşama 1 + 2: pencere, Web Mercator, kaydırma/zoom,
-enlem/boylam ızgarası, uçak, katman paneli, ayarların kaydı. Navaid, pist,
-hava yolu, çizim ve zemin katmanları sonraki aşamalarda gelecek.
+- 0.4 = GÖREV.md aşama 1 + 2: pencere, Web Mercator, kaydırma/zoom, ızgara,
+  uçak, katman paneli, ayarların kaydı (X-Plane'de denendi, sorun bildirilmedi).
+- 0.5 = aşama 3: X-Plane'in nav verisinden havalimanı, VOR/DME, NDB, ILS/LOC,
+  fix katmanları ve etiket seyreltme (**X-Plane'de henüz denenmedi**).
+
+Pist, hava yolu, çizim, uçuş izi ve zemin katmanları sonraki aşamalarda.
+
+## Katmanlar
+
+Alttan üste çizim sırası. Etiketler de bu sırayla yer bulur (üstteki satırın
+etiketi önceliklidir); çakışan etiket çizilmez, zoom yapınca görünür.
+
+| Katman | Sembol | Görünür | Etiket | Ayrıntı |
+|---|---|---|---|---|
+| Enlem/boylam ızgarası | ince çizgi | her zoom | kenarlarda | aralık zoom'a göre |
+| Havalimanları | mavi halka (büyük: ortası dolu) | zoom 4 (küçükler 8) | 6 (küçükler 9) | zoom 11: ICAO + ad |
+| VOR / DME | altıgen; VOR/DME: altıgen + kare; DME: kare | 5 | 6.5 | zoom 8: frekans |
+| NDB | noktalı çember | 7 | 8 | zoom 9: frekans (kHz) |
+| ILS / LOC | 10 NM'lik "tüy" (yaklaşma yönü) | 8.5 | 10 | frekans + manyetik yön |
+| Fix'ler (varsayılan kapalı) | küçük üçgen | 9 | 10 | — |
+| Uçak | sarı uçak | her zoom | — | — |
+
+- "Büyük havalimanı" şimdilik 4 harfli, rakamsız ICAO kodu demek (LTFM evet,
+  LT51 hayır). Pist verisi gelince pist uzunluğuna göre iyileşecek.
+- Nav verisi açılıştan sonra birkaç saniyede, karelere bölünerek okunur
+  (alt şeritte "Nav verisi yukleniyor").
 
 Eski XPLMMap prototipi (0.3): `legacy/xplmmap_prototype/` (derlenmiyor).
 
@@ -47,10 +70,28 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[HaritaPlugin]` ile başlayan satırlar.
   haritanın merkez enlemine göre).
 - Pencere yeri/boyutu, merkez, zoom, takip ve katmanların açık/kapalı durumu
   `HaritaPlugin\harita_ayarlar.ini` dosyasına kaydedilir.
-- **Teshis modu** (menü veya `ozdev/harita/teshis`): Log.txt'ye 2 saniyede
-  bir `TESHIS` satırı yazar (pencere, UI ölçek, kırpma kutusu, imleç).
+- **Teshis modu** (menü veya `ozdev/harita/teshis`): alt şeritte FPS ve
+  haritanın kendi çizim süresi (ms); Log.txt'ye 2 saniyede bir `TESHIS`
+  satırı (pencere, UI ölçek, kırpma kutusu, imleç, etiket sayısı, FPS).
 
-## Test listesi (aşama 2) — X-Plane'de denenecek
+## Test listesi (aşama 3) — X-Plane'de denenecek
+
+| # | Ne yap | Beklenen |
+|---|---|---|
+| 1 | X-Plane'i aç, uçuş başlat, haritayı aç | Birkaç saniye alt şeritte "Nav verisi yukleniyor: ..." sonra kaybolur. Log'da `nav verisi hazir: ... kayit` ve 3 satır `ILS ornegi` |
+| 2 | Türkiye, zoom 5-6 | Büyük havalimanları mavi halka + ICAO; VOR'lar altıgen; yazılar üst üste binmiyor |
+| 3 | Zoom 8-9 (örnek: LTAC çevresi) | Küçük havalimanları, NDB'ler ve VOR frekansları da görünür |
+| 4 | X-Plane'in kendi haritasıyla karşılaştır | Havalimanı ve navaid'ler aynı yerde mi (aynı veri olmalı) |
+| 5 | LTAC, zoom 9-10 | Pistlerin ucundan dışarı uzanan turuncu ILS tüyleri; yönleri pistlerle aynı mı; etikette frekans ve yön |
+| 6 | Katmanlar → Fix'ler'i aç, zoom 9-11, yoğun bir bölge (Frankfurt/Londra) | Küçük üçgenler + adları |
+| 7 | Teshis modunu aç, fix açık ve kapalı iken FPS ve "cizim ... ms" değerine bak | Değerleri not et (performans testi) |
+| 8 | Haritayı hızlıca kaydır / zoom yap | Takılma yok mu |
+| 9 | Katmanları kapat, X-Plane'i yeniden aç | Aynı katmanlar kapalı gelir |
+
+Log.txt'deki `nav verisi hazir` ve `ILS ornegi` satırlarını bana gönder (veya
+bana Log.txt'yi okut): ILS yön kodlamasının doğru çözüldüğünü bunlarla doğrulayacağım.
+
+## Test listesi (aşama 2) — denendi, sorun bildirilmedi
 
 | # | Ne yap | Beklenen |
 |---|---|---|
@@ -79,8 +120,14 @@ Sorun olursa teşhis modunu açıp aynı şeyi tekrarla ve `TESHIS` satırların
 | `src/MapView.*` | Web Mercator projeksiyonu: merkez, zoom, lat/lon ↔ boxel |
 | `src/Layer.h`, `src/LayerManager.*` | Katman arayüzü, katman listesi, görünürlük kaydı |
 | `src/layers/GridLayer.*` | Enlem/boylam ızgarası |
+| `src/layers/AirportLayer.*` | Havalimanları (seyreltmeli) |
+| `src/layers/NavaidLayer.*` | VOR/DME, NDB, ILS/LOC, fix (tür parametreli) |
+| `src/layers/MapSymbols.*` | Ortak sembol çizimi, sembol yanına etiket |
 | `src/layers/AircraftLayer.*` | Uçak sembolü |
 | `src/data/AircraftData.*` | Uçak konumu/yönü (dataref) |
+| `src/data/NavDatabase.*` | Nav kayıtları + 1°×1° ızgara, DME eşleştirme |
+| `src/data/NavLoader.*` | X-Plane'in nav verisini SDK ile karelere bölerek okur |
+| `src/LabelPlacer.*` | Etiket/sembol çakışma kontrolü (seyreltme) |
 | `src/ui/Toolbar.*`, `LayerPanel.*`, `StatusBar.*` | Üst şerit, katman paneli, alt şerit |
 | `src/ui/UiDraw.*` | Kutu, yazı, düğme, onay kutusu çizimi |
 | `src/GlScreen.*` | boxel → piksel dönüşümü, pencereye kırpma (scissor) |
@@ -94,4 +141,7 @@ Sorun olursa teşhis modunu açıp aynı şeyi tekrarla ve `TESHIS` satırların
 - Zemin henüz düz renk (DSF karoları aşama 6).
 - Ölçek çubuğu merkez enlemine göre; Mercator'da ölçek enlemle değişir.
 - 180. boylam civarı sadece kısmen ele alınıyor (çizgiler en yakın kopyaya göre).
-- Pop-out penceresinde imleç konumu cursor callback'ten okunuyor; X-Plane'de denenecek.
+- Pop-out penceresinde imleç konumu cursor callback'ten okunuyor.
+- ILS tüyü localizer anteninden çizilir (pistin öbür ucu); pist verisi gelince
+  eşik noktasından çizilebilir.
+- VOR'larda manyetik sapma (pusula gülü) çizilmiyor.
