@@ -255,7 +255,7 @@ void AptDatParser::CloseAirport()
 
 const char* AptDatReader::Name() const
 {
-    return "gecici apt.dat okuyucu (AptDatReader)";
+    return "temporary apt.dat reader (AptDatReader)";
 }
 
 std::vector<std::string> AptDatReader::AptFilesFromSceneryPacks(const std::string& pIniText,
@@ -312,7 +312,7 @@ bool AptDatReader::LoadAll(const std::string& pXPlaneDirectory, const std::atomi
     }
     else
     {
-        pOutReport += "scenery_packs.ini bulunamadi; sadece default apt.dat okunacak\n";
+        pOutReport += "scenery_packs.ini not found; reading only the default apt.dat\n";
     }
     // 2) en son default
     tFiles.push_back(pXPlaneDirectory + "Resources/default scenery/default apt dat/Earth nav data/apt.dat");
@@ -329,12 +329,12 @@ bool AptDatReader::LoadAll(const std::string& pXPlaneDirectory, const std::atomi
         AptDatParser tParser(tSeen, pOutAirports);
         if (!ReadFile(tFile, tParser, pCancel))
         {
-            pOutReport += "iptal edildi\n";
+            pOutReport += "cancelled\n";
             return false;
         }
         ++tFilesRead;
         char tLine[512];
-        std::snprintf(tLine, sizeof(tLine), "  %s: %d havalimani, %d pist\n", tFile.c_str(),
+        std::snprintf(tLine, sizeof(tLine), "  %s: %d airports, %d runways\n", tFile.c_str(),
                       static_cast<int>(pOutAirports.size() - tBefore), tParser.RunwayCount());
         pOutReport += tLine;
     }
@@ -342,7 +342,7 @@ bool AptDatReader::LoadAll(const std::string& pXPlaneDirectory, const std::atomi
     const double tSeconds =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count();
     char tSummary[160];
-    std::snprintf(tSummary, sizeof(tSummary), "%d apt.dat dosyasi, %d havalimani, %.1f sn\n", tFilesRead,
+    std::snprintf(tSummary, sizeof(tSummary), "%d apt.dat files, %d airports, %.1f s\n", tFilesRead,
                   static_cast<int>(pOutAirports.size()), tSeconds);
     pOutReport += tSummary;
     return tFilesRead > 0;

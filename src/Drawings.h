@@ -17,7 +17,7 @@ public:
     // Isaretleme modu: haritaya tiklayinca ne olacagi
     enum class Mode
     {
-        Pan,     // "Gezin": isaretleme kapali, surukleme haritayi kaydirir
+        Pan,     // "Pan" (gezin): isaretleme kapali, surukleme haritayi kaydirir
         Point,   // her tiklama tek bir nokta
         Route,   // tiklamalar acik bir cizgi (rota) olusturur
         Region,  // tiklamalar kapali bir alan (bolge) olusturur
@@ -33,14 +33,14 @@ public:
     struct Shape
     {
         ShapeKind mKind = ShapeKind::Point;
-        int mNumber = 0;               // P1, R2, B3 gibi etiket numarasi
+        int mNumber = 0;               // P1, R2, A3 gibi etiket numarasi
         std::vector<LatLon> mPoints;   // koseler
         std::vector<int> mTriangles;   // bolge dolgusu icin ucgen indeksleri (bossa sadece kenar cizilir)
     };
 
     Mode GetMode() const;
     void SetMode(Mode pMode);              // mod degisince yarim kalan cizim bitirilir
-    static const char* ModeName(Mode pMode);  // "Gezin", "Nokta", ...
+    static const char* ModeName(Mode pMode);  // "Pan", "Point", ...
 
     // Mevcut moda gore tiklanan noktayi ekler
     void AddVertex(const LatLon& pPoint);

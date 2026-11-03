@@ -91,6 +91,27 @@ LatLon DestinationPoint(const LatLon& pFrom, double pBearingDeg, double pDistanc
     return tResult;
 }
 
+double InitialBearingDeg(const LatLon& pFrom, const LatLon& pTo)
+{
+    const double tLat1 = Rad(pFrom.mLat);
+    const double tLat2 = Rad(pTo.mLat);
+    const double tDeltaLon = Rad(pTo.mLon - pFrom.mLon);
+    const double tY = std::sin(tDeltaLon) * std::cos(tLat2);
+    const double tX = std::cos(tLat1) * std::sin(tLat2) - std::sin(tLat1) * std::cos(tLat2) * std::cos(tDeltaLon);
+    const double tBearing = Deg(std::atan2(tY, tX));
+    return tBearing < 0.0 ? tBearing + 360.0 : tBearing;
+}
+
+double AngleDifferenceDeg(double pFirst, double pSecond)
+{
+    double tDifference = std::fmod(std::fabs(pFirst - pSecond), 360.0);
+    if (tDifference > 180.0)
+    {
+        tDifference = 360.0 - tDifference;
+    }
+    return tDifference;
+}
+
 void DensifySegment(const LatLon& pFrom, const LatLon& pTo, double pMaxStepNm, std::vector<LatLon>& pOut)
 {
     pOut.push_back(pFrom);

@@ -9,8 +9,8 @@ set(XPSDK "${CMAKE_SOURCE_DIR}/third_party/XPSDK" CACHE PATH "X-Plane SDK klasor
 
 # X-Plane klasoru: derleme bitince plugin otomatik buraya kopyalanir
 set(XPLANE_DIR "C:/X-Plane 11" CACHE PATH "X-Plane 11 klasoru")
-option(HARITA_DEPLOY "Derlemeden sonra plugini X-Plane'e kopyala" ON)
-option(HARITA_TESTS "X-Plane'siz testleri derle" OFF)
+option(MAP_DEPLOY "Derlemeden sonra plugini X-Plane'e kopyala" ON)
+option(MAP_TESTS "X-Plane'siz testleri derle" OFF)
 
 if(NOT EXISTS "${XPSDK}/CHeaders/XPLM/XPLMDisplay.h")
     message(FATAL_ERROR "X-Plane SDK bulunamadi: ${XPSDK}\n"
@@ -34,6 +34,7 @@ set(CORE_SOURCES
     src/data/NavDatabase.cpp
     src/data/AirportGeometry.cpp
     src/data/AirportGeometryStore.cpp
+    src/data/LocalizerMatch.cpp
     src/data/AptDatReader.cpp          # GECICI: ekip apt.dat motoru gelince degisecek
 )
 
@@ -61,7 +62,7 @@ set(PLUGIN_SOURCES
 find_package(Threads REQUIRED)
 
 # Ortak derleyici ayarlari (uyarilar acik; hem plugin hem test)
-function(harita_compile_options target)
+function(map_compile_options target)
     target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries(${target} PRIVATE Threads::Threads)
     if(MSVC)
@@ -73,41 +74,41 @@ function(harita_compile_options target)
 endfunction()
 
 # Plugin aslinda bir DLL'dir (uzantisi .xpl)
-add_library(HaritaPlugin SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
-harita_compile_options(HaritaPlugin)
+add_library(MapPlugin SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
+map_compile_options(MapPlugin)
 
 # SDK basliklari "sistem" basligi: onlarin uyarilari bizi ilgilendirmiyor
-target_include_directories(HaritaPlugin SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
+target_include_directories(MapPlugin SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
 
 # X-Plane 11 icin SDK 3.0 (XPLM300/301) ozellikleri; daha yenileri kapali.
 # XP12'ye ozel bir API kullanilirsa derleme hata verir (istenen davranis).
-target_compile_definitions(HaritaPlugin PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
+target_compile_definitions(MapPlugin PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
 
 if(WIN32)
-    target_compile_definitions(HaritaPlugin PRIVATE IBM=1 APL=0 LIN=0)
-    target_link_libraries(HaritaPlugin PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
+    target_compile_definitions(MapPlugin PRIVATE IBM=1 APL=0 LIN=0)
+    target_link_libraries(MapPlugin PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
     set(XPL_NAME win)
     if(MSVC)
         # C++ calisma kutuphanesini icine gom (ek DLL gerekmesin)
-        set_property(TARGET HaritaPlugin PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        set_property(TARGET MapPlugin PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else()
         # MinGW: libstdc++/libgcc'yi gom
-        target_link_options(HaritaPlugin PRIVATE -static -static-libgcc -static-libstdc++)
+        target_link_options(MapPlugin PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
 elseif(APPLE)
-    target_compile_definitions(HaritaPlugin PRIVATE IBM=0 APL=1 LIN=0)
-    target_link_libraries(HaritaPlugin PRIVATE "-F${XPSDK}/Libraries/Mac" "-framework XPLM" "-framework OpenGL")
+    target_compile_definitions(MapPlugin PRIVATE IBM=0 APL=1 LIN=0)
+    target_link_libraries(MapPlugin PRIVATE "-F${XPSDK}/Libraries/Mac" "-framework XPLM" "-framework OpenGL")
     set(XPL_NAME mac)
 else()
-    target_compile_definitions(HaritaPlugin PRIVATE IBM=0 APL=0 LIN=1)
+    target_compile_definitions(MapPlugin PRIVATE IBM=0 APL=0 LIN=1)
     find_package(OpenGL REQUIRED)
-    target_link_libraries(HaritaPlugin PRIVATE OpenGL::GL)
+    target_link_libraries(MapPlugin PRIVATE OpenGL::GL)
     set(XPL_NAME lin)
 endif()
 
-# Cikti: build/HaritaPlugin/64/win.xpl
-set(OUT_DIR ${CMAKE_BINARY_DIR}/HaritaPlugin)
-set_target_properties(HaritaPlugin PROPERTIES
+# Cikti: build/MapPlugin/64/win.xpl
+set(OUT_DIR ${CMAKE_BINARY_DIR}/MapPlugin)
+set_target_properties(MapPlugin PROPERTIES
     PREFIX ""
     OUTPUT_NAME ${XPL_NAME}
     SUFFIX ".xpl"
@@ -115,28 +116,28 @@ set_target_properties(HaritaPlugin PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}/64)
 foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER ${cfg} CFG)
-    set_target_properties(HaritaPlugin PROPERTIES
+    set_target_properties(MapPlugin PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_${CFG} ${OUT_DIR}/64
         LIBRARY_OUTPUT_DIRECTORY_${CFG} ${OUT_DIR}/64)
 endforeach()
 
 # Derleme bitince X-Plane'e kur:
-#   <XPLANE_DIR>/Resources/plugins/HaritaPlugin/64/win.xpl
+#   <XPLANE_DIR>/Resources/plugins/MapPlugin/64/win.xpl
 # Not: X-Plane aciksa win.xpl kilitli olur ve kopyalama basarisiz olur;
 # once X-Plane'i kapat (veya Plugin Admin'den plugini devre disi birak).
-if(HARITA_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
-    set(DEPLOY_DIR "${XPLANE_DIR}/Resources/plugins/HaritaPlugin")
-    add_custom_command(TARGET HaritaPlugin POST_BUILD
+if(MAP_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
+    set(DEPLOY_DIR "${XPLANE_DIR}/Resources/plugins/MapPlugin")
+    add_custom_command(TARGET MapPlugin POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}/64"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:HaritaPlugin> "${DEPLOY_DIR}/64/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:MapPlugin> "${DEPLOY_DIR}/64/"
         COMMENT "Plugin X-Plane'e kuruluyor: ${DEPLOY_DIR}")
 endif()
 
 # ---------------------------------------------------------------------------
-# X-Plane'siz testler (istege bagli): cmake -DHARITA_TESTS=ON
-if(HARITA_TESTS)
-    add_executable(harita_tests tests/tests.cpp ${CORE_SOURCES})
-    harita_compile_options(harita_tests)
+# X-Plane'siz testler (istege bagli): cmake -DMAP_TESTS=ON
+if(MAP_TESTS)
+    add_executable(map_tests tests/tests.cpp ${CORE_SOURCES})
+    map_compile_options(map_tests)
     enable_testing()
-    add_test(NAME harita_tests COMMAND harita_tests)
+    add_test(NAME map_tests COMMAND map_tests)
 endif()

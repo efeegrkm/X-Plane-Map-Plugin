@@ -7,6 +7,8 @@
 #include "GLInclude.h"
 #include "Geo.h"
 #include "MapView.h"
+#include "data/AirportGeometryStore.h"
+#include "data/LocalizerMatch.h"
 #include "layers/MapSymbols.h"
 
 namespace
@@ -17,14 +19,20 @@ const NavaidLayer::Style kStyles[] = {
     {"vor", "VOR / DME", true, {NavKind::Vor, NavKind::Dme}, 2, 5.0, 6.5, 8.0, {0.30f, 0.85f, 0.75f, 1.0f}},
     {"ndb", "NDB", true, {NavKind::Ndb, NavKind::Ndb}, 1, 7.0, 8.0, 9.0, {0.80f, 0.60f, 1.00f, 1.0f}},
     {"ils", "ILS / LOC", true, {NavKind::Ils, NavKind::Localizer}, 2, 8.5, 10.0, 10.0, {1.00f, 0.62f, 0.30f, 1.0f}},
-    {"fix", "Fix'ler", false, {NavKind::Fix, NavKind::Fix}, 1, 9.0, 10.0, 99.0, {0.72f, 0.80f, 0.88f, 1.0f}},
+    {"fix", "Fixes", false, {NavKind::Fix, NavKind::Fix}, 1, 9.0, 10.0, 99.0, {0.72f, 0.80f, 0.88f, 1.0f}},
 };
 
 const size_t kMaxSymbols = 3000;   // FPS korumasi
 const double kEdgeMargin = 20.0;   // boxel
 const double kFeatherNm = 10.0;        // ILS tuyunun boyu
-const double kFeatherHalfAngle = 3.5;  // derece (gercek localizer ~ +-2.5; okunurluk icin biraz genis)
-const float kFeatherFillAlpha = 0.45f;
+const double kFeatherHalfAngle = 3.0;  // derece (gercek localizer ~ +-2.5; okunurluk icin biraz genis)
+// Tuy dolgusunun saydamligi zoom'a gore azalir: yaklastikca tuy ekrandan
+// buyuk olur, alttaki her seyi kapatmasin.
+const float kFeatherFillAlphaFar = 0.40f;   // zoom <= kFeatherFadeStart
+const float kFeatherFillAlphaNear = 0.07f;  // zoom >= kFeatherFadeEnd
+const double kFeatherFadeStart = 10.0;
+const double kFeatherFadeEnd = 13.0;
+const double kFeatherOutlineMaxZoom = 12.0;  // bundan yakinda koyu kontur cizilmez
 
 const float kVorRadius = 6.0f;
 const float kDmeBoxRadius = 8.5f;  // VOR/DME'nin cevresindeki kare (kosegen yaricapi)
@@ -65,11 +73,12 @@ void FormatFrequency(NavKind pKind, int pFrequency, char* pOut, size_t pSize)
 
 }  // namespace
 
-NavaidLayer::NavaidLayer(NavaidType pType, const NavDatabase& pDatabase)
+NavaidLayer::NavaidLayer(NavaidType pType, const NavDatabase& pDatabase, const AirportGeometryStore* pRunways)
     : Layer(StyleFor(pType).mId, StyleFor(pType).mName, StyleFor(pType).mDefaultVisible)
     , mType(pType)
     , mStyle(StyleFor(pType))
     , mDatabase(pDatabase)
+    , mRunways(pRunways)
 {
 }
 
@@ -120,7 +129,7 @@ void NavaidLayer::CollectVisible(const DrawContext& pContext)
         if (mType == NavaidType::Ils)
         {
             // Tuy ekrana degiyorsa ciz (anten disarida olsa bile); seyreltme yok
-            if (!ComputeFeather(pContext, tRecord, &tNavaid))
+            if (!ComputeFeather(pContext, tIndex, &tNavaid))
             {
                 continue;
             }
@@ -154,17 +163,46 @@ void NavaidLayer::CollectVisible(const DrawContext& pContext)
     }
 }
 
-bool NavaidLayer::ComputeFeather(const DrawContext& pContext, const NavRecord& pRecord, VisibleNavaid* pOut) const
+LatLon NavaidLayer::FeatherOrigin(int pIndex)
 {
-    // Ucak localizer'a course yonunde yaklasir; yani yaklasma hatti antenden
-    // geriye (course + 180) dogru uzanir.
-    const LatLon tAntenna = {pRecord.mLat, pRecord.mLon};
-    const double tBackBearing = pRecord.mCourseTrue + 180.0;
+    const auto tCached = mOrigins.find(pIndex);
+    if (tCached != mOrigins.end())
+    {
+        return tCached->second.mOrigin;
+    }
+    const NavRecord& tRecord = mDatabase.At(pIndex);
+    const LatLon tAntenna = {tRecord.mLat, tRecord.mLon};
+    if (!mRunways || !mRunways->IsReady())
+    {
+        return tAntenna;  // pist verisi henuz yok: simdilik anten (onbellege yazma)
+    }
+    FeatherOriginCache tEntry;
+    tEntry.mOnThreshold = FindLocalizerThreshold(tAntenna, tRecord.mCourseTrue, *mRunways, &tEntry.mOrigin);
+    if (!tEntry.mOnThreshold)
+    {
+        tEntry.mOrigin = tAntenna;  // LDA/SDF gibi kayik localizer: anteni kullan
+    }
+    mOrigins.emplace(pIndex, tEntry);
+    return tEntry.mOrigin;
+}
+
+bool NavaidLayer::ComputeFeather(const DrawContext& pContext, int pIndex, VisibleNavaid* pOut)
+{
+    // Ucak localizer'a course yonunde yaklasir; yani yaklasma hatti pist
+    // esiginden geriye (course + 180) dogru uzanir.
+    const NavRecord& tRecord = mDatabase.At(pIndex);
+    const LatLon tOrigin = FeatherOrigin(pIndex);
+    double tOriginX = 0.0;
+    double tOriginY = 0.0;
+    pContext.mView->LatLonToBoxel(tOrigin, &tOriginX, &tOriginY);
+    pOut->mX = static_cast<float>(tOriginX);
+    pOut->mY = static_cast<float>(tOriginY);
+    const double tBackBearing = tRecord.mCourseTrue + 180.0;
     const double tSideNm = kFeatherNm / std::cos(kFeatherHalfAngle * 3.14159265358979 / 180.0);
     const LatLon tEnds[3] = {
-        DestinationPoint(tAntenna, tBackBearing - kFeatherHalfAngle, tSideNm),
-        DestinationPoint(tAntenna, tBackBearing, kFeatherNm * 0.92),  // ortada hafif centik
-        DestinationPoint(tAntenna, tBackBearing + kFeatherHalfAngle, tSideNm),
+        DestinationPoint(tOrigin, tBackBearing - kFeatherHalfAngle, tSideNm),
+        DestinationPoint(tOrigin, tBackBearing, kFeatherNm * 0.92),  // ortada hafif centik
+        DestinationPoint(tOrigin, tBackBearing + kFeatherHalfAngle, tSideNm),
     };
 
     RectD tBounds;
@@ -199,7 +237,7 @@ void NavaidLayer::Draw(const DrawContext& pContext)
 
     if (mType == NavaidType::Ils)
     {
-        DrawFeathers();
+        DrawFeathers(pContext.mView->Zoom());
         return;
     }
 
@@ -273,10 +311,15 @@ void NavaidLayer::EmitSymbolEdges(const VisibleNavaid& pNavaid) const
     }
 }
 
-void NavaidLayer::DrawFeathers() const
+void NavaidLayer::DrawFeathers(double pZoom) const
 {
-    // Yari saydam dolgu: tuyun sag yarisi (haritalardaki klasik gorunum)
-    MapSymbols::SetColor({mStyle.mColor.mR, mStyle.mColor.mG, mStyle.mColor.mB, kFeatherFillAlpha});
+    // Yari saydam dolgu: tuyun sag yarisi (haritalardaki klasik gorunum).
+    // Saydamlik zoom'a gore azalir (kFeatherFadeStart .. kFeatherFadeEnd).
+    double tFade = (pZoom - kFeatherFadeStart) / (kFeatherFadeEnd - kFeatherFadeStart);
+    tFade = tFade < 0.0 ? 0.0 : (tFade > 1.0 ? 1.0 : tFade);
+    const float tFillAlpha =
+        kFeatherFillAlphaFar + static_cast<float>(tFade) * (kFeatherFillAlphaNear - kFeatherFillAlphaFar);
+    MapSymbols::SetColor({mStyle.mColor.mR, mStyle.mColor.mG, mStyle.mColor.mB, tFillAlpha});
     glBegin(GL_TRIANGLES);
     for (const VisibleNavaid& tNavaid : mVisible)
     {
@@ -287,7 +330,9 @@ void NavaidLayer::DrawFeathers() const
     glEnd();
 
     // Kontur: anten -> sol kanat -> orta -> sag kanat -> anten, ve orta cizgi
-    for (int tPass = 0; tPass < 2; ++tPass)
+    // Uzaktan bakinca koyu kontur okunurluk saglar; yakinda gereksiz kalinlik yapar
+    const int tFirstPass = (pZoom < kFeatherOutlineMaxZoom) ? 0 : 1;
+    for (int tPass = tFirstPass; tPass < 2; ++tPass)
     {
         const bool tOutline = (tPass == 0);
         glLineWidth(tOutline ? 3.0f : 1.2f);

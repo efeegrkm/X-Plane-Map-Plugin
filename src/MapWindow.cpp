@@ -20,8 +20,8 @@
 namespace
 {
 
-const char* kWindowSection = "pencere";
-const char* kViewSection = "harita";
+const char* kWindowSection = "window";
+const char* kViewSection = "view";
 
 const int kMinWidth = 400;        // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
@@ -83,16 +83,16 @@ void MapWindow::Create()
     mWindow = XPLMCreateWindowEx(&tParams);
     if (!mWindow)
     {
-        Log("HATA: harita penceresi olusturulamadi");
+        Log("ERROR: could not create the map window");
         return;
     }
 
     XPLMSetWindowPositioningMode(mWindow, xplm_WindowPositionFree, -1);
     XPLMSetWindowResizingLimits(mWindow, kMinWidth, kMinHeight, kMaxSize, kMaxSize);
-    char tTitle[] = "Harita";
+    char tTitle[] = "Map";
     XPLMSetWindowTitle(mWindow, tTitle);
     mFramePeriodRef = XPLMFindDataRef("sim/operation/misc/frame_rate_period");  // saniye/kare
-    Log("harita penceresi olusturuldu (%d,%d - %d,%d)", mFloatingGeometry.mLeft, mFloatingGeometry.mTop,
+    Log("map window created (%d,%d - %d,%d)", mFloatingGeometry.mLeft, mFloatingGeometry.mTop,
         mFloatingGeometry.mRight, mFloatingGeometry.mBottom);
 
     if (mStartVisible)
@@ -282,7 +282,7 @@ std::string MapWindow::PerformanceText() const
 {
     const float tPeriod = mFramePeriodRef ? XPLMGetDataf(mFramePeriodRef) : 0.0f;
     char tText[64];
-    std::snprintf(tText, sizeof(tText), "FPS %.0f  cizim %.2f ms", tPeriod > 0.0f ? 1.0f / tPeriod : 0.0f,
+    std::snprintf(tText, sizeof(tText), "FPS %.0f  draw %.2f ms", tPeriod > 0.0f ? 1.0f / tPeriod : 0.0f,
                   mDrawMs);
     return tText;
 }
@@ -292,11 +292,11 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
     if (!mShowControls)
     {
         // Kontroller gizli: sadece imlec haritanin ustundeyken kucuk bir
-        // "Kontroller" dugmesi goster; imlec cikinca sadece harita kalir.
+        // "Controls" dugmesi goster; imlec cikinca sadece harita kalir.
         if (pMouseInside)
         {
             const RectI tButton = ShowControlsButtonRect();
-            Ui::Button(tButton, "Kontroller", false, true, tButton.Contains(pMouseX, pMouseY));
+            Ui::Button(tButton, "Controls", false, true, tButton.Contains(pMouseX, pMouseY));
         }
         return;
     }
@@ -338,7 +338,7 @@ RectI MapWindow::ShowControlsButtonRect() const
     RectI tRect;
     tRect.mLeft = mArea.mLeft + 4;
     tRect.mTop = mArea.mTop - 4;
-    tRect.mRight = tRect.mLeft + Ui::ButtonWidth("Kontroller");
+    tRect.mRight = tRect.mLeft + Ui::ButtonWidth("Controls");
     tRect.mBottom = tRect.mTop - (Toolbar::kHeight - 8);
     return tRect;
 }
@@ -376,11 +376,11 @@ void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& 
     int tGlobalY = 0;
     XPLMGetMouseLocationGlobal(&tGlobalX, &tGlobalY);
     const LatLon tCenter = mView.Center();
-    Log("TESHIS t=%.1f pencere=(%d,%d,%d,%d) disari=%d piksel/boxel=%.3f scissor=(%.0f,%.0f,%.0f,%.0f) "
-        "zoom=%.2f merkez=%.5f,%.5f fare=(%d,%d,%s) fare_global=(%d,%d) ucak=%d etiket=%d %s",
+    Log("DIAG t=%.1f window=(%d,%d,%d,%d) popped_out=%d pixels_per_boxel=%.3f scissor=(%.0f,%.0f,%.0f,%.0f) "
+        "zoom=%.2f center=%.5f,%.5f mouse=(%d,%d,%s) mouse_global=(%d,%d) aircraft=%d labels=%d %s",
         pNow, mArea.mLeft, mArea.mTop, mArea.mRight, mArea.mBottom, XPLMWindowIsPoppedOut(mWindow),
         pPixelsPerBoxel, pScissor.mLeft, pScissor.mTop, pScissor.mRight, pScissor.mBottom, mView.Zoom(),
-        tCenter.mLat, tCenter.mLon, tMouseX, tMouseY, tInside ? "icerde" : "disarda", tGlobalX, tGlobalY,
+        tCenter.mLat, tCenter.mLon, tMouseX, tMouseY, tInside ? "inside" : "outside", tGlobalX, tGlobalY,
         mAircraft.State().mValid ? 1 : 0, mLabelPlacer.PlacedCount(), PerformanceText().c_str());
 }
 
@@ -476,7 +476,7 @@ bool MapWindow::HandleControlClick(int pX, int pY)
         if (tLayer)
         {
             tLayer->SetVisible(!tLayer->IsVisible());
-            Log("katman '%s': %s", tLayer->Id().c_str(), tLayer->IsVisible() ? "acik" : "kapali");
+            Log("layer '%s': %s", tLayer->Id().c_str(), tLayer->IsVisible() ? "on" : "off");
             SaveSettings();
         }
         return true;
@@ -528,12 +528,12 @@ void MapWindow::TogglePopOut()
             XPLMSetWindowGeometry(mWindow, mFloatingGeometry.mLeft, mFloatingGeometry.mTop,
                                   mFloatingGeometry.mRight, mFloatingGeometry.mBottom);
         }
-        Log("pencere X-Plane'e geri alindi");
+        Log("window moved back into X-Plane");
     }
     else
     {
         XPLMSetWindowPositioningMode(mWindow, xplm_WindowPopOut, -1);
-        Log("pencere ayri isletim sistemi penceresine alindi (pop-out)");
+        Log("window popped out into its own OS window");
     }
     mDragging = false;
 }
@@ -553,10 +553,10 @@ void MapWindow::CenterOnAircraft()
 void MapWindow::LoadSettings()
 {
     RectI tSaved;
-    tSaved.mLeft = mSettings.GetInt(kWindowSection, "sol", 0);
-    tSaved.mTop = mSettings.GetInt(kWindowSection, "ust", 0);
-    tSaved.mRight = mSettings.GetInt(kWindowSection, "sag", 0);
-    tSaved.mBottom = mSettings.GetInt(kWindowSection, "alt", 0);
+    tSaved.mLeft = mSettings.GetInt(kWindowSection, "left", 0);
+    tSaved.mTop = mSettings.GetInt(kWindowSection, "top", 0);
+    tSaved.mRight = mSettings.GetInt(kWindowSection, "right", 0);
+    tSaved.mBottom = mSettings.GetInt(kWindowSection, "bottom", 0);
     if (IsGeometryUsable(tSaved))
     {
         mFloatingGeometry = tSaved;
@@ -566,15 +566,15 @@ void MapWindow::LoadSettings()
         mFloatingGeometry = DefaultGeometry();
     }
     mHasFloatingGeometry = true;
-    mStartVisible = mSettings.GetBool(kWindowSection, "acik", false);
+    mStartVisible = mSettings.GetBool(kWindowSection, "visible", false);
 
     LatLon tCenter;
-    tCenter.mLat = mSettings.GetDouble(kViewSection, "merkez_enlem", kDefaultCenter.mLat);
-    tCenter.mLon = mSettings.GetDouble(kViewSection, "merkez_boylam", kDefaultCenter.mLon);
+    tCenter.mLat = mSettings.GetDouble(kViewSection, "center_lat", kDefaultCenter.mLat);
+    tCenter.mLon = mSettings.GetDouble(kViewSection, "center_lon", kDefaultCenter.mLon);
     mView.SetCenter(tCenter);
     mView.SetZoom(mSettings.GetDouble(kViewSection, "zoom", kDefaultZoom));
-    mFollowAircraft = mSettings.GetBool(kViewSection, "takip", true);
-    mShowControls = mSettings.GetBool(kViewSection, "kontroller", true);
+    mFollowAircraft = mSettings.GetBool(kViewSection, "follow_aircraft", true);
+    mShowControls = mSettings.GetBool(kViewSection, "show_controls", true);
 
     mLayers.LoadVisibility(mSettings);
 }
@@ -583,25 +583,25 @@ void MapWindow::SaveSettings()
 {
     if (mHasFloatingGeometry)
     {
-        mSettings.SetInt(kWindowSection, "sol", mFloatingGeometry.mLeft);
-        mSettings.SetInt(kWindowSection, "ust", mFloatingGeometry.mTop);
-        mSettings.SetInt(kWindowSection, "sag", mFloatingGeometry.mRight);
-        mSettings.SetInt(kWindowSection, "alt", mFloatingGeometry.mBottom);
+        mSettings.SetInt(kWindowSection, "left", mFloatingGeometry.mLeft);
+        mSettings.SetInt(kWindowSection, "top", mFloatingGeometry.mTop);
+        mSettings.SetInt(kWindowSection, "right", mFloatingGeometry.mRight);
+        mSettings.SetInt(kWindowSection, "bottom", mFloatingGeometry.mBottom);
     }
-    mSettings.SetBool(kWindowSection, "acik", IsVisible());
+    mSettings.SetBool(kWindowSection, "visible", IsVisible());
 
     const LatLon tCenter = mView.Center();
-    mSettings.SetDouble(kViewSection, "merkez_enlem", tCenter.mLat);
-    mSettings.SetDouble(kViewSection, "merkez_boylam", tCenter.mLon);
+    mSettings.SetDouble(kViewSection, "center_lat", tCenter.mLat);
+    mSettings.SetDouble(kViewSection, "center_lon", tCenter.mLon);
     mSettings.SetDouble(kViewSection, "zoom", mView.Zoom());
-    mSettings.SetBool(kViewSection, "takip", mFollowAircraft);
-    mSettings.SetBool(kViewSection, "kontroller", mShowControls);
+    mSettings.SetBool(kViewSection, "follow_aircraft", mFollowAircraft);
+    mSettings.SetBool(kViewSection, "show_controls", mShowControls);
 
     mLayers.SaveVisibility(mSettings);
 
     if (!mSettings.Save())
     {
-        Log("UYARI: ayar dosyasi yazilamadi: %s", mSettings.Path().c_str());
+        Log("WARNING: could not write the settings file: %s", mSettings.Path().c_str());
     }
 }
 

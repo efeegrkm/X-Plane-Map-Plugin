@@ -49,7 +49,7 @@ const Rgba& SurfaceColor(RunwaySurface pSurface)
 }  // namespace
 
 RunwayLayer::RunwayLayer(const AirportGeometryStore& pStore)
-    : Layer("pist", "Pistler", true)
+    : Layer("runways", "Runways", true)
     , mStore(pStore)
 {
 }

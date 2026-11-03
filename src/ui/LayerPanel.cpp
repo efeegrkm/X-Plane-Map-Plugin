@@ -8,7 +8,7 @@ namespace
 {
 
 const int kPadding = 8;       // panel kenari ile icerik arasi
-const int kTitleHeight = 20;  // "KATMANLAR" basligi
+const int kTitleHeight = 20;  // "LAYERS" basligi
 const int kRowHeight = 22;    // her katman satiri
 const int kBoxSize = 14;      // onay kutusu
 const int kMinWidth = 150;
@@ -60,7 +60,7 @@ void LayerPanel::Draw(int pMouseX, int pMouseY, const LayerManager& pLayers) con
     }
     Ui::FillRect(mRect, Ui::kPanelBg);
     Ui::FrameRect(mRect, Ui::kBorder);
-    Ui::Text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "KATMANLAR", Ui::kTextGrey);
+    Ui::Text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "LAYERS", Ui::kTextGrey);
 
     for (int tIndex = 0; tIndex < mRowCount && tIndex < pLayers.Count(); ++tIndex)
     {

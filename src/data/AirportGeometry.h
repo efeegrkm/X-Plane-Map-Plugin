@@ -77,7 +77,7 @@ class IAirportGeometrySource
 public:
     virtual ~IAirportGeometrySource() = default;
 
-    // Log'da gorunen ad (ornek: "gecici apt.dat okuyucu")
+    // Log'da gorunen ad (ornek: "temporary apt.dat reader")
     virtual const char* Name() const = 0;
 
     // Tum havalimanlarini okuyup pOutAirports'a ekler. ARKA PLAN thread'inde

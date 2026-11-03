@@ -136,15 +136,15 @@ const char* Toolbar::LabelFor(ToolbarAction pAction, const ToolbarState& pState)
     switch (pAction)
     {
         case ToolbarAction::Layers:
-            return "Katmanlar";
+            return "Layers";
         case ToolbarAction::FollowAircraft:
-            return "Ucagi takip et";
+            return "Follow aircraft";
         case ToolbarAction::CenterAircraft:
-            return "Ucaga ortala";
+            return "Center on aircraft";
         case ToolbarAction::PopOut:
-            return pState.mPoppedOut ? "Iceri al" : "Disari al";
+            return pState.mPoppedOut ? "Pop in" : "Pop out";
         case ToolbarAction::HideControls:
-            return "Gizle";
+            return "Hide";
         case ToolbarAction::None:
             break;
     }

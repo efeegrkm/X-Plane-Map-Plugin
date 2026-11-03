@@ -65,7 +65,7 @@ void EmitRotated(const Vertex& pVertex, float pCenterX, float pCenterY, float pS
 }  // namespace
 
 AircraftLayer::AircraftLayer(const AircraftData& pAircraft)
-    : Layer("ucak", "Ucak", true)
+    : Layer("aircraft", "Aircraft", true)
     , mAircraft(pAircraft)
 {
 }

@@ -26,7 +26,7 @@ public:
     // Once gorunen katmanlarin geometrisi, sonra hepsinin yazilari
     void DrawAll(const DrawContext& pContext);
 
-    // [katmanlar] bolumu: anahtar = katman kimligi, deger = 1/0
+    // [layers] bolumu: anahtar = katman kimligi, deger = 1/0
     void LoadVisibility(const Settings& pSettings);
     void SaveVisibility(Settings& pSettings) const;
 

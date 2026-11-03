@@ -108,7 +108,7 @@ const std::string& AirportGeometryStore::LastReport() const
 
 const char* AirportGeometryStore::SourceName() const
 {
-    return mSource ? mSource->Name() : "(kaynak yok)";
+    return mSource ? mSource->Name() : "(no source)";
 }
 
 int AirportGeometryStore::Count() const

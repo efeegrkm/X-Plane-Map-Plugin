@@ -1,10 +1,10 @@
 // LayerPanel.h
-// "Katmanlar" dugmesinin altinda acilan katman listesi (onay kutulari).
+// "Layers" dugmesinin altinda acilan katman listesi (onay kutulari).
 //
 //   +------------------+
-//   | KATMANLAR        |
-//   | [x] Izgara       |
-//   | [x] Ucak         |
+//   | LAYERS           |
+//   | [x] Lat/lon grid |
+//   | [x] Aircraft     |
 //   +------------------+
 //
 // Panel sadece cizer ve hangi satira tiklandigini soyler; katmani acip
@@ -22,7 +22,7 @@ public:
     void SetOpen(bool pOpen);
     void Toggle();
 
-    // pAnchor: "Katmanlar" dugmesi; panel onun hemen altina, sol kenari
+    // pAnchor: "Layers" dugmesi; panel onun hemen altina, sol kenari
     // hizali acilir. Her cizimden once cagrilir.
     void Layout(const RectI& pAnchor, const LayerManager& pLayers);
 

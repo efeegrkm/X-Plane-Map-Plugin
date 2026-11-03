@@ -75,7 +75,7 @@ bool NavLoader::Step(double pBudgetMs)
         }
         mStarted = true;
         mDatabase.Clear();
-        Log("nav verisi okunuyor...");
+        Log("reading nav data...");
     }
 
     int tCount = 0;
@@ -95,8 +95,8 @@ bool NavLoader::Step(double pBudgetMs)
         mDatabase.Build();
         mDone = true;
         mElapsedMs += MillisecondsSince(tStart);
-        Log("nav verisi hazir: %d kayit gezildi, %.0f ms (havalimani %d, VOR %d, DME %d, NDB %d, ILS %d, LOC %d, "
-            "fix %d)",
+        Log("nav data ready: %d records visited, %.0f ms (airports %d, VOR %d, DME %d, NDB %d, ILS %d, LOC %d, "
+            "fixes %d)",
             mVisited, mElapsedMs, mDatabase.CountOf(NavKind::Airport), mDatabase.CountOf(NavKind::Vor),
             mDatabase.CountOf(NavKind::Dme), mDatabase.CountOf(NavKind::Ndb), mDatabase.CountOf(NavKind::Ils),
             mDatabase.CountOf(NavKind::Localizer), mDatabase.CountOf(NavKind::Fix));
@@ -146,7 +146,8 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
     }
     if (tRecord.mKind == NavKind::Airport)
     {
-        tRecord.mMajor = IsMajorAirportId(tRecord.mId);
+        tRecord.mAirportKind = AirportKindFromName(tName, &tRecord.mName);
+        tRecord.mMajor = tRecord.mAirportKind == AirportKind::Land && IsMajorAirportId(tRecord.mId);
     }
     if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
     {
@@ -157,7 +158,7 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
         if (mIlsSamplesLogged < kIlsSampleCount)
         {
             ++mIlsSamplesLogged;
-            Log("ILS ornegi: %s SDK yonu=%.3f -> gercek %.1f, manyetik %d", tId, tHeading, tRecord.mCourseTrue,
+            Log("ILS sample: %s SDK course=%.3f -> true %.1f, magnetic %d", tId, tHeading, tRecord.mCourseTrue,
                 tRecord.mCourseMagnetic);
         }
     }

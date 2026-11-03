@@ -26,6 +26,16 @@ enum class NavKind : unsigned char
 
 const int kNavKindCount = 7;
 
+// Havalimani turu. X-Plane bunu adin onekiyle verir: "[H] ..." heliport,
+// "[S] ..." deniz ussu, "[X] ..." kapali; oneksiz ad kara havalimani.
+enum class AirportKind : unsigned char
+{
+    Land,
+    Seaplane,
+    Heliport,
+    Closed,
+};
+
 struct NavRecord
 {
     NavKind mKind = NavKind::Fix;
@@ -36,10 +46,14 @@ struct NavRecord
     short mCourseMagnetic = -1;  // ILS/LOC: manyetik yon (bilinmiyorsa -1)
     bool mHasDme = false;        // VOR/ILS: ayni kimlikte bir DME ile eslesti
     bool mHidden = false;        // DME: bir VOR/ILS'e baglandi, ayrica cizilmez
-    bool mMajor = false;         // havalimani: 4 harfli ICAO kodu (seyreltmede oncelikli)
+    bool mMajor = false;         // havalimani: kara havalimani + 4 harfli ICAO kodu (seyreltmede oncelikli)
+    AirportKind mAirportKind = AirportKind::Land;
     std::string mId;
-    std::string mName;           // fix'lerde bos (yer tasarrufu)
+    std::string mName;           // fix'lerde bos (yer tasarrufu); havalimaninda onek ("[H] ") atilmis
 };
+
+// Havalimani adindan turu bulur; pOutCleanName'e onek atilmis adi yazar
+AirportKind AirportKindFromName(const std::string& pName, std::string* pOutCleanName);
 
 // ILS/LOC yonu nav.dat 1150 bicimiyle "manyetik * 360 + gercek" olarak
 // kodlanmis olabilir (ornek: 84112.655 = 233 * 360 + 232.655).

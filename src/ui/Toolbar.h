@@ -1,7 +1,7 @@
 // Toolbar.h
 // Haritanin ust kenarindaki ince, yari saydam arac seridi.
 //
-//   [Katmanlar] [Ucagi takip et] [Ucaga ortala]        [Disari al] [Gizle]
+//   [Layers] [Follow aircraft] [Center on aircraft]        [Pop out] [Hide]
 //
 // Serit sadece cizer ve hangi dugmeye tiklandigini soyler; ne yapilacagina
 // MapWindow karar verir. (Cizim modlari - Gezin/Nokta/Rota/Bolge - asama 4'te.)
@@ -47,7 +47,7 @@ public:
     bool Contains(int pX, int pY) const;
     const RectI& Strip() const;
 
-    // Bir dugmenin yeri (katman panelini "Katmanlar"in altina koymak icin)
+    // Bir dugmenin yeri (katman panelini "Layers"in altina koymak icin)
     RectI ButtonRect(ToolbarAction pAction) const;
 
 private:

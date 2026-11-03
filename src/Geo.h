@@ -23,6 +23,12 @@ LatLon GreatCircleInterpolate(const LatLon& pFrom, const LatLon& pTo, double pFr
 // deniz mili gidince varilan nokta (buyuk daire)
 LatLon DestinationPoint(const LatLon& pFrom, double pBearingDeg, double pDistanceNm);
 
+// pFrom'dan pTo'ya baslangic yonu (gercek, 0..360, 0 = kuzey)
+double InitialBearingDeg(const LatLon& pFrom, const LatLon& pTo);
+
+// Iki yon arasindaki en kucuk aci farki (0..180)
+double AngleDifferenceDeg(double pFirst, double pSecond);
+
 // pFrom -> pTo dogrusunu haritada dogru egriyle cizebilmek icin ara noktalar uretir.
 // pOut sonuna pFrom'u ve pMaxStepNm'den uzun araliklarla ara noktalari ekler
 // (pTo'yu EKLEMEZ; bir sonraki segmentin ilk noktasi olarak eklenir).

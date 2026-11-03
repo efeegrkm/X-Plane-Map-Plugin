@@ -37,7 +37,7 @@ double NormalizeLon(double pLon)
 }  // namespace
 
 GridLayer::GridLayer()
-    : Layer("izgara", "Enlem / boylam izgarasi", true)
+    : Layer("grid", "Lat / lon grid", true)
 {
 }
 

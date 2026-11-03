@@ -5,19 +5,22 @@
 //   Vor   altigen (VOR), altigen+kare (VOR/DME),      zoom 5    6.5      8
 //         kare (tek basina DME)
 //   Ndb   noktali cember                              zoom 7    8        9
-//   Ils   localizer "tuyu": antenden yaklasma          zoom 8.5  10       10
-//         yonune 10 NM'lik ucgen
+//   Ils   localizer "tuyu": pist esiginden yaklasma   zoom 8.5  10       10
+//         yonune 10 NM'lik ucgen (pist bulunamazsa antenden)
 //   Fix   ucgen                                       zoom 9    10       -
 //
 // Zoom esikleri ve renkler NavaidLayer.cpp'deki tablodadir (kStyles).
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
 #include "LabelPlacer.h"
 #include "Layer.h"
 #include "data/NavDatabase.h"
 #include "ui/UiDraw.h"
+
+class AirportGeometryStore;
 
 enum class NavaidType
 {
@@ -30,7 +33,9 @@ enum class NavaidType
 class NavaidLayer : public Layer
 {
 public:
-    NavaidLayer(NavaidType pType, const NavDatabase& pDatabase);
+    // pRunways: sadece ILS katmani icin; tuyu pist esiginden baslatmak icin (bos olabilir)
+    NavaidLayer(NavaidType pType, const NavDatabase& pDatabase,
+                const AirportGeometryStore* pRunways = nullptr);
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
@@ -55,20 +60,31 @@ private:
         int mIndex;
         float mX;
         float mY;
-        float mFeather[6];  // sadece ILS: sol kanat, orta uc, sag kanat (x, y)
+        float mFeather[6];  // sadece ILS: sol kanat, orta uc, sag kanat (x, y); mX/mY tuyun ucu
     };
 
     static const Style& StyleFor(NavaidType pType);
 
     void CollectVisible(const DrawContext& pContext);
-    bool ComputeFeather(const DrawContext& pContext, const NavRecord& pRecord, VisibleNavaid* pOut) const;
+    bool ComputeFeather(const DrawContext& pContext, int pIndex, VisibleNavaid* pOut);
+    LatLon FeatherOrigin(int pIndex);  // esik (bulunduysa) veya anten
     void EmitSymbolEdges(const VisibleNavaid& pNavaid) const;  // GL_LINES
-    void DrawFeathers() const;
+    void DrawFeathers(double pZoom) const;
     void FormatLabel(const NavRecord& pRecord, bool pDetail, char* pOut, size_t pSize) const;
 
     NavaidType mType;
     const Style& mStyle;
     const NavDatabase& mDatabase;
+    const AirportGeometryStore* mRunways;
+
+    // ILS kayit indeksi -> tuyun basladigi nokta. Pist verisi hazir olduktan
+    // sonra her ILS icin bir kez hesaplanir.
+    struct FeatherOriginCache
+    {
+        bool mOnThreshold;
+        LatLon mOrigin;
+    };
+    std::unordered_map<int, FeatherOriginCache> mOrigins;
     std::vector<int> mQuery;
     std::vector<VisibleNavaid> mVisible;
     LabelPlacer mSymbolPlacer;

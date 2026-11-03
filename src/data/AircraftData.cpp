@@ -22,7 +22,7 @@ void AircraftData::Init()
     mElevationRef = XPLMFindDataRef("sim/flightmodel/position/elevation");    // double, metre MSL
     if (!mLatRef || !mLonRef || !mHeadingRef)
     {
-        Log("UYARI: ucak konum dataref'leri bulunamadi");
+        Log("WARNING: aircraft position datarefs not found");
     }
 }
 

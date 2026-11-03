@@ -15,6 +15,6 @@ void Log(const char* pFormat, ...)
     va_end(tArgs);
 
     char tLine[1100];
-    std::snprintf(tLine, sizeof(tLine), "[HaritaPlugin] %s\n", tText);
+    std::snprintf(tLine, sizeof(tLine), "[MapPlugin] %s\n", tText);
     XPLMDebugString(tLine);  // Log.txt'ye yazar
 }

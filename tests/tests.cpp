@@ -2,7 +2,7 @@
 // X-Plane OLMADAN calisan testler: projeksiyon, koordinat matematigi,
 // cografi hesaplar, cizim modeli, ayar dosyasi, katman yoneticisi.
 //
-// Derleme: cmake -DHARITA_TESTS=ON ... ; calistirma: harita_tests(.exe)
+// Derleme: cmake -DMAP_TESTS=ON ... ; calistirma: map_tests(.exe)
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -20,6 +20,7 @@
 #include "Settings.h"
 #include "data/AirportGeometryStore.h"
 #include "data/AptDatReader.h"
+#include "data/LocalizerMatch.h"
 #include "data/NavDatabase.h"
 
 #include <chrono>
@@ -46,7 +47,7 @@ int gPassCount = 0;
         else                                                    \
         {                                                       \
             ++gFailCount;                                       \
-            std::printf("HATA %s:%d: ", __FILE__, __LINE__);    \
+            std::printf("FAIL %s:%d: ", __FILE__, __LINE__);    \
             std::printf(__VA_ARGS__);                           \
             std::printf("\n");                                  \
         }                                                       \
@@ -464,14 +465,14 @@ void TestMapFormat()
 
 void TestSettings()
 {
-    const char* tPath = "harita_test_ayarlar.ini";
+    const char* tPath = "map_test_settings.ini";
     {
         FILE* tFile = std::fopen(tPath, "w");
         CHECK(tFile != nullptr, "test dosyasi acilmali");
         if (tFile)
         {
-            std::fputs("# yorum\n[pencere]\n sol = -1200 \nust=900\n\n[harita]\nzoom=7.25\ntakip=0\n"
-                       "bozuk satir\n; diger yorum\n",
+            std::fputs("# comment\n[window]\n left = -1200 \ntop=900\n\n[view]\nzoom=7.25\nfollow_aircraft=0\n"
+                       "broken line\n; another comment\n",
                        tFile);
             std::fclose(tFile);
         }
@@ -479,26 +480,26 @@ void TestSettings()
 
     Settings tSettings;
     CHECK(tSettings.Load(tPath), "dosya okunmali");
-    CHECK(tSettings.GetInt("pencere", "sol", 0) == -1200, "bosluklu deger");
-    CHECK(tSettings.GetInt("pencere", "ust", 0) == 900, "tamsayi");
-    CHECK(Near(tSettings.GetDouble("harita", "zoom", 0.0), 7.25, 1e-12), "ondalik nokta ile");
-    CHECK(!tSettings.GetBool("harita", "takip", true), "bool 0");
-    CHECK(tSettings.GetInt("pencere", "yok", 42) == 42, "olmayan anahtar varsayilan");
-    CHECK(Near(tSettings.GetDouble("yok", "yok", 1.5), 1.5, 1e-12), "olmayan bolum varsayilan");
+    CHECK(tSettings.GetInt("window", "left", 0) == -1200, "bosluklu deger");
+    CHECK(tSettings.GetInt("window", "top", 0) == 900, "tamsayi");
+    CHECK(Near(tSettings.GetDouble("view", "zoom", 0.0), 7.25, 1e-12), "ondalik nokta ile");
+    CHECK(!tSettings.GetBool("view", "follow_aircraft", true), "bool 0");
+    CHECK(tSettings.GetInt("window", "missing", 42) == 42, "olmayan anahtar varsayilan");
+    CHECK(Near(tSettings.GetDouble("missing", "missing", 1.5), 1.5, 1e-12), "olmayan bolum varsayilan");
 
-    tSettings.SetDouble("harita", "merkez_enlem", 41.123456789);
-    tSettings.SetBool("katmanlar", "izgara", true);
+    tSettings.SetDouble("view", "center_lat", 41.123456789);
+    tSettings.SetBool("layers", "grid", true);
     CHECK(tSettings.Save(), "kaydedilmeli");
 
     Settings tReloaded;
     CHECK(tReloaded.Load(tPath), "yeniden okunmali");
-    CHECK(Near(tReloaded.GetDouble("harita", "merkez_enlem", 0.0), 41.123456789, 1e-8), "ondalik geri okunur");
-    CHECK(tReloaded.GetBool("katmanlar", "izgara", false), "bool geri okunur");
-    CHECK(tReloaded.GetInt("pencere", "sol", 0) == -1200, "eski deger korunur");
+    CHECK(Near(tReloaded.GetDouble("view", "center_lat", 0.0), 41.123456789, 1e-8), "ondalik geri okunur");
+    CHECK(tReloaded.GetBool("layers", "grid", false), "bool geri okunur");
+    CHECK(tReloaded.GetInt("window", "left", 0) == -1200, "eski deger korunur");
     std::remove(tPath);
 
     Settings tMissing;
-    CHECK(!tMissing.Load("boyle_bir_dosya_yok.ini"), "olmayan dosya false");
+    CHECK(!tMissing.Load("no_such_file.ini"), "olmayan dosya false");
     CHECK(tMissing.GetInt("a", "b", 3) == 3, "bos ayarlar varsayilan verir");
 }
 
@@ -542,11 +543,11 @@ void TestLayerManager()
     Settings tSettings;
     tLayers.At(0)->SetVisible(false);
     tLayers.SaveVisibility(tSettings);
-    CHECK(!tSettings.GetBool("katmanlar", "a", true) && !tSettings.GetBool("katmanlar", "b", true) &&
-              tSettings.GetBool("katmanlar", "c", false),
+    CHECK(!tSettings.GetBool("layers", "a", true) && !tSettings.GetBool("layers", "b", true) &&
+              tSettings.GetBool("layers", "c", false),
           "gorunurluk kaydi");
 
-    tSettings.SetBool("katmanlar", "b", true);
+    tSettings.SetBool("layers", "b", true);
     tLayers.At(0)->SetVisible(true);
     tLayers.LoadVisibility(tSettings);
     CHECK(!tLayers.At(0)->IsVisible() && tLayers.At(1)->IsVisible() && tLayers.At(2)->IsVisible(),
@@ -894,7 +895,91 @@ void TestStoreCancel()
 {
     // Yukleme bitmeden yok edilen depo takilmadan kapanmali (X-Plane kapanisi)
     AirportGeometryStore tStore(std::make_unique<AptDatReader>());
-    tStore.StartLoading("Z:\\boyle_bir_klasor_yok\\");
+    tStore.StartLoading("Z:\\no_such_folder\\");
+}
+
+// LTAC 03R/21L pistini veren kaynak (gercek apt.dat koordinatlari)
+class LtacRunwaySource : public IAirportGeometrySource
+{
+public:
+    const char* Name() const override
+    {
+        return "LTAC test";
+    }
+
+    bool LoadAll(const std::string& /*pXPlaneDirectory*/, const std::atomic<bool>& /*pCancel*/,
+                 std::vector<AirportGeometry>& pOutAirports, std::string& /*pOutReport*/) override
+    {
+        AirportGeometry tAirport;
+        tAirport.mIcao = "LTAC";
+        Runway tRunway;
+        tRunway.mWidthM = 59.0;
+        tRunway.mEnds[0].mName = "03R";
+        tRunway.mEnds[0].mPosition = {40.1140623, 32.9831635};
+        tRunway.mEnds[1].mName = "21L";
+        tRunway.mEnds[1].mPosition = {40.1413103, 33.0091255};
+        tAirport.mRunways.push_back(tRunway);
+        pOutAirports.push_back(tAirport);
+        return true;
+    }
+};
+
+void WaitUntilLoaded(AirportGeometryStore& pStore)
+{
+    for (int tTry = 0; tTry < 500 && !pStore.Poll(); ++tTry)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+}
+
+void TestLocalizerMatch()
+{
+    // Yon yardimcilari
+    CHECK(Near(InitialBearingDeg({0, 0}, {0, 1}), 90.0, 1e-9) && Near(InitialBearingDeg({0, 0}, {1, 0}), 0.0, 1e-9),
+          "dogu 90, kuzey 0");
+    CHECK(Near(InitialBearingDeg({0, 0}, {0, -1}), 270.0, 1e-9), "bati 270 (eksi degil)");
+    CHECK(Near(AngleDifferenceDeg(350.0, 10.0), 20.0, 1e-12) && Near(AngleDifferenceDeg(90.0, 270.0), 180.0, 1e-12),
+          "aci farki 0..180");
+
+    // Havalimani turu ve ad oneki
+    std::string tClean;
+    CHECK(AirportKindFromName("[H] Harborview Medical Center", &tClean) == AirportKind::Heliport &&
+              tClean == "Harborview Medical Center",
+          "heliport: '%s'", tClean.c_str());
+    CHECK(AirportKindFromName("[S] Kenmore Air Harbor", &tClean) == AirportKind::Seaplane, "deniz ussu");
+    CHECK(AirportKindFromName("[X] Eski Alan", &tClean) == AirportKind::Closed && tClean == "Eski Alan", "kapali");
+    CHECK(AirportKindFromName("Esenboga", &tClean) == AirportKind::Land && tClean == "Esenboga", "kara");
+    CHECK(AirportKindFromName("[Q] Garip", &tClean) == AirportKind::Land && tClean == "[Q] Garip",
+          "bilinmeyen onek oldugu gibi kalir");
+
+    // ILS -> pist esigi
+    AirportGeometryStore tStore(std::make_unique<LtacRunwaySource>());
+    LatLon tThreshold = {0.0, 0.0};
+    CHECK(!FindLocalizerThreshold({40.14, 33.01}, 36.0, tStore, &tThreshold), "pist verisi yokken bulunamaz");
+    tStore.StartLoading("");
+    WaitUntilLoaded(tStore);
+    CHECK(tStore.IsReady(), "test deposu hazir");
+
+    const LatLon tEnd03R = {40.1140623, 32.9831635};
+    const LatLon tEnd21L = {40.1413103, 33.0091255};
+    const double tCourse03R = InitialBearingDeg(tEnd03R, tEnd21L);
+
+    // 03R'ye inis: anten 21L ucunun ~300 m otesinde
+    const LatLon tAntenna03R = DestinationPoint(tEnd21L, tCourse03R, 0.16);
+    CHECK(FindLocalizerThreshold(tAntenna03R, tCourse03R, tStore, &tThreshold) &&
+              Near(tThreshold.mLat, tEnd03R.mLat, 1e-9) && Near(tThreshold.mLon, tEnd03R.mLon, 1e-9),
+          "03R ILS esigi 03R ucu");
+
+    // Ters yon: 21L'ye inis, anten 03R'nin otesinde
+    const LatLon tAntenna21L = DestinationPoint(tEnd03R, tCourse03R + 180.0, 0.16);
+    CHECK(FindLocalizerThreshold(tAntenna21L, tCourse03R + 180.0, tStore, &tThreshold) &&
+              Near(tThreshold.mLat, tEnd21L.mLat, 1e-9),
+          "21L ILS esigi 21L ucu");
+
+    // Eksenden 0.5 NM kayik (LDA gibi) ve yonu tutmayan localizer eslesmez
+    const LatLon tOffset = DestinationPoint(tAntenna03R, tCourse03R + 90.0, 0.5);
+    CHECK(!FindLocalizerThreshold(tOffset, tCourse03R, tStore, &tThreshold), "kayik localizer eslesmez");
+    CHECK(!FindLocalizerThreshold(tAntenna03R, tCourse03R + 90.0, tStore, &tThreshold), "yonu tutmayan eslesmez");
 }
 
 void TestMapViewBounds()
@@ -937,6 +1022,7 @@ int main()
     TestAptDatReader();
     TestAirportGeometryStore();
     TestStoreCancel();
-    std::printf("%d test gecti, %d hata\n", gPassCount, gFailCount);
+    TestLocalizerMatch();
+    std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

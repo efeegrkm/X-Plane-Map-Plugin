@@ -2,7 +2,7 @@
 // X-Plane'in cagirdigi 5 giris fonksiyonu + menu, komutlar ve her karede
 // calisan "flight loop".
 //
-// Plugin'in tum parcalari HaritaPlugin sinifinin icinde yasar; X-Plane'in
+// Plugin'in tum parcalari MapPlugin sinifinin icinde yasar; X-Plane'in
 // giris fonksiyonlari sadece bu sinifi olusturup yok eder. XPLM callback'lerine
 // "refcon" olarak nesnenin adresi verilir, boylece global degisken gerekmez
 // (tek istisna: giris fonksiyonlarinin eristigi gPlugin).
@@ -40,7 +40,7 @@ namespace
 {
 
 const char* kVersion = "0.6";
-const char* kSettingsFileName = "harita_ayarlar.ini";
+const char* kSettingsFileName = "map_settings.ini";
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
 // ============================ MOTOR BAGLAMA NOKTASI ============================
@@ -54,7 +54,7 @@ std::unique_ptr<IAirportGeometrySource> CreateAirportGeometrySource()
 }
 // ===============================================================================
 
-class HaritaPlugin
+class MapPlugin
 {
 public:
     void Start();
@@ -100,7 +100,7 @@ private:
     XPLMCommandRef mDiagnosticsCommand = nullptr;
 };
 
-void HaritaPlugin::Start()
+void MapPlugin::Start()
 {
     // Dosya yollarini isletim sisteminin kendi bicimiyle al (C:\...)
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
@@ -108,11 +108,11 @@ void HaritaPlugin::Start()
     const std::string tSettingsPath = FindPluginDirectory() + kSettingsFileName;
     if (mSettings.Load(tSettingsPath))
     {
-        Log("ayarlar okundu: %s", tSettingsPath.c_str());
+        Log("settings loaded: %s", tSettingsPath.c_str());
     }
     else
     {
-        Log("ayar dosyasi yok, varsayilanlar kullanilacak: %s", tSettingsPath.c_str());
+        Log("no settings file yet, using defaults: %s", tSettingsPath.c_str());
     }
 
     mAircraft.Init();
@@ -125,10 +125,10 @@ void HaritaPlugin::Start()
     CreateMenu();
 
     XPLMRegisterFlightLoopCallback(FlightLoopCallback, -1.0f, this);
-    Log("yuklendi (surum %s)", kVersion);
+    Log("loaded (version %s)", kVersion);
 }
 
-void HaritaPlugin::Stop()
+void MapPlugin::Stop()
 {
     XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);
     XPLMUnregisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
@@ -146,53 +146,61 @@ void HaritaPlugin::Stop()
         XPLMDestroyMenu(mMenu);
         mMenu = nullptr;
     }
-    Log("kapandi");
+    Log("stopped");
 }
 
-void HaritaPlugin::CreateLayers()
+void MapPlugin::CreateLayers()
 {
     // Alttan uste cizim sirasi (GOREV.md Bolum 5). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir.
     // Diger katmanlar ilgili asamalarda araya eklenecek: zemin (en alt),
     // hava yollari, FMS, ucus izi (ucaktan once), kullanici cizimleri (en ust).
     mLayers.Add(std::make_unique<GridLayer>());
+    // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
+    mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase, &mAirportGeometry));
     mLayers.Add(std::make_unique<RunwayLayer>(mAirportGeometry));
     mLayers.Add(std::make_unique<AirportLayer>(mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mNavDatabase));
-    mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, mNavDatabase));
     mLayers.Add(std::make_unique<AircraftLayer>(mAircraft));
 }
 
-void HaritaPlugin::CreateCommands()
+void MapPlugin::CreateCommands()
 {
-    // Kullanici bu komutlari Settings -> Keyboard'da "ozdev/harita" ile arayip tusa atayabilir
-    mToggleCommand = XPLMCreateCommand("ozdev/harita/toggle", "Harita: pencereyi ac / kapat");
-    mControlsCommand = XPLMCreateCommand("ozdev/harita/kontroller", "Harita: kontrolleri gizle / goster");
-    mDiagnosticsCommand = XPLMCreateCommand("ozdev/harita/teshis", "Harita: teshis modunu ac / kapat");
+    // Kullanici bu komutlari Settings -> Keyboard'da "ozdev/map" ile arayip tusa atayabilir
+    mToggleCommand = XPLMCreateCommand("ozdev/map/toggle", "Map: show / hide the map window");
+    mControlsCommand = XPLMCreateCommand("ozdev/map/controls", "Map: show / hide the controls");
+    mDiagnosticsCommand = XPLMCreateCommand("ozdev/map/diagnostics", "Map: toggle diagnostics mode");
     XPLMRegisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
     XPLMRegisterCommandHandler(mControlsCommand, CommandCallback, 1, this);
     XPLMRegisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
 }
 
-void HaritaPlugin::CreateMenu()
+void MapPlugin::CreateMenu()
 {
-    // Plugins > Harita Plugin
+    // Plugins > Map Plugin
     XPLMMenuID tPluginsMenu = XPLMFindPluginsMenu();
-    const int tSlot = XPLMAppendMenuItem(tPluginsMenu, "Harita Plugin", nullptr, 0);
-    mMenu = XPLMCreateMenu("Harita Plugin", tPluginsMenu, tSlot, MenuCallback, this);
+    const int tSlot = XPLMAppendMenuItem(tPluginsMenu, "Map Plugin", nullptr, 0);
+    mMenu = XPLMCreateMenu("Map Plugin", tPluginsMenu, tSlot, MenuCallback, this);
 
     // Komuta bagli menu ogeleri: kullanici tus atarsa menude de gorunur
-    XPLMAppendMenuItemWithCommand(mMenu, "Haritayi ac / kapat", mToggleCommand);
-    XPLMAppendMenuItemWithCommand(mMenu, "Kontrolleri gizle / goster", mControlsCommand);
+    XPLMAppendMenuItemWithCommand(mMenu, "Show / hide map", mToggleCommand);
+    XPLMAppendMenuItemWithCommand(mMenu, "Show / hide controls", mControlsCommand);
+
+    // Karsilastirma icin X-Plane'in kendi haritasi (X-Plane'in hazir komutu)
+    XPLMCommandRef tXPlaneMapCommand = XPLMFindCommand("sim/map/show_current");
+    if (tXPlaneMapCommand)
+    {
+        XPLMAppendMenuItemWithCommand(mMenu, "Show / hide X-Plane map (compare)", tXPlaneMapCommand);
+    }
     XPLMAppendMenuSeparator(mMenu);
     mDiagnosticsItem =
-        XPLMAppendMenuItem(mMenu, "Teshis modu", reinterpret_cast<void*>(intptr_t(kMenuDiagnostics)), 0);
+        XPLMAppendMenuItem(mMenu, "Diagnostics mode", reinterpret_cast<void*>(intptr_t(kMenuDiagnostics)), 0);
     XPLMCheckMenuItem(mMenu, mDiagnosticsItem, xplm_Menu_Unchecked);
 }
 
-void HaritaPlugin::ToggleDiagnostics()
+void MapPlugin::ToggleDiagnostics()
 {
     mDiagnostics = !mDiagnostics;
     if (mWindow)
@@ -203,12 +211,12 @@ void HaritaPlugin::ToggleDiagnostics()
     {
         XPLMCheckMenuItem(mMenu, mDiagnosticsItem, mDiagnostics ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     }
-    Log("teshis modu: %s (Log.txt'de TESHIS satirlari)", mDiagnostics ? "acik" : "kapali");
+    Log("diagnostics mode: %s (DIAG lines in Log.txt)", mDiagnostics ? "on" : "off");
 }
 
-std::string HaritaPlugin::FindPluginDirectory()
+std::string MapPlugin::FindPluginDirectory()
 {
-    // .../Resources/plugins/HaritaPlugin/64/win.xpl -> .../Resources/plugins/HaritaPlugin/
+    // .../Resources/plugins/MapPlugin/64/win.xpl -> .../Resources/plugins/MapPlugin/
     char tXplPath[2048] = "";
     XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath, nullptr, nullptr);
     std::string tPath = tXplPath;
@@ -225,23 +233,23 @@ std::string HaritaPlugin::FindPluginDirectory()
 
 // --- Callback'ler ------------------------------------------------------------
 
-void HaritaPlugin::MenuCallback(void* pMenuRef, void* pItemRef)
+void MapPlugin::MenuCallback(void* pMenuRef, void* pItemRef)
 {
-    static_cast<HaritaPlugin*>(pMenuRef)->OnMenu(static_cast<int>(reinterpret_cast<intptr_t>(pItemRef)));
+    static_cast<MapPlugin*>(pMenuRef)->OnMenu(static_cast<int>(reinterpret_cast<intptr_t>(pItemRef)));
 }
 
-int HaritaPlugin::CommandCallback(XPLMCommandRef pCommand, XPLMCommandPhase pPhase, void* pRefcon)
+int MapPlugin::CommandCallback(XPLMCommandRef pCommand, XPLMCommandPhase pPhase, void* pRefcon)
 {
-    return static_cast<HaritaPlugin*>(pRefcon)->OnCommand(pCommand, pPhase);
+    return static_cast<MapPlugin*>(pRefcon)->OnCommand(pCommand, pPhase);
 }
 
-float HaritaPlugin::FlightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
+float MapPlugin::FlightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
                                        void* pRefcon)
 {
-    return static_cast<HaritaPlugin*>(pRefcon)->OnFlightLoop();
+    return static_cast<MapPlugin*>(pRefcon)->OnFlightLoop();
 }
 
-void HaritaPlugin::OnMenu(int pItem)
+void MapPlugin::OnMenu(int pItem)
 {
     if (pItem == kMenuDiagnostics)
     {
@@ -249,7 +257,7 @@ void HaritaPlugin::OnMenu(int pItem)
     }
 }
 
-int HaritaPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
+int MapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
 {
     if (pPhase != xplm_CommandBegin || !mWindow)
     {
@@ -270,7 +278,7 @@ int HaritaPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     return 0;  // komut bizim; baska kimse islemesin
 }
 
-float HaritaPlugin::OnFlightLoop()
+float MapPlugin::OnFlightLoop()
 {
     const float tNow = XPLMGetElapsedTime();
     StepLoading();
@@ -283,7 +291,7 @@ float HaritaPlugin::OnFlightLoop()
     return -1.0f;  // her karede tekrar cagir
 }
 
-void HaritaPlugin::StepLoading()
+void MapPlugin::StepLoading()
 {
     // Pist verisi: ilk flight loop'ta (X-Plane hazir) arka planda okumaya basla
     if (!mAirportLoadStarted)
@@ -291,12 +299,12 @@ void HaritaPlugin::StepLoading()
         mAirportLoadStarted = true;
         char tSystemPath[2048] = "";
         XPLMGetSystemPath(tSystemPath);  // "C:\X-Plane 11\" (sonunda ayirici ile)
-        Log("pist verisi okunuyor (arka planda): %s", mAirportGeometry.SourceName());
+        Log("reading runway data in the background: %s", mAirportGeometry.SourceName());
         mAirportGeometry.StartLoading(tSystemPath);
     }
     if (mAirportGeometry.Poll())
     {
-        Log("pist verisi %s: %d havalimani, %d pist", mAirportGeometry.LastLoadSucceeded() ? "hazir" : "OKUNAMADI",
+        Log("runway data %s: %d airports, %d runways", mAirportGeometry.LastLoadSucceeded() ? "ready" : "FAILED",
             mAirportGeometry.Count(), mAirportGeometry.RunwayCount());
         LogReport(mAirportGeometry.LastReport());
     }
@@ -316,18 +324,18 @@ void HaritaPlugin::StepLoading()
     if (!mNavLoader.IsDone() && mNavLoader.VisitedCount() > 0)
     {
         char tText[64];
-        std::snprintf(tText, sizeof(tText), "Nav verisi yukleniyor: %d", mNavLoader.VisitedCount());
+        std::snprintf(tText, sizeof(tText), "Loading nav data: %d", mNavLoader.VisitedCount());
         tMessage = tText;
     }
     if (mAirportGeometry.IsLoading())
     {
         tMessage += tMessage.empty() ? "" : "   ";
-        tMessage += "Pist verisi okunuyor...";
+        tMessage += "Reading runway data...";
     }
     mWindow->SetStatusMessage(tMessage);
 }
 
-void HaritaPlugin::LogReport(const std::string& pReport)
+void MapPlugin::LogReport(const std::string& pReport)
 {
     // Rapor birden cok satir olabilir: her satiri ayri log satiri yap
     size_t tStart = 0;
@@ -346,7 +354,7 @@ void HaritaPlugin::LogReport(const std::string& pReport)
     }
 }
 
-std::unique_ptr<HaritaPlugin> gPlugin;
+std::unique_ptr<MapPlugin> gPlugin;
 
 }  // namespace
 
@@ -356,11 +364,11 @@ std::unique_ptr<HaritaPlugin> gPlugin;
 
 PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescription)
 {
-    std::strcpy(pOutName, "Harita Plugin");
-    std::strcpy(pOutSignature, "ozdev.harita.plugin");
-    std::strcpy(pOutDescription, "Kendi penceresinde katmanli harita (AR-GE)");
+    std::strcpy(pOutName, "Map Plugin");
+    std::strcpy(pOutSignature, "ozdev.map.plugin");
+    std::strcpy(pOutDescription, "Layered moving map in its own window (R&D)");
 
-    gPlugin = std::make_unique<HaritaPlugin>();
+    gPlugin = std::make_unique<MapPlugin>();
     gPlugin->Start();
     return 1;
 }

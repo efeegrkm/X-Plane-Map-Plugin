@@ -8,7 +8,7 @@
 namespace
 {
 
-const char* kSection = "katmanlar";
+const char* kSection = "layers";
 
 }  // namespace
 

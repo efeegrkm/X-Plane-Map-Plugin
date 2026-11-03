@@ -74,7 +74,7 @@ bool Settings::Save() const
     {
         return false;
     }
-    tFile << "# Harita Plugin ayarlari. X-Plane kapaliyken elle degistirilebilir.\n";
+    tFile << "# Map Plugin settings. Can be edited by hand while X-Plane is closed.\n";
     for (const auto& tSection : mValues)
     {
         tFile << "\n[" << tSection.first << "]\n";
@@ -152,11 +152,11 @@ bool Settings::GetBool(const std::string& pSection, const std::string& pKey, boo
         return pDefault;
     }
     const std::string tValue = GetString(pSection, pKey, "");
-    if (tValue == "1" || tValue == "evet" || tValue == "true")
+    if (tValue == "1" || tValue == "yes" || tValue == "true")
     {
         return true;
     }
-    if (tValue == "0" || tValue == "hayir" || tValue == "false")
+    if (tValue == "0" || tValue == "no" || tValue == "false")
     {
         return false;
     }

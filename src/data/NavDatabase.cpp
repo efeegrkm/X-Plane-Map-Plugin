@@ -50,6 +50,34 @@ bool IsMajorAirportId(const std::string& pId)
     return true;
 }
 
+AirportKind AirportKindFromName(const std::string& pName, std::string* pOutCleanName)
+{
+    AirportKind tKind = AirportKind::Land;
+    if (pName.size() >= 3 && pName[0] == '[' && pName[2] == ']')
+    {
+        switch (pName[1])
+        {
+            case 'H':
+                tKind = AirportKind::Heliport;
+                break;
+            case 'S':
+                tKind = AirportKind::Seaplane;
+                break;
+            case 'X':
+                tKind = AirportKind::Closed;
+                break;
+            default:
+                *pOutCleanName = pName;
+                return AirportKind::Land;  // taninmayan onek: adi oldugu gibi birak
+        }
+        const size_t tStart = pName.find_first_not_of(' ', 3);
+        *pOutCleanName = (tStart == std::string::npos) ? std::string() : pName.substr(tStart);
+        return tKind;
+    }
+    *pOutCleanName = pName;
+    return tKind;
+}
+
 bool IsPlaceholderId(const std::string& pId)
 {
     return pId.find_first_not_of('-') == std::string::npos;  // bos dizgi de buraya duser
