@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_plugin VERSION 0.6 LANGUAGES CXX)
+project(prime_map_plugin VERSION 0.7 LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
 # X-Plane SDK: projenin icinde third_party/XPSDK altinda geliyor
@@ -31,10 +31,12 @@ set(CORE_SOURCES
     src/LayerManager.cpp
     src/LabelPlacer.cpp
     src/GeoGrid.cpp
+    src/BackgroundJob.cpp
     src/data/NavDatabase.cpp
     src/data/AirportGeometry.cpp
     src/data/AirportGeometryStore.cpp
     src/data/LocalizerMatch.cpp
+    src/data/AirwayDatabase.cpp
     src/data/AptDatReader.cpp          # GECICI: ekip apt.dat motoru gelince degisecek
 )
 
@@ -46,12 +48,17 @@ set(PLUGIN_SOURCES
     src/Log.cpp
     src/data/AircraftData.cpp
     src/data/NavLoader.cpp
+    src/gfx/Batch.cpp
     src/layers/MapSymbols.cpp
     src/layers/GridLayer.cpp
     src/layers/RunwayLayer.cpp
+    src/layers/AirwayLayer.cpp
     src/layers/AirportLayer.cpp
     src/layers/NavaidLayer.cpp
+    src/layers/FmsLayer.cpp
+    src/layers/TrackLayer.cpp
     src/layers/AircraftLayer.cpp
+    src/layers/DrawingLayer.cpp
     src/ui/UiDraw.cpp
     src/ui/Toolbar.cpp
     src/ui/LayerPanel.cpp
@@ -140,4 +147,38 @@ if(MAP_TESTS)
     map_compile_options(map_tests)
     enable_testing()
     add_test(NAME map_tests COMMAND map_tests)
+endif()
+
+# ---------------------------------------------------------------------------
+# Onizleme araci (istege bagli, sadece Windows): cmake -DMAP_PREVIEW=ON
+# Katmanlari X-Plane olmadan, gercek X-Plane verisiyle bir resme cizer
+# (tools/preview/PreviewMain.cpp). SDK fonksiyonlarinin karsiliklari
+# XplmStubs.cpp'de; XPLM=1 ile SDK basliklari onlari "bizim" sayar.
+option(MAP_PREVIEW "X-Plane'siz goruntu onizleme aracini derle (Windows)" OFF)
+if(MAP_PREVIEW AND WIN32)
+    add_executable(map_preview
+        tools/preview/PreviewMain.cpp
+        tools/preview/XplmStubs.cpp
+        tools/preview/FileNavLoader.cpp
+        ${CORE_SOURCES}
+        src/Log.cpp
+        src/data/AircraftData.cpp
+        src/gfx/Batch.cpp
+        src/layers/MapSymbols.cpp
+        src/layers/GridLayer.cpp
+        src/layers/RunwayLayer.cpp
+        src/layers/AirwayLayer.cpp
+        src/layers/AirportLayer.cpp
+        src/layers/NavaidLayer.cpp
+        src/layers/AircraftLayer.cpp
+        src/layers/DrawingLayer.cpp
+        src/ui/UiDraw.cpp
+        src/ui/Toolbar.cpp
+        src/ui/StatusBar.cpp)
+    map_compile_options(map_preview)
+    target_include_directories(map_preview PRIVATE ${CMAKE_SOURCE_DIR})
+    target_include_directories(map_preview SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
+    target_compile_definitions(map_preview PRIVATE IBM=1 APL=0 LIN=0 XPLM=1
+                               XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
+    target_link_libraries(map_preview PRIVATE opengl32 gdi32 user32)
 endif()

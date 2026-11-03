@@ -19,6 +19,7 @@
 #include "ScreenMath.h"
 #include "Settings.h"
 #include "data/AirportGeometryStore.h"
+#include "data/AirwayDatabase.h"
 #include "data/AptDatReader.h"
 #include "data/LocalizerMatch.h"
 #include "data/NavDatabase.h"
@@ -891,6 +892,155 @@ void TestAirportGeometryStore()
     CHECK(tResult.size() == 1 && tStore.At(tResult[0]).mIcao == "LTAC", "Ankara sorgusu");
 }
 
+void TestDrawingsFile()
+{
+    Drawings tModel;
+    tModel.SetMode(Drawings::Mode::Point);
+    tModel.AddVertex({41.123456789, 29.987654321});
+    tModel.SetMode(Drawings::Mode::Route);
+    tModel.AddVertex({41.0, 29.0});
+    tModel.AddVertex({40.5, 30.5});
+    tModel.AddVertex({40.0, 32.0});
+    tModel.Finish();
+    tModel.SetMode(Drawings::Mode::Region);
+    tModel.AddVertex({0.0, 0.0});
+    tModel.AddVertex({0.0, 1.0});
+    tModel.AddVertex({1.0, 1.0});
+    tModel.AddVertex({1.0, 0.0});
+    tModel.Finish();
+    tModel.AddVertex({5.0, 5.0});  // yarim kalan bolge: kaydedilmez
+    CHECK(Drawings::LabelOf(tModel.Shapes()[0]) == "P1" && Drawings::LabelOf(tModel.Shapes()[1]) == "R1" &&
+              Drawings::LabelOf(tModel.Shapes()[2]) == "A1",
+          "etiketler P1 R1 A1");
+
+    const std::string tText = tModel.Serialize();
+    Drawings tLoaded;
+    CHECK(tLoaded.Deserialize(tText) == 3, "3 sekil geri okunur");
+    CHECK(!tLoaded.Current(), "yarim cizim kaydedilmez");
+    CHECK(tLoaded.Shapes()[1].mPoints.size() == 3 && Near(tLoaded.Shapes()[1].mPoints[2].mLon, 32.0, 1e-9),
+          "rota koseleri");
+    CHECK(Near(tLoaded.Shapes()[0].mPoints[0].mLat, 41.123456789, 1e-8), "hassasiyet korunur");
+    CHECK(tLoaded.Shapes()[2].mTriangles.size() == 6, "bolge yeniden ucgenlenir");
+
+    // Numaralar devam eder: yeni nokta P2 olmali
+    tLoaded.SetMode(Drawings::Mode::Point);
+    tLoaded.AddVertex({1.0, 1.0});
+    CHECK(tLoaded.Shapes().back().mNumber == 2, "numara kaldigi yerden devam eder");
+
+    CHECK(tLoaded.Deserialize("# yorum\nX 1 2 3\nP 0 1 1\nR 4 1 1\nP 7 41 29\n") == 1 &&
+              tLoaded.Shapes()[0].mNumber == 7,
+          "bozuk satirlar atlanir");
+
+    // Alan: ekvatorda 1x1 derece ~ 60x60 NM; 60 derecede yarisi
+    CHECK(Near(PolygonAreaNm2({{0, 0}, {0, 1}, {1, 1}, {1, 0}}), 3600.0, 1.0), "ekvator alani %.1f",
+          PolygonAreaNm2({{0, 0}, {0, 1}, {1, 1}, {1, 0}}));
+    CHECK(Near(PolygonAreaNm2({{59.5, 0}, {59.5, 1}, {60.5, 1}, {60.5, 0}}), 1800.0, 5.0), "60 derece alani");
+    CHECK(PolygonAreaNm2({{0, 0}, {0, 1}}) == 0.0, "iki nokta alansiz");
+}
+
+void TestAirways()
+{
+    // Gercek earth_awy.dat satiri
+    AirwayLine tLine;
+    CHECK(AirwayDatabase::ParseLine("ABKAL LT 11 ULSAB LT 11 N 1 195 285 G8-L614", &tLine), "satir okunur");
+    CHECK(tLine.mFromId == "ABKAL" && tLine.mFromType == 11 && tLine.mToId == "ULSAB" && tLine.mDirection == 'N' &&
+              tLine.mLevel == 1 && tLine.mBaseFl == 195 && tLine.mTopFl == 285 && tLine.mNames == "G8-L614",
+          "alanlar");
+    CHECK(AirwayDatabase::ParseLine(" ZZV K5  3 SABGE K5 11 F 2  30 179 V214", &tLine) && tLine.mFromType == 3 &&
+              tLine.mDirection == 'F' && tLine.mLevel == 2,
+          "bosluklu satir, VOR ucu, tek yon");
+    CHECK(!AirwayDatabase::ParseLine("99", &tLine) && !AirwayDatabase::ParseLine("I", &tLine) &&
+              !AirwayDatabase::ParseLine("1100 Version - data cycle 1802", &tLine),
+          "baslik ve son satirlar atlanir");
+
+    // Uc nokta cozme: ayni kimlikte iki fix var; diger uca yakin olan secilmeli
+    NavDatabase tNav;
+    tNav.Add(MakeRecord(NavKind::Fix, "ABKAL", 38.0f, 41.5f));
+    tNav.Add(MakeRecord(NavKind::Fix, "ULSAB", 38.5f, 42.0f));
+    tNav.Add(MakeRecord(NavKind::Fix, "ULSAB", -30.0f, 150.0f));  // ayni ad, dunyanin obur ucu
+    tNav.Add(MakeRecord(NavKind::Vor, "ZZV", 40.0f, -82.0f));
+    tNav.Add(MakeRecord(NavKind::Fix, "SABGE", 40.5f, -81.0f));
+    tNav.Build();
+
+    const char* tPath = "map_test_airways.dat";
+    FILE* tFile = std::fopen(tPath, "w");
+    CHECK(tFile != nullptr, "test dosyasi");
+    if (tFile)
+    {
+        std::fputs("I\n1100 Version - test\n\n"
+                   "ABKAL LT 11 ULSAB LT 11 N 1 195 285 G8-L614\n"
+                   " ZZV K5  3 SABGE K5 11 F 2  30 179 V214\n"
+                   "NOSUCH LT 11 ABKAL LT 11 N 1 0 0 X1\n"
+                   "99\n",
+                   tFile);
+        std::fclose(tFile);
+    }
+    AirwayDatabase tAirways;
+    tAirways.StartLoading({"no_such_awy.dat", tPath}, tNav);
+    for (int tTry = 0; tTry < 500 && !tAirways.Poll(); ++tTry)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    std::remove(tPath);
+    CHECK(tAirways.IsReady() && tAirways.Count() == 2, "2 segment cozuldu: %d", tAirways.Count());
+    CHECK(tAirways.LastReport().find("1 unresolved") != std::string::npos, "rapor: '%s'",
+          tAirways.LastReport().c_str());
+    if (tAirways.Count() == 2)
+    {
+        CHECK(Near(tAirways.At(0).mTo.mLat, 38.5, 1e-5) && !tAirways.At(0).mHigh, "yakin ULSAB secildi, alcak");
+        CHECK(tAirways.At(1).mHigh && tAirways.At(1).mDirection == 'F', "yuksek, tek yon");
+    }
+
+    // Sorgu: segmentin ortasindan gecen bir alan (uclar disarida) yine bulur
+    GeoBounds tMiddle;
+    tMiddle.mSouth = 40.1;
+    tMiddle.mNorth = 40.4;
+    tMiddle.mWest = -81.7;
+    tMiddle.mEast = -81.3;
+    std::vector<int> tResult;
+    tAirways.Query(tMiddle, tResult);
+    CHECK(Contains(tResult, 1), "uclari ekran disinda olan segment de bulunur");
+}
+
+void TestLabelPriority()
+{
+    std::string tTrace;
+    class PriorityLayer : public Layer
+    {
+    public:
+        PriorityLayer(const char* pId, int pPriority, std::string* pTrace)
+            : Layer(pId, pId, true)
+            , mPriority(pPriority)
+            , mTrace(pTrace)
+        {
+        }
+        void Draw(const DrawContext& /*pContext*/) override
+        {
+            *mTrace += "D" + Id() + " ";
+        }
+        void DrawLabels(const DrawContext& /*pContext*/) override
+        {
+            *mTrace += "L" + Id() + " ";
+        }
+        int LabelPriority() const override
+        {
+            return mPriority;
+        }
+
+    private:
+        int mPriority;
+        std::string* mTrace;
+    };
+    LayerManager tLayers;
+    tLayers.Add(std::make_unique<PriorityLayer>("awy", 70, &tTrace));
+    tLayers.Add(std::make_unique<PriorityLayer>("apt", 10, &tTrace));
+    tLayers.Add(std::make_unique<PriorityLayer>("fix", 60, &tTrace));
+    DrawContext tContext;
+    tLayers.DrawAll(tContext);
+    CHECK(tTrace == "Dawy Dapt Dfix Lapt Lfix Lawy ", "geometri liste sirasi, yazi oncelik sirasi: '%s'",
+          tTrace.c_str());
+}
+
 void TestStoreCancel()
 {
     // Yukleme bitmeden yok edilen depo takilmadan kapanmali (X-Plane kapanisi)
@@ -1023,6 +1173,9 @@ int main()
     TestAirportGeometryStore();
     TestStoreCancel();
     TestLocalizerMatch();
+    TestDrawingsFile();
+    TestAirways();
+    TestLabelPriority();
     std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

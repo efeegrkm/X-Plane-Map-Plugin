@@ -25,6 +25,10 @@ public:
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
+    int LabelPriority() const override
+    {
+        return 10;  // en onemli etiketler
+    }
 
     enum class Category
     {

@@ -16,10 +16,10 @@ namespace
 
 // Katman turlerinin tablosu (sira NavaidType ile ayni olmali)
 const NavaidLayer::Style kStyles[] = {
-    {"vor", "VOR / DME", true, {NavKind::Vor, NavKind::Dme}, 2, 5.0, 6.5, 8.0, {0.30f, 0.85f, 0.75f, 1.0f}},
-    {"ndb", "NDB", true, {NavKind::Ndb, NavKind::Ndb}, 1, 7.0, 8.0, 9.0, {0.80f, 0.60f, 1.00f, 1.0f}},
-    {"ils", "ILS / LOC", true, {NavKind::Ils, NavKind::Localizer}, 2, 8.5, 10.0, 10.0, {1.00f, 0.62f, 0.30f, 1.0f}},
-    {"fix", "Fixes", false, {NavKind::Fix, NavKind::Fix}, 1, 9.0, 10.0, 99.0, {0.72f, 0.80f, 0.88f, 1.0f}},
+    {"vor", "VOR / DME", true, {NavKind::Vor, NavKind::Dme}, 2, 5.0, 6.5, 8.0, 20, {0.30f, 0.85f, 0.75f, 1.0f}},
+    {"ndb", "NDB", true, {NavKind::Ndb, NavKind::Ndb}, 1, 7.0, 8.0, 9.0, 30, {0.80f, 0.60f, 1.00f, 1.0f}},
+    {"ils", "ILS / LOC", true, {NavKind::Ils, NavKind::Localizer}, 2, 8.5, 10.0, 10.0, 40, {1.00f, 0.62f, 0.30f, 1.0f}},
+    {"fix", "Fixes", false, {NavKind::Fix, NavKind::Fix}, 1, 9.0, 10.0, 99.0, 60, {0.72f, 0.80f, 0.88f, 1.0f}},
 };
 
 const size_t kMaxSymbols = 3000;   // FPS korumasi
@@ -80,6 +80,11 @@ NavaidLayer::NavaidLayer(NavaidType pType, const NavDatabase& pDatabase, const A
     , mDatabase(pDatabase)
     , mRunways(pRunways)
 {
+}
+
+int NavaidLayer::LabelPriority() const
+{
+    return mStyle.mLabelPriority;
 }
 
 const NavaidLayer::Style& NavaidLayer::StyleFor(NavaidType pType)

@@ -14,6 +14,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "XPLMDefs.h"
 #include "XPLMMenus.h"
@@ -21,26 +22,33 @@
 #include "XPLMProcessing.h"
 #include "XPLMUtilities.h"
 
+#include "Drawings.h"
 #include "LayerManager.h"
 #include "Log.h"
 #include "MapWindow.h"
 #include "Settings.h"
 #include "data/AircraftData.h"
+#include "data/AirwayDatabase.h"
 #include "data/AirportGeometryStore.h"
 #include "data/AptDatReader.h"
 #include "data/NavDatabase.h"
 #include "data/NavLoader.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
+#include "layers/AirwayLayer.h"
+#include "layers/DrawingLayer.h"
+#include "layers/FmsLayer.h"
 #include "layers/GridLayer.h"
 #include "layers/NavaidLayer.h"
 #include "layers/RunwayLayer.h"
+#include "layers/TrackLayer.h"
 
 namespace
 {
 
-const char* kVersion = "0.6";
+const char* kVersion = "0.7";
 const char* kSettingsFileName = "map_settings.ini";
+const char* kDrawingsFileName = "map_drawings.txt";
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
 // ============================ MOTOR BAGLAMA NOKTASI ============================
@@ -64,6 +72,7 @@ private:
     enum MenuItem
     {
         kMenuDiagnostics = 1,
+        kMenuClearTrack,
     };
 
     static void MenuCallback(void* pMenuRef, void* pItemRef);
@@ -88,7 +97,11 @@ private:
     NavLoader mNavLoader{mNavDatabase};  // mNavDatabase'den sonra tanimli olmali
     AirportGeometryStore mAirportGeometry{CreateAirportGeometrySource()};
     bool mAirportLoadStarted = false;
+    AirwayDatabase mAirways;  // nav verisi hazir olunca arka planda okunur
+    std::string mXPlaneDirectory;
+    Drawings mDrawings;
     LayerManager mLayers;  // katmanlar yukaridaki verilere bagli: onlardan SONRA tanimli olmali
+    TrackLayer* mTrackLayer = nullptr;  // sahibi mLayers; menuden temizlemek icin
     std::unique_ptr<MapWindow> mWindow;
 
     XPLMMenuID mMenu = nullptr;
@@ -105,7 +118,8 @@ void MapPlugin::Start()
     // Dosya yollarini isletim sisteminin kendi bicimiyle al (C:\...)
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
 
-    const std::string tSettingsPath = FindPluginDirectory() + kSettingsFileName;
+    const std::string tPluginDirectory = FindPluginDirectory();
+    const std::string tSettingsPath = tPluginDirectory + kSettingsFileName;
     if (mSettings.Load(tSettingsPath))
     {
         Log("settings loaded: %s", tSettingsPath.c_str());
@@ -118,7 +132,8 @@ void MapPlugin::Start()
     mAircraft.Init();
     CreateLayers();
 
-    mWindow = std::make_unique<MapWindow>(mLayers, mAircraft, mSettings);
+    mWindow = std::make_unique<MapWindow>(mLayers, mAircraft, mSettings, mDrawings,
+                                          tPluginDirectory + kDrawingsFileName);
     mWindow->Create();
 
     CreateCommands();
@@ -152,18 +167,25 @@ void MapPlugin::Stop()
 void MapPlugin::CreateLayers()
 {
     // Alttan uste cizim sirasi (GOREV.md Bolum 5). Etiketler de bu sirayla
-    // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir.
-    // Diger katmanlar ilgili asamalarda araya eklenecek: zemin (en alt),
-    // hava yollari, FMS, ucus izi (ucaktan once), kullanici cizimleri (en ust).
+    // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
+    // kullanici cizimleri etiketlerinin yerini onceden ayirir).
     mLayers.Add(std::make_unique<GridLayer>());
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase, &mAirportGeometry));
     mLayers.Add(std::make_unique<RunwayLayer>(mAirportGeometry));
+    // Hava yollari navaid sembollerinin altinda (cizgiler sembolleri ortmesin)
+    mLayers.Add(std::make_unique<AirwayLayer>(mAirways, false));
+    mLayers.Add(std::make_unique<AirwayLayer>(mAirways, true));
     mLayers.Add(std::make_unique<AirportLayer>(mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, mNavDatabase));
+    mLayers.Add(std::make_unique<FmsLayer>());
+    std::unique_ptr<TrackLayer> tTrack = std::make_unique<TrackLayer>(mAircraft);
+    mTrackLayer = tTrack.get();
+    mLayers.Add(std::move(tTrack));
     mLayers.Add(std::make_unique<AircraftLayer>(mAircraft));
+    mLayers.Add(std::make_unique<DrawingLayer>(mDrawings));
 }
 
 void MapPlugin::CreateCommands()
@@ -198,6 +220,7 @@ void MapPlugin::CreateMenu()
     mDiagnosticsItem =
         XPLMAppendMenuItem(mMenu, "Diagnostics mode", reinterpret_cast<void*>(intptr_t(kMenuDiagnostics)), 0);
     XPLMCheckMenuItem(mMenu, mDiagnosticsItem, xplm_Menu_Unchecked);
+    XPLMAppendMenuItem(mMenu, "Clear flight track", reinterpret_cast<void*>(intptr_t(kMenuClearTrack)), 0);
 }
 
 void MapPlugin::ToggleDiagnostics()
@@ -255,6 +278,11 @@ void MapPlugin::OnMenu(int pItem)
     {
         ToggleDiagnostics();
     }
+    else if (pItem == kMenuClearTrack && mTrackLayer)
+    {
+        mTrackLayer->Clear();
+        Log("flight track cleared");
+    }
 }
 
 int MapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
@@ -299,8 +327,9 @@ void MapPlugin::StepLoading()
         mAirportLoadStarted = true;
         char tSystemPath[2048] = "";
         XPLMGetSystemPath(tSystemPath);  // "C:\X-Plane 11\" (sonunda ayirici ile)
+        mXPlaneDirectory = tSystemPath;
         Log("reading runway data in the background: %s", mAirportGeometry.SourceName());
-        mAirportGeometry.StartLoading(tSystemPath);
+        mAirportGeometry.StartLoading(mXPlaneDirectory);
     }
     if (mAirportGeometry.Poll())
     {
@@ -312,7 +341,18 @@ void MapPlugin::StepLoading()
     // Nav verisi: ana thread'de, her karede birkac ms
     if (!mNavLoader.IsDone())
     {
-        mNavLoader.Step(kNavLoadBudgetMs);
+        if (mNavLoader.Step(kNavLoadBudgetMs))
+        {
+            // Hava yollarinin uc noktalari nav verisinden bulunur: nav bitince basla.
+            // X-Plane'in kurali: once Custom Data (guncel AIRAC), yoksa varsayilan.
+            mAirways.StartLoading({mXPlaneDirectory + "Custom Data/earth_awy.dat",
+                                   mXPlaneDirectory + "Resources/default data/earth_awy.dat"},
+                                  mNavDatabase);
+        }
+    }
+    if (mAirways.Poll())
+    {
+        Log("airways %s: %s", mAirways.IsReady() ? "ready" : "FAILED", mAirways.LastReport().c_str());
     }
 
     // Alt seritteki durum yazisi
@@ -331,6 +371,11 @@ void MapPlugin::StepLoading()
     {
         tMessage += tMessage.empty() ? "" : "   ";
         tMessage += "Reading runway data...";
+    }
+    if (mAirways.IsLoading())
+    {
+        tMessage += tMessage.empty() ? "" : "   ";
+        tMessage += "Reading airways...";
     }
     mWindow->SetStatusMessage(tMessage);
 }

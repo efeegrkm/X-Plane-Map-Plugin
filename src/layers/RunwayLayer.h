@@ -23,6 +23,10 @@ public:
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
+    int LabelPriority() const override
+    {
+        return 15;
+    }
 
 private:
     // Bir pistin bu karedeki ekran geometrisi (boxel)

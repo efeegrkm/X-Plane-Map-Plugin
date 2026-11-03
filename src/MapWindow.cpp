@@ -3,12 +3,16 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <optional>
+#include <sstream>
 
 #include "XPLMGraphics.h"
 #include "XPLMProcessing.h"
 
+#include "Drawings.h"
 #include "GLInclude.h"
 #include "GlScreen.h"
 #include "LayerManager.h"
@@ -23,14 +27,15 @@ namespace
 const char* kWindowSection = "window";
 const char* kViewSection = "view";
 
-const int kMinWidth = 400;        // pencere en kucuk boyutu (boxel)
+const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
 const int kMaxSize = 8192;
 const double kWheelZoomStep = 0.5;   // tekerlegin her "tik"i bu kadar zoom
 const float kMouseTimeout = 0.25f;   // pop-out'ta imlec bu sureden eski ise pencere disinda say
 const float kDiagnosticsPeriod = 2.0f;
+const int kClickSlop = 4;            // basip birakmada bundan az hareket: tiklama (boxel)
 
-const Rgba kBackground = {0.13f, 0.15f, 0.18f, 1.0f};  // zemin karosu yoksa duz renk
+const Rgba kBackground = {0.13f, 0.15f, 0.18f, 1.0f};  // zemin verisi olmayan yer: duz renk
 
 // Ilk acilista bakilacak yer (ucak henuz yoksa): Turkiye
 const LatLon kDefaultCenter = {39.0, 35.0};
@@ -38,10 +43,13 @@ const double kDefaultZoom = 6.0;
 
 }  // namespace
 
-MapWindow::MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings)
+MapWindow::MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings, Drawings& pDrawings,
+                     const std::string& pDrawingsPath)
     : mLayers(pLayers)
     , mAircraft(pAircraft)
     , mSettings(pSettings)
+    , mDrawings(pDrawings)
+    , mDrawingsPath(pDrawingsPath)
 {
 }
 
@@ -61,6 +69,7 @@ void MapWindow::Create()
         return;
     }
     LoadSettings();
+    LoadDrawings();
 
     XPLMCreateWindow_t tParams;
     std::memset(&tParams, 0, sizeof(tParams));
@@ -158,7 +167,7 @@ void MapWindow::Update(float /*pNow*/)
     const bool tVisible = IsVisible();
     if (mWasVisible && !tVisible)
     {
-        mDragging = false;
+        mPressOnMap = false;
         SaveSettings();
     }
     mWasVisible = tVisible;
@@ -178,13 +187,10 @@ int MapWindow::ClickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouse
     return static_cast<MapWindow*>(pRefcon)->OnClick(pX, pY, pStatus);
 }
 
-int MapWindow::RightClickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouseStatus /*pStatus*/,
+int MapWindow::RightClickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouseStatus pStatus,
                                   void* pRefcon)
 {
-    // Sag tik asama 4'te (rota/bolgeyi bitir) kullanilacak. Simdilik tuket:
-    // tiklamayi alttaki pencereye gecirmek fare takibini bozuyor.
-    static_cast<MapWindow*>(pRefcon)->RememberMouse(pX, pY);
-    return 1;
+    return static_cast<MapWindow*>(pRefcon)->OnRightClick(pX, pY, pStatus);
 }
 
 void MapWindow::KeyCallback(XPLMWindowID /*pWindow*/, char /*pKey*/, XPLMKeyFlags /*pFlags*/,
@@ -236,6 +242,13 @@ void MapWindow::OnDraw()
         mView.SetCenter(mAircraft.State().mPosition);
     }
 
+    // Arac seridinin yuksekligi (bir/iki satir) katmanlarin "bos alanini" belirler
+    const ToolbarState tToolbarState = CurrentToolbarState();
+    if (mShowControls)
+    {
+        mToolbar.Layout(mArea, tToolbarState);
+    }
+
     // boxel -> piksel: glScissor icin gerekli (UI olcek %100 degilse fark eder)
     Affine2D tBoxelToPixel;
     const bool tHasTransform = ReadBoxelToPixel(&tBoxelToPixel);
@@ -249,19 +262,23 @@ void MapWindow::OnDraw()
 
     Ui::FillRect(mArea, kBackground);
 
+    int tMouseX = 0;
+    int tMouseY = 0;
+    const bool tMouseInside = MouseInside(&tMouseX, &tMouseY);
+
     DrawContext tContext;
     tContext.mView = &mView;
     tContext.mArea = ToRectD(mArea);
     tContext.mClearArea = ClearArea();
     tContext.mPixelsPerBoxel = tHasTransform ? PixelsPerBoxel(tBoxelToPixel) : 1.0;
     tContext.mNow = tNow;
+    tContext.mHasCursor = tMouseInside && !IsOverControls(tMouseX, tMouseY);
+    tContext.mCursorX = tMouseX;
+    tContext.mCursorY = tMouseY;
     mLabelPlacer.Reset(tContext.mClearArea);  // etiketler seritlerin altina girmesin
     tContext.mLabels = &mLabelPlacer;
     mLayers.DrawAll(tContext);
 
-    int tMouseX = 0;
-    int tMouseY = 0;
-    const bool tMouseInside = MouseInside(&tMouseX, &tMouseY);
     DrawControls(tMouseX, tMouseY, tMouseInside);
 
     glLineWidth(1.0f);
@@ -287,6 +304,22 @@ std::string MapWindow::PerformanceText() const
     return tText;
 }
 
+std::string MapWindow::HintText() const
+{
+    switch (mDrawings.GetMode())
+    {
+        case Drawings::Mode::Point:
+            return "Click: add point";
+        case Drawings::Mode::Route:
+            return "Click: add vertex   Right click: finish route";
+        case Drawings::Mode::Region:
+            return "Click: add vertex   Right click: close region";
+        case Drawings::Mode::Pan:
+            break;
+    }
+    return "";
+}
+
 void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
 {
     if (!mShowControls)
@@ -302,19 +335,21 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
     }
 
     const ToolbarState tState = CurrentToolbarState();
-    mToolbar.Layout(mArea, tState);
     mLayerPanel.Layout(mToolbar.ButtonRect(ToolbarAction::Layers), mLayers);
 
     // Imlecin altindaki nokta: kontrollerin ustundeyse gosterme
-    const bool tOverControls = mToolbar.Contains(pMouseX, pMouseY) || mStatusBar.Contains(pMouseX, pMouseY);
-    const bool tHasCursor = pMouseInside && !tOverControls;
+    const bool tHasCursor = pMouseInside && !IsOverControls(pMouseX, pMouseY);
     const LatLon tCursor = mView.BoxelToLatLon(pMouseX, pMouseY);
 
-    // Durum yazisi: once yukleme mesaji, yoksa teshis modunda performans
+    // Durum yazisi onceligi: yukleme mesaji > teshis (performans) > cizim ipucu
     std::string tMessage = mStatusMessage;
     if (tMessage.empty() && mDiagnostics)
     {
         tMessage = PerformanceText();
+    }
+    if (tMessage.empty())
+    {
+        tMessage = HintText();
     }
 
     mToolbar.Draw(pMouseX, pMouseY, tState);
@@ -327,7 +362,7 @@ RectD MapWindow::ClearArea() const
     RectD tClear = ToRectD(mArea);
     if (mShowControls)
     {
-        tClear.mTop -= Toolbar::kHeight;
+        tClear.mTop -= mToolbar.Height();
         tClear.mBottom += StatusBar::kHeight;
     }
     return tClear;
@@ -339,7 +374,7 @@ RectI MapWindow::ShowControlsButtonRect() const
     tRect.mLeft = mArea.mLeft + 4;
     tRect.mTop = mArea.mTop - 4;
     tRect.mRight = tRect.mLeft + Ui::ButtonWidth("Controls");
-    tRect.mBottom = tRect.mTop - (Toolbar::kHeight - 8);
+    tRect.mBottom = tRect.mTop - (Toolbar::kRowHeight - 8);
     return tRect;
 }
 
@@ -350,6 +385,9 @@ ToolbarState MapWindow::CurrentToolbarState() const
     tState.mFollowing = mFollowAircraft;
     tState.mHasAircraft = mAircraft.State().mValid;
     tState.mPoppedOut = mWindow && XPLMWindowIsPoppedOut(mWindow);
+    tState.mMode = mDrawings.GetMode();
+    tState.mCanFinish = mDrawings.Current() != nullptr;
+    tState.mCanUndo = tState.mCanFinish || mDrawings.ShapeCount() > 0;
     return tState;
 }
 
@@ -365,6 +403,16 @@ bool MapWindow::MouseInside(int* pX, int* pY) const
     *pX = mMouseX;
     *pY = mMouseY;
     return XPLMGetElapsedTime() - mMouseTime < kMouseTimeout && mArea.Contains(mMouseX, mMouseY);
+}
+
+bool MapWindow::IsOverControls(int pX, int pY) const
+{
+    if (!mShowControls)
+    {
+        return false;
+    }
+    int tLayerIndex = -1;
+    return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, &tLayerIndex);
 }
 
 void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor)
@@ -402,25 +450,25 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
     if (pStatus == xplm_MouseDown)
     {
         XPLMBringWindowToFront(mWindow);
-        if (HandleControlClick(pX, pY))
-        {
-            mDragging = false;
-            return 1;
-        }
-        // Haritaya basildi: surukleme basliyor
-        mDragging = true;
+        mPressOnMap = !HandleControlClick(pX, pY);
+        mPressMoved = false;
+        mPressX = pX;
+        mPressY = pY;
         mDragLastX = pX;
         mDragLastY = pY;
         return 1;
     }
 
-    if (pStatus == xplm_MouseDrag && mDragging)
+    if (pStatus == xplm_MouseDrag && mPressOnMap)
     {
-        const int tDeltaX = pX - mDragLastX;
-        const int tDeltaY = pY - mDragLastY;
-        if (tDeltaX != 0 || tDeltaY != 0)
+        // Kucuk titremeler tiklama sayilsin: esik asilana kadar kaydirma yok
+        if (!mPressMoved && (std::abs(pX - mPressX) > kClickSlop || std::abs(pY - mPressY) > kClickSlop))
         {
-            mView.PanByBoxels(tDeltaX, tDeltaY);
+            mPressMoved = true;
+        }
+        if (mPressMoved && (pX != mDragLastX || pY != mDragLastY))
+        {
+            mView.PanByBoxels(pX - mDragLastX, pY - mDragLastY);
             mFollowAircraft = false;  // elle kaydirinca takip biter
             mDragLastX = pX;
             mDragLastY = pY;
@@ -430,9 +478,38 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
 
     if (pStatus == xplm_MouseUp)
     {
-        mDragging = false;
+        if (mPressOnMap && !mPressMoved)
+        {
+            HandleMapClick(mPressX, mPressY);
+        }
+        mPressOnMap = false;
     }
     return 1;  // tiklamayi her zaman tuket (gecirmek fare takibini bozuyor)
+}
+
+int MapWindow::OnRightClick(int pX, int pY, XPLMMouseStatus pStatus)
+{
+    RememberMouse(pX, pY);
+    // Sag tik: yarim kalan rota/bolgeyi bitir (tiklamayi her durumda tuket)
+    if (pStatus == xplm_MouseDown && !IsOverControls(pX, pY) && mDrawings.Current())
+    {
+        mDrawings.Finish();
+        SaveDrawings();
+    }
+    return 1;
+}
+
+void MapWindow::HandleMapClick(int pX, int pY)
+{
+    if (mDrawings.GetMode() == Drawings::Mode::Pan)
+    {
+        return;
+    }
+    mDrawings.AddVertex(mView.BoxelToLatLon(pX, pY));
+    if (mDrawings.GetMode() == Drawings::Mode::Point)
+    {
+        SaveDrawings();  // nokta hemen bitmis bir sekil
+    }
 }
 
 int MapWindow::OnWheel(int pX, int pY, int pWheel, int pClicks)
@@ -506,6 +583,34 @@ void MapWindow::PerformToolbarAction(ToolbarAction pAction)
         case ToolbarAction::CenterAircraft:
             CenterOnAircraft();
             break;
+        case ToolbarAction::ModePan:
+            mDrawings.SetMode(Drawings::Mode::Pan);
+            SaveDrawings();  // mod degisince yarim cizim bitirilmis olabilir
+            break;
+        case ToolbarAction::ModePoint:
+            mDrawings.SetMode(Drawings::Mode::Point);
+            SaveDrawings();
+            break;
+        case ToolbarAction::ModeRoute:
+            mDrawings.SetMode(Drawings::Mode::Route);
+            SaveDrawings();
+            break;
+        case ToolbarAction::ModeRegion:
+            mDrawings.SetMode(Drawings::Mode::Region);
+            SaveDrawings();
+            break;
+        case ToolbarAction::Finish:
+            mDrawings.Finish();
+            SaveDrawings();
+            break;
+        case ToolbarAction::Undo:
+            mDrawings.Undo();
+            SaveDrawings();
+            break;
+        case ToolbarAction::Clear:
+            mDrawings.Clear();
+            SaveDrawings();
+            break;
         case ToolbarAction::PopOut:
             TogglePopOut();
             break;
@@ -535,7 +640,7 @@ void MapWindow::TogglePopOut()
         XPLMSetWindowPositioningMode(mWindow, xplm_WindowPopOut, -1);
         Log("window popped out into its own OS window");
     }
-    mDragging = false;
+    mPressOnMap = false;
 }
 
 void MapWindow::CenterOnAircraft()
@@ -547,7 +652,7 @@ void MapWindow::CenterOnAircraft()
 }
 
 // ============================================================================
-// Ayarlar
+// Ayarlar ve cizim dosyasi
 // ============================================================================
 
 void MapWindow::LoadSettings()
@@ -603,6 +708,30 @@ void MapWindow::SaveSettings()
     {
         Log("WARNING: could not write the settings file: %s", mSettings.Path().c_str());
     }
+}
+
+void MapWindow::LoadDrawings()
+{
+    std::ifstream tFile(mDrawingsPath);
+    if (!tFile)
+    {
+        return;  // henuz hic cizim kaydedilmemis
+    }
+    std::ostringstream tText;
+    tText << tFile.rdbuf();
+    const int tCount = mDrawings.Deserialize(tText.str());
+    Log("drawings loaded: %d shapes from %s", tCount, mDrawingsPath.c_str());
+}
+
+void MapWindow::SaveDrawings()
+{
+    std::ofstream tFile(mDrawingsPath, std::ios::trunc);
+    if (!tFile)
+    {
+        Log("WARNING: could not write the drawings file: %s", mDrawingsPath.c_str());
+        return;
+    }
+    tFile << mDrawings.Serialize();
 }
 
 RectI MapWindow::DefaultGeometry() const

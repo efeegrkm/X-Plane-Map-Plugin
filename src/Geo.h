@@ -34,6 +34,10 @@ double AngleDifferenceDeg(double pFirst, double pSecond);
 // (pTo'yu EKLEMEZ; bir sonraki segmentin ilk noktasi olarak eklenir).
 void DensifySegment(const LatLon& pFrom, const LatLon& pTo, double pMaxStepNm, std::vector<LatLon>& pOut);
 
+// Poligonun yaklasik alani, deniz mili kare (NM^2). Kucuk alanlar icin
+// (birkac yuz NM'ye kadar) duz kabul edilir: boylam cos(ortalama enlem) ile olceklenir.
+double PolygonAreaNm2(const std::vector<LatLon>& pPolygon);
+
 // Basit bir poligonu (kendini kesmeyen) ucgenlere boler.
 // Sonuc: pOutTriangles icinde 3'erli indeks gruplari (pPolygon'daki sirayla).
 // Basarisizsa (kendini kesen poligon vb.) false doner.

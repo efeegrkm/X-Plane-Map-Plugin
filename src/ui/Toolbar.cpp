@@ -6,55 +6,88 @@
 namespace
 {
 
-const int kMargin = 4;  // serit kenari ile dugme arasi
-const int kGap = 4;     // iki dugme arasi
+const int kMargin = 4;      // serit kenari ile dugme arasi
+const int kGap = 4;         // iki dugme arasi
+const int kGroupGap = 14;   // dugme gruplari arasi
+
+// Dugme gruplari (soldan saga). Cizim araclarinda mod ve islem dugmeleri
+// arasina biraz bosluk konur (ToolbarAction::None = bosluk).
+const std::vector<ToolbarAction> kGeneralGroup = {ToolbarAction::Layers, ToolbarAction::FollowAircraft,
+                                                  ToolbarAction::CenterAircraft};
+const std::vector<ToolbarAction> kDrawingGroup = {
+    ToolbarAction::ModePan, ToolbarAction::ModePoint, ToolbarAction::ModeRoute, ToolbarAction::ModeRegion,
+    ToolbarAction::None,    ToolbarAction::Finish,    ToolbarAction::Undo,      ToolbarAction::Clear};
+const std::vector<ToolbarAction> kWindowGroup = {ToolbarAction::HideControls, ToolbarAction::PopOut};  // sagdan sola
 
 }  // namespace
 
+int Toolbar::RowWidth(const std::vector<ToolbarAction>& pActions, const ToolbarState& pState)
+{
+    int tWidth = 0;
+    for (ToolbarAction tAction : pActions)
+    {
+        tWidth += (tAction == ToolbarAction::None) ? kGroupGap : Ui::ButtonWidth(LabelFor(tAction, pState)) + kGap;
+    }
+    return tWidth;
+}
+
+int Toolbar::PlaceRow(const std::vector<ToolbarAction>& pActions, int pX, int pTop, bool pRightToLeft,
+                      const ToolbarState& pState)
+{
+    int tX = pX;
+    for (ToolbarAction tAction : pActions)
+    {
+        if (tAction == ToolbarAction::None)
+        {
+            tX += pRightToLeft ? -kGroupGap : kGroupGap;
+            continue;
+        }
+        const char* tLabel = LabelFor(tAction, pState);
+        const int tWidth = Ui::ButtonWidth(tLabel);
+        Item tItem;
+        tItem.mAction = tAction;
+        tItem.mLabel = tLabel;
+        tItem.mRect.mTop = pTop - kMargin;
+        tItem.mRect.mBottom = pTop - kRowHeight + kMargin;
+        if (pRightToLeft)
+        {
+            tItem.mRect.mRight = tX;
+            tItem.mRect.mLeft = tX - tWidth;
+            tX = tItem.mRect.mLeft - kGap;
+        }
+        else
+        {
+            tItem.mRect.mLeft = tX;
+            tItem.mRect.mRight = tX + tWidth;
+            tX = tItem.mRect.mRight + kGap;
+        }
+        mItems.push_back(tItem);
+    }
+    return tX;
+}
+
 void Toolbar::Layout(const RectI& pArea, const ToolbarState& pState)
 {
+    mItems.clear();
+    const int tAvailable = pArea.Width() - 2 * kMargin;
+    const int tNeeded = RowWidth(kGeneralGroup, pState) + kGroupGap + RowWidth(kDrawingGroup, pState) + kGroupGap +
+                        RowWidth(kWindowGroup, pState);
+    const bool tTwoRows = tNeeded > tAvailable;
+
     mStrip.mLeft = pArea.mLeft;
     mStrip.mRight = pArea.mRight;
     mStrip.mTop = pArea.mTop;
-    mStrip.mBottom = pArea.mTop - kHeight;
+    mStrip.mBottom = pArea.mTop - (tTwoRows ? 2 * kRowHeight - kMargin : kRowHeight);
 
-    mItems.clear();
-    const int tTop = mStrip.mTop - kMargin;
-    const int tBottom = mStrip.mBottom + kMargin;
-
-    // Soldan saga dizilen dugmeler
-    const ToolbarAction tLeftActions[] = {ToolbarAction::Layers, ToolbarAction::FollowAircraft,
-                                          ToolbarAction::CenterAircraft};
-    int tX = mStrip.mLeft + kMargin;
-    for (ToolbarAction tAction : tLeftActions)
+    const int tGeneralEnd = PlaceRow(kGeneralGroup, mStrip.mLeft + kMargin, mStrip.mTop, false, pState);
+    PlaceRow(kWindowGroup, mStrip.mRight - kMargin, mStrip.mTop, true, pState);
+    if (tTwoRows)
     {
-        const char* tLabel = LabelFor(tAction, pState);
-        Item tItem;
-        tItem.mAction = tAction;
-        tItem.mLabel = tLabel;
-        tItem.mRect.mLeft = tX;
-        tItem.mRect.mRight = tX + Ui::ButtonWidth(tLabel);
-        tItem.mRect.mTop = tTop;
-        tItem.mRect.mBottom = tBottom;
-        mItems.push_back(tItem);
-        tX = tItem.mRect.mRight + kGap;
+        PlaceRow(kDrawingGroup, mStrip.mLeft + kMargin, mStrip.mTop - kRowHeight + kMargin, false, pState);
     }
-
-    // Sagdan sola dizilen dugmeler
-    const ToolbarAction tRightActions[] = {ToolbarAction::HideControls, ToolbarAction::PopOut};
-    tX = mStrip.mRight - kMargin;
-    for (ToolbarAction tAction : tRightActions)
+    else
     {
-        const char* tLabel = LabelFor(tAction, pState);
-        Item tItem;
-        tItem.mAction = tAction;
-        tItem.mLabel = tLabel;
-        tItem.mRect.mRight = tX;
-        tItem.mRect.mLeft = tX - Ui::ButtonWidth(tLabel);
-        tItem.mRect.mTop = tTop;
-        tItem.mRect.mBottom = tBottom;
-        mItems.push_back(tItem);
-        tX = tItem.mRect.mLeft - kGap;
+        PlaceRow(kDrawingGroup, tGeneralEnd + kGroupGap, mStrip.mTop, false, pState);
     }
 }
 
@@ -94,6 +127,11 @@ const RectI& Toolbar::Strip() const
     return mStrip;
 }
 
+int Toolbar::Height() const
+{
+    return mStrip.Height();
+}
+
 RectI Toolbar::ButtonRect(ToolbarAction pAction) const
 {
     for (const Item& tItem : mItems)
@@ -114,6 +152,14 @@ bool Toolbar::IsActive(ToolbarAction pAction, const ToolbarState& pState)
             return pState.mLayersOpen;
         case ToolbarAction::FollowAircraft:
             return pState.mFollowing;
+        case ToolbarAction::ModePan:
+            return pState.mMode == Drawings::Mode::Pan;
+        case ToolbarAction::ModePoint:
+            return pState.mMode == Drawings::Mode::Point;
+        case ToolbarAction::ModeRoute:
+            return pState.mMode == Drawings::Mode::Route;
+        case ToolbarAction::ModeRegion:
+            return pState.mMode == Drawings::Mode::Region;
         default:
             return false;
     }
@@ -126,6 +172,11 @@ bool Toolbar::IsEnabled(ToolbarAction pAction, const ToolbarState& pState)
         case ToolbarAction::FollowAircraft:
         case ToolbarAction::CenterAircraft:
             return pState.mHasAircraft;
+        case ToolbarAction::Finish:
+            return pState.mCanFinish;
+        case ToolbarAction::Undo:
+        case ToolbarAction::Clear:
+            return pState.mCanUndo;
         default:
             return true;
     }
@@ -141,6 +192,20 @@ const char* Toolbar::LabelFor(ToolbarAction pAction, const ToolbarState& pState)
             return "Follow aircraft";
         case ToolbarAction::CenterAircraft:
             return "Center on aircraft";
+        case ToolbarAction::ModePan:
+            return "Pan";
+        case ToolbarAction::ModePoint:
+            return "Point";
+        case ToolbarAction::ModeRoute:
+            return "Route";
+        case ToolbarAction::ModeRegion:
+            return "Region";
+        case ToolbarAction::Finish:
+            return "Finish";
+        case ToolbarAction::Undo:
+            return "Undo";
+        case ToolbarAction::Clear:
+            return "Clear";
         case ToolbarAction::PopOut:
             return pState.mPoppedOut ? "Pop in" : "Pop out";
         case ToolbarAction::HideControls:

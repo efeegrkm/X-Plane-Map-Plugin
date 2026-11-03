@@ -1,6 +1,7 @@
 // LayerManager.cpp
 #include "LayerManager.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "Settings.h"
@@ -49,12 +50,23 @@ void LayerManager::DrawAll(const DrawContext& pContext)
             tLayer->Draw(pContext);
         }
     }
+    // Yazilar etiket onceligi sirasiyla (esit oncelikte liste sirasi korunur)
+    std::vector<Layer*> tByPriority;
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
         if (tLayer->IsVisible())
         {
-            tLayer->DrawLabels(pContext);
+            tByPriority.push_back(tLayer.get());
         }
+    }
+    std::stable_sort(tByPriority.begin(), tByPriority.end(),
+                     [](const Layer* pFirst, const Layer* pSecond)
+                     {
+                         return pFirst->LabelPriority() < pSecond->LabelPriority();
+                     });
+    for (Layer* tLayer : tByPriority)
+    {
+        tLayer->DrawLabels(pContext);
     }
 }
 

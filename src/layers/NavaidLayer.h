@@ -39,6 +39,7 @@ public:
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
+    int LabelPriority() const override;
 
     // Katman turunun tablo bilgisi
     struct Style
@@ -51,6 +52,7 @@ public:
         double mMinZoom;            // bunun altinda hic cizilmez
         double mLabelMinZoom;       // kimlik etiketi
         double mDetailMinZoom;      // frekans / yon
+        int mLabelPriority;         // Layer::LabelPriority (kucuk = once)
         Rgba mColor;
     };
 

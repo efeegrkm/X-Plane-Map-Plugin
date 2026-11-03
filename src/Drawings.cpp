@@ -1,6 +1,9 @@
 // Drawings.cpp
 #include "Drawings.h"
 
+#include <locale>
+#include <sstream>
+
 #include "Log.h"
 
 Drawings::Mode Drawings::GetMode() const
@@ -156,4 +159,101 @@ int Drawings::ShapeCount() const
 int& Drawings::CounterFor(ShapeKind pKind)
 {
     return mCounters[static_cast<int>(pKind)];
+}
+
+std::string Drawings::LabelOf(const Shape& pShape)
+{
+    const char* tPrefix = "P";
+    if (pShape.mKind == ShapeKind::Route)
+    {
+        tPrefix = "R";
+    }
+    else if (pShape.mKind == ShapeKind::Region)
+    {
+        tPrefix = "A";
+    }
+    return tPrefix + std::to_string(pShape.mNumber);
+}
+
+std::string Drawings::Serialize() const
+{
+    std::ostringstream tStream;
+    tStream.imbue(std::locale::classic());  // ondalik ayirici her zaman nokta
+    tStream.precision(12);  // ~0.1 mm: kayit/yukleme koordinati bozmasin
+    tStream << "# Map Plugin drawings: P = point, R = route, A = area (region). <type> <number> <lat> <lon> ...\n";
+    for (const Shape& tShape : mShapes)
+    {
+        tStream << LabelOf(tShape).substr(0, 1) << ' ' << tShape.mNumber;
+        for (const LatLon& tPoint : tShape.mPoints)
+        {
+            tStream << ' ' << tPoint.mLat << ' ' << tPoint.mLon;
+        }
+        tStream << '\n';
+    }
+    return tStream.str();
+}
+
+int Drawings::Deserialize(const std::string& pText)
+{
+    mShapes.clear();
+    mCurrent = Shape();
+    mHasCurrent = false;
+    mCounters[0] = 0;
+    mCounters[1] = 0;
+    mCounters[2] = 0;
+
+    std::istringstream tLines(pText);
+    std::string tLine;
+    while (std::getline(tLines, tLine))
+    {
+        if (tLine.empty() || tLine[0] == '#')
+        {
+            continue;
+        }
+        std::istringstream tStream(tLine);
+        tStream.imbue(std::locale::classic());
+        std::string tType;
+        Shape tShape;
+        if (!(tStream >> tType >> tShape.mNumber) || tShape.mNumber <= 0)
+        {
+            continue;
+        }
+        if (tType == "P")
+        {
+            tShape.mKind = ShapeKind::Point;
+        }
+        else if (tType == "R")
+        {
+            tShape.mKind = ShapeKind::Route;
+        }
+        else if (tType == "A")
+        {
+            tShape.mKind = ShapeKind::Region;
+        }
+        else
+        {
+            continue;
+        }
+        LatLon tPoint;
+        while (tStream >> tPoint.mLat >> tPoint.mLon)
+        {
+            tShape.mPoints.push_back(tPoint);
+        }
+        const size_t tNeeded = tShape.mKind == ShapeKind::Point ? 1 : (tShape.mKind == ShapeKind::Route ? 2 : 3);
+        if (tShape.mPoints.size() < tNeeded)
+        {
+            continue;
+        }
+        if (tShape.mKind == ShapeKind::Region)
+        {
+            TriangulatePolygon(tShape.mPoints, tShape.mTriangles);
+        }
+        int& tCounter = CounterFor(tShape.mKind);
+        if (tShape.mNumber > tCounter)
+        {
+            tCounter = tShape.mNumber;
+        }
+        mShapes.push_back(tShape);
+    }
+    return ShapeCount();
 }

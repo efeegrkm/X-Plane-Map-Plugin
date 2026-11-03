@@ -7,6 +7,7 @@
 // DrawingLayer yapacak (asama 4).
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "Geo.h"
@@ -57,6 +58,17 @@ public:
     const std::vector<Shape>& Shapes() const;  // bitmis sekiller
     const Shape* Current() const;              // yarim kalan cizim (yoksa nullptr)
     int ShapeCount() const;
+
+    // Etiket: "P1", "R2", "A3" (A = area: bolge)
+    static std::string LabelOf(const Shape& pShape);
+
+    // Kayit: bitmis sekiller metin olarak (yarim kalan cizim kaydedilmez).
+    //   P <no> <enlem> <boylam>
+    //   R <no> <enlem> <boylam> <enlem> <boylam> ...
+    //   A <no> <enlem> <boylam> ...
+    std::string Serialize() const;
+    // Onceki her seyi siler; okunamayan satirlari atlar. Okunan sekil sayisini doner.
+    int Deserialize(const std::string& pText);
 
 private:
     int& CounterFor(ShapeKind pKind);

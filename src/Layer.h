@@ -24,6 +24,11 @@ struct DrawContext
     double mPixelsPerBoxel = 1.0;    // UI olcek (%150 ise 1.5)
     float mNow = 0.0f;               // gecen sure, saniye (XPLMGetElapsedTime)
 
+    // Imlec haritanin ustundeyse (kontrollerin ustunde degil) yeri
+    bool mHasCursor = false;
+    double mCursorX = 0.0;           // boxel
+    double mCursorY = 0.0;
+
     // Tum katmanlarin ortak etiket yerlestiricisi (DrawLabels icinde kullanilir).
     // Katmanlar sirayla cizildigi icin alttaki katmanin etiketi onceliklidir.
     LabelPlacer* mLabels = nullptr;
@@ -79,6 +84,13 @@ public:
     // boylece yazilar hicbir cizginin altinda kalmaz.
     virtual void DrawLabels(const DrawContext& /*pContext*/)
     {
+    }
+
+    // Etiket onceligi: kucuk sayi once yer bulur (cizim sirasindan bagimsiz).
+    // Ornek: havalimani adlari hava yolu adlarindan once yerlesir.
+    virtual int LabelPriority() const
+    {
+        return 50;
     }
 
 private:

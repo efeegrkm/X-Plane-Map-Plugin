@@ -23,7 +23,8 @@ public:
 
     void UpdateAll(float pNow);
 
-    // Once gorunen katmanlarin geometrisi, sonra hepsinin yazilari
+    // Once gorunen katmanlarin geometrisi (liste sirasiyla), sonra yazilari
+    // (Layer::LabelPriority sirasiyla)
     void DrawAll(const DrawContext& pContext);
 
     // [layers] bolumu: anahtar = katman kimligi, deger = 1/0

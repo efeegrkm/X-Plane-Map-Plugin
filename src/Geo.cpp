@@ -172,6 +172,32 @@ bool SegmentsIntersect(const Point2& pA, const Point2& pB, const Point2& pC, con
 
 }  // namespace
 
+double PolygonAreaNm2(const std::vector<LatLon>& pPolygon)
+{
+    const size_t tCount = pPolygon.size();
+    if (tCount < 3)
+    {
+        return 0.0;
+    }
+    double tMeanLat = 0.0;
+    for (const LatLon& tVertex : pPolygon)
+    {
+        tMeanLat += tVertex.mLat;
+    }
+    tMeanLat /= static_cast<double>(tCount);
+    const double tLonScale = std::cos(Rad(tMeanLat));
+
+    // Shoelace formulu; 1 derece enlem = 60 NM
+    double tSum = 0.0;
+    for (size_t tIndex = 0; tIndex < tCount; ++tIndex)
+    {
+        const LatLon& tA = pPolygon[tIndex];
+        const LatLon& tB = pPolygon[(tIndex + 1) % tCount];
+        tSum += (tA.mLon * tLonScale) * tB.mLat - (tB.mLon * tLonScale) * tA.mLat;
+    }
+    return std::fabs(tSum) * 0.5 * 60.0 * 60.0;
+}
+
 bool TriangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& pOutTriangles)
 {
     pOutTriangles.clear();

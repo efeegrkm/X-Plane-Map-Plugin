@@ -4,10 +4,11 @@
 //
 // Gorevleri:
 //   - pencereyi olusturmak, gostermek/gizlemek, X-Plane disina almak (pop-out)
-//   - fare: sol surukleme kaydirir, tekerlek imlecin etrafinda zoom yapar
+//   - fare: surukleme kaydirir (her modda), tekerlek imlecin etrafinda zoom;
+//     cizim modlarinda tiklama kose ekler, sag tik rota/bolgeyi bitirir
 //   - her karede cizim sirasi: zemin rengi -> katmanlar -> kontroller
-//   - pencere yeri/boyutu, gorunum (merkez, zoom) ve katmanlarin ayar
-//     dosyasina kaydi
+//   - pencere yeri/boyutu, gorunum ve katmanlarin ayar dosyasina, kullanici
+//     cizimlerinin cizim dosyasina kaydi
 #pragma once
 
 #include <string>
@@ -24,20 +25,23 @@
 #include "ui/Toolbar.h"
 
 class AircraftData;
+class Drawings;
 class LayerManager;
 class Settings;
 
 class MapWindow
 {
 public:
-    MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings);
+    // pDrawingsPath: kullanici cizimlerinin kaydedilecegi dosya
+    MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings, Drawings& pDrawings,
+              const std::string& pDrawingsPath);
     ~MapWindow();
 
     MapWindow(const MapWindow&) = delete;
     MapWindow& operator=(const MapWindow&) = delete;
 
-    // Pencereyi ayar dosyasindaki yer/boyutla olusturur. Son kapanista
-    // acik birakildiysa yine acik baslar.
+    // Pencereyi ayar dosyasindaki yer/boyutla olusturur, cizimleri yukler.
+    // Son kapanista acik birakildiysa yine acik baslar.
     void Create();
     void Destroy();
 
@@ -48,7 +52,7 @@ public:
     void SetDiagnostics(bool pOn);
 
     // Alt seritte gosterilecek kisa durum yazisi (bos = yok).
-    // Ornek: "Nav verisi yukleniyor: 120000"
+    // Ornek: "Loading nav data: 120000"
     void SetStatusMessage(const std::string& pMessage);
 
     // Flight loop'tan her karede: pencerenin X dugmesiyle kapatildigini fark eder
@@ -70,28 +74,36 @@ private:
 
     void OnDraw();
     int OnClick(int pX, int pY, XPLMMouseStatus pStatus);
+    int OnRightClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnWheel(int pX, int pY, int pWheel, int pClicks);
     void RememberMouse(int pX, int pY);
 
     void DrawControls(int pMouseX, int pMouseY, bool pMouseInside);
     bool HandleControlClick(int pX, int pY);  // kontrollere tiklandiysa true
+    void HandleMapClick(int pX, int pY);      // haritaya (surukleme olmadan) tiklandi
     void PerformToolbarAction(ToolbarAction pAction);
     void TogglePopOut();
     void CenterOnAircraft();
     ToolbarState CurrentToolbarState() const;
     RectI ShowControlsButtonRect() const;
     bool MouseInside(int* pX, int* pY) const;
+    bool IsOverControls(int pX, int pY) const;
     RectD ClearArea() const;
+    std::string HintText() const;
     void LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor);
     std::string PerformanceText() const;
 
     void LoadSettings();
+    void LoadDrawings();
+    void SaveDrawings();
     RectI DefaultGeometry() const;
     bool IsGeometryUsable(const RectI& pGeometry) const;
 
     LayerManager& mLayers;
     AircraftData& mAircraft;
     Settings& mSettings;
+    Drawings& mDrawings;
+    std::string mDrawingsPath;
 
     XPLMWindowID mWindow = nullptr;
     MapView mView;
@@ -116,7 +128,12 @@ private:
     bool mDiagnostics = false;
     float mLastDiagnosticsTime = -10.0f;
 
-    bool mDragging = false;
+    // Haritaya basili tutma: bir esikten fazla hareket ederse kaydirma,
+    // etmezse birakinca tiklama sayilir
+    bool mPressOnMap = false;
+    bool mPressMoved = false;
+    int mPressX = 0;
+    int mPressY = 0;
     int mDragLastX = 0;
     int mDragLastY = 0;
 
