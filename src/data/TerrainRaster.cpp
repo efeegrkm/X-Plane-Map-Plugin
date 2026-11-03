@@ -173,7 +173,10 @@ double TerrainRaster::ShadeAt(double pU, double pV) const
     const int tY1 = ClampInt(tY0 + 1, 0, kShadeSize - 1);
     const double tFx = std::min(std::max(tX - tX0, 0.0), 1.0);
     const double tFy = std::min(std::max(tY - tY0, 0.0), 1.0);
-    auto tAt = [&](int pColumn, int pRow) { return mShade[static_cast<size_t>(pRow) * kShadeSize + pColumn]; };
+    auto tAt = [&](int pColumn, int pRow)
+    {
+        return mShade[static_cast<size_t>(pRow) * kShadeSize + pColumn];
+    };
     const double tTop = tAt(tX0, tY0) * (1.0 - tFx) + tAt(tX1, tY0) * tFx;
     const double tBottom = tAt(tX0, tY1) * (1.0 - tFx) + tAt(tX1, tY1) * tFx;
     return (tTop * (1.0 - tFy) + tBottom * tFy) / 255.0;
@@ -337,6 +340,10 @@ bool TerrainRaster::Load(const std::string& pPath, const std::string& pKey)
         return false;
     }
     mShade.resize(tShadeBytes);
-    return tShadeBytes == 0 ||
-           static_cast<bool>(tFile.read(reinterpret_cast<char*>(mShade.data()), static_cast<std::streamsize>(tShadeBytes)));
+    if (tShadeBytes == 0)
+    {
+        return true;  // golgesiz karo (DEM yoktu)
+    }
+    return static_cast<bool>(
+        tFile.read(reinterpret_cast<char*>(mShade.data()), static_cast<std::streamsize>(tShadeBytes)));
 }

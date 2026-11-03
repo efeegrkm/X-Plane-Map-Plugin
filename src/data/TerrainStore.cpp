@@ -95,7 +95,11 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
     mCacheDirectory = pCacheDirectory;
     mPalette = pPalette;
     mStopping = false;
-    mThread = std::thread([this]() { WorkerLoop(); });
+    mThread = std::thread(
+        [this]()
+        {
+            WorkerLoop();
+        });
 }
 
 void TerrainStore::Stop()
@@ -385,8 +389,9 @@ void TerrainStore::WorkerLoop()
     mIndex.Build(mXPlaneDirectory);
     mIndexReady.store(true);
     char tLine[256];
-    std::snprintf(tLine, sizeof(tLine), "terrain index: %d DSF files in %d packs, %d tiles (%.1f s)", mIndex.FileCount(),
-                  mIndex.PackCount(), mIndex.TileCount(), std::chrono::duration<double>(Clock::now() - tStart).count());
+    std::snprintf(tLine, sizeof(tLine), "terrain index: %d DSF files in %d packs, %d tiles (%.1f s)",
+                  mIndex.FileCount(), mIndex.PackCount(), mIndex.TileCount(),
+                  std::chrono::duration<double>(Clock::now() - tStart).count());
     AddLog(tLine);
 
     while (true)
@@ -396,7 +401,10 @@ void TerrainStore::WorkerLoop()
             std::unique_lock<std::mutex> tLock(mMutex);
             mStatus.clear();
             mWake.wait(tLock,
-                       [this]() { return mStopping || (!mRequests.empty() && mResults.size() < kMaxQueuedResults); });
+                       [this]()
+                       {
+                           return mStopping || (!mRequests.empty() && mResults.size() < kMaxQueuedResults);
+                       });
             if (mStopping)
             {
                 return;

@@ -1222,7 +1222,12 @@ void TestDsfReader()
     CHECK(tReader.PoolCount() == 1, "bir havuz");
 
     std::vector<DsfTriangle> tTriangles;
-    CHECK(tReader.ForEachTriangle([&](const DsfTriangle& pTriangle) { tTriangles.push_back(pTriangle); }, &tError),
+    CHECK(tReader.ForEachTriangle(
+              [&](const DsfTriangle& pTriangle)
+              {
+                  tTriangles.push_back(pTriangle);
+              },
+              &tError),
           "komut akisi okunur: %s", tError.c_str());
     CHECK(tTriangles.size() == 5, "5 ucgen (2 su + 2 serit + 1 overlay): %d", static_cast<int>(tTriangles.size()));
     if (tTriangles.size() == 5)
@@ -1245,7 +1250,11 @@ void TestDsfReader()
     Append(tBroken, tBadCommands);
     tBroken.resize(tBroken.size() + 16, 0);
     CHECK(tBrokenReader.Open(tBroken, &tError), "ikinci CMDS");
-    CHECK(!tBrokenReader.ForEachTriangle([](const DsfTriangle&) {}, &tError) &&
+    CHECK(!tBrokenReader.ForEachTriangle(
+              [](const DsfTriangle&)
+              {
+              },
+              &tError) &&
               tError.find("unknown") != std::string::npos,
           "bilinmeyen komut hata verir: %s", tError.c_str());
 

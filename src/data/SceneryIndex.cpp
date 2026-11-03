@@ -59,7 +59,10 @@ bool SceneryIndex::ParseTileName(const std::string& pFileName, int* pOutWest, in
     }
     std::string tExtension = pFileName.substr(7);
     std::transform(tExtension.begin(), tExtension.end(), tExtension.begin(),
-                   [](char pChar) { return static_cast<char>(std::tolower(static_cast<unsigned char>(pChar))); });
+                   [](char pChar)
+                   {
+                       return static_cast<char>(std::tolower(static_cast<unsigned char>(pChar)));
+                   });
     if (tExtension != ".dsf")
     {
         return false;

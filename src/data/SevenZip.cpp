@@ -82,7 +82,12 @@ bool IsArchive(const uint8_t* pData, size_t pSize)
 
 bool ExtractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>* pOut, std::string* pError)
 {
-    std::call_once(gCrcTableOnce, []() { CrcGenerateTable(); });  // SDK: ilk kullanimdan once bir kez
+    // SDK: CRC tablosu ilk kullanimdan once bir kez uretilmeli
+    std::call_once(gCrcTableOnce,
+                   []()
+                   {
+                       CrcGenerateTable();
+                   });
 
     MemoryInStream tMemory;
     tMemory.mInterface.Read = MemoryRead;

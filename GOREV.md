@@ -157,6 +157,11 @@ arasından diğer uca en yakın olanı seç.
 
 ## 7. Zemin: DSF → karo aracı
 
+> **Not (0.8):** Bu bölüm uygulanmadı, yerine DSF okuyucu eklentinin içine
+> yazıldı: zemin her bilgisayarda kurulu sahneyle (özel sahne dahil) kendiliğinden
+> uyumlu kalsın diye (kullanıcı kararı). Ayrıntı: CLAUDE.md "Zemin kararı",
+> README.md "Zemin nasıl çalışıyor". Aşağıdaki metin geçmiş kayıt olarak duruyor.
+
 `tools/dsf2tiles/` altında, plugin'den bağımsız bir **Python** aracı.
 
 Hazırlık:

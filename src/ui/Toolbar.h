@@ -1,7 +1,8 @@
 // Toolbar.h
 // Haritanin ust kenarindaki ince, yari saydam arac seridi.
 //
-//   [Layers] [Follow aircraft] [Center on aircraft]   [Pan][Point][Route][Region] [Finish][Undo][Clear]   [Pop out] [Hide]
+//   [Layers] [Follow aircraft] [Center on aircraft]   [Pan][Point][Route][Region]
+//   [Finish][Undo][Clear]   ...   [Pop out] [Hide]      (genis pencerede hepsi tek satirda)
 //
 // Pencere bu dugmelerin hepsine yetmeyecek kadar darsa serit iki satira
 // cikar: ustte genel dugmeler, altta cizim araclari. Serit sadece cizer ve
