@@ -183,8 +183,12 @@ GeoBounds MapView::BoundsOf(const RectD& pBoxels) const
 
 double MapView::MetersPerBoxel() const
 {
-    const double tLat = Mercator::YToLat(mCenterY) * kPi / 180.0;
-    return std::cos(tLat) * 2.0 * kPi * kEarthRadiusM / WorldSize();
+    return MetersPerBoxelAt(Mercator::YToLat(mCenterY));
+}
+
+double MapView::MetersPerBoxelAt(double pLat) const
+{
+    return std::cos(pLat * kPi / 180.0) * 2.0 * kPi * kEarthRadiusM / WorldSize();
 }
 
 void MapView::ClampCenter()

@@ -21,9 +21,14 @@ public:
     // Kutu bossa yerini ayirir ve true doner; cakisiyorsa false
     bool TryPlace(const RectD& pBox);
 
+    // Kutuyu kontrol etmeden ayirir (sembollerin yeri: etiketler bunlarin
+    // ustune binmesin). Alanin disina tasan kismi kirpilir.
+    void Reserve(const RectD& pBox);
+
     int PlacedCount() const;
 
 private:
+    void Insert(const RectD& pBox);  // kontrolsuz ekleme (kutu alanin icinde olmali)
     void CellRange(const RectD& pBox, int* pColumnFirst, int* pColumnLast, int* pRowFirst, int* pRowLast) const;
 
     RectD mArea;

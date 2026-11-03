@@ -22,9 +22,9 @@ const NavaidLayer::Style kStyles[] = {
 
 const size_t kMaxSymbols = 3000;   // FPS korumasi
 const double kEdgeMargin = 20.0;   // boxel
-const double kFeatherNm = 10.0;    // ILS tuyunun boyu
-const double kFeatherHalfAngle = 2.5;  // derece
-const float kFeatherFillAlpha = 0.30f;
+const double kFeatherNm = 10.0;        // ILS tuyunun boyu
+const double kFeatherHalfAngle = 3.5;  // derece (gercek localizer ~ +-2.5; okunurluk icin biraz genis)
+const float kFeatherFillAlpha = 0.45f;
 
 const float kVorRadius = 6.0f;
 const float kDmeBoxRadius = 8.5f;  // VOR/DME'nin cevresindeki kare (kosegen yaricapi)
@@ -45,12 +45,17 @@ GeoBounds ExpandBounds(const GeoBounds& pBounds, double pMarginNm)
     return tResult;
 }
 
-// nav.dat frekansi: VOR/DME/ILS MHz * 100 (11340 -> "113.40"), NDB kHz
+// nav.dat frekansi: VOR/DME/ILS MHz * 100 (11340 -> "113.40"), NDB kHz.
+// TACAN'da SDK kanal numarasi verir: "CH85".
 void FormatFrequency(NavKind pKind, int pFrequency, char* pOut, size_t pSize)
 {
     if (pKind == NavKind::Ndb)
     {
         std::snprintf(pOut, pSize, "%d", pFrequency);
+    }
+    else if (IsTacanChannel(pFrequency))
+    {
+        std::snprintf(pOut, pSize, "CH%d", pFrequency);
     }
     else
     {
@@ -135,6 +140,10 @@ void NavaidLayer::CollectVisible(const DrawContext& pContext)
             if (!mSymbolPlacer.TryPlace(tBox))
             {
                 continue;
+            }
+            if (pContext.mLabels)
+            {
+                pContext.mLabels->Reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
             }
         }
         mVisible.push_back(tNavaid);
@@ -341,7 +350,8 @@ void NavaidLayer::FormatLabel(const NavRecord& pRecord, bool pDetail, char* pOut
     FormatFrequency(pRecord.mKind, pRecord.mFrequency, tFrequency, sizeof(tFrequency));
     if (mType == NavaidType::Ils)
     {
-        // Pilotlar manyetik yonu kullanir; bilinmiyorsa gercek yon "T" ile
+        // Pilotlar manyetik yonu kullanir. X-Plane 11 SDK'si sadece gercek yonu
+        // verdigi icin cogu zaman "T" (true) ile gosterilir.
         if (pRecord.mCourseMagnetic >= 0)
         {
             std::snprintf(pOut, pSize, "%s %s  %03d", pRecord.mId.c_str(), tFrequency, pRecord.mCourseMagnetic);

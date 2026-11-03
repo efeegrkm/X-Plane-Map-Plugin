@@ -4,6 +4,7 @@
 #include <cmath>
 
 #include "GLInclude.h"
+#include "LabelPlacer.h"
 #include "MapView.h"
 #include "data/AircraftData.h"
 #include "ui/UiDraw.h"
@@ -85,6 +86,18 @@ void AircraftLayer::Draw(const DrawContext& pContext)
     const double tHeadingRad = tState.mHeadingDeg * kPi / 180.0;
     const float tSin = static_cast<float>(std::sin(tHeadingRad));
     const float tCos = static_cast<float>(std::cos(tHeadingRad));
+
+    // Etiketler ucagin ustune yazilmasin
+    if (pContext.mLabels)
+    {
+        const double tHalf = 16.0 * kSymbolScale;
+        RectD tBox;
+        tBox.mLeft = tX - tHalf;
+        tBox.mRight = tX + tHalf;
+        tBox.mBottom = tY - tHalf;
+        tBox.mTop = tY + tHalf;
+        pContext.mLabels->Reserve(tBox);
+    }
 
     Ui::UseFlatState();
 

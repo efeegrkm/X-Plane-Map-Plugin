@@ -79,6 +79,9 @@ public:
     // Mercator'da olcek enleme gore degisir; merkez enlemi kullanilir.
     double MetersPerBoxel() const;
 
+    // pLat enleminde bir boxel kac metre (pist genisligi gibi yerel olculer icin)
+    double MetersPerBoxelAt(double pLat) const;
+
 private:
     void ClampCenter();
 

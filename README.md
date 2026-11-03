@@ -1,4 +1,4 @@
-# Harita Plugin 0.5 — X-Plane 11
+# Harita Plugin 0.6 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita (AR-GE). Dış harita servisi (Kaşif, OSM) yok; tüm veri
@@ -7,9 +7,11 @@ X-Plane'in kendi dosyalarından ve SDK'sından gelir.
 - 0.4 = GÖREV.md aşama 1 + 2: pencere, Web Mercator, kaydırma/zoom, ızgara,
   uçak, katman paneli, ayarların kaydı (X-Plane'de denendi, sorun bildirilmedi).
 - 0.5 = aşama 3: X-Plane'in nav verisinden havalimanı, VOR/DME, NDB, ILS/LOC,
-  fix katmanları ve etiket seyreltme (**X-Plane'de henüz denenmedi**).
+  fix katmanları ve etiket seyreltme (X-Plane'de denendi; ekran görüntüleri).
+- 0.6 = aşama 3 düzeltmeleri + aşama 5'in pist kısmı: apt.dat'tan pistler,
+  ekip motorunun bağlanacağı arayüz (**X-Plane'de henüz denenmedi**).
 
-Pist, hava yolu, çizim, uçuş izi ve zemin katmanları sonraki aşamalarda.
+Hava yolu, çizim, uçuş izi, FMS ve zemin (DSF) katmanları sonraki aşamalarda.
 
 ## Katmanlar
 
@@ -19,10 +21,11 @@ etiketi önceliklidir); çakışan etiket çizilmez, zoom yapınca görünür.
 | Katman | Sembol | Görünür | Etiket | Ayrıntı |
 |---|---|---|---|---|
 | Enlem/boylam ızgarası | ince çizgi | her zoom | kenarlarda | aralık zoom'a göre |
+| Pistler | gerçek ölçekli dikdörtgen (asfalt gri, toprak/çim yeşil, su mavi) | zoom 9 | 11.5: pist numarası | 12: blast pad, 13: eşik + orta hat |
 | Havalimanları | mavi halka (büyük: ortası dolu) | zoom 4 (küçükler 8) | 6 (küçükler 9) | zoom 11: ICAO + ad |
-| VOR / DME | altıgen; VOR/DME: altıgen + kare; DME: kare | 5 | 6.5 | zoom 8: frekans |
+| VOR / DME | altıgen; VOR/DME: altıgen + kare; DME: kare | 5 | 6.5 | zoom 8: frekans (TACAN: CH kanal) |
 | NDB | noktalı çember | 7 | 8 | zoom 9: frekans (kHz) |
-| ILS / LOC | 10 NM'lik "tüy" (yaklaşma yönü) | 8.5 | 10 | frekans + manyetik yön |
+| ILS / LOC | 10 NM'lik "tüy" (yaklaşma yönü) | 8.5 | 10 | frekans + yön (T = gerçek) |
 | Fix'ler (varsayılan kapalı) | küçük üçgen | 9 | 10 | — |
 | Uçak | sarı uçak | her zoom | — | — |
 
@@ -30,6 +33,29 @@ etiketi önceliklidir); çakışan etiket çizilmez, zoom yapınca görünür.
   LT51 hayır). Pist verisi gelince pist uzunluğuna göre iyileşecek.
 - Nav verisi açılıştan sonra birkaç saniyede, karelere bölünerek okunur
   (alt şeritte "Nav verisi yukleniyor").
+- Pist verisi apt.dat'tan arka planda okunur ("Pist verisi okunuyor...").
+  Sıra X-Plane'inkiyle aynı: `scenery_packs.ini`'deki paketler, sonra default
+  apt.dat; aynı ICAO için önce gelen kazanır.
+- Etiketler hiçbir sembolün (havalimanı, navaid, uçak) üstüne yazılmaz.
+
+## apt.dat motorunu bağlama (ekip motoru)
+
+Pist katmanı apt.dat'ı bilmez; sadece `IAirportGeometrySource` arayüzünü
+bilir. Şu an onu **geçici** okuyucu `src/data/AptDatReader.*` uyguluyor.
+Ekip motorunu bağlamak için:
+
+1. `IAirportGeometrySource`'tan türeyen bir adaptör yaz (örnek ad
+   `src/data/TeamAptDatSource.*`). `LoadAll()` içinde motoru çalıştır, sonucu
+   `AirportGeometry` / `Runway` / `RunwayEnd` yapılarına doldur (derece, metre).
+2. `src/Plugin.cpp`'de **MOTOR BAGLAMA NOKTASI** yazan fonksiyondaki tek
+   satırı kendi sınıfınla değiştir.
+3. Yeni `.cpp`'yi (ve motorun kendi dosyalarını) `CMakeLists.txt`'de
+   `PLUGIN_SOURCES`'a ekle.
+
+Kurallar ve veri yapılarının ayrıntısı `src/data/AirportGeometry.h`'nin
+başında. En önemlisi: `LoadAll` arka plan thread'inde çalışır, içinde XPLM
+fonksiyonu (Log dahil) çağrılmaz; log'a yazılacakları `pOutReport`'a ekle.
+`tests/tests.cpp`'deki `FakeAirportSource` en küçük örnek uygulamadır.
 
 Eski XPLMMap prototipi (0.3): `legacy/xplmmap_prototype/` (derlenmiyor).
 
@@ -74,7 +100,20 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[HaritaPlugin]` ile başlayan satırlar.
   haritanın kendi çizim süresi (ms); Log.txt'ye 2 saniyede bir `TESHIS`
   satırı (pencere, UI ölçek, kırpma kutusu, imleç, etiket sayısı, FPS).
 
-## Test listesi (aşama 3) — X-Plane'de denenecek
+## Test listesi (0.6) — X-Plane'de denenecek
+
+| # | Ne yap | Beklenen |
+|---|---|---|
+| 1 | X-Plane'i aç, haritayı aç | Alt şeritte bir süre "Pist verisi okunuyor...". Log'da `pist verisi hazir: ~29900 havalimani` ve dosya başına satırlar |
+| 2 | KSEA, zoom 9 → 14 (tekerlekle yaklaş) | Üç paralel gri pist; 11.5'tan sonra 16L/34R gibi numaralar uçların dışında; 13'ten sonra eşik çizgileri ve kesikli orta hat |
+| 3 | X-Plane'in kendi haritasıyla karşılaştır (KSEA, LTFM, LTAC) | Pistlerin yeri, yönü ve boyu aynı mı |
+| 4 | Çim/toprak pistli küçük bir havalimanı | Yeşil pist |
+| 5 | Zoom 8.5-10, Seattle-Vancouver | Havalimanı/NDB/VOR yazıları artık başka sembollerin üstüne binmiyor; NUW etiketi `CH85` |
+| 6 | ILS tüyleri | Eskisinden geniş ve içi dolu; hayalet (kuzeyi gösteren, "----") tüy yok |
+| 7 | Katmanlar → Pistler'i kapat / aç | Pistler kaybolur / gelir |
+| 8 | Teshis modunu aç, Fix'ler açık, Frankfurt/Londra zoom 9-11 | Alt şeritteki FPS ve "cizim ... ms" değerini not et |
+
+## Test listesi (aşama 3) — denendi
 
 | # | Ne yap | Beklenen |
 |---|---|---|
@@ -88,8 +127,10 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[HaritaPlugin]` ile başlayan satırlar.
 | 8 | Haritayı hızlıca kaydır / zoom yap | Takılma yok mu |
 | 9 | Katmanları kapat, X-Plane'i yeniden aç | Aynı katmanlar kapalı gelir |
 
-Log.txt'deki `nav verisi hazir` ve `ILS ornegi` satırlarını bana gönder (veya
-bana Log.txt'yi okut): ILS yön kodlamasının doğru çözüldüğünü bunlarla doğrulayacağım.
+Sonuç (Log.txt): nav verisi 48 ms'de okundu (272.768 kayıt). SDK ILS yönünü
+zaten çözülmüş **gerçek** yön olarak veriyor (manyetik yok), TACAN frekansını
+kanal numarası olarak veriyor ve "----" kimlikli yer tutucu kayıtlar var; üçü de
+0.6'da ele alındı.
 
 ## Test listesi (aşama 2) — denendi, sorun bildirilmedi
 
@@ -120,6 +161,7 @@ Sorun olursa teşhis modunu açıp aynı şeyi tekrarla ve `TESHIS` satırların
 | `src/MapView.*` | Web Mercator projeksiyonu: merkez, zoom, lat/lon ↔ boxel |
 | `src/Layer.h`, `src/LayerManager.*` | Katman arayüzü, katman listesi, görünürlük kaydı |
 | `src/layers/GridLayer.*` | Enlem/boylam ızgarası |
+| `src/layers/RunwayLayer.*` | Pistler (dikdörtgen, numara, eşik, orta hat) |
 | `src/layers/AirportLayer.*` | Havalimanları (seyreltmeli) |
 | `src/layers/NavaidLayer.*` | VOR/DME, NDB, ILS/LOC, fix (tür parametreli) |
 | `src/layers/MapSymbols.*` | Ortak sembol çizimi, sembol yanına etiket |
@@ -127,6 +169,10 @@ Sorun olursa teşhis modunu açıp aynı şeyi tekrarla ve `TESHIS` satırların
 | `src/data/AircraftData.*` | Uçak konumu/yönü (dataref) |
 | `src/data/NavDatabase.*` | Nav kayıtları + 1°×1° ızgara, DME eşleştirme |
 | `src/data/NavLoader.*` | X-Plane'in nav verisini SDK ile karelere bölerek okur |
+| `src/data/AirportGeometry.*` | Pist veri yapıları + **motor arayüzü** `IAirportGeometrySource` |
+| `src/data/AptDatReader.*` | **GEÇİCİ** apt.dat okuyucu (sadece 1/16/17 ve 100 satırları) |
+| `src/data/AirportGeometryStore.*` | Kaynağı arka planda çalıştırır, sonucu ızgaraya koyar |
+| `src/GeoGrid.*` | 1°×1° coğrafi ızgara (nav ve pist verisi ortak) |
 | `src/LabelPlacer.*` | Etiket/sembol çakışma kontrolü (seyreltme) |
 | `src/ui/Toolbar.*`, `LayerPanel.*`, `StatusBar.*` | Üst şerit, katman paneli, alt şerit |
 | `src/ui/UiDraw.*` | Kutu, yazı, düğme, onay kutusu çizimi |
@@ -142,6 +188,10 @@ Sorun olursa teşhis modunu açıp aynı şeyi tekrarla ve `TESHIS` satırların
 - Ölçek çubuğu merkez enlemine göre; Mercator'da ölçek enlemle değişir.
 - 180. boylam civarı sadece kısmen ele alınıyor (çizgiler en yakın kopyaya göre).
 - Pop-out penceresinde imleç konumu cursor callback'ten okunuyor.
-- ILS tüyü localizer anteninden çizilir (pistin öbür ucu); pist verisi gelince
-  eşik noktasından çizilebilir.
+- ILS tüyü localizer anteninden çizilir (pistin öbür ucu); pist verisiyle
+  eşik noktasından çizilebilir (henüz yapılmadı).
+- ILS yönü gerçek yön (T): X-Plane 11 SDK'sı manyetik yönü vermiyor.
+- Taksi yolu, apron ve bina poligonları yok (geçici okuyucu sadece pistleri
+  okuyor; ekip motoru verebiliyorsa `AirportGeometry`'ye eklenebilir).
+- Zemin (su/kara/arazi) henüz düz renk: DSF karoları aşama 6.
 - VOR'larda manyetik sapma (pusula gülü) çizilmiyor.

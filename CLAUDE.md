@@ -39,18 +39,25 @@ tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku).
   `C:\X-Plane 11\Resources\plugins\HaritaPlugin\64\` altına kopyalar.
   X-Plane açıkken dosya kilitli olur.
 - Ayar dosyası: `...\plugins\HaritaPlugin\harita_ayarlar.ini`.
+- DSF (2026-11-03 kontrol edildi): kurulu sahne SADECE
+  `Global Scenery/X-Plane 11 Demo Areas` (35 karo: Hawaii +20-160 klasörü,
+  Seattle +46..+48 / -121..-124, Juneau +57..+59 / -133..-137). Türkiye
+  (+41+029) YOK. DSF'ler 7z sıkıştırılmış (imza `7z\xBC\xAF\x27\x1C`).
+  Aşama 6'ya başlamadan kullanıcıya sor: Türkiye sahnesi kurulacak mı, yoksa
+  Seattle demo bölgesiyle mi ilerlenecek.
 - Dokunma: `_qt_template_yedek/`, `_to_delete/`, `build/`, `.qtcreator/`.
 
 ## apt.dat kararı (kullanıcı, 2026-11-03)
 - Ekibin apt.dat motoru iş bilgisayarında; güvenlik nedeniyle bize **hiçbir
   zaman** gelmeyecek. Kullanıcı işyerinde, izin verilen yerel bir AI ile
   bizim okuyucumuzun yerine ekip motorunu kendisi bağlayacak.
-- Bizim görevimiz (aşama 5): `IAirportGeometrySource` gibi dar bir arayüz +
-  bunu uygulayan GEÇİCİ okuyucu (`AptDatReader`, X-Plane 11 apt.dat spec'ine
-  göre). Değişim tek yerden olsun: arayüz, veri yapıları ve "motoru buraya
-  bağla" noktası açık ve belgelenmiş; katmanlar sadece arayüzü bilsin.
+- Yapıldı (0.6): arayüz `data/AirportGeometry.h` (`IAirportGeometrySource`,
+  başında bağlama talimatı), geçici `data/AptDatReader` (sadece 1/16/17 ve
+  100 satırları), bağlama noktası `Plugin.cpp` `CreateAirportGeometrySource()`.
+  Katmanlar sadece `AirportGeometryStore`'u bilir. Arayüzü değiştirirsen
+  talimatı ve `FakeAirportSource` testini de güncelle.
 
-## Mimari (sürüm 0.5)
+## Mimari (sürüm 0.6)
 - `legacy/xplmmap_prototype/`: eski XPLMMap prototipi (0.3), derlenmiyor.
 - `src/Plugin.cpp`: giriş noktaları, menü, komutlar (`ozdev/harita/toggle`,
   `kontroller`, `teshis`), flight loop. Katman sırası `CreateLayers()`'ta.
@@ -60,18 +67,24 @@ tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku).
   Scissor için boxel->piksel her çizimde GL matrisinden okunur (`GlScreen`).
 - `MapView`: Web Mercator, merkez Mercator biriminde (0..1), sürekli zoom.
 - `Layer` arayüzü + `LayerManager` (görünürlük `[katmanlar]` bölümüne kaydedilir).
-- `layers/`: `GridLayer`, `AirportLayer`, `NavaidLayer` (Vor/Ndb/Ils/Fix,
-  stil tablosu `kStyles`), `AircraftLayer`, ortak `MapSymbols`.
+- `layers/`: `GridLayer`, `RunwayLayer`, `AirportLayer`, `NavaidLayer`
+  (Vor/Ndb/Ils/Fix, stil tablosu `kStyles`), `AircraftLayer`, ortak `MapSymbols`.
   `ui/`: `Toolbar`, `LayerPanel`, `StatusBar`, `UiDraw`.
+- `GeoGrid`: 1x1 derece CSR ızgara (nav ve pist verisi ortak kullanır).
 - `data/AircraftData`: uçak dataref'leri. `data/NavDatabase`: kayıtlar +
-  1x1 derece ızgara (CSR: mCellStart/mItems), DME eşleştirme.
-  `data/NavLoader`: XPLMNavigation'ı flight loop'ta 4 ms'lik adımlarla gezer.
+  tür başına `GeoGrid`, DME eşleştirme. `data/NavLoader`: XPLMNavigation'ı
+  flight loop'ta 4 ms'lik adımlarla gezer (gerçekte 48 ms'de bitiyor).
+- `data/AirportGeometryStore`: kaynağı `std::thread`'de çalıştırır, `Poll()`
+  ile ana thread'e alır; arka plan thread'inde XPLM/Log YOK (rapor metni döner).
 - `LabelPlacer`: etiket seyreltme; `DrawContext::mLabels` ortak, katman
-  sırası = etiket önceliği. Katmanlar `Draw`'da görünen listeyi toplar,
-  `DrawLabels` aynı listeyi kullanır.
+  sırası = etiket önceliği. Katmanlar `Draw`'da sembol kutularını `Reserve`
+  eder (etiketler sembolleri örtmez), `DrawLabels` aynı listeyi kullanır.
 - X-Plane'siz çekirdek (testlere girer): `Geo`, `Drawings`, `ScreenMath`,
   `MapView`, `MapFormat`, `Settings`, `LayerManager`, `LabelPlacer`,
-  `NavDatabase`.
+  `GeoGrid`, `NavDatabase`, `AirportGeometry*`, `AptDatReader`.
+- SDK gerçekleri (X-Plane 11.55'te görüldü): ILS yönü çözülmüş GERÇEK yön
+  (manyetik yok); TACAN frekansı kanal numarası (NUW = 85); "----" kimlikli
+  yer tutucu ILS kayıtları var (filtreleniyor).
 - UI görünümü (koyu, yarı saydam şeritler, `Ui::k...` renkleri) kullanıcı
   tarafından beğenildi; yeni arayüz parçaları aynı paletle yapılmalı.
 
@@ -84,15 +97,20 @@ tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku).
 - 0.4 (aşama 1+2): kullanıcı X-Plane'de denedi, beğendi; log'da katman
   aç/kapa ve pop-out var, hata yok. Pop-out'ta imleç/scissor ayrıca
   doğrulanmadı.
-- 0.5 (aşama 3): nav katmanları yazıldı. /W4 uyarısız, 166 test geçiyor,
-  X-Plane'e kuruldu. **X-Plane'de henüz denenmedi.** Gerçek veriyle ölçüm:
-  255 bin kayıt, `Build` 10 ms; zoom 9'da en yoğun fix sorgusu ~1900 kayıt.
-- Doğrulanacak: SDK'nın ILS yönünü ham mı (manyetik*360+gerçek) yoksa
-  çözülmüş mü verdiği (Log'daki `ILS ornegi` satırları); fix açıkken FPS.
+- 0.5 (aşama 3): X-Plane'de denendi (ekran görüntüleri): semboller doğru
+  yerde, ILS yönleri pistlerle uyumlu. Görülen kusurlar 0.6'da düzeltildi
+  (etiket-sembol çakışması, TACAN "0.85", ince tüy, "----" kayıtları).
+  FPS ölçümü henüz yapılmadı.
+- 0.6: aşama 3 düzeltmeleri + pistler (aşama 5a, kullanıcının önceliği
+  "havalimanı poligonu" olduğu için aşama 4'ten önce). /W4 uyarısız, 198 test,
+  X-Plane'e kuruldu. Geçici okuyucu gerçek veride: 29.895 havalimanı, 0.4 sn
+  (sıcak önbellek). **X-Plane'de henüz denenmedi.**
 
 ## Sıradaki
-1. [ ] Kullanıcı README'deki aşama 3 test listesini uygulasın, Log'u oku
+1. [ ] Kullanıcı README'deki 0.6 test listesini uygulasın, Log'u oku
 2. [ ] Aşama 4: kullanıcı çizimleri (Drawings + DrawingLayer, araç
        şeridine Gezin/Nokta/Rota/Bolge/Bitir/Geri al/Temizle), uçuş izi, FMS
-3. [ ] Aşama 5: pistler (arayüz + geçici apt.dat okuyucu, yukarıdaki karar),
-       earth_awy.dat hava yolları (önce dosyanın gerçek satırlarına bak)
+3. [ ] Aşama 5b: earth_awy.dat hava yolları (önce dosyanın gerçek satırlarına bak)
+4. [ ] Aşama 6: DSF -> karo aracı (zemin)
+5. [ ] Fikir: pist verisi varken ILS tüyünü eşikten çizmek; havalimanı
+       önemini pist uzunluğuyla belirlemek; taksi yolları (ekip motoru verirse)

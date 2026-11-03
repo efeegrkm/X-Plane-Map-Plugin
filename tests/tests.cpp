@@ -18,7 +18,12 @@
 #include "MapView.h"
 #include "ScreenMath.h"
 #include "Settings.h"
+#include "data/AirportGeometryStore.h"
+#include "data/AptDatReader.h"
 #include "data/NavDatabase.h"
+
+#include <chrono>
+#include <thread>
 
 // Log.cpp (XPLMDebugString kullanir) yerine bos bir taklit
 void Log(const char* /*pFormat*/, ...)
@@ -588,6 +593,10 @@ void TestNavDatabase()
     DecodeLocalizerCourse(36.5, &tTrue, &tMagnetic);
     CHECK(Near(tTrue, 36.5, 1e-6) && tMagnetic == -1, "kodsuz yon");
 
+    CHECK(IsPlaceholderId("----") && IsPlaceholderId("") && !IsPlaceholderId("IANC") && !IsPlaceholderId("A-1"),
+          "yer tutucu kimlik");
+    CHECK(IsTacanChannel(85) && !IsTacanChannel(11380) && !IsTacanChannel(0), "TACAN kanali");
+
     CHECK(IsMajorAirportId("LTFM") && IsMajorAirportId("KSEA"), "ICAO kodu buyuk");
     CHECK(!IsMajorAirportId("LT51") && !IsMajorAirportId("K1A2") && !IsMajorAirportId("XPA0001") &&
               !IsMajorAirportId("ABC"),
@@ -707,6 +716,185 @@ void TestLabelPlacer()
         }
     }
     CHECK(tPlaced == 400, "400 ayrik etiket: %d", tPlaced);
+
+    // Reserve: sembol yeri kontrolsuz ayrilir, etiketler ustune binemez
+    tPlacer.Reset(Box(0, 0, 500, 300));
+    tPlacer.Reserve(Box(100, 100, 120, 120));
+    tPlacer.Reserve(Box(110, 110, 130, 130));  // cakissa da ayrilir
+    CHECK(tPlacer.PlacedCount() == 2, "iki sembol ayrildi");
+    CHECK(!tPlacer.TryPlace(Box(115, 90, 160, 102)), "etiket sembolun ustune binmez");
+    CHECK(tPlacer.TryPlace(Box(131, 110, 170, 122)), "sembolun yanina etiket konur");
+    tPlacer.Reserve(Box(-50, -50, 10, 10));  // alan disina tasan kismi kirpilir
+    CHECK(!tPlacer.TryPlace(Box(0, 0, 8, 8)), "kirpilmis sembol de korunur");
+    tPlacer.Reserve(Box(600, 600, 700, 700));  // tamamen disarida: yok sayilir
+    CHECK(tPlacer.PlacedCount() == 4, "disaridaki sembol eklenmez: %d", tPlacer.PlacedCount());
+}
+
+// ---------------------------------------------------------------------------
+
+void FeedLines(AptDatParser& pParser, const char* pText)
+{
+    const char* tLineStart = pText;
+    for (const char* tCursor = pText;; ++tCursor)
+    {
+        if (*tCursor == '\n' || *tCursor == '\0')
+        {
+            pParser.ParseLine(tLineStart, static_cast<size_t>(tCursor - tLineStart));
+            if (*tCursor == '\0')
+            {
+                break;
+            }
+            tLineStart = tCursor + 1;
+        }
+    }
+    pParser.Finish();
+}
+
+void TestAptDatReader()
+{
+    // Gercek apt.dat satiri (Global Airports, LTAC)
+    const char* tLtacRunway = "100 59.00 1 0 0.25 1 2 0 03R 40.1140623 32.9831635 0 65 3 2 1 0 "
+                              "21L 40.1413103 33.0091255 0 60 3 2 1 0";
+    Runway tRunway;
+    CHECK(AptDatParser::ParseRunway(tLtacRunway, std::strlen(tLtacRunway), &tRunway), "pist satiri okunmali");
+    CHECK(Near(tRunway.mWidthM, 59.0, 1e-9) && tRunway.mSurface == RunwaySurface::Paved, "genislik ve yuzey");
+    CHECK(tRunway.mEnds[0].mName == "03R" && tRunway.mEnds[1].mName == "21L", "pist numaralari");
+    CHECK(Near(tRunway.mEnds[0].mPosition.mLat, 40.1140623, 1e-9) &&
+              Near(tRunway.mEnds[1].mPosition.mLon, 33.0091255, 1e-9),
+          "pist uclari");
+    CHECK(Near(tRunway.mEnds[0].mOverrunM, 65.0, 1e-9) && Near(tRunway.mEnds[1].mOverrunM, 60.0, 1e-9),
+          "overrun");
+    const double tLength = DistanceNm(tRunway.mEnds[0].mPosition, tRunway.mEnds[1].mPosition) * 1852.0;
+    CHECK(tLength > 3700 && tLength < 3800, "LTAC 03R/21L boyu %.0f m (gercek 3750 m)", tLength);
+
+    const char* tGrass = "100 30 3 0 0.25 0 0 0 09 41.0 29.0 150.5 0 1 0 0 0 27 41.0 29.02 0 0 1 0 0 0\r";
+    CHECK(AptDatParser::ParseRunway(tGrass, std::strlen(tGrass), &tRunway) &&
+              tRunway.mSurface == RunwaySurface::Unpaved && Near(tRunway.mEnds[0].mDisplacedThresholdM, 150.5, 1e-9),
+          "cim pist, kayik esik, CRLF");
+    const char* tBroken = "100 30 3 0 0.25 0 0 0 09 41.0";
+    CHECK(!AptDatParser::ParseRunway(tBroken, std::strlen(tBroken), &tRunway), "eksik satir reddedilir");
+
+    std::string tIcao;
+    std::string tName;
+    const char* tHeader = "1   3125 0 0 LTAC Esenboga Intl \r";
+    CHECK(AptDatParser::ParseAirportHeader(tHeader, std::strlen(tHeader), &tIcao, &tName) && tIcao == "LTAC" &&
+              tName == "Esenboga Intl",
+          "baslik: '%s' '%s'", tIcao.c_str(), tName.c_str());
+    const char* tNegative = "1 -12 0 0 EHAM Schiphol";
+    CHECK(AptDatParser::ParseAirportHeader(tNegative, std::strlen(tNegative), &tIcao, &tName) && tIcao == "EHAM",
+          "deniz seviyesi alti rakim");
+
+    // Iki "dosya": once gelen kazanir, pistsizler (heliport) alinmaz
+    std::unordered_set<std::string> tSeen;
+    std::vector<AirportGeometry> tAirports;
+    {
+        AptDatParser tFirst(tSeen, tAirports);
+        FeedLines(tFirst, "I\n1130 Version\n\n"
+                          "1 3125 0 0 LTAC Esenboga\n"
+                          "1302 city Ankara\n"
+                          "100 59.00 1 0 0.25 1 2 0 03R 40.11 32.98 0 65 3 2 1 0 21L 40.14 33.00 0 60 3 2 1 0\n"
+                          "110 1 0.25 0.00 Taxiway\n"
+                          "111 40.12 32.99\n"
+                          "17 2000 0 0 XHEL Heliport\n"
+                          "102 H1 40.0 33.0 0 10 10 1 0 0 0.25 0\n"
+                          "99\n");
+        CHECK(tFirst.RunwayCount() == 1, "ilk dosya 1 pist");
+    }
+    {
+        AptDatParser tSecond(tSeen, tAirports);
+        FeedLines(tSecond, "1 3125 0 0 LTAC Eski Kayit\n"
+                           "100 45 1 0 0.25 0 0 0 03 40.0 32.0 0 0 0 0 0 0 21 40.1 32.1 0 0 0 0 0 0\n"
+                           "1 100 0 0 LTFM Istanbul\n"
+                           "100 60 2 0 0.25 0 0 0 16L 41.30 28.72 0 0 0 0 0 0 34R 41.25 28.73 0 0 0 0 0 0\n"
+                           "100 60 2 0 0.25 0 0 0 16R 41.30 28.74 0 0 0 0 0 0 34L 41.25 28.75 0 0 0 0 0 0");
+    }
+    CHECK(tAirports.size() == 2, "iki havalimani (heliport yok, eski LTAC atlandi): %d",
+          static_cast<int>(tAirports.size()));
+    CHECK(tAirports.size() == 2 && tAirports[0].mIcao == "LTAC" && tAirports[0].mName == "Esenboga" &&
+              tAirports[0].mRunways.size() == 1 && tAirports[1].mIcao == "LTFM" &&
+              tAirports[1].mRunways.size() == 2,
+          "ilk gelen kazanir, son satirda 99 olmasa da havalimani kapanir");
+
+    // scenery_packs.ini sirasi
+    const std::string tIni = "I\r\n1000 Version\r\nSCENERY\r\n\r\n"
+                             "SCENERY_PACK Custom Scenery/LTFM Istanbul/\r\n"
+                             "SCENERY_PACK_DISABLED Custom Scenery/Kapali Paket/\r\n"
+                             "SCENERY_PACK *GLOBAL_AIRPORTS*\r\n"
+                             "SCENERY_PACK D:/Manzara/Ortho\r\n";
+    const std::vector<std::string> tFiles = AptDatReader::AptFilesFromSceneryPacks(tIni, "C:\\X-Plane 11\\");
+    CHECK(tFiles.size() == 3, "3 etkin paket: %d", static_cast<int>(tFiles.size()));
+    CHECK(tFiles.size() == 3 && tFiles[0] == "C:\\X-Plane 11\\Custom Scenery/LTFM Istanbul/Earth nav data/apt.dat" &&
+              tFiles[1] == "C:\\X-Plane 11\\Custom Scenery/Global Airports/Earth nav data/apt.dat" &&
+              tFiles[2] == "D:/Manzara/Ortho/Earth nav data/apt.dat",
+          "paket yollari (goreceli, *GLOBAL_AIRPORTS*, mutlak)");
+}
+
+// Motor baglama senaryosu: arayuzu uygulayan sahte kaynak
+class FakeAirportSource : public IAirportGeometrySource
+{
+public:
+    const char* Name() const override
+    {
+        return "sahte kaynak";
+    }
+
+    bool LoadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& /*pCancel*/,
+                 std::vector<AirportGeometry>& pOutAirports, std::string& pOutReport) override
+    {
+        AirportGeometry tAirport;
+        tAirport.mIcao = "LTAC";
+        Runway tRunway;
+        tRunway.mWidthM = 60.0;
+        tRunway.mEnds[0].mPosition = {40.11, 32.98};
+        tRunway.mEnds[1].mPosition = {40.14, 33.01};
+        tAirport.mRunways.push_back(tRunway);
+        pOutAirports.push_back(tAirport);
+        tAirport.mIcao = "KSEA";
+        tAirport.mRunways[0].mEnds[0].mPosition = {47.46, -122.31};
+        tAirport.mRunways[0].mEnds[1].mPosition = {47.43, -122.31};
+        pOutAirports.push_back(tAirport);
+        pOutReport = "klasor: " + pXPlaneDirectory;
+        return true;
+    }
+};
+
+void TestAirportGeometryStore()
+{
+    AirportGeometryStore tStore(std::make_unique<FakeAirportSource>());
+    CHECK(!tStore.IsReady() && !tStore.IsLoading(), "baslangicta bos");
+    tStore.StartLoading("C:\\X-Plane 11\\");
+    CHECK(tStore.IsLoading(), "yukleniyor");
+
+    bool tDone = false;
+    for (int tTry = 0; tTry < 500 && !tDone; ++tTry)
+    {
+        tDone = tStore.Poll();
+        if (!tDone)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+    }
+    CHECK(tDone && tStore.IsReady() && !tStore.IsLoading() && tStore.LastLoadSucceeded(), "yukleme bitti");
+    CHECK(!tStore.Poll(), "Poll bitisi bir kez bildirir");
+    CHECK(tStore.Count() == 2 && tStore.RunwayCount() == 2, "2 havalimani, 2 pist");
+    CHECK(tStore.LastReport() == "klasor: C:\\X-Plane 11\\", "rapor ana thread'e gelir");
+    CHECK(tStore.Find("KSEA") && tStore.Find("KSEA")->mIcao == "KSEA" && !tStore.Find("YOK1"), "ICAO ile bulma");
+
+    GeoBounds tAnkara;
+    tAnkara.mSouth = 39.5;
+    tAnkara.mNorth = 40.5;
+    tAnkara.mWest = 32.5;
+    tAnkara.mEast = 33.5;
+    std::vector<int> tResult;
+    tStore.Query(tAnkara, tResult);
+    CHECK(tResult.size() == 1 && tStore.At(tResult[0]).mIcao == "LTAC", "Ankara sorgusu");
+}
+
+void TestStoreCancel()
+{
+    // Yukleme bitmeden yok edilen depo takilmadan kapanmali (X-Plane kapanisi)
+    AirportGeometryStore tStore(std::make_unique<AptDatReader>());
+    tStore.StartLoading("Z:\\boyle_bir_klasor_yok\\");
 }
 
 void TestMapViewBounds()
@@ -725,6 +913,10 @@ void TestMapViewBounds()
     const LatLon tCorner = tView.BoxelToLatLon(tView.Viewport().mLeft, tView.Viewport().mTop);
     CHECK(Near(tVisible.mWest, tCorner.mLon, 1e-9) && Near(tVisible.mNorth, tCorner.mLat, 1e-9),
           "sinir kosesi BoxelToLatLon ile ayni");
+
+    CHECK(Near(tView.MetersPerBoxelAt(tView.Center().mLat), tView.MetersPerBoxel(), 1e-9),
+          "merkezde iki olcek ayni");
+    CHECK(tView.MetersPerBoxelAt(60.0) < tView.MetersPerBoxelAt(0.0), "kuzeyde boxel daha az metre");
 }
 
 }  // namespace
@@ -742,6 +934,9 @@ int main()
     TestNavDatabase();
     TestLabelPlacer();
     TestMapViewBounds();
+    TestAptDatReader();
+    TestAirportGeometryStore();
+    TestStoreCancel();
     std::printf("%d test gecti, %d hata\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

@@ -132,6 +132,10 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
     {
         return;
     }
+    if (IsPlaceholderId(tId))
+    {
+        return;  // "----": X-Plane'in yer tutucu kaydi (konum/yon bilgisi yok)
+    }
     tRecord.mLat = tLat;
     tRecord.mLon = tLon;
     tRecord.mFrequency = tFrequency;
@@ -146,12 +150,14 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
     }
     if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
     {
+        // X-Plane 11.55'te denendi: SDK yonu zaten cozulmus GERCEK yon olarak
+        // veriyor (IANC: 89.9). Dosyadaki "manyetik*360 + gercek" kodlu deger
+        // gelirse de dogru cozulsun diye Decode yine de cagriliyor.
         DecodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);
         if (mIlsSamplesLogged < kIlsSampleCount)
         {
-            // SDK'nin yonu ham mi (kodlu) yoksa cozulmus mu verdigini gormek icin
             ++mIlsSamplesLogged;
-            Log("ILS ornegi: %s ham yon=%.3f -> gercek %.1f, manyetik %d", tId, tHeading, tRecord.mCourseTrue,
+            Log("ILS ornegi: %s SDK yonu=%.3f -> gercek %.1f, manyetik %d", tId, tHeading, tRecord.mCourseTrue,
                 tRecord.mCourseMagnetic);
         }
     }

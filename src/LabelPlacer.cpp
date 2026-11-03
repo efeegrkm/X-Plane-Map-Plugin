@@ -68,6 +68,26 @@ bool LabelPlacer::TryPlace(const RectD& pBox)
             }
         }
     }
+    Insert(pBox);
+    return true;
+}
+
+void LabelPlacer::Reserve(const RectD& pBox)
+{
+    RectD tClipped;
+    if (IntersectRect(pBox, mArea, &tClipped))
+    {
+        Insert(tClipped);
+    }
+}
+
+void LabelPlacer::Insert(const RectD& pBox)
+{
+    int tColumnFirst = 0;
+    int tColumnLast = 0;
+    int tRowFirst = 0;
+    int tRowLast = 0;
+    CellRange(pBox, &tColumnFirst, &tColumnLast, &tRowFirst, &tRowLast);
 
     const int tNewIndex = static_cast<int>(mBoxes.size());
     mBoxes.push_back(pBox);
@@ -78,7 +98,6 @@ bool LabelPlacer::TryPlace(const RectD& pBox)
             mCells[tRow * mColumns + tColumn].push_back(tNewIndex);
         }
     }
-    return true;
 }
 
 int LabelPlacer::PlacedCount() const

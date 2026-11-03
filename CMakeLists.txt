@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_plugin VERSION 0.5 LANGUAGES CXX)
+project(prime_map_plugin VERSION 0.6 LANGUAGES CXX)
 
 # ---------------------------------------------------------------------------
 # X-Plane SDK: projenin icinde third_party/XPSDK altinda geliyor
@@ -30,7 +30,11 @@ set(CORE_SOURCES
     src/Settings.cpp
     src/LayerManager.cpp
     src/LabelPlacer.cpp
+    src/GeoGrid.cpp
     src/data/NavDatabase.cpp
+    src/data/AirportGeometry.cpp
+    src/data/AirportGeometryStore.cpp
+    src/data/AptDatReader.cpp          # GECICI: ekip apt.dat motoru gelince degisecek
 )
 
 # X-Plane SDK'si ve OpenGL kullanan dosyalar
@@ -43,6 +47,7 @@ set(PLUGIN_SOURCES
     src/data/NavLoader.cpp
     src/layers/MapSymbols.cpp
     src/layers/GridLayer.cpp
+    src/layers/RunwayLayer.cpp
     src/layers/AirportLayer.cpp
     src/layers/NavaidLayer.cpp
     src/layers/AircraftLayer.cpp
@@ -52,9 +57,13 @@ set(PLUGIN_SOURCES
     src/ui/StatusBar.cpp
 )
 
+# Pist verisi arka plan thread'inde okunur (std::thread)
+find_package(Threads REQUIRED)
+
 # Ortak derleyici ayarlari (uyarilar acik; hem plugin hem test)
 function(harita_compile_options target)
     target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(${target} PRIVATE Threads::Threads)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /utf-8 /permissive-)
         target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)

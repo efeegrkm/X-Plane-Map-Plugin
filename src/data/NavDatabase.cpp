@@ -10,34 +10,12 @@
 namespace
 {
 
-const int kColumns = 360;               // 1 derecelik boylam hucreleri
-const int kRows = 180;                  // 1 derecelik enlem hucreleri
-const int kCellCount = kColumns * kRows;
-
 // DME'nin eslestigi istasyona en fazla bu kadar uzak olabilir.
 // ILS'in DME'si genelde suzulus yolu anteninin yaninda, localizer ise pistin
 // obur ucunda: pist boyu kadar (birkac km) fark olur.
 const double kVorDmeMaxNm = 1.0;
 const double kIlsDmeMaxNm = 3.0;
-
-int ClampInt(int pValue, int pLow, int pHigh)
-{
-    if (pValue < pLow)
-    {
-        return pLow;
-    }
-    if (pValue > pHigh)
-    {
-        return pHigh;
-    }
-    return pValue;
-}
-
-int WrapColumn(int pColumn)
-{
-    const int tWrapped = pColumn % kColumns;
-    return tWrapped < 0 ? tWrapped + kColumns : tWrapped;
-}
+const int kLowestVhfNavFrequency = 10800;  // 108.00 MHz (nav.dat: MHz * 100)
 
 }  // namespace
 
@@ -72,13 +50,22 @@ bool IsMajorAirportId(const std::string& pId)
     return true;
 }
 
+bool IsPlaceholderId(const std::string& pId)
+{
+    return pId.find_first_not_of('-') == std::string::npos;  // bos dizgi de buraya duser
+}
+
+bool IsTacanChannel(int pFrequency)
+{
+    return pFrequency > 0 && pFrequency < kLowestVhfNavFrequency;
+}
+
 void NavDatabase::Clear()
 {
     mRecords.clear();
-    for (KindIndex& tIndex : mIndex)
+    for (GeoGrid& tGrid : mGrids)
     {
-        tIndex.mCellStart.clear();
-        tIndex.mItems.clear();
+        tGrid.Clear();
     }
     mReady = false;
 }
@@ -108,7 +95,7 @@ int NavDatabase::Count() const
 
 int NavDatabase::CountOf(NavKind pKind) const
 {
-    return static_cast<int>(mIndex[static_cast<int>(pKind)].mItems.size());
+    return mGrids[static_cast<int>(pKind)].Count();
 }
 
 const NavRecord& NavDatabase::At(int pIndex) const
@@ -118,40 +105,11 @@ const NavRecord& NavDatabase::At(int pIndex) const
 
 void NavDatabase::Query(NavKind pKind, const GeoBounds& pBounds, std::vector<int>& pOut) const
 {
-    const KindIndex& tIndex = mIndex[static_cast<int>(pKind)];
-    if (!mReady || tIndex.mCellStart.empty())
+    if (!mReady)
     {
         return;
     }
-    const int tRowFirst = ClampInt(static_cast<int>(std::floor(pBounds.mSouth + 90.0)), 0, kRows - 1);
-    const int tRowLast = ClampInt(static_cast<int>(std::floor(pBounds.mNorth + 90.0)), 0, kRows - 1);
-    const int tColumnFirst = static_cast<int>(std::floor(pBounds.mWest + 180.0));
-    int tColumnLast = static_cast<int>(std::floor(pBounds.mEast + 180.0));
-    if (tColumnLast - tColumnFirst >= kColumns)
-    {
-        tColumnLast = tColumnFirst + kColumns - 1;  // tum dunya: her sutun bir kez
-    }
-
-    for (int tRow = tRowFirst; tRow <= tRowLast; ++tRow)
-    {
-        for (int tColumn = tColumnFirst; tColumn <= tColumnLast; ++tColumn)
-        {
-            const int tCell = tRow * kColumns + WrapColumn(tColumn);
-            const uint32_t tBegin = tIndex.mCellStart[tCell];
-            const uint32_t tEnd = tIndex.mCellStart[tCell + 1];
-            for (uint32_t tItem = tBegin; tItem < tEnd; ++tItem)
-            {
-                pOut.push_back(static_cast<int>(tIndex.mItems[tItem]));
-            }
-        }
-    }
-}
-
-int NavDatabase::CellIndex(float pLat, float pLon)
-{
-    const int tRow = ClampInt(static_cast<int>(std::floor(pLat + 90.0f)), 0, kRows - 1);
-    const int tColumn = WrapColumn(static_cast<int>(std::floor(pLon + 180.0f)));
-    return tRow * kColumns + tColumn;
+    mGrids[static_cast<int>(pKind)].Query(pBounds, pOut);
 }
 
 void NavDatabase::PairDmes()
@@ -191,37 +149,19 @@ void NavDatabase::PairDmes()
 
 void NavDatabase::BuildIndex()
 {
+    // Kayitlari turlerine gore ayir (gizli DME'ler izgaraya girmez)
+    std::vector<GridItem> tItems[kNavKindCount];
+    for (int tRecordIndex = 0; tRecordIndex < Count(); ++tRecordIndex)
+    {
+        const NavRecord& tRecord = mRecords[tRecordIndex];
+        if (!tRecord.mHidden)
+        {
+            tItems[static_cast<int>(tRecord.mKind)].push_back(
+                {static_cast<uint32_t>(tRecordIndex), tRecord.mLat, tRecord.mLon});
+        }
+    }
     for (int tKind = 0; tKind < kNavKindCount; ++tKind)
     {
-        KindIndex& tIndex = mIndex[tKind];
-
-        // 1) Her hucrede kac kayit var
-        tIndex.mCellStart.assign(kCellCount + 1, 0);
-        for (const NavRecord& tRecord : mRecords)
-        {
-            if (static_cast<int>(tRecord.mKind) == tKind && !tRecord.mHidden)
-            {
-                ++tIndex.mCellStart[CellIndex(tRecord.mLat, tRecord.mLon) + 1];
-            }
-        }
-
-        // 2) Birikimli toplam: hucre c'nin ilk kaydinin yeri
-        for (int tCell = 0; tCell < kCellCount; ++tCell)
-        {
-            tIndex.mCellStart[tCell + 1] += tIndex.mCellStart[tCell];
-        }
-
-        // 3) Kayitlari yerlerine yaz
-        tIndex.mItems.assign(tIndex.mCellStart[kCellCount], 0);
-        std::vector<uint32_t> tCursor(tIndex.mCellStart.begin(), tIndex.mCellStart.end() - 1);
-        for (int tRecordIndex = 0; tRecordIndex < Count(); ++tRecordIndex)
-        {
-            const NavRecord& tRecord = mRecords[tRecordIndex];
-            if (static_cast<int>(tRecord.mKind) == tKind && !tRecord.mHidden)
-            {
-                const int tCell = CellIndex(tRecord.mLat, tRecord.mLon);
-                tIndex.mItems[tCursor[tCell]++] = static_cast<uint32_t>(tRecordIndex);
-            }
-        }
+        mGrids[tKind].Build(tItems[tKind]);
     }
 }

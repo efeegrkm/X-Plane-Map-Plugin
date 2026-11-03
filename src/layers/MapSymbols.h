@@ -34,4 +34,7 @@ void EmitDottedCircle(float pX, float pY, float pRadius, int pDots);
 // uzaklik). Yer bulunduysa yaziyi golgeli cizer ve true doner.
 bool DrawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, const char* pText, const Rgba& pColor);
 
+// Etiketi tam (pX, pY) noktasina ortalayarak koymayi dener (pist numarasi gibi)
+bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, const char* pText, const Rgba& pColor);
+
 }  // namespace MapSymbols

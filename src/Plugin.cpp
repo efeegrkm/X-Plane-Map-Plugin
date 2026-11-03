@@ -26,19 +26,33 @@
 #include "MapWindow.h"
 #include "Settings.h"
 #include "data/AircraftData.h"
+#include "data/AirportGeometryStore.h"
+#include "data/AptDatReader.h"
 #include "data/NavDatabase.h"
 #include "data/NavLoader.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
 #include "layers/GridLayer.h"
 #include "layers/NavaidLayer.h"
+#include "layers/RunwayLayer.h"
 
 namespace
 {
 
-const char* kVersion = "0.5";
+const char* kVersion = "0.6";
 const char* kSettingsFileName = "harita_ayarlar.ini";
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
+
+// ============================ MOTOR BAGLAMA NOKTASI ============================
+// Pist (havalimani geometrisi) verisinin kaynagi. Ekip apt.dat motoru
+// baglanirken SADECE bu fonksiyondaki satir degisir, ornek:
+//     return std::make_unique<TeamAptDatSource>();
+// Ayrintili talimat: src/data/AirportGeometry.h dosyasinin basi.
+std::unique_ptr<IAirportGeometrySource> CreateAirportGeometrySource()
+{
+    return std::make_unique<AptDatReader>();  // GECICI okuyucu
+}
+// ===============================================================================
 
 class HaritaPlugin
 {
@@ -59,7 +73,8 @@ private:
     void OnMenu(int pItem);
     int OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase);
     float OnFlightLoop();
-    void StepNavLoading();
+    void StepLoading();
+    static void LogReport(const std::string& pReport);
 
     void CreateLayers();
     void CreateCommands();
@@ -71,7 +86,9 @@ private:
     AircraftData mAircraft;
     NavDatabase mNavDatabase;
     NavLoader mNavLoader{mNavDatabase};  // mNavDatabase'den sonra tanimli olmali
-    LayerManager mLayers;
+    AirportGeometryStore mAirportGeometry{CreateAirportGeometrySource()};
+    bool mAirportLoadStarted = false;
+    LayerManager mLayers;  // katmanlar yukaridaki verilere bagli: onlardan SONRA tanimli olmali
     std::unique_ptr<MapWindow> mWindow;
 
     XPLMMenuID mMenu = nullptr;
@@ -137,9 +154,9 @@ void HaritaPlugin::CreateLayers()
     // Alttan uste cizim sirasi (GOREV.md Bolum 5). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir.
     // Diger katmanlar ilgili asamalarda araya eklenecek: zemin (en alt),
-    // pistler (izgaradan sonra), hava yollari, FMS, ucus izi (ucaktan once),
-    // kullanici cizimleri (en ust).
+    // hava yollari, FMS, ucus izi (ucaktan once), kullanici cizimleri (en ust).
     mLayers.Add(std::make_unique<GridLayer>());
+    mLayers.Add(std::make_unique<RunwayLayer>(mAirportGeometry));
     mLayers.Add(std::make_unique<AirportLayer>(mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mNavDatabase));
@@ -256,7 +273,7 @@ int HaritaPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
 float HaritaPlugin::OnFlightLoop()
 {
     const float tNow = XPLMGetElapsedTime();
-    StepNavLoading();
+    StepLoading();
     mAircraft.Refresh();
     mLayers.UpdateAll(tNow);
     if (mWindow)
@@ -266,22 +283,66 @@ float HaritaPlugin::OnFlightLoop()
     return -1.0f;  // her karede tekrar cagir
 }
 
-void HaritaPlugin::StepNavLoading()
+void HaritaPlugin::StepLoading()
 {
-    if (mNavLoader.IsDone() || !mWindow)
+    // Pist verisi: ilk flight loop'ta (X-Plane hazir) arka planda okumaya basla
+    if (!mAirportLoadStarted)
+    {
+        mAirportLoadStarted = true;
+        char tSystemPath[2048] = "";
+        XPLMGetSystemPath(tSystemPath);  // "C:\X-Plane 11\" (sonunda ayirici ile)
+        Log("pist verisi okunuyor (arka planda): %s", mAirportGeometry.SourceName());
+        mAirportGeometry.StartLoading(tSystemPath);
+    }
+    if (mAirportGeometry.Poll())
+    {
+        Log("pist verisi %s: %d havalimani, %d pist", mAirportGeometry.LastLoadSucceeded() ? "hazir" : "OKUNAMADI",
+            mAirportGeometry.Count(), mAirportGeometry.RunwayCount());
+        LogReport(mAirportGeometry.LastReport());
+    }
+
+    // Nav verisi: ana thread'de, her karede birkac ms
+    if (!mNavLoader.IsDone())
+    {
+        mNavLoader.Step(kNavLoadBudgetMs);
+    }
+
+    // Alt seritteki durum yazisi
+    if (!mWindow)
     {
         return;
     }
-    if (mNavLoader.Step(kNavLoadBudgetMs))
-    {
-        mWindow->SetStatusMessage("");
-        return;
-    }
-    if (mNavLoader.VisitedCount() > 0)
+    std::string tMessage;
+    if (!mNavLoader.IsDone() && mNavLoader.VisitedCount() > 0)
     {
         char tText[64];
         std::snprintf(tText, sizeof(tText), "Nav verisi yukleniyor: %d", mNavLoader.VisitedCount());
-        mWindow->SetStatusMessage(tText);
+        tMessage = tText;
+    }
+    if (mAirportGeometry.IsLoading())
+    {
+        tMessage += tMessage.empty() ? "" : "   ";
+        tMessage += "Pist verisi okunuyor...";
+    }
+    mWindow->SetStatusMessage(tMessage);
+}
+
+void HaritaPlugin::LogReport(const std::string& pReport)
+{
+    // Rapor birden cok satir olabilir: her satiri ayri log satiri yap
+    size_t tStart = 0;
+    while (tStart < pReport.size())
+    {
+        size_t tEnd = pReport.find('\n', tStart);
+        if (tEnd == std::string::npos)
+        {
+            tEnd = pReport.size();
+        }
+        if (tEnd > tStart)
+        {
+            Log("  %s", pReport.substr(tStart, tEnd - tStart).c_str());
+        }
+        tStart = tEnd + 1;
     }
 }
 

@@ -83,4 +83,23 @@ bool DrawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, const c
     return false;
 }
 
+bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, const char* pText, const Rgba& pColor)
+{
+    const int tWidth = Ui::TextWidth(pText);
+    const int tHeight = Ui::FontHeight();
+    const int tTextX = static_cast<int>(std::floor(pX)) - tWidth / 2;
+    const int tBaseY = static_cast<int>(std::floor(pY)) - tHeight / 2 + 1;
+    RectD tBox;
+    tBox.mLeft = tTextX - 1;
+    tBox.mRight = tTextX + tWidth + 2;
+    tBox.mBottom = tBaseY - 3;
+    tBox.mTop = tBaseY + tHeight + 1;
+    if (!pPlacer.TryPlace(tBox))
+    {
+        return false;
+    }
+    Ui::TextShadowed(tTextX, tBaseY, pText, pColor);
+    return true;
+}
+
 }  // namespace MapSymbols

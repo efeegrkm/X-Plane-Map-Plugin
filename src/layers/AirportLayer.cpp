@@ -87,6 +87,10 @@ void AirportLayer::CollectVisible(const DrawContext& pContext)
             {
                 continue;  // baska bir havalimaninin sembolunun ustune biniyor
             }
+            if (pContext.mLabels)
+            {
+                pContext.mLabels->Reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
+            }
             mVisible.push_back({tIndex, static_cast<float>(tX), static_cast<float>(tY), tWantMajor});
             if (mVisible.size() >= kMaxSymbols)
             {

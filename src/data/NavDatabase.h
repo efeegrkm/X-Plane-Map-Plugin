@@ -1,21 +1,16 @@
 // NavDatabase.h
 // X-Plane'in nav verisinin (havalimani, VOR, DME, NDB, ILS, fix) bizdeki
-// kopyasi + 1x1 derecelik hucrelere bolunmus bir izgara (spatial index).
+// kopyasi + her tur icin ayri bir 1x1 derece izgara (GeoGrid).
 // X-Plane'e bagimli DEGIL: kayitlari NavLoader doldurur, testler elle doldurur.
 //
 // Neden izgara: ~200 bin fix var. Her karede hepsine bakmak yerine sadece
 // ekranda gorunen hucrelerin kayitlarina bakiyoruz.
-//
-// Izgaranin yapisi (her tur icin ayri):
-//   mItems     : kayit indeksleri, hucre numarasina gore sirali
-//   mCellStart : hucre c'nin kayitlari mItems[mCellStart[c] .. mCellStart[c+1])
-// Hucre numarasi = (enlem + 90) * 360 + (boylam + 180), tam sayiya yuvarlanmis.
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
+#include "GeoGrid.h"
 #include "MapView.h"
 
 enum class NavKind : unsigned char
@@ -55,6 +50,15 @@ void DecodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic);
 // K1A2 ...) cogunlukla kucuk pist, heliport vb. (pist verisi gelince iyilesecek)
 bool IsMajorAirportId(const std::string& pId);
 
+// Bos veya sadece '-' olan kimlik ("----"): X-Plane'in yer tutucu kayitlari,
+// gercek bir istasyon degil. Haritaya alinmaz.
+bool IsPlaceholderId(const std::string& pId);
+
+// TACAN istasyonlarinin "frekansi" SDK'dan kanal numarasi olarak gelir
+// (NUW: 85 = kanal 85X, 113.80 MHz). Gercek VHF nav frekanslari 108.00 MHz
+// ve ustu oldugu icin (nav.dat'ta >= 10800) daha kucuk deger kanal demektir.
+bool IsTacanChannel(int pFrequency);
+
 class NavDatabase
 {
 public:
@@ -77,17 +81,10 @@ public:
     void Query(NavKind pKind, const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
 private:
-    struct KindIndex
-    {
-        std::vector<uint32_t> mCellStart;
-        std::vector<uint32_t> mItems;
-    };
-
-    static int CellIndex(float pLat, float pLon);
     void PairDmes();
     void BuildIndex();
 
     std::vector<NavRecord> mRecords;
-    KindIndex mIndex[kNavKindCount];
+    GeoGrid mGrids[kNavKindCount];  // tur basina bir izgara
     bool mReady = false;
 };
