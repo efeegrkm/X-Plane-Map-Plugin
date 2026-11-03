@@ -22,13 +22,13 @@ const float kMinLength = 3.0f;        // bundan kisa pist cizilmez (havalimani s
 const float kLabelGap = 10.0f;        // pist numarasinin uctan uzakligi (boxel)
 const double kDashMeters = 30.0;      // orta hat kesik uzunlugu (gercek pistlerde ~36 m)
 
-const Rgba kPavedColor = {0.58f, 0.62f, 0.68f, 1.0f};
-const Rgba kUnpavedColor = {0.45f, 0.58f, 0.38f, 1.0f};
+const Rgba kPavedColor = {0.22f, 0.23f, 0.26f, 1.0f};    // koyu asfalt: zemin renklerinden ayrilsin
+const Rgba kUnpavedColor = {0.52f, 0.44f, 0.30f, 1.0f};  // toprak/cim pist: kahverengimsi
 const Rgba kWaterColor = {0.30f, 0.50f, 0.80f, 0.85f};
 const Rgba kSnowColor = {0.85f, 0.88f, 0.92f, 1.0f};
-const Rgba kOverrunColor = {0.38f, 0.40f, 0.44f, 1.0f};
+const Rgba kOverrunColor = {0.33f, 0.34f, 0.37f, 1.0f};
 const Rgba kMarkingColor = {0.96f, 0.97f, 0.98f, 1.0f};
-const Rgba kEdgeColor = {0.0f, 0.0f, 0.0f, 0.55f};
+const Rgba kEdgeColor = {0.90f, 0.92f, 0.95f, 0.90f};    // acik kenar: hem zeminde hem koyu arka planda okunur
 const Rgba kLabelColor = {0.92f, 0.94f, 0.97f, 1.0f};
 
 const Rgba& SurfaceColor(RunwaySurface pSurface)
@@ -183,7 +183,9 @@ void RunwayLayer::Draw(const DrawContext& pContext)
     {
         if (tRunway.mRunway->mSurface != RunwaySurface::Transparent)
         {
-            MapSymbols::SetColor(SurfaceColor(tRunway.mRunway->mSurface));
+            // Uzaktan (cok dar) pist: koyu dolgu gorunmez, acik renkli cizgi olarak ciz
+            const bool tThin = tRunway.mHalfWidth < 2.0f;
+            MapSymbols::SetColor(tThin ? kEdgeColor : SurfaceColor(tRunway.mRunway->mSurface));
             EmitRectangle(tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth);
         }
     }

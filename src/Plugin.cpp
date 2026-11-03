@@ -33,6 +33,8 @@
 #include "data/AptDatReader.h"
 #include "data/NavDatabase.h"
 #include "data/NavLoader.h"
+#include "data/TerrainClasses.h"
+#include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
 #include "layers/AirwayLayer.h"
@@ -41,14 +43,17 @@
 #include "layers/GridLayer.h"
 #include "layers/NavaidLayer.h"
 #include "layers/RunwayLayer.h"
+#include "layers/TerrainLayer.h"
 #include "layers/TrackLayer.h"
 
 namespace
 {
 
-const char* kVersion = "0.7";
+const char* kVersion = "0.8";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
+const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
+const char* kTerrainCacheFolder = "cache/terrain/";
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
 // ============================ MOTOR BAGLAMA NOKTASI ============================
@@ -84,6 +89,7 @@ private:
     float OnFlightLoop();
     void StepLoading();
     static void LogReport(const std::string& pReport);
+    void LoadTerrainColors();
 
     void CreateLayers();
     void CreateCommands();
@@ -98,6 +104,9 @@ private:
     AirportGeometryStore mAirportGeometry{CreateAirportGeometrySource()};
     bool mAirportLoadStarted = false;
     AirwayDatabase mAirways;  // nav verisi hazir olunca arka planda okunur
+    TerrainPalette mTerrainPalette;
+    TerrainStore mTerrainStore;  // zemin: DSF'lerden arka planda uretilir
+    std::string mPluginDirectory;
     std::string mXPlaneDirectory;
     Drawings mDrawings;
     LayerManager mLayers;  // katmanlar yukaridaki verilere bagli: onlardan SONRA tanimli olmali
@@ -118,7 +127,8 @@ void MapPlugin::Start()
     // Dosya yollarini isletim sisteminin kendi bicimiyle al (C:\...)
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
 
-    const std::string tPluginDirectory = FindPluginDirectory();
+    mPluginDirectory = FindPluginDirectory();
+    const std::string tPluginDirectory = mPluginDirectory;
     const std::string tSettingsPath = tPluginDirectory + kSettingsFileName;
     if (mSettings.Load(tSettingsPath))
     {
@@ -130,6 +140,7 @@ void MapPlugin::Start()
     }
 
     mAircraft.Init();
+    LoadTerrainColors();
     CreateLayers();
 
     mWindow = std::make_unique<MapWindow>(mLayers, mAircraft, mSettings, mDrawings,
@@ -146,6 +157,7 @@ void MapPlugin::Start()
 void MapPlugin::Stop()
 {
     XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);
+    mTerrainStore.Stop();  // zemin iscisi: o an uretilen karoyu bitirip durur
     XPLMUnregisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
     XPLMUnregisterCommandHandler(mControlsCommand, CommandCallback, 1, this);
     XPLMUnregisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
@@ -169,6 +181,7 @@ void MapPlugin::CreateLayers()
     // Alttan uste cizim sirasi (GOREV.md Bolum 5). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
     // kullanici cizimleri etiketlerinin yerini onceden ayirir).
+    mLayers.Add(std::make_unique<TerrainLayer>(mTerrainStore, mTerrainPalette));  // en altta: zemin
     mLayers.Add(std::make_unique<GridLayer>());
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase, &mAirportGeometry));
@@ -330,7 +343,9 @@ void MapPlugin::StepLoading()
         mXPlaneDirectory = tSystemPath;
         Log("reading runway data in the background: %s", mAirportGeometry.SourceName());
         mAirportGeometry.StartLoading(mXPlaneDirectory);
+        mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette);
     }
+    LogReport(mTerrainStore.TakeLogLines());
     if (mAirportGeometry.Poll())
     {
         Log("runway data %s: %d airports, %d runways", mAirportGeometry.LastLoadSucceeded() ? "ready" : "FAILED",
@@ -377,7 +392,33 @@ void MapPlugin::StepLoading()
         tMessage += tMessage.empty() ? "" : "   ";
         tMessage += "Reading airways...";
     }
+    const std::string tTerrainStatus = mTerrainStore.StatusText();
+    if (!tTerrainStatus.empty())
+    {
+        tMessage += tMessage.empty() ? "" : "   ";
+        tMessage += tTerrainStatus;
+    }
     mWindow->SetStatusMessage(tMessage);
+}
+
+void MapPlugin::LoadTerrainColors()
+{
+    // Dosya yoksa varsayilan renklerle olustur: kullanici acip degistirebilsin
+    Settings tColors;
+    const std::string tPath = mPluginDirectory + kTerrainColorsFileName;
+    if (tColors.Load(tPath))
+    {
+        mTerrainPalette.Load(tColors);
+        Log("terrain colors loaded: %s", tPath.c_str());
+        return;
+    }
+    mTerrainPalette.Save(tColors);
+    tColors.SetComment("Map Plugin terrain colors. Edit while X-Plane is closed.\n"
+                       "[colors]: <class> = R G B (0..255). [shading] strength = 0 (flat) .. 1 (strong relief).\n"
+                       "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be deleted.\n"
+                       "Delete this file to get the default colors back.");
+    tColors.Save();
+    Log("terrain colors file created with defaults: %s", tPath.c_str());
 }
 
 void MapPlugin::LogReport(const std::string& pReport)

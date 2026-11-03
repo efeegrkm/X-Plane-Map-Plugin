@@ -22,9 +22,16 @@
 #include "data/AirwayDatabase.h"
 #include "data/AptDatReader.h"
 #include "data/LocalizerMatch.h"
+#include "data/DsfReader.h"
 #include "data/NavDatabase.h"
+#include "data/SceneryIndex.h"
+#include "data/SevenZip.h"
+#include "data/TerrainClasses.h"
+#include "data/TerrainRaster.h"
 
 #include <chrono>
+#include <filesystem>
+#include <fstream>
 #include <thread>
 
 // Log.cpp (XPLMDebugString kullanir) yerine bos bir taklit
@@ -1041,6 +1048,318 @@ void TestLabelPriority()
           tTrace.c_str());
 }
 
+// ---- Sentetik DSF (kucuk-endian bayt dizisi) ----
+
+void PutU8(std::vector<uint8_t>& pOut, int pValue)
+{
+    pOut.push_back(static_cast<uint8_t>(pValue));
+}
+
+void PutU16(std::vector<uint8_t>& pOut, int pValue)
+{
+    pOut.push_back(static_cast<uint8_t>(pValue & 0xFF));
+    pOut.push_back(static_cast<uint8_t>((pValue >> 8) & 0xFF));
+}
+
+void PutU32(std::vector<uint8_t>& pOut, uint32_t pValue)
+{
+    for (int tShift = 0; tShift < 32; tShift += 8)
+    {
+        pOut.push_back(static_cast<uint8_t>((pValue >> tShift) & 0xFF));
+    }
+}
+
+void PutF32(std::vector<uint8_t>& pOut, float pValue)
+{
+    uint32_t tBits = 0;
+    std::memcpy(&tBits, &pValue, sizeof(tBits));
+    PutU32(pOut, tBits);
+}
+
+// Atom: kimlik harfleri dosyada ters ("HEAD" -> "DAEH"), boyut basligi icerir
+std::vector<uint8_t> Atom(const char* pId, const std::vector<uint8_t>& pPayload)
+{
+    std::vector<uint8_t> tAtom;
+    PutU32(tAtom, (static_cast<uint32_t>(pId[0]) << 24) | (static_cast<uint32_t>(pId[1]) << 16) |
+                      (static_cast<uint32_t>(pId[2]) << 8) | static_cast<uint32_t>(pId[3]));
+    PutU32(tAtom, static_cast<uint32_t>(pPayload.size() + 8));
+    tAtom.insert(tAtom.end(), pPayload.begin(), pPayload.end());
+    return tAtom;
+}
+
+std::vector<uint8_t> Strings(const std::vector<std::string>& pStrings)
+{
+    std::vector<uint8_t> tOut;
+    for (const std::string& tString : pStrings)
+    {
+        tOut.insert(tOut.end(), tString.begin(), tString.end());
+        tOut.push_back(0);
+    }
+    return tOut;
+}
+
+void Append(std::vector<uint8_t>& pOut, const std::vector<uint8_t>& pMore)
+{
+    pOut.insert(pOut.end(), pMore.begin(), pMore.end());
+}
+
+// 1x1 derece karo (+41+029): sol yari su, sag yari orman (4 nokta, 2 ucgen)
+std::vector<uint8_t> MakeTestDsf(bool pOverlay)
+{
+    std::vector<uint8_t> tProperties = Strings({"sim/west", "29", "sim/east", "30", "sim/south", "41", "sim/north",
+                                                "42", "sim/overlay", pOverlay ? "1" : "0"});
+    std::vector<uint8_t> tTerrains = Strings({"terrain_Water", "lib/g10/terrain10/coni_tmp_wet_hill.ter"});
+
+    // Havuz: 6 nokta, 5 duzlem (lon, lat, yukseklik, normal x, normal z).
+    // Noktalar: (29,41) (29.5,41) (29.5,42) (29,42) (30,41) (30,42)
+    std::vector<uint8_t> tPool;
+    PutU32(tPool, 6);
+    PutU8(tPool, 5);
+    // Duzlem 0 (boylam): RLE + delta (kodlama 3): farklar 0, 32767, 0, -32767, 65535, 0
+    PutU8(tPool, 3);
+    PutU8(tPool, 0x80 | 1);  // 1 kez tekrar: 0
+    PutU16(tPool, 0);
+    PutU8(tPool, 5);          // 5 deger oldugu gibi
+    PutU16(tPool, 32767);     // 32767
+    PutU16(tPool, 0);         // 32767
+    PutU16(tPool, 32769);     // 32767 + 32769 = 65536 -> 0 (16 bit tasma)
+    PutU16(tPool, 65535);     // 65535
+    PutU16(tPool, 0);         // 65535
+    // Duzlem 1 (enlem): ham (kodlama 0)
+    PutU8(tPool, 0);
+    for (int tValue : {0, 0, 65535, 65535, 0, 65535})
+    {
+        PutU16(tPool, tValue);
+    }
+    // Duzlem 2..4: RLE (kodlama 2): hepsi 0
+    for (int tPlane = 2; tPlane < 5; ++tPlane)
+    {
+        PutU8(tPool, 2);
+        PutU8(tPool, 0x80 | 6);
+        PutU16(tPool, 0);
+    }
+    std::vector<uint8_t> tScale;
+    PutF32(tScale, 1.0f);
+    PutF32(tScale, 29.0f);  // boylam = 29 + ham / 65535
+    PutF32(tScale, 1.0f);
+    PutF32(tScale, 41.0f);
+    for (int tPlane = 2; tPlane < 5; ++tPlane)
+    {
+        PutF32(tScale, 0.0f);
+        PutF32(tScale, 0.0f);
+    }
+
+    std::vector<uint8_t> tCommands;
+    PutU8(tCommands, 2);  // junction offset (atlanir)
+    PutU32(tCommands, 0);
+    PutU8(tCommands, 15);  // nested polygon range: param, sayac 2, 3 indeks (sayac + 1)
+    PutU16(tCommands, 0);
+    PutU8(tCommands, 2);
+    PutU16(tCommands, 0);
+    PutU16(tCommands, 2);
+    PutU16(tCommands, 4);
+    PutU8(tCommands, 32);  // yorum
+    PutU8(tCommands, 3);
+    PutU8(tCommands, 'a');
+    PutU8(tCommands, 'b');
+    PutU8(tCommands, 'c');
+    PutU8(tCommands, 1);  // havuz 0
+    PutU16(tCommands, 0);
+    PutU8(tCommands, 3);  // tanim 0 (su)
+    PutU8(tCommands, 0);
+    PutU8(tCommands, 18);  // patch: bayrak 1 (fiziksel), LOD 0..-1
+    PutU8(tCommands, 1);
+    PutF32(tCommands, 0.0f);
+    PutF32(tCommands, -1.0f);
+    PutU8(tCommands, 23);  // ucgen: 0 1 2 ve 0 2 3 (sol yari)
+    PutU8(tCommands, 6);
+    for (int tIndex : {0, 1, 2, 0, 2, 3})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 3);  // tanim 1 (orman)
+    PutU8(tCommands, 1);
+    PutU8(tCommands, 16);  // yeni patch (ayni bayrak)
+    PutU8(tCommands, 26);  // serit: 1 4 2 5 -> (1,4,2) (4,2,5): sag yari
+    PutU8(tCommands, 4);
+    for (int tIndex : {1, 4, 2, 5})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 17);  // overlay patch: ucgen sayilir ama overlay bayragi tasir
+    PutU8(tCommands, 3);
+    PutU8(tCommands, 25);  // ucgen araligi 0..3
+    PutU16(tCommands, 0);
+    PutU16(tCommands, 3);
+
+    std::vector<uint8_t> tDefinitions = Atom("TERT", tTerrains);
+    std::vector<uint8_t> tGeometry = Atom("POOL", tPool);
+    Append(tGeometry, Atom("SCAL", tScale));
+
+    std::vector<uint8_t> tFile = {'X', 'P', 'L', 'N', 'E', 'D', 'S', 'F'};
+    PutU32(tFile, 1);
+    Append(tFile, Atom("HEAD", Atom("PROP", tProperties)));
+    Append(tFile, Atom("DEFN", tDefinitions));
+    Append(tFile, Atom("GEOD", tGeometry));
+    Append(tFile, Atom("CMDS", tCommands));
+    tFile.resize(tFile.size() + 16, 0);  // MD5 yeri (okuyucu dogrulamaz)
+    return tFile;
+}
+
+void TestDsfReader()
+{
+    const std::vector<uint8_t> tData = MakeTestDsf(false);
+    CHECK(!SevenZip::IsArchive(tData.data(), tData.size()), "duz DSF 7z degil");
+    const uint8_t tSevenZip[6] = {'7', 'z', 0xBC, 0xAF, 0x27, 0x1C};
+    CHECK(SevenZip::IsArchive(tSevenZip, 6), "7z imzasi");
+
+    DsfReader tReader;
+    std::string tError;
+    CHECK(tReader.Open(tData, &tError), "DSF acilir: %s", tError.c_str());
+    const DsfInfo& tInfo = tReader.Info();
+    CHECK(Near(tInfo.mWest, 29, 1e-9) && Near(tInfo.mNorth, 42, 1e-9) && !tInfo.mOverlay, "ozellikler");
+    CHECK(tInfo.mTerrainNames.size() == 2 && tInfo.mTerrainNames[0] == "terrain_Water", "arazi adlari");
+    CHECK(tReader.PoolCount() == 1, "bir havuz");
+
+    std::vector<DsfTriangle> tTriangles;
+    CHECK(tReader.ForEachTriangle([&](const DsfTriangle& pTriangle) { tTriangles.push_back(pTriangle); }, &tError),
+          "komut akisi okunur: %s", tError.c_str());
+    CHECK(tTriangles.size() == 5, "5 ucgen (2 su + 2 serit + 1 overlay): %d", static_cast<int>(tTriangles.size()));
+    if (tTriangles.size() == 5)
+    {
+        CHECK(tTriangles[0].mTerrain == 0 && Near(tTriangles[0].mLon[1], 29.0 + 32767.0 / 65535.0, 1e-9) &&
+                  Near(tTriangles[0].mLat[2], 42.0, 1e-9),
+              "RLE + delta cozuldu, olcek uygulandi");
+        CHECK(tTriangles[2].mTerrain == 1 && Near(tTriangles[2].mLon[1], 30.0, 1e-9), "serit ucgeni sag yarida");
+        CHECK((tTriangles[4].mPatchFlags & DsfReader::kPatchFlagOverlay) != 0 &&
+                  (tTriangles[0].mPatchFlags & DsfReader::kPatchFlagOverlay) == 0,
+              "overlay bayragi");
+    }
+
+    // Bozuk akis: bilinmeyen komut
+    std::vector<uint8_t> tBroken = tData;
+    DsfReader tBrokenReader;
+    CHECK(tBrokenReader.Open(tBroken, &tError), "bozuk akisli dosya acilir");
+    std::vector<uint8_t> tBadCommands = Atom("CMDS", {200});
+    tBroken.resize(tBroken.size() - 16);
+    Append(tBroken, tBadCommands);
+    tBroken.resize(tBroken.size() + 16, 0);
+    CHECK(tBrokenReader.Open(tBroken, &tError), "ikinci CMDS");
+    CHECK(!tBrokenReader.ForEachTriangle([](const DsfTriangle&) {}, &tError) &&
+              tError.find("unknown") != std::string::npos,
+          "bilinmeyen komut hata verir: %s", tError.c_str());
+
+    std::vector<uint8_t> tNotDsf = {'N', 'O', 'T'};
+    CHECK(!tReader.Open(tNotDsf, &tError), "DSF olmayan reddedilir");
+}
+
+void TestTerrain()
+{
+    // Siniflandirma (gercek XP11 adlari)
+    CHECK(ClassifyTerrain("terrain_Water") == TerrainClass::Water, "su");
+    CHECK(ClassifyTerrain("lib/g10/terrain10/coni_tmp_wet_hill.ter") == TerrainClass::ForestConifer, "igne yaprak");
+    CHECK(ClassifyTerrain("lib/g10/terrain10/urban_tmp_wet_sflat.ter") == TerrainClass::Urban, "sehir");
+    CHECK(ClassifyTerrain("lib/g10/terrain10/sq_grass_tmp_wet_fl.ter") == TerrainClass::Grass, "sq_ on eki");
+    CHECK(ClassifyTerrain("lib/g10/terrain10/sq_tmp_crptwnhill.ter") == TerrainClass::Crop, "crptwn");
+    CHECK(ClassifyTerrain("lib/g10/terrain10/sp_tmp_wet_fl.ter") == TerrainClass::Grass &&
+              ClassifyTerrain("lib/g10/terrain10/spr_tmp_wet_fl.ter") == TerrainClass::Grass,
+          "sp / spr");
+    CHECK(ClassifyTerrain("lib/g10/terrain10/snow_tmp.ter") == TerrainClass::SnowIce, "kar");
+    CHECK(ClassifyTerrain("terrain/ortho_+47-123_16.ter") == TerrainClass::Land, "taninmayan: kara");
+
+    // Renk dosyasi gidis-donus
+    TerrainPalette tPalette;
+    Settings tColors;
+    tPalette.Save(tColors);
+    tColors.SetString("colors", "water", "10 20 30");
+    tColors.SetDouble("shading", "strength", 2.0);  // sinira kirpilmali
+    TerrainPalette tLoaded;
+    tLoaded.Load(tColors);
+    CHECK(tLoaded.ColorOf(TerrainClass::Water).mR == 10 && tLoaded.ColorOf(TerrainClass::Water).mB == 30,
+          "renk okunur");
+    CHECK(Near(tLoaded.ShadingStrength(), 1.0, 1e-12), "golge gucu 0..1");
+
+    // Sentetik DSF'ten raster: sol yari su, sag yari orman
+    const std::vector<uint8_t> tData = MakeTestDsf(false);
+    DsfReader tReader;
+    std::string tError;
+    tReader.Open(tData, &tError);
+    TerrainRaster tRaster;
+    tRaster.Reset(29, 41);
+    tReader.ForEachTriangle(
+        [&](const DsfTriangle& pTriangle)
+        {
+            if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0)
+            {
+                tRaster.FillTriangle(pTriangle.mLon, pTriangle.mLat,
+                                     ClassifyTerrain(tReader.Info().mTerrainNames[pTriangle.mTerrain]));
+            }
+        },
+        &tError);
+    const int tHalf = TerrainRaster::kSize / 2;
+    CHECK(tRaster.ClassAt(100, 100) == TerrainClass::Water && tRaster.ClassAt(tHalf + 100, 100) ==
+                                                                   TerrainClass::ForestConifer,
+          "sol su, sag orman");
+    const int tWater = tRaster.CountOf(TerrainClass::Water);
+    const int tTotal = TerrainRaster::kSize * TerrainRaster::kSize;
+    CHECK(tWater > tTotal * 0.49 && tWater < tTotal * 0.51, "su yari yariya: %d / %d", tWater, tTotal);
+    CHECK(tRaster.CountOf(TerrainClass::None) == 0, "bosluk yok (ucgenler karoyu tam kapliyor)");
+
+    // Goruntu: 64 px, sol ust su rengi, saydam degil
+    std::vector<uint8_t> tImage;
+    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tPalette, &tImage);
+    CHECK(tImage.size() == 64 * 64 * 4 && tImage[3] == 255 &&
+              tImage[0] == tPalette.ColorOf(TerrainClass::Water).mR,
+          "goruntu: su pikseli");
+
+    // Onbellek: ayni anahtarla okunur, farkli anahtarla reddedilir
+    const std::string tPath = "map_test_tile.terrain";
+    CHECK(tRaster.Save(tPath, "key-1"), "onbellege yazilir");
+    TerrainRaster tCached;
+    CHECK(tCached.Load(tPath, "key-1") && tCached.ClassAt(tHalf + 100, 100) == TerrainClass::ForestConifer &&
+              tCached.West() == 29 && tCached.South() == 41,
+          "onbellekten okunur");
+    CHECK(!tCached.Load(tPath, "key-2"), "anahtar degisti: yeniden uretilmeli");
+    std::remove(tPath.c_str());
+}
+
+void TestSceneryIndex()
+{
+    int tWest = 0;
+    int tSouth = 0;
+    CHECK(SceneryIndex::ParseTileName("+47-123.dsf", &tWest, &tSouth) && tWest == -123 && tSouth == 47, "karo adi");
+    CHECK(SceneryIndex::ParseTileName("-05+000.DSF", &tWest, &tSouth) && tWest == 0 && tSouth == -5, "buyuk harf");
+    CHECK(!SceneryIndex::ParseTileName("+47-123.txt", &tWest, &tSouth) &&
+              !SceneryIndex::ParseTileName("47-123.dsf", &tWest, &tSouth),
+          "gecersiz adlar");
+    CHECK(SceneryIndex::TileName(-123, 47) == "+47-123" && SceneryIndex::FolderName(-123, 47) == "+40-130" &&
+              SceneryIndex::FolderName(5, -5) == "-10+000",
+          "ad uretimi");
+
+    // Gecici klasorlerde iki paket: ozel (overlay olabilir) + global
+    namespace Fs = std::filesystem;
+    const Fs::path tRoot = Fs::temp_directory_path() / "map_plugin_index_test";
+    std::error_code tIgnore;
+    Fs::remove_all(tRoot, tIgnore);
+    Fs::create_directories(tRoot / "Custom" / "Earth nav data" / "+40-130");
+    Fs::create_directories(tRoot / "Global" / "Earth nav data" / "+40-130");
+    std::ofstream(tRoot / "Custom" / "Earth nav data" / "+40-130" / "+47-123.dsf") << "custom";
+    std::ofstream(tRoot / "Global" / "Earth nav data" / "+40-130" / "+47-123.dsf") << "global";
+    std::ofstream(tRoot / "Global" / "Earth nav data" / "+40-130" / "+46-124.dsf") << "global";
+    std::ofstream(tRoot / "Global" / "Earth nav data" / "+40-130" / "notes.txt") << "x";
+
+    SceneryIndex tIndex;
+    tIndex.BuildFromPacks({(tRoot / "Custom").string() + "/"}, {(tRoot / "Global").string() + "/"});
+    const std::vector<DsfCandidate>* tCandidates = tIndex.CandidatesFor(-123, 47);
+    CHECK(tCandidates && tCandidates->size() == 2 && tCandidates->front().mPath.find("Custom") != std::string::npos,
+          "ozel paket once");
+    CHECK(tIndex.TileCount() == 2 && tIndex.FileCount() == 3 && tIndex.PackCount() == 2, "sayilar");
+    CHECK(tIndex.CoverageOf(-123, 47) == TileCoverage::HasDsf, "DSF var");
+    CHECK(tIndex.CoverageOf(-125, 48) == TileCoverage::Ocean, "kurulu bolgede DSF yok: deniz");
+    CHECK(tIndex.CoverageOf(29, 41) == TileCoverage::NoData, "kurulmamis bolge: veri yok");
+    Fs::remove_all(tRoot, tIgnore);
+}
+
 void TestStoreCancel()
 {
     // Yukleme bitmeden yok edilen depo takilmadan kapanmali (X-Plane kapanisi)
@@ -1176,6 +1495,9 @@ int main()
     TestDrawingsFile();
     TestAirways();
     TestLabelPriority();
+    TestDsfReader();
+    TestTerrain();
+    TestSceneryIndex();
     std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

@@ -7,6 +7,8 @@
 #include <cstring>
 #include <sstream>
 
+#include "data/SceneryPacks.h"
+
 namespace
 {
 
@@ -108,11 +110,6 @@ bool ReadRunwayEnd(const char*& pCursor, const char* pEnd, RunwayEnd* pOut)
            ReadDouble(pCursor, pEnd, &pOut->mDisplacedThresholdM) && ReadDouble(pCursor, pEnd, &pOut->mOverrunM) &&
            ReadInt(pCursor, pEnd, &tIgnored) && ReadInt(pCursor, pEnd, &tIgnored) &&  // isaret, yaklasma isigi
            ReadInt(pCursor, pEnd, &tIgnored) && ReadInt(pCursor, pEnd, &tIgnored);    // TDZ, REIL
-}
-
-bool IsAbsolutePath(const std::string& pPath)
-{
-    return (pPath.size() > 1 && pPath[1] == ':') || (!pPath.empty() && (pPath[0] == '/' || pPath[0] == '\\'));
 }
 
 bool FileExists(const std::string& pPath)
@@ -262,30 +259,9 @@ std::vector<std::string> AptDatReader::AptFilesFromSceneryPacks(const std::strin
                                                                 const std::string& pXPlaneDirectory)
 {
     std::vector<std::string> tFiles;
-    std::istringstream tStream(pIniText);
-    std::string tLine;
-    const std::string tPrefix = "SCENERY_PACK ";  // sonundaki bosluk: _DISABLED satirlarini disarida birakir
-    while (std::getline(tStream, tLine))
+    for (const std::string& tPack : ParseSceneryPacks(pIniText, pXPlaneDirectory))
     {
-        if (!tLine.empty() && tLine.back() == '\r')
-        {
-            tLine.pop_back();
-        }
-        if (tLine.compare(0, tPrefix.size(), tPrefix) != 0)
-        {
-            continue;
-        }
-        std::string tPack = tLine.substr(tPrefix.size());
-        if (tPack == "*GLOBAL_AIRPORTS*")
-        {
-            tPack = "Custom Scenery/Global Airports/";  // X-Plane 12 kisaltmasi
-        }
-        if (!tPack.empty() && tPack.back() != '/' && tPack.back() != '\\')
-        {
-            tPack += '/';
-        }
-        const std::string tBase = IsAbsolutePath(tPack) ? tPack : pXPlaneDirectory + tPack;
-        tFiles.push_back(tBase + "Earth nav data/apt.dat");
+        tFiles.push_back(tPack + "Earth nav data/apt.dat");
     }
     return tFiles;
 }

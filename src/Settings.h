@@ -22,6 +22,8 @@ public:
     bool Save() const;
 
     void SetPath(const std::string& pPath);
+    // Dosyanin basina yazilacak aciklama (her satir '# ' ile baslar); bossa varsayilan
+    void SetComment(const std::string& pComment);
     const std::string& Path() const;
 
     bool Has(const std::string& pSection, const std::string& pKey) const;
@@ -39,6 +41,7 @@ public:
 
 private:
     std::string mPath;
+    std::string mComment;
     // bolum -> (anahtar -> deger); std::map oldugu icin dosyada alfabetik sirada yazilir
     std::map<std::string, std::map<std::string, std::string>> mValues;
 };

@@ -3,7 +3,7 @@
 // verisiyle bir resme cizer. Gelistirirken gorsel kontrol icin.
 //
 //   map_preview --lat 47.45 --lon -122.31 --zoom 13 --out kSEA.ppm [--size 1200x800]
-//               [--xplane "C:/X-Plane 11/"] [--no-ui] [--demo-drawings] [--fixes]
+//               [--xplane "C:/X-Plane 11/"] [--no-ui] [--demo-drawings] [--fixes] [--cache DIR/]
 //
 // Cikti PPM (P6). PNG'ye cevirmek icin: magick kSEA.ppm kSEA.png
 // Not: ucak ve FMS onizlemede yok (SDK yok); nav verisi dosyalardan okunur.
@@ -26,6 +26,7 @@
 #include "data/AirwayDatabase.h"
 #include "data/AptDatReader.h"
 #include "data/NavDatabase.h"
+#include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
 #include "layers/AirwayLayer.h"
@@ -33,6 +34,7 @@
 #include "layers/GridLayer.h"
 #include "layers/NavaidLayer.h"
 #include "layers/RunwayLayer.h"
+#include "layers/TerrainLayer.h"
 #include "tools/preview/FileNavLoader.h"
 #include "tools/preview/XplmStubs.h"
 #include "ui/StatusBar.h"
@@ -71,6 +73,7 @@ struct Options
     bool mUi = true;
     bool mDemoDrawings = false;
     bool mFixes = false;
+    std::string mCache = "terrain_cache/";
 };
 
 bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
@@ -113,6 +116,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--demo-drawings")
         {
             pOut->mDemoDrawings = true;
+        }
+        else if (tArg == "--cache" && tHasValue)
+        {
+            pOut->mCache = pArgv[++tIndex];
         }
         else if (tArg == "--fixes")
         {
@@ -278,7 +285,11 @@ int main(int pArgc, char** pArgv)
     // --- Katmanlar: eklentiyle (Plugin.cpp CreateLayers) ayni sira ---
     AircraftData tAircraft;  // onizlemede ucak yok (dataref yok)
     Drawings tDrawings;
+    TerrainPalette tPalette;
+    TerrainStore tTerrain;
+    tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette);
     LayerManager tLayers;
+    tLayers.Add(std::make_unique<TerrainLayer>(tTerrain, tPalette));
     tLayers.Add(std::make_unique<GridLayer>());
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
     tLayers.Add(std::make_unique<RunwayLayer>(tRunways));
@@ -308,6 +319,27 @@ int main(int pArgc, char** pArgv)
     {
         const GeoBounds tBounds = tView.VisibleBounds();
         AddDemoDrawings(tDrawings, tView.Center(), (tBounds.mNorth - tBounds.mSouth) * 0.5);
+    }
+
+    // Zemin arka planda uretilir: hazir olana kadar birkac kez "ciz" (istek gonder,
+    // gelen goruntuleri yukle). Sonra son kare asagida cizilir.
+    for (int tRound = 0; tRound < 600; ++tRound)
+    {
+        DrawContext tWarmup;
+        tWarmup.mView = &tView;
+        tWarmup.mArea = ToRectD(tArea);
+        tWarmup.mClearArea = tWarmup.mArea;
+        tLayers.At(0)->Draw(tWarmup);
+        const std::string tLog = tTerrain.TakeLogLines();
+        if (!tLog.empty())
+        {
+            std::printf("%s", tLog.c_str());
+        }
+        if (tRound > 2 && tTerrain.IsIdle())
+        {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
     glViewport(0, 0, tWidth, tHeight);

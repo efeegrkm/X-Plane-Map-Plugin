@@ -74,7 +74,19 @@ bool Settings::Save() const
     {
         return false;
     }
-    tFile << "# Map Plugin settings. Can be edited by hand while X-Plane is closed.\n";
+    if (mComment.empty())
+    {
+        tFile << "# Map Plugin settings. Can be edited by hand while X-Plane is closed.\n";
+    }
+    else
+    {
+        std::istringstream tLines(mComment);
+        std::string tLine;
+        while (std::getline(tLines, tLine))
+        {
+            tFile << "# " << tLine << "\n";
+        }
+    }
     for (const auto& tSection : mValues)
     {
         tFile << "\n[" << tSection.first << "]\n";
@@ -89,6 +101,11 @@ bool Settings::Save() const
 void Settings::SetPath(const std::string& pPath)
 {
     mPath = pPath;
+}
+
+void Settings::SetComment(const std::string& pComment)
+{
+    mComment = pComment;
 }
 
 const std::string& Settings::Path() const

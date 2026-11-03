@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_plugin VERSION 0.7 LANGUAGES CXX)
+project(prime_map_plugin VERSION 0.8 LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
 # X-Plane SDK: projenin icinde third_party/XPSDK altinda geliyor
@@ -18,6 +18,9 @@ if(NOT EXISTS "${XPSDK}/CHeaders/XPLM/XPLMDisplay.h")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
+# Butun hedefler C calisma kutuphanesini icine gomer (plugin ek DLL istemesin;
+# lzma_sdk, testler ve araclar da ayni ayarla derlensin ki baglayici karismasin)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # X-Plane'e bagimli OLMAYAN dosyalar: hem plugine hem testlere girer
@@ -37,6 +40,13 @@ set(CORE_SOURCES
     src/data/AirportGeometryStore.cpp
     src/data/LocalizerMatch.cpp
     src/data/AirwayDatabase.cpp
+    src/data/SevenZip.cpp
+    src/data/DsfReader.cpp
+    src/data/SceneryPacks.cpp
+    src/data/SceneryIndex.cpp
+    src/data/TerrainClasses.cpp
+    src/data/TerrainRaster.cpp
+    src/data/TerrainStore.cpp
     src/data/AptDatReader.cpp          # GECICI: ekip apt.dat motoru gelince degisecek
 )
 
@@ -49,7 +59,9 @@ set(PLUGIN_SOURCES
     src/data/AircraftData.cpp
     src/data/NavLoader.cpp
     src/gfx/Batch.cpp
+    src/gfx/Texture.cpp
     src/layers/MapSymbols.cpp
+    src/layers/TerrainLayer.cpp
     src/layers/GridLayer.cpp
     src/layers/RunwayLayer.cpp
     src/layers/AirwayLayer.cpp
@@ -68,10 +80,21 @@ set(PLUGIN_SOURCES
 # Pist verisi arka plan thread'inde okunur (std::thread)
 find_package(Threads REQUIRED)
 
+# LZMA SDK (kamu mali): X-Plane DSF dosyalari 7z ile sikistirilmis (third_party/lzma/README.txt)
+file(GLOB LZMA_SOURCES ${CMAKE_SOURCE_DIR}/third_party/lzma/*.c)
+add_library(lzma_sdk STATIC ${LZMA_SOURCES})
+target_include_directories(lzma_sdk SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/third_party/lzma)
+set_property(TARGET lzma_sdk PROPERTY POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(lzma_sdk PRIVATE /W0)
+else()
+    target_compile_options(lzma_sdk PRIVATE -w)
+endif()
+
 # Ortak derleyici ayarlari (uyarilar acik; hem plugin hem test)
 function(map_compile_options target)
     target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_link_libraries(${target} PRIVATE Threads::Threads)
+    target_link_libraries(${target} PRIVATE Threads::Threads lzma_sdk)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /utf-8 /permissive-)
         target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
@@ -95,10 +118,8 @@ if(WIN32)
     target_compile_definitions(MapPlugin PRIVATE IBM=1 APL=0 LIN=0)
     target_link_libraries(MapPlugin PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
     set(XPL_NAME win)
-    if(MSVC)
-        # C++ calisma kutuphanesini icine gom (ek DLL gerekmesin)
-        set_property(TARGET MapPlugin PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    else()
+    # MSVC: calisma kutuphanesi CMAKE_MSVC_RUNTIME_LIBRARY ile gomulu (yukarida)
+    if(NOT MSVC)
         # MinGW: libstdc++/libgcc'yi gom
         target_link_options(MapPlugin PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
@@ -164,7 +185,9 @@ if(MAP_PREVIEW AND WIN32)
         src/Log.cpp
         src/data/AircraftData.cpp
         src/gfx/Batch.cpp
+        src/gfx/Texture.cpp
         src/layers/MapSymbols.cpp
+        src/layers/TerrainLayer.cpp
         src/layers/GridLayer.cpp
         src/layers/RunwayLayer.cpp
         src/layers/AirwayLayer.cpp
@@ -181,4 +204,8 @@ if(MAP_PREVIEW AND WIN32)
     target_compile_definitions(map_preview PRIVATE IBM=1 APL=0 LIN=0 XPLM=1
                                XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
     target_link_libraries(map_preview PRIVATE opengl32 gdi32 user32)
+
+    # dsf_info: bir DSF dosyasinin ozeti (arazi turleri, ucgen sayilari)
+    add_executable(dsf_info tools/dsfinfo/DsfInfoMain.cpp src/data/SevenZip.cpp src/data/DsfReader.cpp)
+    map_compile_options(dsf_info)
 endif()
