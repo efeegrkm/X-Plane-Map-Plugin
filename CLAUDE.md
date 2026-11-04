@@ -129,15 +129,18 @@ listesi ve dosya görevleri: `README.md`.
   düzeltildi). FPS ölçümü henüz yapılmadı.
 - 0.7 (İngilizce arayüz, MapPlugin adı, ILS eşikten, heliport/deniz üssü,
   aşama 4 çizimler/iz/FMS, aşama 5b hava yolları) ve 0.8 (aşama 6 zemin):
-  derlendi, 275 test geçiyor, X-Plane'e kuruldu, `map_preview` ile Seattle'da
-  görsel kontrol yapıldı. **X-Plane'de henüz denenmedi.**
+  derlendi, 275 test geçiyor, X-Plane'e kuruldu. 2026-11-04 kullanıcı
+  X-Plane'de denedi (ekran görüntüsü): zemin (Seattle), çizimler (nokta /
+  rota / bölge), katman paneli, uçak, hava yolları, ILS tüyleri görünüyor.
+  Test listesinin geri kalanı (kalıcılık, FMS, FPS...) raporlanmadı.
+- Kullanıcının geri bildirimi: havalimanı yüzeyleri yok (ekip motoruyla
+  yapılacak); harita X-Plane'inkinden farklı, X-Plane gibi harita modları
+  istiyor; OpenGL hâlâ eski (glBegin/glEnd) ve kod fazla C tarzı.
 
 ## Sıradaki
-1. [ ] Kullanıcı README'deki 0.7 + 0.8 test listesini uygulasın, Log'u oku
-       (özellikle zemin üretim süresi, FPS, kıyı çizgisinin X-Plane haritasıyla
-       örtüşmesi)
-2. [ ] Kullanıcının yanıtlayacağı sorular: zemin renkleri, önbellek boyutu
-       sınırı, OpenGL modernleştirme, eski HaritaPlugin klasörünü silme
-3. [ ] Fikir: overlay DSF'lerden havalimanı alanı / su kenarı; havalimanı
-       önemini pist uzunluğuyla belirlemek; taksi yolları (ekip motoru verirse);
-       önbellek için disk sınırı
+- **`GOREV_0.9.md`**: işyerindeki AI için ayrıntılı görev dosyası.
+  A: OpenGL 3.3'e geçiş + C tarzı temizlik; B: havalimanı yüzeyleri (ekip
+  motoru, depo DIŞINDAN bağlanır: motor kodu GitHub'a girmez); C: harita
+  modları (Scenery / VFR / IFR Low / IFR High). Sıra A → B → C.
+- Açık sorular: zemin renkleri, önbellek disk sınırı, eski HaritaPlugin
+  klasörünü silme.
