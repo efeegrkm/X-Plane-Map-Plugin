@@ -160,8 +160,13 @@ void TerrainLayer::Draw(const DrawContext& pContext)
     }
     const double tPixelsPerDegree = tView.WorldSize() / 360.0 * pContext.mPixelsPerBoxel;
     const int tLevel = DesiredLevel(tPixelsPerDegree);
+    // Harita modu: goruntu bicimi (dokular moda gore ayri tutulur) ve deniz rengi
+    const MapTheme& tTheme = *pContext.mTheme;
+    const int tStyle = static_cast<int>(tTheme.mMode);
     const TerrainColor& tWaterColor = mPalette.ColorOf(TerrainClass::Water);
-    const Rgba tWater = {tWaterColor.mR / 255.0f, tWaterColor.mG / 255.0f, tWaterColor.mB / 255.0f, 1.0f};
+    const Rgba tWater = tTheme.mTerrainStyle == TerrainStyle::Classes
+                            ? Rgba{tWaterColor.mR / 255.0f, tWaterColor.mG / 255.0f, tWaterColor.mB / 255.0f, 1.0f}
+                            : tTheme.mWater;
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     Gfx::Mesh tOcean;
@@ -195,15 +200,15 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             const Gfx::Texture* tTexture = nullptr;
             for (int tTry = tFullLevel; tTry >= 0 && !tTexture; --tTry)
             {
-                tTexture = UseTexture({tLon, tLat, tTry, 0});
+                tTexture = UseTexture({tLon, tLat, tTry, 0, tStyle});
             }
-            if (!UseTexture({tLon, tLat, tFullLevel, 0}))
+            if (!UseTexture({tLon, tLat, tFullLevel, 0, tStyle}))
             {
-                mStore.Request({tLon, tLat, tFullLevel, 0});
+                mStore.Request({tLon, tLat, tFullLevel, 0, tStyle});
             }
-            if (!UseTexture({tLon, tLat, 0, 0}))
+            if (!UseTexture({tLon, tLat, 0, 0, tStyle}))
             {
-                mStore.Request({tLon, tLat, 0, 0});  // en kaba seviye hep olsun: hizli yedek
+                mStore.Request({tLon, tLat, 0, 0, tStyle});  // en kaba seviye hep olsun: hizli yedek
             }
             if (tTexture)
             {
@@ -224,10 +229,10 @@ void TerrainLayer::Draw(const DrawContext& pContext)
                     {
                         continue;
                     }
-                    const Gfx::Texture* tChunkTexture = UseTexture({tLon, tLat, 3, tChunk});
+                    const Gfx::Texture* tChunkTexture = UseTexture({tLon, tLat, 3, tChunk, tStyle});
                     if (!tChunkTexture)
                     {
-                        mStore.Request({tLon, tLat, 3, tChunk});
+                        mStore.Request({tLon, tLat, 3, tChunk, tStyle});
                         continue;
                     }
                     tStrips.clear();

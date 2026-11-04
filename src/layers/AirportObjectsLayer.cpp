@@ -268,6 +268,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
 
     Gfx::Mesh tFills;  // dolgular (ustune konturlu cizgiler)
     Gfx::OutlinedLines tLines(MapSymbols::kOutlineExtra);
+    tLines.SetOutlineColor(pContext.mTheme->mHalo);
     Gfx::Mesh tThin;   // konturu olmayan ince cizgiler
     Gfx::Mesh tLamps;  // isik noktalari (en altta: semboller ustune binsin)
     const RectD& tArea = pContext.mArea;
@@ -513,7 +514,8 @@ void AirportObjectsLayer::DrawLabels(const DrawContext& pContext)
         if (!tMarker.mLabel.empty())
         {
             MapSymbols::DrawLabelNear(*pContext.mLabels, tMarker.mPoint.mX, tMarker.mPoint.mY, tMarker.mRadius + 3.0f,
-                                      tMarker.mLabel, kLabel);
+                                      tMarker.mLabel, pContext.mTheme->mLight ? pContext.mTheme->mRunwayLabel : kLabel,
+                                      pContext.LabelShadow());
         }
     }
 }

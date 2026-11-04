@@ -12,8 +12,8 @@ const int kGroupGap = 14;   // dugme gruplari arasi
 
 // Dugme gruplari (soldan saga). Cizim araclarinda mod ve islem dugmeleri
 // arasina biraz bosluk konur (ToolbarAction::None = bosluk).
-const std::vector<ToolbarAction> kGeneralGroup = {ToolbarAction::Layers, ToolbarAction::FollowAircraft,
-                                                  ToolbarAction::CenterAircraft};
+const std::vector<ToolbarAction> kGeneralGroup = {ToolbarAction::Layers, ToolbarAction::MapMode,
+                                                  ToolbarAction::FollowAircraft, ToolbarAction::CenterAircraft};
 const std::vector<ToolbarAction> kDrawingGroup = {
     ToolbarAction::ModePan, ToolbarAction::ModePoint, ToolbarAction::ModeRoute, ToolbarAction::ModeRegion,
     ToolbarAction::None,    ToolbarAction::Finish,    ToolbarAction::Undo,      ToolbarAction::Clear};
@@ -150,6 +150,8 @@ bool Toolbar::IsActive(ToolbarAction pAction, const ToolbarState& pState)
     {
         case ToolbarAction::Layers:
             return pState.mLayersOpen;
+        case ToolbarAction::MapMode:
+            return pState.mModesOpen;
         case ToolbarAction::FollowAircraft:
             return pState.mFollowing;
         case ToolbarAction::ModePan:
@@ -188,6 +190,8 @@ const char* Toolbar::LabelFor(ToolbarAction pAction, const ToolbarState& pState)
     {
         case ToolbarAction::Layers:
             return "Layers";
+        case ToolbarAction::MapMode:
+            return pState.mModeLabel;
         case ToolbarAction::FollowAircraft:
             return "Follow aircraft";
         case ToolbarAction::CenterAircraft:

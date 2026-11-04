@@ -135,3 +135,41 @@ double TerrainPalette::ShadingStrength() const
 {
     return mShadingStrength;
 }
+
+TerrainColor ElevationColor(double pMeters)
+{
+    // (feet, R, G, B): sectional'daki rakim tonlarina benzer; aralar dogrusal karisir
+    struct Stop
+    {
+        double mFeet;
+        double mR;
+        double mG;
+        double mB;
+    };
+    static const Stop kStops[] = {
+        {0.0, 190.0, 216.0, 166.0},    {1000.0, 210.0, 226.0, 172.0}, {2000.0, 230.0, 232.0, 180.0},
+        {3000.0, 238.0, 226.0, 170.0}, {5000.0, 230.0, 206.0, 150.0}, {7000.0, 214.0, 184.0, 134.0},
+        {9000.0, 196.0, 162.0, 118.0}, {12000.0, 176.0, 142.0, 106.0}, {15000.0, 160.0, 132.0, 102.0},
+    };
+    const int tCount = static_cast<int>(sizeof(kStops) / sizeof(kStops[0]));
+    const double tFeet = pMeters * 3.28084;
+    if (tFeet <= kStops[0].mFeet)
+    {
+        return {static_cast<uint8_t>(kStops[0].mR), static_cast<uint8_t>(kStops[0].mG),
+                static_cast<uint8_t>(kStops[0].mB)};
+    }
+    for (int tIndex = 1; tIndex < tCount; ++tIndex)
+    {
+        if (tFeet <= kStops[tIndex].mFeet)
+        {
+            const Stop& tLow = kStops[tIndex - 1];
+            const Stop& tHigh = kStops[tIndex];
+            const double tF = (tFeet - tLow.mFeet) / (tHigh.mFeet - tLow.mFeet);
+            return {static_cast<uint8_t>(tLow.mR + (tHigh.mR - tLow.mR) * tF + 0.5),
+                    static_cast<uint8_t>(tLow.mG + (tHigh.mG - tLow.mG) * tF + 0.5),
+                    static_cast<uint8_t>(tLow.mB + (tHigh.mB - tLow.mB) * tF + 0.5)};
+        }
+    }
+    const Stop& tLast = kStops[tCount - 1];
+    return {static_cast<uint8_t>(tLast.mR), static_cast<uint8_t>(tLast.mG), static_cast<uint8_t>(tLast.mB)};
+}

@@ -12,8 +12,6 @@ namespace
 {
 
 const double kMinSpacing = 90.0;  // iki izgara cizgisi arasi en az bu kadar boxel
-const Rgba kLineColor = {0.78f, 0.84f, 0.92f, 0.22f};
-const Rgba kLabelColor = {0.70f, 0.76f, 0.84f, 1.0f};
 
 // Bir dongude [pFrom, pTo] araligindaki pStep katlarini gezmek icin
 // baslangic ve bitis indeksi (kayan nokta birikimi olmasin diye indeksle gezilir)
@@ -61,7 +59,7 @@ void GridLayer::Draw(const DrawContext& pContext)
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
         const float tX = std::floor(tView.ToScreen({tCenter.mLat, tIndex * tStep}).mX) + 0.5f;
-        tLines.AddLine({tX, tBottom}, {tX, tTop}, 1.0f, kLineColor);
+        tLines.AddLine({tX, tBottom}, {tX, tTop}, 1.0f, pContext.mTheme->mGridLine);
     }
 
     // Enlem cizgileri (yatay)
@@ -69,7 +67,7 @@ void GridLayer::Draw(const DrawContext& pContext)
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
         const float tY = std::floor(tView.ToScreen({tIndex * tStep, tCenter.mLon}).mY) + 0.5f;
-        tLines.AddLine({tLeft, tY}, {tRight, tY}, 1.0f, kLineColor);
+        tLines.AddLine({tLeft, tY}, {tRight, tY}, 1.0f, pContext.mTheme->mGridLine);
     }
 
     pContext.mCanvas->Draw(tLines);
@@ -95,7 +93,7 @@ void GridLayer::DrawLabels(const DrawContext& pContext)
             continue;
         }
         Ui::Text(static_cast<int>(tX) + 4, static_cast<int>(tClear.mBottom) + 5,
-                 FormatGridLabel(NormalizeLon(tIndex * tStep), false, tStep), kLabelColor);
+                 FormatGridLabel(NormalizeLon(tIndex * tStep), false, tStep), pContext.mTheme->mGridLabel);
     }
 
     // Enlem etiketleri: sol kenarda, cizginin hemen ustunde
@@ -108,7 +106,7 @@ void GridLayer::DrawLabels(const DrawContext& pContext)
             continue;
         }
         Ui::Text(static_cast<int>(tClear.mLeft) + 5, static_cast<int>(tY) + 4,
-                 FormatGridLabel(tIndex * tStep, true, tStep), kLabelColor);
+                 FormatGridLabel(tIndex * tStep, true, tStep), pContext.mTheme->mGridLabel);
     }
 }
 

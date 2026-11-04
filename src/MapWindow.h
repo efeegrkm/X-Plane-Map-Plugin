@@ -21,7 +21,9 @@
 #include "MapView.h"
 #include "ScreenMath.h"
 #include "gfx/Canvas.h"
+#include "MapTheme.h"
 #include "ui/LayerPanel.h"
+#include "ui/ModePanel.h"
 #include "ui/StatusBar.h"
 #include "ui/Toolbar.h"
 
@@ -53,6 +55,12 @@ public:
     void ToggleVisible();
     void ToggleControls();
     void SetDiagnostics(bool pOn);
+
+    // Harita modu: katman gorunurlugu mod basina saklanir (gecerli mod kaydedilip
+    // yenisininki yuklenir). Komut ozdev/map/next_mode siradakine gecer.
+    void SetMapMode(MapMode pMode);
+    void NextMapMode();
+    MapMode GetMapMode() const;
 
     // Alt seritte gosterilecek kisa durum yazisi (bos = yok).
     // Ornek: "Loading nav data: 120000"
@@ -116,6 +124,8 @@ private:
     bool mCanvasChecked = false;
     Toolbar mToolbar;
     LayerPanel mLayerPanel;
+    ModePanel mModePanel;
+    MapMode mMapMode = MapMode::Scenery;
     StatusBar mStatusBar;
     LabelPlacer mLabelPlacer;          // tum katmanlarin ortak etiket seyreltmesi
     std::string mStatusMessage;

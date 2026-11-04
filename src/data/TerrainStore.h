@@ -40,10 +40,12 @@ struct TerrainImageKey
     int mSouth = 0;
     int mLevel = 0;
     int mChunk = 0;  // seviye 3: 0..15 (satir * 4 + sutun, satir 0 = kuzey); digerlerinde 0
+    int mStyle = 0;  // Start'a verilen bicim listesindeki sira (harita modu)
 
     bool operator==(const TerrainImageKey& pOther) const
     {
-        return mWest == pOther.mWest && mSouth == pOther.mSouth && mLevel == pOther.mLevel && mChunk == pOther.mChunk;
+        return mWest == pOther.mWest && mSouth == pOther.mSouth && mLevel == pOther.mLevel &&
+               mChunk == pOther.mChunk && mStyle == pOther.mStyle;
     }
 };
 
@@ -51,8 +53,9 @@ struct TerrainImageKeyHash
 {
     size_t operator()(const TerrainImageKey& pKey) const
     {
-        return static_cast<size_t>(SceneryIndex::TileKey(pKey.mWest, pKey.mSouth)) * 64 +
-               static_cast<size_t>(pKey.mLevel * 16 + pKey.mChunk);
+        return (static_cast<size_t>(SceneryIndex::TileKey(pKey.mWest, pKey.mSouth)) * 64 +
+                static_cast<size_t>(pKey.mLevel * 16 + pKey.mChunk)) * 8 +
+               static_cast<size_t>(pKey.mStyle);
     }
 };
 
@@ -85,8 +88,10 @@ public:
     TerrainStore(const TerrainStore&) = delete;
     TerrainStore& operator=(const TerrainStore&) = delete;
 
-    // Isciyi baslatir. pCacheDirectory yoksa olusturulur.
-    void Start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory, const TerrainPalette& pPalette);
+    // Isciyi baslatir. pCacheDirectory yoksa olusturulur. pStyles: goruntu
+    // bicimleri (TerrainImageKey::mStyle bu listenin sirasi; bossa hep Classes).
+    void Start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory, const TerrainPalette& pPalette,
+               const std::vector<TerrainImageStyle>& pStyles = {});
     void Stop();
 
     bool IsIndexReady() const;
@@ -120,6 +125,7 @@ private:
     std::string mXPlaneDirectory;
     std::string mCacheDirectory;
     TerrainPalette mPalette;
+    std::vector<TerrainImageStyle> mStyles;
     SceneryIndex mIndex;
     std::atomic<bool> mIndexReady{false};
 

@@ -72,10 +72,9 @@ void TextCentered(const RectI& pRect, std::string_view pText, const Rgba& pColor
     Text(tX, tY, pText, pColor);
 }
 
-void TextShadowed(int pX, int pY, std::string_view pText, const Rgba& pColor)
+void TextShadowed(int pX, int pY, std::string_view pText, const Rgba& pColor, const Rgba& pShadow)
 {
-    const Rgba tShadow = {0.0f, 0.0f, 0.0f, 1.0f};
-    Text(pX + 1, pY - 1, pText, tShadow);
+    Text(pX + 1, pY - 1, pText, pShadow);
     Text(pX, pY, pText, pColor);
 }
 

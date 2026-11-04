@@ -27,6 +27,7 @@ class AirportGeometryStore;
 namespace Gfx
 {
 class Canvas;
+class Mesh;
 class OutlinedLines;
 }
 
@@ -79,11 +80,14 @@ private:
     bool ComputeFeather(const DrawContext& pContext, int pIndex, VisibleNavaid* pOut);
     LatLon FeatherOrigin(int pIndex);  // esik (bulunduysa) veya anten
     void AddSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const;
+    void AddCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const;
     void DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const;
     std::string FormatLabel(const NavRecord& pRecord, bool pDetail) const;
 
     NavaidType mType;
     const Style& mStyle;
+    Rgba mColor;  // bu karenin rengi (temadan, Draw / DrawLabels basinda)
+    Rgba mHalo;   // kontur rengi (temadan)
     const NavDatabase& mDatabase;
     const AirportGeometryStore* mRunways;
 

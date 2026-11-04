@@ -33,5 +33,6 @@ private:
     bool mDone = false;
     int mVisited = 0;
     int mIlsSamplesLogged = 0;
+    int mVorSamplesLogged = 0;
     double mElapsedMs = 0.0;  // toplam harcanan sure (log icin)
 };

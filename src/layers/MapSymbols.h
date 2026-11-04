@@ -19,10 +19,12 @@ const float kOutlineExtra = 2.0f;  // kontur, cizgiden bu kadar kalin
 
 // Etiketi sembolun sagina, yer yoksa soluna koymayi dener (pGap: sembolden
 // uzaklik). Yer bulunduysa yaziyi golgeli cizer ve true doner.
+// pShadow: yazi golgesi (temanin halesi, MapTheme::mHalo tam opak).
 bool DrawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, std::string_view pText,
-                   const Rgba& pColor);
+                   const Rgba& pColor, const Rgba& pShadow);
 
 // Etiketi tam (pX, pY) noktasina ortalayarak koymayi dener (pist numarasi gibi)
-bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_view pText, const Rgba& pColor);
+bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_view pText, const Rgba& pColor,
+                       const Rgba& pShadow);
 
 }  // namespace MapSymbols

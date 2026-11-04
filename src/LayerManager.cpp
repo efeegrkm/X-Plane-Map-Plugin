@@ -9,7 +9,7 @@
 namespace
 {
 
-const char* kSection = "layers";
+const char* kLegacySection = "layers";  // 0.12 ve oncesi: tek bolum (Scenery'ye tasinir)
 
 }  // namespace
 
@@ -86,19 +86,32 @@ void LayerManager::DrawAll(const DrawContext& pContext)
     }
 }
 
-void LayerManager::LoadVisibility(const Settings& pSettings)
+void LayerManager::LoadVisibility(const Settings& pSettings, const MapTheme& pTheme)
 {
+    const std::string tSection(LayerSectionFor(pTheme.mMode));
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        // Dosyada yoksa katmanin varsayilani kalir
-        tLayer->SetVisible(pSettings.GetBool(kSection, tLayer->Id(), tLayer->IsVisible()));
+        bool tDefault = tLayer->DefaultVisible();
+        for (const LayerDefault& tOverride : pTheme.mLayerDefaults)
+        {
+            if (tOverride.mId && tLayer->Id() == tOverride.mId)
+            {
+                tDefault = tOverride.mVisible;
+            }
+        }
+        if (pTheme.mMode == MapMode::Scenery)
+        {
+            tDefault = pSettings.GetBool(kLegacySection, tLayer->Id(), tDefault);  // eski ayar
+        }
+        tLayer->SetVisible(pSettings.GetBool(tSection, tLayer->Id(), tDefault));
     }
 }
 
-void LayerManager::SaveVisibility(Settings& pSettings) const
+void LayerManager::SaveVisibility(Settings& pSettings, const MapTheme& pTheme) const
 {
+    const std::string tSection(LayerSectionFor(pTheme.mMode));
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        pSettings.SetBool(kSection, tLayer->Id(), tLayer->IsVisible());
+        pSettings.SetBool(tSection, tLayer->Id(), tLayer->IsVisible());
     }
 }

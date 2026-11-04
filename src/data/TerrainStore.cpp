@@ -85,7 +85,7 @@ TerrainStore::~TerrainStore()
 }
 
 void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory,
-                         const TerrainPalette& pPalette)
+                         const TerrainPalette& pPalette, const std::vector<TerrainImageStyle>& pStyles)
 {
     if (mThread.joinable())
     {
@@ -94,6 +94,7 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
     mXPlaneDirectory = pXPlaneDirectory;
     mCacheDirectory = pCacheDirectory;
     mPalette = pPalette;
+    mStyles = pStyles;
     mStopping = false;
     mThread = std::thread(
         [this]()
@@ -430,7 +431,10 @@ void TerrainStore::WorkerLoop()
         const int tSpan = TerrainRaster::kSize / tChunks;
         const int tX0 = (tKey.mChunk % tChunks) * tSpan;
         const int tY0 = (tKey.mChunk / tChunks) * tSpan;
-        tRaster->BuildImage(tX0, tY0, tX0 + tSpan, tY0 + tSpan, tImage.mSize, mPalette, &tImage.mRgba);
+        const TerrainImageStyle tStyle = tKey.mStyle >= 0 && tKey.mStyle < static_cast<int>(mStyles.size())
+                                             ? mStyles[tKey.mStyle]
+                                             : TerrainImageStyle();
+        tRaster->BuildImage(tX0, tY0, tX0 + tSpan, tY0 + tSpan, tImage.mSize, mPalette, tStyle, &tImage.mRgba);
 
         std::lock_guard<std::mutex> tLock(mMutex);
         mResults.push_back(std::move(tImage));

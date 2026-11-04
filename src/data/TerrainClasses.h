@@ -53,6 +53,24 @@ struct TerrainColor
     uint8_t mB;
 };
 
+// Zemin goruntusunun bicimi (harita moduna gore, MapTheme)
+enum class TerrainStyle
+{
+    Classes,    // arazi sinifi renkleri (su, orman, sehir ...) + kabartma
+    Elevation,  // VFR: rakim rampasi + kabartma, su ayri renk
+    LandWater,  // IFR: sadece kara ve su (iki duz renk), kabartmasiz; kiyilar gorunur
+};
+
+struct TerrainImageStyle
+{
+    TerrainStyle mStyle = TerrainStyle::Classes;
+    TerrainColor mLand = {0, 0, 0};   // LandWater: kara rengi
+    TerrainColor mWater = {0, 0, 0};  // Elevation / LandWater: su rengi
+};
+
+// VFR rakim rampasi (sectional benzeri: alcak yesil, orta sari/ten, yuksek kahverengi)
+TerrainColor ElevationColor(double pMeters);
+
 class TerrainPalette
 {
 public:

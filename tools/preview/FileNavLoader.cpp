@@ -60,6 +60,10 @@ void LoadNav(const std::string& pPath, NavDatabase& pDatabase)
         tRecord.mLon = static_cast<float>(tLon);
         tRecord.mFrequency = tFrequency;
         tRecord.mId = tId;
+        if (tRecord.mKind == NavKind::Vor)
+        {
+            tRecord.mVariation = static_cast<float>(tHeading);  // slaved variation, + = dogu
+        }
         if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
         {
             DecodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);

@@ -153,6 +153,17 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
         tRecord.mAirportKind = AirportKindFromName(tNameText, &tRecord.mName);
         tRecord.mMajor = tRecord.mAirportKind == AirportKind::Land && IsMajorAirportId(tRecord.mId);
     }
+    if (tRecord.mKind == NavKind::Vor)
+    {
+        // earth_nav.dat'ta VOR satirinin "yon" alani slaved variation'dir (+ = dogu).
+        // DOGRULA: SDK'nin bunu outHeading olarak verdigi X-Plane'de logdan kontrol edilecek.
+        tRecord.mVariation = tHeading;
+        if (mVorSamplesLogged < kIlsSampleCount)
+        {
+            ++mVorSamplesLogged;
+            Log("VOR sample: {} SDK heading (variation) = {:.2f}", tIdText, tHeading);
+        }
+    }
     if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
     {
         // X-Plane 11.55'te denendi: SDK yonu zaten cozulmus GERCEK yon olarak

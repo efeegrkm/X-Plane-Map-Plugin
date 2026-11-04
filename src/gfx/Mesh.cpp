@@ -242,6 +242,11 @@ OutlinedLines::OutlinedLines(float pOutlineExtra)
 {
 }
 
+void OutlinedLines::SetOutlineColor(const Rgba& pColor)
+{
+    mOutlineColor = pColor;
+}
+
 void OutlinedLines::Clear()
 {
     mOutline.Clear();
@@ -255,33 +260,33 @@ bool OutlinedLines::IsEmpty() const
 
 void OutlinedLines::AddLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgba& pColor)
 {
-    mOutline.AddLine(pFrom, pTo, pWidth + mOutlineExtra, kOutline);
+    mOutline.AddLine(pFrom, pTo, pWidth + mOutlineExtra, mOutlineColor);
     mFill.AddLine(pFrom, pTo, pWidth, pColor);
 }
 
 void OutlinedLines::AddPolyline(const std::vector<Point>& pPoints, bool pClosed, float pWidth, const Rgba& pColor)
 {
-    mOutline.AddPolyline(pPoints, pClosed, pWidth + mOutlineExtra, kOutline);
+    mOutline.AddPolyline(pPoints, pClosed, pWidth + mOutlineExtra, mOutlineColor);
     mFill.AddPolyline(pPoints, pClosed, pWidth, pColor);
 }
 
 void OutlinedLines::AddRegularPolygon(const Point& pCenter, float pRadius, int pSides, float pStartDeg, float pWidth,
                                       const Rgba& pColor)
 {
-    mOutline.AddRegularPolygon(pCenter, pRadius, pSides, pStartDeg, pWidth + mOutlineExtra, kOutline);
+    mOutline.AddRegularPolygon(pCenter, pRadius, pSides, pStartDeg, pWidth + mOutlineExtra, mOutlineColor);
     mFill.AddRegularPolygon(pCenter, pRadius, pSides, pStartDeg, pWidth, pColor);
 }
 
 void OutlinedLines::AddRing(const Point& pCenter, float pRadius, float pWidth, const Rgba& pColor)
 {
-    mOutline.AddRing(pCenter, pRadius, pWidth + mOutlineExtra, kOutline);
+    mOutline.AddRing(pCenter, pRadius, pWidth + mOutlineExtra, mOutlineColor);
     mFill.AddRing(pCenter, pRadius, pWidth, pColor);
 }
 
 void OutlinedLines::AddDottedCircle(const Point& pCenter, float pRadius, int pCount, float pDotSize,
                                     const Rgba& pColor)
 {
-    mOutline.AddDottedCircle(pCenter, pRadius, pCount, pDotSize + mOutlineExtra, kOutline);
+    mOutline.AddDottedCircle(pCenter, pRadius, pCount, pDotSize + mOutlineExtra, mOutlineColor);
     mFill.AddDottedCircle(pCenter, pRadius, pCount, pDotSize, pColor);
 }
 

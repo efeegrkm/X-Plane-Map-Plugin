@@ -35,7 +35,6 @@ const float kMouseTimeout = 0.25f;   // pop-out'ta imlec bu sureden eski ise pen
 const float kDiagnosticsPeriod = 2.0f;
 const int kClickSlop = 4;            // basip birakmada bundan az hareket: tiklama (boxel)
 
-const Rgba kBackground = {0.13f, 0.15f, 0.18f, 1.0f};  // zemin verisi olmayan yer: duz renk
 
 // Ilk acilista bakilacak yer (ucak henuz yoksa): Turkiye
 const LatLon kDefaultCenter = {39.0, 35.0};
@@ -264,7 +263,8 @@ void MapWindow::OnDraw()
         tScissor.emplace(*tBoxelToPixel, ToRectD(mArea));  // pencere disina tasma
     }
 
-    Ui::FillRect(mCanvas, mArea, kBackground);
+    const MapTheme& tTheme = ThemeFor(mMapMode);
+    Ui::FillRect(mCanvas, mArea, tTheme.mBackground);  // zemin verisi olmayan yer: duz renk
 
     int tMouseX = 0;
     int tMouseY = 0;
@@ -273,6 +273,7 @@ void MapWindow::OnDraw()
     DrawContext tContext;
     tContext.mView = &mView;
     tContext.mCanvas = &mCanvas;
+    tContext.mTheme = &tTheme;
     tContext.mArea = ToRectD(mArea);
     tContext.mClearArea = ClearArea();
     tContext.mPixelsPerBoxel = tBoxelToPixel ? PixelsPerBoxel(*tBoxelToPixel) : 1.0;
@@ -391,6 +392,7 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
 
     const ToolbarState tState = CurrentToolbarState();
     mLayerPanel.Layout(mToolbar.ButtonRect(ToolbarAction::Layers), mLayers);
+    mModePanel.Layout(mToolbar.ButtonRect(ToolbarAction::MapMode));
 
     // Imlecin altindaki nokta: kontrollerin ustundeyse gosterme
     std::optional<LatLon> tCursor;
@@ -412,7 +414,8 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
 
     mToolbar.Draw(mCanvas, pMouseX, pMouseY, tState);
     mStatusBar.Draw(mCanvas, mArea, mView, tCursor, tMessage);
-    mLayerPanel.Draw(mCanvas, pMouseX, pMouseY, mLayers);  // en ustte: acilir panel
+    mLayerPanel.Draw(mCanvas, pMouseX, pMouseY, mLayers);  // en ustte: acilir paneller
+    mModePanel.Draw(mCanvas, pMouseX, pMouseY, mMapMode);
 }
 
 RectD MapWindow::ClearArea() const
@@ -440,6 +443,10 @@ ToolbarState MapWindow::CurrentToolbarState() const
 {
     ToolbarState tState;
     tState.mLayersOpen = mLayerPanel.IsOpen();
+    tState.mModesOpen = mModePanel.IsOpen();
+    static const char* const kModeLabels[kMapModeCount] = {"Map: Scenery", "Map: VFR", "Map: IFR Low",
+                                                           "Map: IFR High"};
+    tState.mModeLabel = kModeLabels[static_cast<int>(mMapMode)];
     tState.mFollowing = mFollowAircraft;
     tState.mHasAircraft = mAircraft.State().mValid;
     tState.mPoppedOut = mWindow && XPLMWindowIsPoppedOut(mWindow);
@@ -469,7 +476,9 @@ bool MapWindow::IsOverControls(int pX, int pY) const
     {
         return false;
     }
-    return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, mLayers).mInside;
+    std::optional<MapMode> tMode;
+    return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, mLayers).mInside ||
+           mModePanel.HitTest(pX, pY, &tMode);
 }
 
 void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor)
@@ -604,6 +613,16 @@ bool MapWindow::HandleControlClick(int pX, int pY)
     }
 
     // Acik panel en ustte: once ona bak
+    std::optional<MapMode> tModeHit;
+    if (mModePanel.HitTest(pX, pY, &tModeHit))
+    {
+        if (tModeHit)
+        {
+            SetMapMode(*tModeHit);
+            mModePanel.SetOpen(false);
+        }
+        return true;
+    }
     const LayerPanel::Hit tPanelHit = mLayerPanel.HitTest(pX, pY, mLayers);
     if (tPanelHit.mInside)
     {
@@ -637,12 +656,40 @@ bool MapWindow::HandleControlClick(int pX, int pY)
     return mStatusBar.Contains(pX, pY);
 }
 
+void MapWindow::SetMapMode(MapMode pMode)
+{
+    if (pMode == mMapMode)
+    {
+        return;
+    }
+    mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));  // eski modun katmanlari
+    mMapMode = pMode;
+    mLayers.LoadVisibility(mSettings, ThemeFor(mMapMode));
+    Log("map mode: {}", ThemeFor(mMapMode).mId);
+    SaveSettings();
+}
+
+void MapWindow::NextMapMode()
+{
+    SetMapMode(NextMode(mMapMode));
+}
+
+MapMode MapWindow::GetMapMode() const
+{
+    return mMapMode;
+}
+
 void MapWindow::PerformToolbarAction(ToolbarAction pAction)
 {
     switch (pAction)
     {
         case ToolbarAction::Layers:
             mLayerPanel.Toggle();
+            mModePanel.SetOpen(false);
+            break;
+        case ToolbarAction::MapMode:
+            mModePanel.Toggle();
+            mLayerPanel.SetOpen(false);
             break;
         case ToolbarAction::FollowAircraft:
             mFollowAircraft = !mFollowAircraft;
@@ -751,8 +798,9 @@ void MapWindow::LoadSettings()
     mView.SetZoom(mSettings.GetDouble(kViewSection, "zoom", kDefaultZoom));
     mFollowAircraft = mSettings.GetBool(kViewSection, "follow_aircraft", true);
     mShowControls = mSettings.GetBool(kViewSection, "show_controls", true);
+    mMapMode = ModeFromId(mSettings.GetString(kViewSection, "mode", "scenery"), MapMode::Scenery);
 
-    mLayers.LoadVisibility(mSettings);
+    mLayers.LoadVisibility(mSettings, ThemeFor(mMapMode));
 }
 
 void MapWindow::SaveSettings()
@@ -772,8 +820,9 @@ void MapWindow::SaveSettings()
     mSettings.SetDouble(kViewSection, "zoom", mView.Zoom());
     mSettings.SetBool(kViewSection, "follow_aircraft", mFollowAircraft);
     mSettings.SetBool(kViewSection, "show_controls", mShowControls);
+    mSettings.SetString(kViewSection, "mode", ThemeFor(mMapMode).mId);
 
-    mLayers.SaveVisibility(mSettings);
+    mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));
 
     if (!mSettings.Save())
     {

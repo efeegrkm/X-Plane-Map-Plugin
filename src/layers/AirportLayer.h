@@ -15,13 +15,15 @@
 #include "LabelPlacer.h"
 #include "Layer.h"
 
+class AirportGeometryStore;
 class NavDatabase;
 enum class AirportKind : unsigned char;
 
 class AirportLayer : public Layer
 {
 public:
-    explicit AirportLayer(const NavDatabase& pDatabase);
+    // pGeometry: apt.dat ozeti (kule bilgisi icin, VFR renkleri); bos olabilir
+    explicit AirportLayer(const NavDatabase& pDatabase, const AirportGeometryStore* pGeometry = nullptr);
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
@@ -47,12 +49,15 @@ private:
         float mX;
         float mY;
         Category mCategory;
+        Rgba mColor;       // temadan: kategori veya kule rengi
+        Rgba mLabelColor;
     };
 
     void CollectVisible(const DrawContext& pContext);
     static Category CategoryOf(AirportKind pAirportKind, bool pMajor);
 
     const NavDatabase& mDatabase;
+    const AirportGeometryStore* mGeometry;
     std::vector<int> mQuery;               // izgara sorgusunun sonucu (her karede yeniden)
     std::vector<VisibleAirport> mVisible;  // bu karede cizilenler (etiketler bunlara yazilir)
     LabelPlacer mSymbolPlacer;             // semboller ust uste binmesin

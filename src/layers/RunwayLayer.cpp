@@ -30,8 +30,6 @@ const Rgba kWaterColor = {0.30f, 0.50f, 0.80f, 0.85f};
 const Rgba kSnowColor = {0.85f, 0.88f, 0.92f, 1.0f};
 const Rgba kOverrunColor = {0.33f, 0.34f, 0.37f, 1.0f};
 const Rgba kMarkingColor = {0.96f, 0.97f, 0.98f, 1.0f};
-const Rgba kEdgeColor = {0.90f, 0.92f, 0.95f, 0.90f};    // acik kenar: hem zeminde hem koyu arka planda okunur
-const Rgba kLabelColor = {0.92f, 0.94f, 0.97f, 1.0f};
 
 const Rgba& SurfaceColor(RunwaySurface pSurface)
 {
@@ -165,11 +163,15 @@ void RunwayLayer::Draw(const DrawContext& pContext)
 
     // Once TUM pistlerin acik kenari, sonra TUM yuzeyler: kesisen pistlerde
     // birinin kenari digerinin yuzeyini cizmesin
+    // Kenar rengi temadan (Scenery/VFR acik, IFR koyu). Uzaktan gorunen ince
+    // pist: koyu zeminde acik cizgi, acik zeminde (VFR/IFR) koyu cizgi.
+    const MapTheme& tTheme = *pContext.mTheme;
+    const Rgba& tEdgeColor = tTheme.mRunwayEdge;
     for (const ScreenRunway& tRunway : mVisible)
     {
         if (tRunway.mHalfWidth >= 2.0f)
         {
-            AddRectangle(tMesh, tRunway, -1.0f, tRunway.mLength + 1.0f, tRunway.mHalfWidth + 1.0f, kEdgeColor);
+            AddRectangle(tMesh, tRunway, -1.0f, tRunway.mLength + 1.0f, tRunway.mHalfWidth + 1.0f, tEdgeColor);
         }
     }
     for (const ScreenRunway& tRunway : mVisible)
@@ -179,7 +181,7 @@ void RunwayLayer::Draw(const DrawContext& pContext)
             // Uzaktan (cok dar) pist: koyu dolgu gorunmez, acik renkli cizgi olarak ciz
             const bool tThin = tRunway.mHalfWidth < 2.0f;
             AddRectangle(tMesh, tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth,
-                         tThin ? kEdgeColor : SurfaceColor(tRunway.mRunway->mSurface));
+                         tThin && !tTheme.mLight ? tEdgeColor : SurfaceColor(tRunway.mRunway->mSurface));
         }
     }
 
@@ -234,7 +236,7 @@ void RunwayLayer::DrawLabels(const DrawContext& pContext)
             const float tX = tRunway.mEndX[tEnd] + tSign * tRunway.mDirX * tOffset;
             const float tY = tRunway.mEndY[tEnd] + tSign * tRunway.mDirY * tOffset;
             MapSymbols::DrawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName,
-                                          kLabelColor);
+                                          pContext.mTheme->mRunwayLabel, pContext.LabelShadow());
         }
     }
 }

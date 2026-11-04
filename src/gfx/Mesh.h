@@ -96,6 +96,9 @@ class OutlinedLines
 public:
     explicit OutlinedLines(float pOutlineExtra = 2.0f);
 
+    // Kontur rengi (varsayilan kOutline). Acik zeminli haritada beyaz "hale" olur.
+    void SetOutlineColor(const Rgba& pColor);
+
     void Clear();
     bool IsEmpty() const;
 
@@ -111,6 +114,7 @@ public:
 
 private:
     float mOutlineExtra;
+    Rgba mOutlineColor = kOutline;
     Mesh mOutline;
     Mesh mFill;
 };

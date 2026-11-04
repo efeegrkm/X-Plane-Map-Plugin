@@ -133,6 +133,18 @@ listesi ve dosya görevleri: `README.md`.
     `layers/TaxiRouteLayer` (1201/1202, varsayılan kapalı, taksi yolu adları),
     gruplu katman paneli (`ui/LayerPanel`, gruplar `kGroups` tablosunda:
     Map, Airports, Navaids, Airways, Flight; üç durumlu kutu, ok ile aç/kapa).
+  - **Harita modları (0.13):** `src/MapTheme.*` (Scenery / VFR / IFR Low /
+    IFR High). `DrawContext::mTheme` her zaman dolu (varsayılan Scenery);
+    katmanlar renkleri temadan okur, Scenery = eski sabitler. Hale:
+    `OutlinedLines::SetOutlineColor(theme.mHalo)`, yazı gölgesi
+    `pContext.LabelShadow()`. Zemin biçimi `TerrainStyle` (Classes /
+    Elevation / LandWater) -> `TerrainImageKey::mStyle` = MapMode sırası,
+    `TerrainStore::Start(..., AllTerrainStyles())`. Raster önbelleği sürüm 2:
+    512² int16 rakım (`ElevationColor` rampası). Mod başına katman bölümü
+    `[layers.<mod>]`, eski `[layers]` Scenery'ye okunur; mod `[view] mode`.
+    VOR gülü `NavRecord::mVariation` = SDK'nın VOR "heading" alanı (slaved
+    variation varsayımı; Log `VOR sample:` ile DOĞRULANACAK). Renkler FAA
+    geleneğinden, X-Plane ekran görüntüsüyle ayarlanmadı.
   - Fare açıklaması (0.11): `Layer::Describe` + `LayerManager::DescribeAt`,
     `MapWindow::DrawTooltip`. Pist, yüzey, nesne, havalimanı, navaid
     katmanları açıklama veriyor. Önizlemede `--describe x,y` ile sınanır.
@@ -212,8 +224,11 @@ listesi ve dosya görevleri: `README.md`.
 - `GOREV_0.9.md` artık geçmiş kayıt (iş bilgisayarı planı iptal); A paketi
   burada yapıldı, B (motorla) iptal, C (modlar) parser'dan sonra.
 - Harita modları: Scenery + VFR + IFR Low + IFR High (kullanıcı onayladı).
-- Sıradaki: harita modları (Scenery / VFR / IFR Low / IFR High; tasarım
-  GOREV_0.9.md bölüm C). Pist giriş çizgileri 1 piksel kalsın (kullanıcı
-  bakacak). 0.11 ve 0.12 X-Plane'de henüz denenmedi.
+- 0.11 ve 0.12 kullanıcı X-Plane'de denedi: "güzel" (helipad dairesi
+  istendi -> 0.12 sonrası düzeltme: sadece 102'li heliport'lar artık
+  çiziliyor). 0.13 (modlar) X-Plane'de henüz denenmedi.
+- Sıradaki: kullanıcının mod geri bildirimi (X-Plane ekran görüntüsüyle
+  renk ayarı), MEF rakamları; IOS ekranı için öneriler kullanıcıya sunuldu
+  (kullanıcı bu haritayı simülatör IOS ekranlarında kullanacak).
 - Açık sorular: zemin renkleri, önbellek disk sınırı, eski HaritaPlugin
   klasörünü silme.

@@ -1,7 +1,7 @@
 // Toolbar.h
 // Haritanin ust kenarindaki ince, yari saydam arac seridi.
 //
-//   [Layers] [Follow aircraft] [Center on aircraft]   [Pan][Point][Route][Region]
+//   [Layers] [Map: VFR] [Follow aircraft] [Center on aircraft]   [Pan][Point][Route][Region]
 //   [Finish][Undo][Clear]   ...   [Pop out] [Hide]      (genis pencerede hepsi tek satirda)
 //
 // Pencere bu dugmelerin hepsine yetmeyecek kadar darsa serit iki satira
@@ -23,6 +23,7 @@ enum class ToolbarAction
 {
     None,
     Layers,          // katman panelini ac/kapat
+    MapMode,         // harita modu listesini ac/kapat ("Map: VFR")
     FollowAircraft,  // ucagi takip et (ac/kapat)
     CenterAircraft,  // haritayi bir kez ucaga ortala
     ModePan,         // cizim araclari: gezin
@@ -40,6 +41,8 @@ enum class ToolbarAction
 struct ToolbarState
 {
     bool mLayersOpen = false;
+    bool mModesOpen = false;
+    const char* mModeLabel = "Map: Scenery";  // MapWindow doldurur (statik metin)
     bool mFollowing = false;
     bool mHasAircraft = false;
     bool mPoppedOut = false;

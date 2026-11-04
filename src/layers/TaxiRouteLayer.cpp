@@ -90,7 +90,8 @@ void TaxiRouteLayer::DrawLabels(const DrawContext& pContext)
         }
         // Ayni adli komsu kenarlar ust uste binmesin: etiket yerlestirici eler
         MapSymbols::DrawLabelCentered(*pContext.mLabels, (tEdge.mFrom.mX + tEdge.mTo.mX) * 0.5f,
-                                      (tEdge.mFrom.mY + tEdge.mTo.mY) * 0.5f, *tEdge.mName, kLabel);
+                                      (tEdge.mFrom.mY + tEdge.mTo.mY) * 0.5f, *tEdge.mName, kLabel,
+                                      pContext.LabelShadow());
     }
 }
 

@@ -41,6 +41,11 @@ const float kDmeBoxRadius = 8.5f;  // VOR/DME'nin cevresindeki kare (kosegen yar
 const float kNdbRadius = 7.0f;
 const float kFixRadius = 4.5f;
 
+// VOR pusula gulu (VFR / IFR modlari)
+const double kRoseMinZoom = 7.5;
+const float kRoseRadiusMin = 34.0f;  // boxel; zoom arttikca buyur
+const float kRoseRadiusMax = 70.0f;
+
 // Gorunen alani pMarginNm kadar genislet (ILS tuyu antenden uzaga tasar)
 GeoBounds ExpandBounds(const GeoBounds& pBounds, double pMarginNm)
 {
@@ -227,6 +232,19 @@ void NavaidLayer::Draw(const DrawContext& pContext)
         return;
     }
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
+    mColor = pContext.mTheme->mNavaid[static_cast<int>(mType)];
+    mHalo = pContext.mTheme->mHalo;
+
+    // VFR / IFR: VOR'larin cevresinde manyetik kuzeye donuk pusula gulu
+    if (mType == NavaidType::Vor && pContext.mTheme->mVorRose && pContext.mView->Zoom() >= kRoseMinZoom)
+    {
+        Gfx::Mesh tRose;
+        for (const VisibleNavaid& tNavaid : mVisible)
+        {
+            AddCompassRose(tNavaid, pContext.mView->Zoom(), tRose);
+        }
+        tCanvas.Draw(tRose);
+    }
 
     if (mType == NavaidType::Ils)
     {
@@ -235,6 +253,7 @@ void NavaidLayer::Draw(const DrawContext& pContext)
     }
 
     Gfx::OutlinedLines tSymbols(MapSymbols::kOutlineExtra);
+    tSymbols.SetOutlineColor(mHalo);
     Gfx::Mesh tCenters;
     for (const VisibleNavaid& tNavaid : mVisible)
     {
@@ -242,7 +261,7 @@ void NavaidLayer::Draw(const DrawContext& pContext)
         if (mType != NavaidType::Fix)
         {
             // Ortadaki dolu nokta (fix haric)
-            tCenters.AddDisc(tNavaid.mPoint, mType == NavaidType::Ndb ? 2.5f : 1.6f, mStyle.mColor);
+            tCenters.AddDisc(tNavaid.mPoint, mType == NavaidType::Ndb ? 2.5f : 1.6f, mColor);
         }
     }
     tCanvas.Draw(tSymbols);
@@ -256,23 +275,58 @@ void NavaidLayer::AddSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pS
     switch (tRecord.mKind)
     {
         case NavKind::Vor:
-            pSymbols.AddRegularPolygon(pNavaid.mPoint, kVorRadius, 6, 0.0f, tWidth, mStyle.mColor);
+            pSymbols.AddRegularPolygon(pNavaid.mPoint, kVorRadius, 6, 0.0f, tWidth, mColor);
             if (tRecord.mHasDme)
             {
-                pSymbols.AddRegularPolygon(pNavaid.mPoint, kDmeBoxRadius, 4, 45.0f, tWidth, mStyle.mColor);
+                pSymbols.AddRegularPolygon(pNavaid.mPoint, kDmeBoxRadius, 4, 45.0f, tWidth, mColor);
             }
             break;
         case NavKind::Dme:
-            pSymbols.AddRegularPolygon(pNavaid.mPoint, kVorRadius, 4, 45.0f, tWidth, mStyle.mColor);
+            pSymbols.AddRegularPolygon(pNavaid.mPoint, kVorRadius, 4, 45.0f, tWidth, mColor);
             break;
         case NavKind::Fix:
-            pSymbols.AddRegularPolygon(pNavaid.mPoint, kFixRadius, 3, 90.0f, tWidth, mStyle.mColor);
+            pSymbols.AddRegularPolygon(pNavaid.mPoint, kFixRadius, 3, 90.0f, tWidth, mColor);
             break;
         case NavKind::Ndb:
-            pSymbols.AddDottedCircle(pNavaid.mPoint, kNdbRadius, 12, 2.5f, mStyle.mColor);  // noktali cember
+            pSymbols.AddDottedCircle(pNavaid.mPoint, kNdbRadius, 12, 2.5f, mColor);  // noktali cember
             break;
         default:
             break;
+    }
+}
+
+void NavaidLayer::AddCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const
+{
+    // Cember + her 10 derecede centik (30'larda uzun), manyetik kuzeyde ok.
+    // Manyetik kuzey gercek kuzeyden mVariation (+ = dogu) kadar saga doner.
+    const NavRecord& tRecord = mDatabase.At(pNavaid.mIndex);
+    if (tRecord.mKind != NavKind::Vor)
+    {
+        return;
+    }
+    const float tRadius =
+        std::clamp(kRoseRadiusMin + static_cast<float>(pZoom - kRoseMinZoom) * 12.0f, kRoseRadiusMin, kRoseRadiusMax);
+    const Rgba tColor = WithAlpha(mColor, 0.75f);
+    pRose.AddRing(pNavaid.mPoint, tRadius, 1.0f, tColor);
+    for (int tTick = 0; tTick < 36; ++tTick)
+    {
+        const double tBearing = (tTick * 10.0 + tRecord.mVariation) * 3.14159265358979 / 180.0;
+        const float tLength = tTick % 3 == 0 ? 7.0f : 3.5f;
+        const float tSin = static_cast<float>(std::sin(tBearing));
+        const float tCos = static_cast<float>(std::cos(tBearing));
+        const PointF tOuter = {pNavaid.mPoint.mX + tSin * tRadius, pNavaid.mPoint.mY + tCos * tRadius};
+        const PointF tInner = {pNavaid.mPoint.mX + tSin * (tRadius - tLength),
+                               pNavaid.mPoint.mY + tCos * (tRadius - tLength)};
+        pRose.AddLine(tInner, tOuter, tTick % 9 == 0 ? 1.6f : 1.0f, tColor);
+        if (tTick == 0)
+        {
+            // Manyetik kuzey: cemberin disinda kucuk ok
+            const PointF tTip = {pNavaid.mPoint.mX + tSin * (tRadius + 8.0f),
+                                 pNavaid.mPoint.mY + tCos * (tRadius + 8.0f)};
+            const PointF tLeft = {tOuter.mX - tCos * 3.5f, tOuter.mY + tSin * 3.5f};
+            const PointF tRight = {tOuter.mX + tCos * 3.5f, tOuter.mY - tSin * 3.5f};
+            pRose.AddTriangle(tTip, tLeft, tRight, tColor);
+        }
     }
 }
 
@@ -284,7 +338,7 @@ void NavaidLayer::DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
     const float tFillAlpha =
         kFeatherFillAlphaFar + static_cast<float>(tFade) * (kFeatherFillAlphaNear - kFeatherFillAlphaFar);
     Gfx::Mesh tFill;
-    const Rgba tFillColor = WithAlpha(mStyle.mColor, tFillAlpha);
+    const Rgba tFillColor = WithAlpha(mColor, tFillAlpha);
     for (const VisibleNavaid& tNavaid : mVisible)
     {
         tFill.AddTriangle(tNavaid.mPoint, tNavaid.mFeather[1], tNavaid.mFeather[2], tFillColor);
@@ -302,11 +356,11 @@ void NavaidLayer::DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
                                             tNavaid.mFeather[2]};
         if (tWithOutline)
         {
-            tOutline.AddPolyline(tShape, true, 3.0f, Gfx::kOutline);
-            tOutline.AddLine(tNavaid.mPoint, tNavaid.mFeather[1], 3.0f, Gfx::kOutline);
+            tOutline.AddPolyline(tShape, true, 3.0f, mHalo);
+            tOutline.AddLine(tNavaid.mPoint, tNavaid.mFeather[1], 3.0f, mHalo);
         }
-        tLines.AddPolyline(tShape, true, 1.2f, mStyle.mColor);
-        tLines.AddLine(tNavaid.mPoint, tNavaid.mFeather[1], 1.2f, mStyle.mColor);
+        tLines.AddPolyline(tShape, true, 1.2f, mColor);
+        tLines.AddLine(tNavaid.mPoint, tNavaid.mFeather[1], 1.2f, mColor);
     }
     pCanvas.Draw(tOutline);
     pCanvas.Draw(tLines);
@@ -320,6 +374,8 @@ void NavaidLayer::DrawLabels(const DrawContext& pContext)
         return;
     }
     const bool tDetail = tZoom >= mStyle.mDetailMinZoom;
+    mColor = pContext.mTheme->mNavaid[static_cast<int>(mType)];
+    const Rgba tShadow = pContext.LabelShadow();
     for (const VisibleNavaid& tNavaid : mVisible)
     {
         const std::string tText = FormatLabel(mDatabase.At(tNavaid.mIndex), tDetail);
@@ -327,13 +383,13 @@ void NavaidLayer::DrawLabels(const DrawContext& pContext)
         {
             // ILS etiketi tuyun dis ucunda
             MapSymbols::DrawLabelNear(*pContext.mLabels, tNavaid.mFeather[1].mX, tNavaid.mFeather[1].mY, 6.0f, tText,
-                                      mStyle.mColor);
+                                      mColor, tShadow);
         }
         else
         {
             const float tGap = (mType == NavaidType::Fix ? kFixRadius : kDmeBoxRadius) + 3.0f;
             MapSymbols::DrawLabelNear(*pContext.mLabels, tNavaid.mPoint.mX, tNavaid.mPoint.mY, tGap, tText,
-                                      mStyle.mColor);
+                                      mColor, tShadow);
         }
     }
 }

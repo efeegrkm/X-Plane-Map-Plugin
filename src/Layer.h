@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 
+#include "MapTheme.h"
 #include "ScreenMath.h"
 
 class LabelPlacer;
@@ -39,6 +40,15 @@ struct DrawContext
     // Tum katmanlarin ortak etiket yerlestiricisi (DrawLabels icinde kullanilir).
     // Katmanlar sirayla cizildigi icin alttaki katmanin etiketi onceliklidir.
     LabelPlacer* mLabels = nullptr;
+
+    // Harita modunun renkleri (hic bos degil; varsayilan Scenery)
+    const MapTheme* mTheme = &ThemeFor(MapMode::Scenery);
+
+    // Yazi golgesi: temanin halesi, tam opak
+    Rgba LabelShadow() const
+    {
+        return WithAlpha(mTheme->mHalo, 1.0f);
+    }
 };
 
 class Layer
@@ -50,6 +60,7 @@ public:
         : mId(pId)
         , mName(pName)
         , mVisible(pDefaultVisible)
+        , mDefaultVisible(pDefaultVisible)
     {
     }
 
@@ -76,6 +87,11 @@ public:
     void SetVisible(bool pVisible)
     {
         mVisible = pVisible;
+    }
+
+    bool DefaultVisible() const
+    {
+        return mDefaultVisible;
     }
 
     // Her karede flight loop'tan cagrilir (katman kapali olsa bile):
@@ -111,4 +127,5 @@ private:
     std::string mId;
     std::string mName;
     bool mVisible;
+    bool mDefaultVisible;
 };

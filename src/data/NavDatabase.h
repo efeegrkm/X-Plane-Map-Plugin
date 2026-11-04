@@ -44,6 +44,7 @@ struct NavRecord
     int mFrequency = 0;          // nav.dat kurali: NDB kHz (tam), digerleri MHz * 100
     float mCourseTrue = 0.0f;    // ILS/LOC: yaklasma yonu (gercek, derece)
     short mCourseMagnetic = -1;  // ILS/LOC: manyetik yon (bilinmiyorsa -1)
+    float mVariation = 0.0f;     // VOR: "slaved variation" (derece, + = dogu); pusula gulu bununla doner
     bool mHasDme = false;        // VOR/ILS: ayni kimlikte bir DME ile eslesti
     bool mHidden = false;        // DME: bir VOR/ILS'e baglandi, ayrica cizilmez
     bool mMajor = false;         // havalimani: kara havalimani + 4 harfli ICAO kodu (seyreltmede oncelikli)

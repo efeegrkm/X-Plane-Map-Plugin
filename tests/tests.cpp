@@ -15,6 +15,7 @@
 #include "Geo.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
+#include "MapTheme.h"
 #include "Log.h"
 #include "MapFormat.h"
 #include "MapView.h"
@@ -647,22 +648,63 @@ void TestLayerManager()
     tLayers.DrawAll(tContext);
     CHECK(tTrace == "Da Dc La Lc ", "cizim sirasi: once geometri sonra yazi, kapali atlanir: '%s'", tTrace.c_str());
 
+    const MapTheme& tScenery = ThemeFor(MapMode::Scenery);
     Settings tSettings;
     tLayers.At(0)->SetVisible(false);
-    tLayers.SaveVisibility(tSettings);
-    CHECK(!tSettings.GetBool("layers", "a", true) && !tSettings.GetBool("layers", "b", true) &&
-              tSettings.GetBool("layers", "c", false),
-          "gorunurluk kaydi");
+    tLayers.SaveVisibility(tSettings, tScenery);
+    CHECK(!tSettings.GetBool("layers.scenery", "a", true) && !tSettings.GetBool("layers.scenery", "b", true) &&
+              tSettings.GetBool("layers.scenery", "c", false),
+          "gorunurluk kaydi (mod bolumu)");
 
-    tSettings.SetBool("layers", "b", true);
+    tSettings.SetBool("layers.scenery", "b", true);
     tLayers.At(0)->SetVisible(true);
-    tLayers.LoadVisibility(tSettings);
+    tLayers.LoadVisibility(tSettings, tScenery);
     CHECK(!tLayers.At(0)->IsVisible() && tLayers.At(1)->IsVisible() && tLayers.At(2)->IsVisible(),
           "gorunurluk okuma");
 
     Settings tEmpty;
-    tLayers.LoadVisibility(tEmpty);
-    CHECK(!tLayers.At(0)->IsVisible() && tLayers.At(1)->IsVisible(), "ayar yoksa mevcut durum korunur");
+    tLayers.LoadVisibility(tEmpty, tScenery);
+    CHECK(tLayers.At(0)->IsVisible() && !tLayers.At(1)->IsVisible(), "ayar yoksa katmanin varsayilani");
+
+    Settings tLegacy;  // 0.12 ve oncesi: tek [layers] bolumu -> Scenery'ye tasinir
+    tLegacy.SetBool("layers", "a", false);
+    tLayers.LoadVisibility(tLegacy, tScenery);
+    CHECK(!tLayers.At(0)->IsVisible(), "eski [layers] bolumu Scenery'de okunur");
+    tLayers.LoadVisibility(tLegacy, ThemeFor(MapMode::Vfr));
+    CHECK(tLayers.At(0)->IsVisible(), "eski bolum diger modlari etkilemez");
+
+    // Mod varsayilani: VFR'de ILS kapali
+    LayerManager tModeLayers;
+    tModeLayers.Add(std::make_unique<CountingLayer>("ils", true, &tTrace));
+    tModeLayers.LoadVisibility(tEmpty, ThemeFor(MapMode::Vfr));
+    CHECK(!tModeLayers.At(0)->IsVisible(), "VFR temasi ILS'i varsayilan kapatir");
+    tModeLayers.LoadVisibility(tEmpty, ThemeFor(MapMode::IfrLow));
+    CHECK(tModeLayers.At(0)->IsVisible(), "IFR Low'da ILS acik");
+}
+
+void TestMapTheme()
+{
+    CHECK(ModeFromId("vfr", MapMode::Scenery) == MapMode::Vfr && ModeFromId("ifr_high", MapMode::Scenery) ==
+              MapMode::IfrHigh && ModeFromId("xyz", MapMode::IfrLow) == MapMode::IfrLow,
+          "mod kimligi okuma");
+    CHECK(NextMode(MapMode::IfrHigh) == MapMode::Scenery && NextMode(MapMode::Scenery) == MapMode::Vfr,
+          "siradaki mod donguseldir");
+    CHECK(LayerSectionFor(MapMode::IfrLow) == "layers.ifr_low", "mod bolumu adi");
+    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    {
+        const MapTheme& tTheme = ThemeFor(static_cast<MapMode>(tIndex));
+        CHECK(static_cast<int>(tTheme.mMode) == tIndex, "tema sirasi: %s", tTheme.mId);
+    }
+    CHECK(AllTerrainStyles().size() == static_cast<size_t>(kMapModeCount) &&
+              AllTerrainStyles()[static_cast<int>(MapMode::Vfr)].mStyle == TerrainStyle::Elevation,
+          "zemin bicimleri mod sirasiyla");
+
+    // Rakim rampasi: alcakta yesil baskin, yuksekte kahverengi (kirmizi > mavi, koyulasir)
+    const TerrainColor tLow = ElevationColor(0.0);
+    const TerrainColor tHigh = ElevationColor(4000.0);
+    CHECK(tLow.mG > tLow.mR && tHigh.mR > tHigh.mB && tHigh.mG < tLow.mG, "rakim rampasi");
+    CHECK(ElevationColor(-50.0).mG == tLow.mG && ElevationColor(20000.0).mR == ElevationColor(9000.0).mR,
+          "rampa uclarda sabit");
 }
 
 // ---------------------------------------------------------------------------
@@ -1728,7 +1770,7 @@ void TestTerrain()
 
     // Goruntu: 64 px, sol ust su rengi, saydam degil
     std::vector<uint8_t> tImage;
-    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tPalette, &tImage);
+    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tPalette, TerrainImageStyle(), &tImage);
     CHECK(tImage.size() == 64 * 64 * 4 && tImage[3] == 255 &&
               tImage[0] == tPalette.ColorOf(TerrainClass::Water).mR,
           "goruntu: su pikseli");
@@ -1902,6 +1944,7 @@ int main()
     TestMercator();
     TestMapView();
     TestGeo();
+    TestMapTheme();
     TestDrawings();
     TestMapFormat();
     TestMesh();

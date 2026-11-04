@@ -27,7 +27,7 @@ namespace MapSymbols
 {
 
 bool DrawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, std::string_view pText,
-                   const Rgba& pColor)
+                   const Rgba& pColor, const Rgba& pShadow)
 {
     const int tWidth = Ui::TextWidth(pText);
     const int tHeight = Ui::FontHeight();
@@ -40,14 +40,15 @@ bool DrawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, std::st
     {
         if (pPlacer.TryPlace(TextBox(tTextX, tBaseY, tWidth, tHeight)))
         {
-            Ui::TextShadowed(tTextX, tBaseY, pText, pColor);
+            Ui::TextShadowed(tTextX, tBaseY, pText, pColor, pShadow);
             return true;
         }
     }
     return false;
 }
 
-bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_view pText, const Rgba& pColor)
+bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_view pText, const Rgba& pColor,
+                       const Rgba& pShadow)
 {
     const int tWidth = Ui::TextWidth(pText);
     const int tHeight = Ui::FontHeight();
@@ -57,7 +58,7 @@ bool DrawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_vie
     {
         return false;
     }
-    Ui::TextShadowed(tTextX, tBaseY, pText, pColor);
+    Ui::TextShadowed(tTextX, tBaseY, pText, pColor, pShadow);
     return true;
 }
 

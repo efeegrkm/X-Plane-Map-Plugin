@@ -47,9 +47,10 @@ int FontHeight();
 // Yaziyi kutunun ortasina hizalar
 void TextCentered(const RectI& pRect, std::string_view pText, const Rgba& pColor);
 
-// Harita uzerindeki yazilar icin: once 1 boxel sag-asagiya siyah golge,
-// sonra yazi. Her zemin renginde okunur kalir.
-void TextShadowed(int pX, int pY, std::string_view pText, const Rgba& pColor);
+// Harita uzerindeki yazilar icin: once 1 boxel sag-asagiya golge (varsayilan
+// siyah; acik zeminli modda beyaz), sonra yazi. Her zemin renginde okunur kalir.
+const Rgba kShadowBlack = {0.0f, 0.0f, 0.0f, 1.0f};
+void TextShadowed(int pX, int pY, std::string_view pText, const Rgba& pColor, const Rgba& pShadow = kShadowBlack);
 
 // Etiketi sigdiracak dugme genisligi
 int ButtonWidth(std::string_view pLabel);

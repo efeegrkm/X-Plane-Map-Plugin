@@ -31,9 +31,11 @@ public:
     // Imlecin altindaki seyin aciklamasi: en ustteki gorunen katmandan baslar
     std::string DescribeAt(const DrawContext& pContext, double pX, double pY) const;
 
-    // [layers] bolumu: anahtar = katman kimligi, deger = 1/0
-    void LoadVisibility(const Settings& pSettings);
-    void SaveVisibility(Settings& pSettings) const;
+    // Mod basina bolum ("layers.vfr" ...): anahtar = katman kimligi, deger = 1/0.
+    // Dosyada yoksa: temanin varsayilani, o da yoksa katmanin kendi varsayilani.
+    // Scenery icin eski [layers] bolumu de okunur (0.12 ve oncesinin ayari).
+    void LoadVisibility(const Settings& pSettings, const MapTheme& pTheme);
+    void SaveVisibility(Settings& pSettings, const MapTheme& pTheme) const;
 
 private:
     std::vector<std::unique_ptr<Layer>> mLayers;

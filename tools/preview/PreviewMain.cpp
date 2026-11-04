@@ -22,7 +22,9 @@
 #include "gfx/GlInclude.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
+#include "MapTheme.h"
 #include "MapView.h"
+#include "Settings.h"
 #include "data/AircraftData.h"
 #include "data/AirportGeometryStore.h"
 #include "data/AirwayDatabase.h"
@@ -66,7 +68,6 @@ const GLenum kGlColorAttachment0 = 0x8CE0;
 const GLenum kGlRgba8 = 0x8058;
 const GLenum kGlFramebufferComplete = 0x8CD5;
 
-const Rgba kBackground = {0.13f, 0.15f, 0.18f, 1.0f};  // MapWindow ile ayni
 
 struct Options
 {
@@ -82,6 +83,7 @@ struct Options
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
+    MapMode mMode = MapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
     std::vector<std::string> mPanelGroups;  // --panel <grup>: katman panelini bu grup acik ciz
     bool mPanel = false;
@@ -137,6 +139,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--fixes")
         {
             pOut->mFixes = true;
+        }
+        else if (tArg == "--mode" && tHasValue)
+        {
+            pOut->mMode = ModeFromId(pArgv[++tIndex], MapMode::Scenery);
         }
         else if (tArg == "--hide" && tHasValue)
         {
@@ -332,7 +338,7 @@ int main(int pArgc, char** pArgv)
     Drawings tDrawings;
     TerrainPalette tPalette;
     TerrainStore tTerrain;
-    tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette);
+    tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette, AllTerrainStyles());
     LayerManager tLayers;
     tLayers.Add(std::make_unique<TerrainLayer>(tTerrain, tPalette));
     AirportDetailStore tAirportDetails(tRunways);
@@ -345,13 +351,18 @@ int main(int pArgc, char** pArgv)
     Layer* tObjectsLayer = tLayers.Add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, false));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, true));
-    tLayers.Add(std::make_unique<AirportLayer>(tNav));
+    tLayers.Add(std::make_unique<AirportLayer>(tNav, &tRunways));
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, tNav));
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, tNav));
     Layer* tFixLayer = tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, tNav));
     tFixLayer->SetVisible(tOptions.mFixes);
     tLayers.Add(std::make_unique<AircraftLayer>(tAircraft));
     tLayers.Add(std::make_unique<DrawingLayer>(tDrawings));
+    const MapTheme& tTheme = ThemeFor(tOptions.mMode);
+    if (tOptions.mMode != MapMode::Scenery)
+    {
+        tLayers.LoadVisibility(Settings(), tTheme);  // modun varsayilan katmanlari
+    }
     for (int tIndex = 0; tIndex < tLayers.Count(); ++tIndex)
     {
         Layer* tLayer = tLayers.At(tIndex);
@@ -390,6 +401,7 @@ int main(int pArgc, char** pArgv)
         DrawContext tWarmup;
         tWarmup.mView = &tView;
         tWarmup.mCanvas = &tCanvas;
+        tWarmup.mTheme = &tTheme;
         tWarmup.mArea = ToRectD(tArea);
         tWarmup.mClearArea = tWarmup.mArea;
         tLayers.At(0)->Draw(tWarmup);
@@ -418,11 +430,13 @@ int main(int pArgc, char** pArgv)
     glClear(GL_COLOR_BUFFER_BIT);
     tCanvas.BeginFrame();
 
-    Ui::FillRect(tCanvas, tArea, kBackground);
+    Ui::FillRect(tCanvas, tArea, tTheme.mBackground);
 
     Toolbar tToolbar;
     ToolbarState tToolbarState;
     tToolbarState.mMode = tDrawings.GetMode();
+    const std::string tModeLabel = std::string("Map: ") + tTheme.mName;
+    tToolbarState.mModeLabel = tModeLabel.c_str();
     tToolbarState.mCanFinish = tDrawings.Current() != nullptr;
     tToolbarState.mCanUndo = tDrawings.ShapeCount() > 0;
     if (tOptions.mUi)
@@ -434,6 +448,7 @@ int main(int pArgc, char** pArgv)
     DrawContext tContext;
     tContext.mView = &tView;
     tContext.mCanvas = &tCanvas;
+    tContext.mTheme = &tTheme;
     tContext.mArea = ToRectD(tArea);
     tContext.mClearArea = tContext.mArea;
     if (tOptions.mUi)

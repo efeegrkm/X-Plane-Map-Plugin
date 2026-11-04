@@ -20,10 +20,6 @@ const size_t kMaxSegments = 6000;      // FPS korumasi
 const float kMinLabelLength = 90.0f;   // ekranda bundan kisa segmente ad yazilmaz (boxel)
 const double kEdgeMarginDeg = 0.2;
 
-const Rgba kLowColor = {0.42f, 0.68f, 0.52f, 0.85f};
-const Rgba kHighColor = {0.50f, 0.58f, 0.88f, 0.85f};
-const Rgba kLowLabel = {0.62f, 0.85f, 0.70f, 1.0f};
-const Rgba kHighLabel = {0.70f, 0.76f, 0.98f, 1.0f};
 
 }  // namespace
 
@@ -56,10 +52,11 @@ void AirwayLayer::Draw(const DrawContext& pContext)
     mQuery.clear();
     mAirways.Query(tBounds, mQuery);
 
-    const Rgba& tColor = mHigh ? kHighColor : kLowColor;
+    const MapTheme& tTheme = *pContext.mTheme;
+    const Rgba& tColor = mHigh ? tTheme.mAirwayHigh : tTheme.mAirwayLow;
     const bool tArrows = tView.Zoom() >= kArrowMinZoom;
     Gfx::Mesh tLines;
-    const float tWidth = 1.2f;
+    const float tWidth = mHigh ? tTheme.mAirwayHighWidth : tTheme.mAirwayLowWidth;
     for (int tIndex : mQuery)
     {
         if (mSeenStamp[tIndex] == mStamp)
@@ -125,7 +122,7 @@ void AirwayLayer::DrawLabels(const DrawContext& pContext)
     {
         return;
     }
-    const Rgba& tColor = mHigh ? kHighLabel : kLowLabel;
+    const Rgba& tColor = mHigh ? pContext.mTheme->mAirwayHighLabel : pContext.mTheme->mAirwayLowLabel;
     for (const VisibleSegment& tVisible : mVisible)
     {
         const float tDeltaX = tVisible.mToX - tVisible.mFromX;
@@ -137,6 +134,6 @@ void AirwayLayer::DrawLabels(const DrawContext& pContext)
         const AirwaySegment& tSegment = mAirways.At(tVisible.mIndex);
         MapSymbols::DrawLabelCentered(*pContext.mLabels, (tVisible.mFromX + tVisible.mToX) * 0.5f,
                                       (tVisible.mFromY + tVisible.mToY) * 0.5f + 8.0f, tSegment.mNames,
-                                      tColor);
+                                      tColor, pContext.LabelShadow());
     }
 }

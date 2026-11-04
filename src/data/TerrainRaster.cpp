@@ -12,7 +12,7 @@ namespace
 {
 
 const char kMagic[4] = {'M', 'P', 'T', 'R'};
-const uint32_t kFileVersion = 1;
+const uint32_t kFileVersion = 2;  // 2: rakim raster'i eklendi (VFR). Eski surum yeniden uretilir.
 
 const double kPi = 3.14159265358979323846;
 const double kMetersPerDegreeLat = 110574.0;
@@ -44,6 +44,7 @@ void TerrainRaster::Reset(int pWest, int pSouth)
     mSouth = pSouth;
     mClasses.assign(static_cast<size_t>(kSize) * kSize, static_cast<uint8_t>(TerrainClass::None));
     mShade.clear();
+    mElevation.clear();
 }
 
 int TerrainRaster::West() const
@@ -146,6 +147,49 @@ void TerrainRaster::ComputeShading(const DsfRaster& pElevation)
             mShade[static_cast<size_t>(tRow) * kShadeSize + tColumn] = static_cast<uint8_t>(tLight * 255.0 + 0.5);
         }
     }
+
+    // Rakim raster'i: hucre merkezindeki DEM degeri (satir 0 = kuzey)
+    mElevation.assign(static_cast<size_t>(kElevationSize) * kElevationSize, 0);
+    for (int tRow = 0; tRow < kElevationSize; ++tRow)
+    {
+        const double tV = (tRow + 0.5) / kElevationSize;
+        const int tDemY = ClampInt(static_cast<int>((1.0 - tV) * (tHeight - 1) + 0.5), 0, tHeight - 1);
+        for (int tColumn = 0; tColumn < kElevationSize; ++tColumn)
+        {
+            const double tU = (tColumn + 0.5) / kElevationSize;
+            const int tDemX = ClampInt(static_cast<int>(tU * (tWidth - 1) + 0.5), 0, tWidth - 1);
+            const double tMeters = std::min(std::max(tElevation(tDemX, tDemY), -1000.0), 9000.0);
+            mElevation[static_cast<size_t>(tRow) * kElevationSize + tColumn] = static_cast<int16_t>(tMeters);
+        }
+    }
+}
+
+bool TerrainRaster::HasElevation() const
+{
+    return !mElevation.empty();
+}
+
+double TerrainRaster::ElevationAt(double pU, double pV) const
+{
+    if (mElevation.empty())
+    {
+        return 0.0;
+    }
+    const double tX = pU * kElevationSize - 0.5;
+    const double tY = pV * kElevationSize - 0.5;
+    const int tX0 = ClampInt(static_cast<int>(std::floor(tX)), 0, kElevationSize - 1);
+    const int tY0 = ClampInt(static_cast<int>(std::floor(tY)), 0, kElevationSize - 1);
+    const int tX1 = ClampInt(tX0 + 1, 0, kElevationSize - 1);
+    const int tY1 = ClampInt(tY0 + 1, 0, kElevationSize - 1);
+    const double tFx = std::min(std::max(tX - tX0, 0.0), 1.0);
+    const double tFy = std::min(std::max(tY - tY0, 0.0), 1.0);
+    auto tAt = [&](int pColumn, int pRow)
+    {
+        return static_cast<double>(mElevation[static_cast<size_t>(pRow) * kElevationSize + pColumn]);
+    };
+    const double tTop = tAt(tX0, tY0) * (1.0 - tFx) + tAt(tX1, tY0) * tFx;
+    const double tBottom = tAt(tX0, tY1) * (1.0 - tFx) + tAt(tX1, tY1) * tFx;
+    return tTop * (1.0 - tFy) + tBottom * tFy;
 }
 
 bool TerrainRaster::HasShading() const
@@ -183,14 +227,15 @@ double TerrainRaster::ShadeAt(double pU, double pV) const
 }
 
 void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize, const TerrainPalette& pPalette,
-                               std::vector<uint8_t>* pRgba) const
+                               const TerrainImageStyle& pStyle, std::vector<uint8_t>* pRgba) const
 {
     pRgba->assign(static_cast<size_t>(pOutSize) * pOutSize * 4, 0);
     const double tBlockX = static_cast<double>(pX1 - pX0) / pOutSize;
     const double tBlockY = static_cast<double>(pY1 - pY0) / pOutSize;
     const int tSamplesX = std::max(1, std::min(kMaxSamplesPerAxis, static_cast<int>(tBlockX)));
     const int tSamplesY = std::max(1, std::min(kMaxSamplesPerAxis, static_cast<int>(tBlockY)));
-    const double tStrength = pPalette.ShadingStrength();
+    const double tStrength = pStyle.mStyle == TerrainStyle::LandWater ? 0.0 : pPalette.ShadingStrength();
+    const bool tByClass = pStyle.mStyle == TerrainStyle::Classes;
     const double tFlatLight = std::sin(kSunAltitudeDeg * kPi / 180.0);  // duz arazinin isigi
 
     for (int tRow = 0; tRow < pOutSize; ++tRow)
@@ -215,20 +260,38 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
                     {
                         continue;
                     }
-                    const TerrainColor& tColor = pPalette.ColorOf(tClass);
-                    tR += tColor.mR;
-                    tG += tColor.mG;
-                    tB += tColor.mB;
                     ++tCovered;
                     if (tClass != TerrainClass::Water)
                     {
                         ++tLand;
+                    }
+                    if (tByClass)
+                    {
+                        const TerrainColor& tColor = pPalette.ColorOf(tClass);
+                        tR += tColor.mR;
+                        tG += tColor.mG;
+                        tB += tColor.mB;
                     }
                 }
             }
             if (tCovered == 0)
             {
                 continue;  // saydam
+            }
+            if (!tByClass)
+            {
+                // Kara rengi (rakim rampasi veya duz) ve su rengi, kara oraninda karistirilir
+                TerrainColor tLandColor = pStyle.mLand;
+                if (pStyle.mStyle == TerrainStyle::Elevation && tLand > 0)
+                {
+                    const double tU = (pX0 + (tColumn + 0.5) * tBlockX) / kSize;
+                    const double tV = (pY0 + (tRow + 0.5) * tBlockY) / kSize;
+                    tLandColor = ElevationColor(ElevationAt(tU, tV));
+                }
+                const int tWater = tCovered - tLand;
+                tR = static_cast<double>(tLandColor.mR) * tLand + static_cast<double>(pStyle.mWater.mR) * tWater;
+                tG = static_cast<double>(tLandColor.mG) * tLand + static_cast<double>(pStyle.mWater.mG) * tWater;
+                tB = static_cast<double>(tLandColor.mB) * tLand + static_cast<double>(pStyle.mWater.mB) * tWater;
             }
             double tFactor = 1.0;
             if (HasShading() && tLand > 0 && tStrength > 0.0)
@@ -284,6 +347,9 @@ bool TerrainRaster::Save(const std::string& pPath, const std::string& pKey) cons
     tFile.write(reinterpret_cast<const char*>(tRuns.data()), static_cast<std::streamsize>(tRuns.size()));
     WriteU32(tFile, static_cast<uint32_t>(mShade.size()));
     tFile.write(reinterpret_cast<const char*>(mShade.data()), static_cast<std::streamsize>(mShade.size()));
+    WriteU32(tFile, static_cast<uint32_t>(mElevation.size()));
+    tFile.write(reinterpret_cast<const char*>(mElevation.data()),
+                static_cast<std::streamsize>(mElevation.size() * sizeof(int16_t)));
     return static_cast<bool>(tFile);
 }
 
@@ -340,10 +406,22 @@ bool TerrainRaster::Load(const std::string& pPath, const std::string& pKey)
         return false;
     }
     mShade.resize(tShadeBytes);
-    if (tShadeBytes == 0)
+    if (tShadeBytes > 0 &&
+        !tFile.read(reinterpret_cast<char*>(mShade.data()), static_cast<std::streamsize>(tShadeBytes)))
     {
-        return true;  // golgesiz karo (DEM yoktu)
+        return false;
     }
-    return static_cast<bool>(
-        tFile.read(reinterpret_cast<char*>(mShade.data()), static_cast<std::streamsize>(tShadeBytes)));
+    uint32_t tElevationCount = 0;
+    if (!ReadU32(tFile, &tElevationCount) ||
+        (tElevationCount != 0 && tElevationCount != static_cast<uint32_t>(kElevationSize) * kElevationSize))
+    {
+        return false;
+    }
+    mElevation.resize(tElevationCount);
+    if (tElevationCount == 0)
+    {
+        return true;  // golgesiz / rakimsiz karo (DEM yoktu)
+    }
+    return static_cast<bool>(tFile.read(reinterpret_cast<char*>(mElevation.data()),
+                                        static_cast<std::streamsize>(tElevationCount * sizeof(int16_t))));
 }

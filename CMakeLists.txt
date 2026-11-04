@@ -28,6 +28,7 @@ set(CORE_SOURCES
     src/Geo.cpp
     src/Drawings.cpp
     src/ScreenMath.cpp
+    src/MapTheme.cpp
     src/MapView.cpp
     src/MapFormat.cpp
     src/Settings.cpp
@@ -85,6 +86,7 @@ set(PLUGIN_SOURCES
     src/ui/UiDraw.cpp
     src/ui/Toolbar.cpp
     src/ui/LayerPanel.cpp
+    src/ui/ModePanel.cpp
     src/ui/StatusBar.cpp
 )
 
@@ -218,6 +220,7 @@ if(MAP_PREVIEW AND WIN32)
         src/ui/UiDraw.cpp
         src/ui/Toolbar.cpp
         src/ui/LayerPanel.cpp
+        src/ui/ModePanel.cpp
         src/ui/StatusBar.cpp)
     map_compile_options(map_preview)
     target_include_directories(map_preview PRIVATE ${CMAKE_SOURCE_DIR})

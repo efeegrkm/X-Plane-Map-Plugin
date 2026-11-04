@@ -26,6 +26,7 @@
 #include "Drawings.h"
 #include "LayerManager.h"
 #include "Log.h"
+#include "MapTheme.h"
 #include "MapWindow.h"
 #include "Settings.h"
 #include "data/AircraftData.h"
@@ -54,7 +55,7 @@
 namespace
 {
 
-const char* kVersion = "0.12";
+const char* kVersion = "0.13";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
@@ -122,6 +123,7 @@ private:
     XPLMCommandRef mToggleCommand = nullptr;
     XPLMCommandRef mControlsCommand = nullptr;
     XPLMCommandRef mDiagnosticsCommand = nullptr;
+    XPLMCommandRef mNextModeCommand = nullptr;
 };
 
 void MapPlugin::Start()
@@ -164,6 +166,7 @@ void MapPlugin::Stop()
     XPLMUnregisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
     XPLMUnregisterCommandHandler(mControlsCommand, CommandCallback, 1, this);
     XPLMUnregisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
+    XPLMUnregisterCommandHandler(mNextModeCommand, CommandCallback, 1, this);
 
     if (mWindow)
     {
@@ -195,7 +198,7 @@ void MapPlugin::CreateLayers()
     // Hava yollari navaid sembollerinin altinda (cizgiler sembolleri ortmesin)
     mLayers.Add(std::make_unique<AirwayLayer>(mAirways, false));
     mLayers.Add(std::make_unique<AirwayLayer>(mAirways, true));
-    mLayers.Add(std::make_unique<AirportLayer>(mNavDatabase));
+    mLayers.Add(std::make_unique<AirportLayer>(mNavDatabase, &mAirportGeometry));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, mNavDatabase));
@@ -216,6 +219,8 @@ void MapPlugin::CreateCommands()
     XPLMRegisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
     XPLMRegisterCommandHandler(mControlsCommand, CommandCallback, 1, this);
     XPLMRegisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
+    mNextModeCommand = XPLMCreateCommand("ozdev/map/next_mode", "Map: next map mode (Scenery / VFR / IFR)");
+    XPLMRegisterCommandHandler(mNextModeCommand, CommandCallback, 1, this);
 }
 
 void MapPlugin::CreateMenu()
@@ -228,6 +233,7 @@ void MapPlugin::CreateMenu()
     // Komuta bagli menu ogeleri: kullanici tus atarsa menude de gorunur
     XPLMAppendMenuItemWithCommand(mMenu, "Show / hide map", mToggleCommand);
     XPLMAppendMenuItemWithCommand(mMenu, "Show / hide controls", mControlsCommand);
+    XPLMAppendMenuItemWithCommand(mMenu, "Next map mode", mNextModeCommand);
 
     // Karsilastirma icin X-Plane'in kendi haritasi (X-Plane'in hazir komutu)
     XPLMCommandRef tXPlaneMapCommand = XPLMFindCommand("sim/map/show_current");
@@ -322,6 +328,10 @@ int MapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     {
         ToggleDiagnostics();
     }
+    else if (pCommand == mNextModeCommand)
+    {
+        mWindow->NextMapMode();
+    }
     return 0;  // komut bizim; baska kimse islemesin
 }
 
@@ -349,7 +359,8 @@ void MapPlugin::StepLoading()
         mXPlaneDirectory = tSystemPath.data();
         Log("indexing airports in the background: {}", mAirportGeometry.SourceName());
         mAirportGeometry.StartLoading(mXPlaneDirectory, mPluginDirectory + kAirportCacheFolder);
-        mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette);
+        mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette,
+                            AllTerrainStyles());
     }
     LogReport(mTerrainStore.TakeLogLines());
     mAirportDetails.Update();  // onceki karede istenen havalimani ayrintilari isciye
