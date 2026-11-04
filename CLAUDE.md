@@ -118,15 +118,21 @@ listesi ve dosya görevleri: `README.md`.
      `AirportDetail`'e (tüm satır kodları), `Shapes::Build` ile çizim
      şekillerine çevirir.
   - `AptLine`: yerel ayardan bağımsız alan okuyucu. Üçgenleme: dış kütüphane
-    `third_party/earcut/mapbox/earcut.hpp` (v2.2.4, ISC, DEĞİŞTİRİLMEDEN;
-    kullanıcı kuralı: dış kod third_party'de, kendi kodumuza karıştırılmaz).
-    Orijinal sürümle en kötü havalimanı WAHI ~2,6 s, YSSY 0,54 s (arka planda).
+    `third_party/earcut/mapbox/earcut.hpp` (v2.2.4, ISC; kullanıcı kuralı:
+    dış kod third_party'de, kendi kodumuza karıştırılmaz). TEK belgelenmiş
+    yama (isValidDiagonal sırası, sonuç aynı; README.txt): WAHI 2,6 -> 0,5 s,
+    tüm dünya 38,5 -> 21,7 s. Üçgen disk önbelleği bilinçli olarak YOK
+    (en kötü 0,6 s; kullanıcı kararı bana bıraktı).
   - `AirportShapes` noktaları Mercator farkı (float, referansa göre) →
     `layers/AirportSurfaceLayer` bunları bir kez `Gfx::StaticMesh`'e yükler,
     her karede `Canvas::DrawStatic` (uTransform: ölçek + kaydırma).
   - `layers/AirportObjectsLayer` (0.11): kalkış/park (1300/15, burun yönüne
     ok; kapı/bağlama/hangar/diğer ayrı), helipad (yöne dönük H), beacon,
     rüzgar tulumu, PAPI/VASI/wig-wag, tabela. Ortak `layers/AirportVisibility`.
+  - 0.12: ışık dizileri (101-108, 15 m arayla, `AirportShapes::mLights`),
+    `layers/TaxiRouteLayer` (1201/1202, varsayılan kapalı, taksi yolu adları),
+    gruplu katman paneli (`ui/LayerPanel`, gruplar `kGroups` tablosunda:
+    Map, Airports, Navaids, Airways, Flight; üç durumlu kutu, ok ile aç/kapa).
   - Fare açıklaması (0.11): `Layer::Describe` + `LayerManager::DescribeAt`,
     `MapWindow::DrawTooltip`. Pist, yüzey, nesne, havalimanı, navaid
     katmanları açıklama veriyor. Önizlemede `--describe x,y` ile sınanır.
@@ -206,9 +212,8 @@ listesi ve dosya görevleri: `README.md`.
 - `GOREV_0.9.md` artık geçmiş kayıt (iş bilgisayarı planı iptal); A paketi
   burada yapıldı, B (motorla) iptal, C (modlar) parser'dan sonra.
 - Harita modları: Scenery + VFR + IFR Low + IFR High (kullanıcı onayladı).
-- apt.dat sıradaki adımlar: kalanlar = kenar/orta hat ışıkları (101-108),
-  taksi ağı (1201/1202, varsayılan kapalı), kalın boya çizgileri (soru);
-  (4) gruplu katman paneli (Airports ▸ alt katmanlar, üç durumlu kutu);
-  sonra modlar.
+- Sıradaki: harita modları (Scenery / VFR / IFR Low / IFR High; tasarım
+  GOREV_0.9.md bölüm C). Pist giriş çizgileri 1 piksel kalsın (kullanıcı
+  bakacak). 0.11 ve 0.12 X-Plane'de henüz denenmedi.
 - Açık sorular: zemin renkleri, önbellek disk sınırı, eski HaritaPlugin
   klasörünü silme.

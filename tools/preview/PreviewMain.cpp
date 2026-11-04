@@ -43,6 +43,7 @@
 #include "layers/TerrainLayer.h"
 #include "tools/preview/FileNavLoader.h"
 #include "tools/preview/XplmStubs.h"
+#include "ui/LayerPanel.h"
 #include "ui/StatusBar.h"
 #include "ui/Toolbar.h"
 #include "ui/UiDraw.h"
@@ -82,6 +83,8 @@ struct Options
     std::string mCache = "terrain_cache/";
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
+    std::vector<std::string> mPanelGroups;  // --panel <grup>: katman panelini bu grup acik ciz
+    bool mPanel = false;
     // --describe x,y: o noktadaki fare aciklamasini yazdir (resim pikseli, ust = 0)
     std::vector<std::pair<double, double>> mDescribe;
 };
@@ -142,6 +145,11 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--show" && tHasValue)
         {
             pOut->mShown.push_back(pArgv[++tIndex]);
+        }
+        else if (tArg == "--panel" && tHasValue)
+        {
+            pOut->mPanel = true;
+            pOut->mPanelGroups.push_back(pArgv[++tIndex]);
         }
         else if (tArg == "--describe" && tHasValue)
         {
@@ -450,6 +458,17 @@ int main(int pArgc, char** pArgv)
     {
         StatusBar tStatus;
         tToolbar.Draw(tCanvas, -1, -1, tToolbarState);
+        if (tOptions.mPanel)
+        {
+            LayerPanel tPanel;
+            tPanel.SetOpen(true);
+            for (const std::string& tGroup : tOptions.mPanelGroups)
+            {
+                tPanel.ToggleGroup(tGroup);
+            }
+            tPanel.Layout(tToolbar.ButtonRect(ToolbarAction::Layers), tLayers);
+            tPanel.Draw(tCanvas, -1, -1, tLayers);
+        }
         tStatus.Draw(tCanvas, tArea, tView, tView.BoxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");
     }
     glFinish();

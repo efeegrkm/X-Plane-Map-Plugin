@@ -469,8 +469,7 @@ bool MapWindow::IsOverControls(int pX, int pY) const
     {
         return false;
     }
-    int tLayerIndex = -1;
-    return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, &tLayerIndex);
+    return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, mLayers).mInside;
 }
 
 void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor)
@@ -605,14 +604,27 @@ bool MapWindow::HandleControlClick(int pX, int pY)
     }
 
     // Acik panel en ustte: once ona bak
-    int tLayerIndex = -1;
-    if (mLayerPanel.HitTest(pX, pY, &tLayerIndex))
+    const LayerPanel::Hit tPanelHit = mLayerPanel.HitTest(pX, pY, mLayers);
+    if (tPanelHit.mInside)
     {
-        Layer* tLayer = mLayers.At(tLayerIndex);
-        if (tLayer)
+        if (!tPanelHit.mExpandGroup.empty())
         {
-            tLayer->SetVisible(!tLayer->IsVisible());
-            Log("layer '{}': {}", tLayer->Id(), tLayer->IsVisible() ? "on" : "off");
+            mLayerPanel.ToggleGroup(tPanelHit.mExpandGroup);  // grubu ac / kapa (katmanlar degismez)
+            return true;
+        }
+        for (int tIndex : tPanelHit.mToggle)
+        {
+            Layer* tLayer = mLayers.At(tIndex);
+            // Grup kutusu: hepsini ayni duruma getir; tek katman: tersine cevir
+            const bool tVisible = tPanelHit.mIsGroupBox ? tPanelHit.mGroupOn : !tLayer->IsVisible();
+            if (tLayer->IsVisible() != tVisible)
+            {
+                tLayer->SetVisible(tVisible);
+                Log("layer '{}': {}", tLayer->Id(), tVisible ? "on" : "off");
+            }
+        }
+        if (!tPanelHit.mToggle.empty())
+        {
             SaveSettings();
         }
         return true;

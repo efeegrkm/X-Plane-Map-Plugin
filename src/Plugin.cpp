@@ -54,7 +54,7 @@
 namespace
 {
 
-const char* kVersion = "0.11";
+const char* kVersion = "0.12";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir

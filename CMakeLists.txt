@@ -217,6 +217,7 @@ if(MAP_PREVIEW AND WIN32)
         src/layers/DrawingLayer.cpp
         src/ui/UiDraw.cpp
         src/ui/Toolbar.cpp
+        src/ui/LayerPanel.cpp
         src/ui/StatusBar.cpp)
     map_compile_options(map_preview)
     target_include_directories(map_preview PRIVATE ${CMAKE_SOURCE_DIR})

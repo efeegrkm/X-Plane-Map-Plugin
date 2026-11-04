@@ -44,7 +44,7 @@ const CategoryStyle& StyleOf(AirportLayer::Category pCategory)
 }  // namespace
 
 AirportLayer::AirportLayer(const NavDatabase& pDatabase)
-    : Layer("airports", "Airports", true)
+    : Layer("airports", "Airport symbols", true)
     , mDatabase(pDatabase)
 {
 }
