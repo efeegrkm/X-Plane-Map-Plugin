@@ -264,7 +264,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
     {
         return;
     }
-    FindVisibleAirports(tView, mSummaries, mQuery, mVisible);
+    FindVisibleAirports(tView, mSummaries, mQuery, mVisible, false);  // dugumsuz heliport'lar da
 
     Gfx::Mesh tFills;  // dolgular (ustune konturlu cizgiler)
     Gfx::OutlinedLines tLines(MapSymbols::kOutlineExtra);
@@ -318,12 +318,22 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
             {
                 continue;
             }
+            // Kucukken H cemberle birlesmesin: en az 11 boxel, H yaricapin %42'si
             const float tRadius = std::fmax(static_cast<float>(std::fmax(tPad.mLengthM, tPad.mWidthM) * 0.5 *
                                                               tMetersToBoxels),
-                                            9.0f);
+                                            11.0f);
             tFills.AddDisc(tCenter, tRadius, kHelipadFill);
-            tLines.AddRing(tCenter, tRadius, 1.2f, kHelipad);
-            const float tH = tRadius * 0.5f;
+            tLines.AddRing(tCenter, tRadius, 1.4f, kHelipad);
+            const float tH = tRadius * 0.42f;
+            if (pContext.mLabels)
+            {
+                RectD tBox;
+                tBox.mLeft = tCenter.mX - tRadius;
+                tBox.mRight = tCenter.mX + tRadius;
+                tBox.mBottom = tCenter.mY - tRadius;
+                tBox.mTop = tCenter.mY + tRadius;
+                pContext.mLabels->Reserve(tBox);  // pist numarasi gibi etiketler ustune binmesin
+            }
             tLines.AddLine(Rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, -tH),
                            Rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, tH), 1.6f, kHelipad);
             tLines.AddLine(Rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, -tH),

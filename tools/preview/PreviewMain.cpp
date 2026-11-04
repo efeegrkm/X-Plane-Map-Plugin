@@ -342,7 +342,7 @@ int main(int pArgc, char** pArgv)
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
     tLayers.Add(std::make_unique<RunwayLayer>(tRunways));
     tLayers.Add(std::make_unique<TaxiRouteLayer>(tRunways, tAirportDetails));
-    tLayers.Add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
+    Layer* tObjectsLayer = tLayers.Add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, false));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, true));
     tLayers.Add(std::make_unique<AirportLayer>(tNav));
@@ -394,6 +394,7 @@ int main(int pArgc, char** pArgv)
         tWarmup.mClearArea = tWarmup.mArea;
         tLayers.At(0)->Draw(tWarmup);
         tSurfaceLayer->Draw(tWarmup);  // havalimani ayrintilarini da iste
+        tObjectsLayer->Draw(tWarmup);  // dugumsuz heliport'larinki de
         tAirportDetails.Update();
         const std::string tLog = tTerrain.TakeLogLines() + tAirportDetails.TakeLogLines();
         if (!tLog.empty())

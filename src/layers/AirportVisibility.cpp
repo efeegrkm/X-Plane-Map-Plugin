@@ -15,7 +15,7 @@ const double kQueryMarginDeg = 0.05;  // havalimani referansindan disari tasan k
 }  // namespace
 
 void FindVisibleAirports(const MapView& pView, const AirportGeometryStore& pStore, std::vector<int>& pScratch,
-                         std::vector<int>& pOut)
+                         std::vector<int>& pOut, bool pNeedNodes)
 {
     pOut.clear();
     if (!pStore.IsReady())
@@ -34,7 +34,7 @@ void FindVisibleAirports(const MapView& pView, const AirportGeometryStore& pStor
     {
         const AirportGeometry& tAirport = pStore.At(tIndex);
         const GeoBounds& tBox = tAirport.mBounds;
-        if (tAirport.mNodeCount == 0 || tBox.mNorth < tScreen.mSouth || tBox.mSouth > tScreen.mNorth ||
+        if ((pNeedNodes && tAirport.mNodeCount == 0) || tBox.mNorth < tScreen.mSouth || tBox.mSouth > tScreen.mNorth ||
             tBox.mEast < tScreen.mWest || tBox.mWest > tScreen.mEast)
         {
             continue;

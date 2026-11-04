@@ -33,6 +33,7 @@ const auto kCategoryStyles = std::to_array<CategoryStyle>({
     {11.0, 13.0, 99.0, 3.5f, {0.50f, 0.52f, 0.56f, 1.0f}, {0.58f, 0.60f, 0.64f, 1.0f}}, // kapali
 });
 
+const double kHelipadDetailZoom = 13.0;  // AirportObjectsLayer kHelipadMinZoom ile ayni
 const size_t kMaxSymbols = 3000;  // FPS korumasi: bir karede en fazla bu kadar sembol
 const double kEdgeMargin = 20.0;  // kenardan tasan semboller de cizilsin (boxel)
 
@@ -155,6 +156,10 @@ void AirportLayer::Draw(const DrawContext& pContext)
                 break;
             case Category::Heliport:
             {
+                if (pContext.mView->Zoom() >= kHelipadDetailZoom)
+                {
+                    break;  // nesne katmani gercek helipadi (yone donuk H) ciziyor; ustune binmesin
+                }
                 tSymbols.AddRing({tX, tY}, tRadius, tWidth, tStyle.mColor);
                 const float tH = tRadius * 0.55f;
                 tSymbols.AddLine({tX - tH, tY - tH}, {tX - tH, tY + tH}, tWidth, tStyle.mColor);
