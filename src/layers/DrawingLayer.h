@@ -15,7 +15,7 @@
 #include <vector>
 
 #include "Layer.h"
-#include "gfx/Batch.h"
+#include "gfx/Mesh.h"
 
 class Drawings;
 class MapView;
@@ -43,7 +43,7 @@ private:
     static Gfx::Point Project(const MapView& pView, const LatLon& pPoint);
     void AddLabel(const DrawContext& pContext, const std::string& pText, const Gfx::Point& pAnchor);
     // Kesikli cizgi (yarim cizimin son kosesinden imlece "lastik")
-    static void AddDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::LineBatch& pLines);
+    static void AddDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::OutlinedLines& pLines);
 
     const Drawings& mDrawings;
     std::vector<PendingLabel> mLabels;

@@ -2,7 +2,7 @@
 #include "data/AirwayDatabase.h"
 
 #include <cmath>
-#include <cstdio>
+#include <format>
 #include <fstream>
 #include <locale>
 #include <sstream>
@@ -153,10 +153,7 @@ bool AirwayDatabase::LoadFile(const std::string& pPath, const NavDatabase& pNav,
         mSegments.push_back(tSegment);
     }
     BuildGrid();
-    char tText[512];
-    std::snprintf(tText, sizeof(tText), "%s: %d segments, %d unresolved endpoints", pPath.c_str(),
-                  static_cast<int>(mSegments.size()), tUnresolved);
-    *pReport = tText;
+    *pReport = std::format("{}: {} segments, {} unresolved endpoints", pPath, mSegments.size(), tUnresolved);
     return true;
 }
 

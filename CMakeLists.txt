@@ -17,7 +17,7 @@ if(NOT EXISTS "${XPSDK}/CHeaders/XPLM/XPLMDisplay.h")
                         "Dogru klasoru verin: -DXPSDK=<SDK klasoru>")
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 # Butun hedefler C calisma kutuphanesini icine gomer (plugin ek DLL istemesin;
 # lzma_sdk, testler ve araclar da ayni ayarla derlensin ki baglayici karismasin)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -35,6 +35,7 @@ set(CORE_SOURCES
     src/LabelPlacer.cpp
     src/GeoGrid.cpp
     src/BackgroundJob.cpp
+    src/gfx/Mesh.cpp
     src/data/NavDatabase.cpp
     src/data/AirportGeometry.cpp
     src/data/AirportGeometryStore.cpp
@@ -54,11 +55,12 @@ set(CORE_SOURCES
 set(PLUGIN_SOURCES
     src/Plugin.cpp
     src/MapWindow.cpp
-    src/GlScreen.cpp
     src/Log.cpp
     src/data/AircraftData.cpp
     src/data/NavLoader.cpp
-    src/gfx/Batch.cpp
+    src/gfx/GlApi.cpp
+    src/gfx/GlScreen.cpp
+    src/gfx/Canvas.cpp
     src/gfx/Texture.cpp
     src/layers/MapSymbols.cpp
     src/layers/TerrainLayer.cpp
@@ -184,7 +186,9 @@ if(MAP_PREVIEW AND WIN32)
         ${CORE_SOURCES}
         src/Log.cpp
         src/data/AircraftData.cpp
-        src/gfx/Batch.cpp
+        src/gfx/GlApi.cpp
+        src/gfx/GlScreen.cpp
+        src/gfx/Canvas.cpp
         src/gfx/Texture.cpp
         src/layers/MapSymbols.cpp
         src/layers/TerrainLayer.cpp

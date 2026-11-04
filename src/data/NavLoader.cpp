@@ -1,6 +1,7 @@
 // NavLoader.cpp
 #include "data/NavLoader.h"
 
+#include <array>
 #include <chrono>
 
 #include "Log.h"
@@ -95,8 +96,8 @@ bool NavLoader::Step(double pBudgetMs)
         mDatabase.Build();
         mDone = true;
         mElapsedMs += MillisecondsSince(tStart);
-        Log("nav data ready: %d records visited, %.0f ms (airports %d, VOR %d, DME %d, NDB %d, ILS %d, LOC %d, "
-            "fixes %d)",
+        Log("nav data ready: {} records visited, {:.0f} ms (airports {}, VOR {}, DME {}, NDB {}, ILS {}, LOC {}, "
+            "fixes {})",
             mVisited, mElapsedMs, mDatabase.CountOf(NavKind::Airport), mDatabase.CountOf(NavKind::Vor),
             mDatabase.CountOf(NavKind::Dme), mDatabase.CountOf(NavKind::Ndb), mDatabase.CountOf(NavKind::Ils),
             mDatabase.CountOf(NavKind::Localizer), mDatabase.CountOf(NavKind::Fix));
@@ -123,30 +124,33 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
     float tLon = 0.0f;
     int tFrequency = 0;
     float tHeading = 0.0f;
-    char tId[32] = "";
-    char tName[256] = "";
-    XPLMGetNavAidInfo(pRef, &tType, &tLat, &tLon, nullptr, &tFrequency, &tHeading, tId, tName, nullptr);
+    std::array<char, 32> tId = {};  // SDK: kimlik en az 32, ad en az 256 bayt
+    std::array<char, 256> tName = {};
+    XPLMGetNavAidInfo(pRef, &tType, &tLat, &tLon, nullptr, &tFrequency, &tHeading, tId.data(), tName.data(),
+                      nullptr);
+    const std::string tIdText = tId.data();
+    const std::string tNameText = tName.data();
 
     NavRecord tRecord;
     if (!ToNavKind(tType, &tRecord.mKind))
     {
         return;
     }
-    if (IsPlaceholderId(tId))
+    if (IsPlaceholderId(tIdText))
     {
         return;  // "----": X-Plane'in yer tutucu kaydi (konum/yon bilgisi yok)
     }
     tRecord.mLat = tLat;
     tRecord.mLon = tLon;
     tRecord.mFrequency = tFrequency;
-    tRecord.mId = tId;
+    tRecord.mId = tIdText;
     if (tRecord.mKind != NavKind::Fix)
     {
-        tRecord.mName = tName;  // fix'in adi kimligiyle ayni: saklama
+        tRecord.mName = tNameText;  // fix'in adi kimligiyle ayni: saklama
     }
     if (tRecord.mKind == NavKind::Airport)
     {
-        tRecord.mAirportKind = AirportKindFromName(tName, &tRecord.mName);
+        tRecord.mAirportKind = AirportKindFromName(tNameText, &tRecord.mName);
         tRecord.mMajor = tRecord.mAirportKind == AirportKind::Land && IsMajorAirportId(tRecord.mId);
     }
     if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
@@ -158,7 +162,7 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
         if (mIlsSamplesLogged < kIlsSampleCount)
         {
             ++mIlsSamplesLogged;
-            Log("ILS sample: %s SDK course=%.3f -> true %.1f, magnetic %d", tId, tHeading, tRecord.mCourseTrue,
+            Log("ILS sample: {} SDK course={:.3f} -> true {:.1f}, magnetic {}", tIdText, tHeading, tRecord.mCourseTrue,
                 tRecord.mCourseMagnetic);
         }
     }

@@ -2,7 +2,7 @@
 #include "data/TerrainStore.h"
 
 #include <chrono>
-#include <cstdio>
+#include <format>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -319,12 +319,11 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
         {
             *pLog += "terrain " + tName + ": cannot write cache " + tCachePath + "\n";
         }
-        char tLine[512];
-        std::snprintf(tLine, sizeof(tLine), "terrain %s: built from %s in %.1f s (water %.0f%%, relief %s)\n",
-                      tName.c_str(), tCandidate.mPath.c_str(),
-                      std::chrono::duration<double>(Clock::now() - tStart).count(),
-                      100.0 * pOut->CountOf(TerrainClass::Water) / (TerrainRaster::kSize * TerrainRaster::kSize),
-                      pOut->HasShading() ? "yes" : "no");
+        const std::string tLine = std::format(
+            "terrain {}: built from {} in {:.1f} s (water {:.0f}%, relief {})\n", tName, tCandidate.mPath,
+            std::chrono::duration<double>(Clock::now() - tStart).count(),
+            100.0 * pOut->CountOf(TerrainClass::Water) / (TerrainRaster::kSize * TerrainRaster::kSize),
+            pOut->HasShading() ? "yes" : "no");
         *pLog += tLine;
         *pState = TerrainTileState::Ready;
         return true;
@@ -388,11 +387,9 @@ void TerrainStore::WorkerLoop()
     const Clock::time_point tStart = Clock::now();
     mIndex.Build(mXPlaneDirectory);
     mIndexReady.store(true);
-    char tLine[256];
-    std::snprintf(tLine, sizeof(tLine), "terrain index: %d DSF files in %d packs, %d tiles (%.1f s)",
-                  mIndex.FileCount(), mIndex.PackCount(), mIndex.TileCount(),
-                  std::chrono::duration<double>(Clock::now() - tStart).count());
-    AddLog(tLine);
+    AddLog(std::format("terrain index: {} DSF files in {} packs, {} tiles ({:.1f} s)", mIndex.FileCount(),
+                       mIndex.PackCount(), mIndex.TileCount(),
+                       std::chrono::duration<double>(Clock::now() - tStart).count()));
 
     while (true)
     {

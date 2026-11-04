@@ -12,15 +12,23 @@
 // Zoom esikleri ve renkler NavaidLayer.cpp'deki tablodadir (kStyles).
 #pragma once
 
+#include <array>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "Color.h"
 #include "LabelPlacer.h"
 #include "Layer.h"
 #include "data/NavDatabase.h"
-#include "ui/UiDraw.h"
 
 class AirportGeometryStore;
+
+namespace Gfx
+{
+class Canvas;
+class OutlinedLines;
+}
 
 enum class NavaidType
 {
@@ -59,10 +67,9 @@ public:
 private:
     struct VisibleNavaid
     {
-        int mIndex;
-        float mX;
-        float mY;
-        float mFeather[6];  // sadece ILS: sol kanat, orta uc, sag kanat (x, y); mX/mY tuyun ucu
+        int mIndex = 0;
+        PointF mPoint;                   // sembolun yeri (ILS: tuyun basladigi esik)
+        std::array<PointF, 3> mFeather;  // sadece ILS: sol kanat, orta uc, sag kanat
     };
 
     static const Style& StyleFor(NavaidType pType);
@@ -70,9 +77,9 @@ private:
     void CollectVisible(const DrawContext& pContext);
     bool ComputeFeather(const DrawContext& pContext, int pIndex, VisibleNavaid* pOut);
     LatLon FeatherOrigin(int pIndex);  // esik (bulunduysa) veya anten
-    void EmitSymbolEdges(const VisibleNavaid& pNavaid) const;  // GL_LINES
-    void DrawFeathers(double pZoom) const;
-    void FormatLabel(const NavRecord& pRecord, bool pDetail, char* pOut, size_t pSize) const;
+    void AddSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const;
+    void DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const;
+    std::string FormatLabel(const NavRecord& pRecord, bool pDetail) const;
 
     NavaidType mType;
     const Style& mStyle;

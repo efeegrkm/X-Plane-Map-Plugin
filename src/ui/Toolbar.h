@@ -14,6 +14,11 @@
 #include "Drawings.h"
 #include "ScreenMath.h"
 
+namespace Gfx
+{
+class Canvas;
+}
+
 enum class ToolbarAction
 {
     None,
@@ -52,7 +57,7 @@ public:
     // Her cizimden once cagrilir (pencere boyutu degisebilir).
     void Layout(const RectI& pArea, const ToolbarState& pState);
 
-    void Draw(int pMouseX, int pMouseY, const ToolbarState& pState) const;
+    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const;
 
     // Tiklanan dugme (dugme yoksa veya pasifse None)
     ToolbarAction HitTest(int pX, int pY, const ToolbarState& pState) const;

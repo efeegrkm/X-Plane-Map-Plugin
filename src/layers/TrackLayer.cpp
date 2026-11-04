@@ -7,7 +7,7 @@
 
 #include "MapView.h"
 #include "data/AircraftData.h"
-#include "gfx/Batch.h"
+#include "gfx/Canvas.h"
 
 namespace
 {
@@ -81,17 +81,14 @@ void TrackLayer::TrimOldest()
 
 void TrackLayer::Draw(const DrawContext& pContext)
 {
-    Gfx::LineBatch tLines;
+    Gfx::OutlinedLines tLines;
     for (const std::vector<LatLon>& tSegment : mSegments)
     {
         std::vector<Gfx::Point> tScreen;
         tScreen.reserve(tSegment.size());
         for (const LatLon& tPoint : tSegment)
         {
-            double tX = 0.0;
-            double tY = 0.0;
-            pContext.mView->LatLonToBoxel(tPoint, &tX, &tY);
-            const Gfx::Point tNew = {static_cast<float>(tX), static_cast<float>(tY)};
+            const Gfx::Point tNew = pContext.mView->ToScreen(tPoint);
             if (!tScreen.empty() && std::fabs(tNew.mX - tScreen.back().mX) < kMinScreenStep &&
                 std::fabs(tNew.mY - tScreen.back().mY) < kMinScreenStep)
             {
@@ -99,9 +96,9 @@ void TrackLayer::Draw(const DrawContext& pContext)
             }
             tScreen.push_back(tNew);
         }
-        tLines.AddPolyline(tScreen, false, kTrackColor);
+        tLines.AddPolyline(tScreen, false, 2.0f, kTrackColor);
     }
-    tLines.DrawOutlined(2.0f);
+    pContext.mCanvas->Draw(tLines);
 }
 
 void TrackLayer::Clear()

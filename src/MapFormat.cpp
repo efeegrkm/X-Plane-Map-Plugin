@@ -1,27 +1,28 @@
 // MapFormat.cpp
 #include "MapFormat.h"
 
+#include <array>
 #include <cmath>
-#include <cstdio>
+#include <format>
 
 namespace
 {
 
 // Izgara araliklari (derece), kucukten buyuge
-const double kGridSteps[] = {
+const auto kGridSteps = std::to_array<double>({
     0.5 / 60.0, 1.0 / 60.0, 2.0 / 60.0, 5.0 / 60.0, 10.0 / 60.0, 20.0 / 60.0, 30.0 / 60.0,
     1.0,        2.0,        5.0,        10.0,       20.0,        30.0,
-};
+});
 
 }  // namespace
 
-void FormatLatLon(const LatLon& pPoint, char* pOut, size_t pSize)
+std::string FormatLatLon(const LatLon& pPoint)
 {
-    std::snprintf(pOut, pSize, "%.5f %c  %.5f %c", std::fabs(pPoint.mLat), pPoint.mLat >= 0 ? 'N' : 'S',
-                  std::fabs(pPoint.mLon), pPoint.mLon >= 0 ? 'E' : 'W');
+    return std::format("{:.5f} {}  {:.5f} {}", std::fabs(pPoint.mLat), pPoint.mLat >= 0 ? 'N' : 'S',
+                       std::fabs(pPoint.mLon), pPoint.mLon >= 0 ? 'E' : 'W');
 }
 
-void FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees, char* pOut, size_t pSize)
+std::string FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees)
 {
     char tHemisphere;
     if (pIsLatitude)
@@ -40,16 +41,13 @@ void FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees, cha
 
     if (pStepDegrees >= 1.0 - 1e-9)
     {
-        std::snprintf(pOut, pSize, "%d%c", tWholeDegrees, tHemisphere);
+        return std::format("{}{}", tWholeDegrees, tHemisphere);
     }
-    else if (pStepDegrees >= 1.0 / 60.0 - 1e-9)
+    if (pStepDegrees >= 1.0 / 60.0 - 1e-9)
     {
-        std::snprintf(pOut, pSize, "%d %02d%c", tWholeDegrees, static_cast<int>(tMinutes + 0.5), tHemisphere);
+        return std::format("{} {:02d}{}", tWholeDegrees, static_cast<int>(tMinutes + 0.5), tHemisphere);
     }
-    else
-    {
-        std::snprintf(pOut, pSize, "%d %04.1f%c", tWholeDegrees, tMinutes, tHemisphere);
-    }
+    return std::format("{} {:04.1f}{}", tWholeDegrees, tMinutes, tHemisphere);
 }
 
 double ChooseGridStepDeg(double pBoxelsPerDegree, double pMinSpacing)
@@ -73,7 +71,7 @@ double ChooseScaleBarNm(double pNmPerBoxel, double pMaxBoxels)
     const double tMaxNm = pNmPerBoxel * pMaxBoxels;
     // tMaxNm'den kucuk en buyuk 1/2/5 x 10^n
     const double tPower = std::pow(10.0, std::floor(std::log10(tMaxNm)));
-    const double tMultipliers[] = {5.0, 2.0, 1.0};
+    const std::array<double, 3> tMultipliers = {5.0, 2.0, 1.0};
     for (double tMultiplier : tMultipliers)
     {
         if (tMultiplier * tPower <= tMaxNm)

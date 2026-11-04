@@ -6,7 +6,7 @@
 #include "LabelPlacer.h"
 #include "MapView.h"
 #include "data/AirwayDatabase.h"
-#include "gfx/Batch.h"
+#include "gfx/Canvas.h"
 #include "layers/MapSymbols.h"
 
 namespace
@@ -58,7 +58,8 @@ void AirwayLayer::Draw(const DrawContext& pContext)
 
     const Rgba& tColor = mHigh ? kHighColor : kLowColor;
     const bool tArrows = tView.Zoom() >= kArrowMinZoom;
-    Gfx::LineBatch tLines;
+    Gfx::Mesh tLines;
+    const float tWidth = 1.2f;
     for (int tIndex : mQuery)
     {
         if (mSeenStamp[tIndex] == mStamp)
@@ -79,12 +80,9 @@ void AirwayLayer::Draw(const DrawContext& pContext)
         tScreen.reserve(tDense.size());
         for (const LatLon& tPoint : tDense)
         {
-            double tX = 0.0;
-            double tY = 0.0;
-            tView.LatLonToBoxel(tPoint, &tX, &tY);
-            tScreen.push_back({static_cast<float>(tX), static_cast<float>(tY)});
+            tScreen.push_back(tView.ToScreen(tPoint));
         }
-        tLines.AddPolyline(tScreen, false, tColor);
+        tLines.AddPolyline(tScreen, false, tWidth, tColor);
 
         VisibleSegment tVisible;
         tVisible.mIndex = tIndex;
@@ -108,9 +106,9 @@ void AirwayLayer::Draw(const DrawContext& pContext)
                 const Gfx::Point tTip = {(tVisible.mFromX + tVisible.mToX) * 0.5f + tDirX * 5.0f,
                                          (tVisible.mFromY + tVisible.mToY) * 0.5f + tDirY * 5.0f};
                 tLines.AddLine(tTip, {tTip.mX - tDirX * 7.0f - tDirY * 4.0f, tTip.mY - tDirY * 7.0f + tDirX * 4.0f},
-                               tColor);
+                               tWidth, tColor);
                 tLines.AddLine(tTip, {tTip.mX - tDirX * 7.0f + tDirY * 4.0f, tTip.mY - tDirY * 7.0f - tDirX * 4.0f},
-                               tColor);
+                               tWidth, tColor);
             }
         }
         if (mVisible.size() >= kMaxSegments)
@@ -118,7 +116,7 @@ void AirwayLayer::Draw(const DrawContext& pContext)
             break;
         }
     }
-    tLines.Draw(1.2f);
+    pContext.mCanvas->Draw(tLines);
 }
 
 void AirwayLayer::DrawLabels(const DrawContext& pContext)
@@ -138,7 +136,7 @@ void AirwayLayer::DrawLabels(const DrawContext& pContext)
         }
         const AirwaySegment& tSegment = mAirways.At(tVisible.mIndex);
         MapSymbols::DrawLabelCentered(*pContext.mLabels, (tVisible.mFromX + tVisible.mToX) * 0.5f,
-                                      (tVisible.mFromY + tVisible.mToY) * 0.5f + 8.0f, tSegment.mNames.c_str(),
+                                      (tVisible.mFromY + tVisible.mToY) * 0.5f + 8.0f, tSegment.mNames,
                                       tColor);
     }
 }

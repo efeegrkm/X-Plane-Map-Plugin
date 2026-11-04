@@ -1,27 +1,40 @@
 // Texture.h
-// Doku yardimcilari: RGBA goruntuden doku olusturma ve enlem/boylam
-// dikdortgenine oturtup cizme. OpenGL cagrilari sadece Texture.cpp icinde.
+// OpenGL dokusu (RAII): nesne yok olunca doku da silinir. Kopyalanamaz,
+// tasinabilir (std::move ile bir tablodan digerine verilebilir).
 //
 // X-Plane kurali: doku numarasi XPLMGenerateTextureNumbers ile alinir,
-// baglamak icin XPLMBindTexture2d kullanilir (dogrudan glBindTexture degil).
+// baglamak icin XPLMBindTexture2d kullanilir (dogrudan glBindTexture degil;
+// X-Plane bagli dokuyu kendi onbelleginde tutar).
+// Olusturma ve silme ana thread'de, OpenGL baglami etkinken yapilmali.
 #pragma once
 
 #include <cstdint>
 
-class MapView;
-
 namespace Gfx
 {
 
-// pSize x pSize RGBA (satir 0 = kuzey) goruntuden doku. Doku numarasi doner.
-// Ana thread'de, OpenGL baglami etkinken (draw callback icinde) cagrilmali.
-int CreateTexture(int pSize, const uint8_t* pRgba);
-void DeleteTexture(int pTexture);
+class Texture
+{
+public:
+    Texture() = default;
+    ~Texture();
 
-// Dokuyu [pWest, pEast] x [pSouth, pNorth] alanina cizer. Doku enlem/boylam
-// izgarasinda, harita Mercator: dokuyu pStrips yatay seride bolup her seridi
-// kendi enleminde cizerek Mercator'un enleme gore uzamasini izleriz.
-void DrawTextureLatLon(int pTexture, const MapView& pView, double pWest, double pSouth, double pEast, double pNorth,
-                       int pStrips);
+    Texture(Texture&& pOther) noexcept;
+    Texture& operator=(Texture&& pOther) noexcept;
+    Texture(const Texture&) = delete;
+    Texture& operator=(const Texture&) = delete;
+
+    // pSize x pSize RGBA goruntuden doku (satir 0 = dokunun v = 0 kenari)
+    static Texture FromRgba(int pSize, const uint8_t* pRgba);
+
+    bool IsValid() const;
+    int Id() const;  // XPLMBindTexture2d'ye verilen numara
+
+private:
+    explicit Texture(int pId);
+    void Release();
+
+    int mId = 0;
+};
 
 }  // namespace Gfx

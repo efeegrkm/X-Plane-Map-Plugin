@@ -17,7 +17,8 @@
 #include <vector>
 
 #include "Drawings.h"
-#include "GLInclude.h"
+#include "gfx/Canvas.h"
+#include "gfx/GlInclude.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
 #include "MapView.h"
@@ -259,6 +260,13 @@ int main(int pArgc, char** pArgv)
         return 1;
     }
     PreviewInitFont(tDc);
+    Gfx::Canvas tCanvas;
+    if (!tCanvas.Init())
+    {
+        std::fprintf(stderr, "OpenGL: %s\n", tCanvas.ErrorText().c_str());
+        return 1;
+    }
+    std::printf("OpenGL: %s\n", tCanvas.ContextText().c_str());
 
     // --- Veri ---
     const std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
@@ -327,6 +335,7 @@ int main(int pArgc, char** pArgv)
     {
         DrawContext tWarmup;
         tWarmup.mView = &tView;
+        tWarmup.mCanvas = &tCanvas;
         tWarmup.mArea = ToRectD(tArea);
         tWarmup.mClearArea = tWarmup.mArea;
         tLayers.At(0)->Draw(tWarmup);
@@ -350,8 +359,9 @@ int main(int pArgc, char** pArgv)
     glLoadIdentity();
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
+    tCanvas.BeginFrame();
 
-    Ui::FillRect(tArea, kBackground);
+    Ui::FillRect(tCanvas, tArea, kBackground);
 
     Toolbar tToolbar;
     ToolbarState tToolbarState;
@@ -366,6 +376,7 @@ int main(int pArgc, char** pArgv)
     LabelPlacer tLabels;
     DrawContext tContext;
     tContext.mView = &tView;
+    tContext.mCanvas = &tCanvas;
     tContext.mArea = ToRectD(tArea);
     tContext.mClearArea = tContext.mArea;
     if (tOptions.mUi)
@@ -383,8 +394,8 @@ int main(int pArgc, char** pArgv)
     if (tOptions.mUi)
     {
         StatusBar tStatus;
-        tToolbar.Draw(-1, -1, tToolbarState);
-        tStatus.Draw(tArea, tView, true, tView.BoxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");
+        tToolbar.Draw(tCanvas, -1, -1, tToolbarState);
+        tStatus.Draw(tCanvas, tArea, tView, tView.BoxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");
     }
     glFinish();
 

@@ -5,25 +5,33 @@
 //   (imlecin altindaki nokta)                              (olcek cubugu)
 #pragma once
 
+#include <optional>
+#include <string_view>
+
 #include "Geo.h"
 #include "ScreenMath.h"
 
 class MapView;
+
+namespace Gfx
+{
+class Canvas;
+}
 
 class StatusBar
 {
 public:
     static const int kHeight = 22;  // serit yuksekligi (boxel)
 
-    // pHasCursor false ise (imlec harita disinda) koordinat yerine "-" yazilir.
+    // pCursor bos ise (imlec harita disinda) koordinat yerine "-" yazilir.
     // pMessage: zoom'un sagina sari yazilan kisa durum yazisi (bos olabilir).
-    void Draw(const RectI& pArea, const MapView& pView, bool pHasCursor, const LatLon& pCursor,
-              const char* pMessage);
+    void Draw(Gfx::Canvas& pCanvas, const RectI& pArea, const MapView& pView, const std::optional<LatLon>& pCursor,
+              std::string_view pMessage);
 
     bool Contains(int pX, int pY) const;
 
 private:
-    void DrawScaleBar(const MapView& pView, int pRight, int pBaseY);
+    static void DrawScaleBar(Gfx::Canvas& pCanvas, const MapView& pView, int pRight, int pBaseY);
 
     RectI mStrip;
 };

@@ -52,14 +52,14 @@ void LayerPanel::Layout(const RectI& pAnchor, const LayerManager& pLayers)
     mRect.mBottom = mRect.mTop - (kPadding + kTitleHeight + mRowCount * kRowHeight + kPadding);
 }
 
-void LayerPanel::Draw(int pMouseX, int pMouseY, const LayerManager& pLayers) const
+void LayerPanel::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const LayerManager& pLayers) const
 {
     if (!mOpen)
     {
         return;
     }
-    Ui::FillRect(mRect, Ui::kPanelBg);
-    Ui::FrameRect(mRect, Ui::kBorder);
+    Ui::FillRect(pCanvas, mRect, Ui::kPanelBg);
+    Ui::FrameRect(pCanvas, mRect, Ui::kBorder);
     Ui::Text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "LAYERS", Ui::kTextGrey);
 
     for (int tIndex = 0; tIndex < mRowCount && tIndex < pLayers.Count(); ++tIndex)
@@ -73,11 +73,10 @@ void LayerPanel::Draw(int pMouseX, int pMouseY, const LayerManager& pLayers) con
         tBox.mRight = tRow.mLeft + kBoxSize;
         tBox.mTop = (tRow.mTop + tRow.mBottom) / 2 + kBoxSize / 2;
         tBox.mBottom = tBox.mTop - kBoxSize;
-        Ui::CheckBox(tBox, tLayer->IsVisible(), tHover);
+        Ui::CheckBox(pCanvas, tBox, tLayer->IsVisible(), tHover);
 
         const int tTextY = (tRow.mTop + tRow.mBottom) / 2 - Ui::FontHeight() / 2 + 1;
-        Ui::Text(tBox.mRight + 8, tTextY, tLayer->Name().c_str(),
-                 tLayer->IsVisible() ? Ui::kTextWhite : Ui::kTextGrey);
+        Ui::Text(tBox.mRight + 8, tTextY, tLayer->Name(), tLayer->IsVisible() ? Ui::kTextWhite : Ui::kTextGrey);
     }
 }
 

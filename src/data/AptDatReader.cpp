@@ -2,6 +2,8 @@
 // *** GECICI *** EKIP MOTORU GELINCE DEGISTIRILECEK (bkz. AptDatReader.h)
 #include "data/AptDatReader.h"
 
+#include <array>
+#include <format>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -277,11 +279,11 @@ bool AptDatReader::LoadAll(const std::string& pXPlaneDirectory, const std::atomi
     if (tIni)
     {
         std::string tText;
-        char tBuffer[4096];
+        std::array<char, 4096> tBuffer;
         size_t tRead = 0;
-        while ((tRead = std::fread(tBuffer, 1, sizeof(tBuffer), tIni)) > 0)
+        while ((tRead = std::fread(tBuffer.data(), 1, tBuffer.size(), tIni)) > 0)
         {
-            tText.append(tBuffer, tRead);
+            tText.append(tBuffer.data(), tRead);
         }
         std::fclose(tIni);
         tFiles = AptFilesFromSceneryPacks(tText, pXPlaneDirectory);
@@ -309,18 +311,13 @@ bool AptDatReader::LoadAll(const std::string& pXPlaneDirectory, const std::atomi
             return false;
         }
         ++tFilesRead;
-        char tLine[512];
-        std::snprintf(tLine, sizeof(tLine), "  %s: %d airports, %d runways\n", tFile.c_str(),
-                      static_cast<int>(pOutAirports.size() - tBefore), tParser.RunwayCount());
-        pOutReport += tLine;
+        pOutReport += std::format("  {}: {} airports, {} runways\n", tFile, pOutAirports.size() - tBefore,
+                                  tParser.RunwayCount());
     }
 
     const double tSeconds =
         std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count();
-    char tSummary[160];
-    std::snprintf(tSummary, sizeof(tSummary), "%d apt.dat files, %d airports, %.1f s\n", tFilesRead,
-                  static_cast<int>(pOutAirports.size()), tSeconds);
-    pOutReport += tSummary;
+    pOutReport += std::format("{} apt.dat files, {} airports, {:.1f} s\n", tFilesRead, pOutAirports.size(), tSeconds);
     return tFilesRead > 0;
 }
 

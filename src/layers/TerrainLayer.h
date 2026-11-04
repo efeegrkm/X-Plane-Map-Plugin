@@ -17,6 +17,7 @@
 #include <unordered_map>
 
 #include "Layer.h"
+#include "gfx/Texture.h"
 #include "data/TerrainClasses.h"
 #include "data/TerrainStore.h"
 
@@ -24,7 +25,6 @@ class TerrainLayer : public Layer
 {
 public:
     TerrainLayer(TerrainStore& pStore, const TerrainPalette& pPalette);
-    ~TerrainLayer() override;
 
     void Draw(const DrawContext& pContext) override;
 
@@ -33,13 +33,14 @@ public:
 private:
     struct CachedTexture
     {
-        int mTexture = 0;
+        Gfx::Texture mTexture;
         size_t mBytes = 0;
         uint64_t mLastFrame = 0;
     };
 
     void UploadReadyImages();
-    int UseTexture(const TerrainImageKey& pKey);  // varsa doku numarasi (kullanildi olarak isaretler), yoksa 0
+    // Varsa dokuyu verir ve bu karede kullanildi diye isaretler; yoksa nullptr
+    const Gfx::Texture* UseTexture(const TerrainImageKey& pKey);
     void EvictUnused();
     static int DesiredLevel(double pPixelsPerDegree);
 

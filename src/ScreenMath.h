@@ -13,6 +13,13 @@
 // Bu donusum "afin"dir (olcek + kaydirma), Affine2D ile ifade edilir.
 #pragma once
 
+// Ekranda bir nokta (boxel). Cizim icin float hassasiyeti yeterli.
+struct PointF
+{
+    float mX = 0.0f;
+    float mY = 0.0f;
+};
+
 struct Affine2D
 {
     // (x, y) -> (mA*x + mB*y + mTx,  mC*x + mD*y + mTy)

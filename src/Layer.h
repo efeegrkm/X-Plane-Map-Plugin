@@ -9,16 +9,23 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "ScreenMath.h"
 
 class LabelPlacer;
 class MapView;
 
+namespace Gfx
+{
+class Canvas;
+}
+
 // Bir katmanin cizim icin ihtiyac duydugu her sey (her karede yeniden doldurulur)
 struct DrawContext
 {
     const MapView* mView = nullptr;  // projeksiyon: lat/lon <-> boxel
+    Gfx::Canvas* mCanvas = nullptr;  // cizim kapisi (Mesh -> OpenGL)
     RectD mArea;                     // haritanin cizildigi alan (global boxel)
     RectD mClearArea;                // mArea'nin kontrollerle (ust/alt serit) ortulmeyen kismi
     double mPixelsPerBoxel = 1.0;    // UI olcek (%150 ise 1.5)
@@ -39,7 +46,7 @@ class Layer
 public:
     // pId  : ayar dosyasindaki anahtar (kucuk harf, bosluksuz, ASCII)
     // pName: katman panelinde gorunen ad (ASCII; XPLMDrawString Turkce harf cizemez)
-    Layer(const char* pId, const char* pName, bool pDefaultVisible)
+    Layer(std::string_view pId, std::string_view pName, bool pDefaultVisible)
         : mId(pId)
         , mName(pName)
         , mVisible(pDefaultVisible)

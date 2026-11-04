@@ -35,7 +35,7 @@ listesi ve dosya görevleri: `README.md`.
 ## Sabitler
 - X-Plane 11.55r2 demo, Windows x64, `C:\X-Plane 11`. SDK projede:
   `third_party/XPSDK` (sadece XPLM200..XPLM301 tanımlı; XP12 API'si derlenmez).
-- C++17, CMake + MSVC 2022 (Qt Creator kiti "Desktop Qt 6.10.1 MSVC2022
+- C++20 (std::format, std::to_array), CMake + MSVC 2022 (Qt Creator kiti "Desktop Qt 6.10.1 MSVC2022
   64bit", Ninja; Qt kütüphanesi kullanılmıyor). /W4 uyarısız, statik CRT
   (`CMAKE_MSVC_RUNTIME_LIBRARY` MultiThreaded), diller C + CXX.
 - Komut satırından derleme: vcvars64 + `C:\Qt\Tools\CMake_64\bin\cmake.exe`
@@ -54,15 +54,16 @@ listesi ve dosya görevleri: `README.md`.
 - Dokunma: `_qt_template_yedek/`, `_to_delete/`, `build/`, `.qtcreator/`.
   X-Plane klasöründe sadece `Resources\plugins\MapPlugin\` altına yaz.
 
-## apt.dat kararı (kullanıcı, 2026-11-03)
-- Ekibin apt.dat motoru iş bilgisayarında; güvenlik nedeniyle bize **hiçbir
-  zaman** gelmeyecek. Kullanıcı işyerinde, izin verilen yerel bir AI ile
-  bizim okuyucumuzun yerine ekip motorunu kendisi bağlayacak.
-- Arayüz `data/AirportGeometry.h` (`IAirportGeometrySource`, başında bağlama
-  talimatı), geçici `data/AptDatReader` (sadece 1/16/17 ve 100 satırları),
-  bağlama noktası `Plugin.cpp` `CreateAirportGeometrySource()`. Katmanlar
-  sadece `AirportGeometryStore`'u bilir. Arayüzü değiştirirsen talimatı,
-  README'deki bölümü ve `FakeAirportSource` testini de güncelle.
+## apt.dat kararı (kullanıcı, 2026-11-04; öncekinin yerine)
+- Ekibin Qt tabanlı motoru kullanılmayacak (Qt bağımlılığı doğuruyor,
+  veritabanı katmanı yavaş). apt.dat okuyucuyu biz saf C++ ile yazıyoruz.
+  Kaynak: XP-APT-1100 spesifikasyonu (kullanıcı verdi; ekip motorunu da buna
+  göre yazmıştı). Ölçülen Global Airports apt.dat: 325 MB, 29.856 havalimanı,
+  7,25 milyon düğüm (111-116), 156 bin yüzey (110), 881 bin çizgi (120).
+- Arayüz  () ve bağlama
+  noktası   duruyor; yeni okuyucu
+  bunların yerini alacak/genişletecek. Geçici  sadece
+  1/16/17 ve 100 satırlarını okuyor.
 
 ## Zemin kararı (kullanıcı)
 - Zemin o bilgisayarda kurulu HER sahneyle çalışmalı (bölgeye özel iş yok),
@@ -94,9 +95,17 @@ listesi ve dosya görevleri: `README.md`.
 - `ui/`: `Toolbar` (dar pencerede iki satır, `kRowHeight`), `LayerPanel`,
   `StatusBar`, `UiDraw` (`Ui::k...` paleti, kullanıcı beğendi; yeni arayüz
   parçaları aynı paletle).
-- `gfx/Batch` (Line/Triangle/Point toplu çizim), `gfx/Texture`: OpenGL'in
-  toplandığı yer. XP11 uyumluluk profili verdiği için hâlâ glBegin/glEnd;
-  modernleştirme kararı kullanıcıya bırakıldı ("sen nasıl rahatsan").
+- **Çizim (0.9, modern OpenGL 3.3):** `gl` çağrısı SADECE `src/gfx/`
+  içinde. `gfx/Mesh` (CPU, testli): her şey renkli üçgen (kalın çizgi,
+  daire, çerçeve; kalınlıklar boxel). `gfx/OutlinedLines`: önce koyu
+  kontur, sonra renkli çizgi. `gfx/Canvas`: tek çizim kapısı (VBO + VAO +
+  GLSL 330; her Draw'da X-Plane'in program/VAO/VBO/cull face durumunu
+  kaydedip geri koyar; matris = GL_PROJECTION × GL_MODELVIEW, BeginFrame'de
+  okunur). `gfx/GlApi`: 3.3 fonksiyonlarını wglGetProcAddress ile yükler
+  (ilk draw callback'inde). `gfx/Texture`: RAII doku (XPLMBindTexture2d).
+  Yazılar hâlâ XPLMDrawString (`Ui::Text`). Katmanlar `pContext.mCanvas`'ı,
+  arayüz parçaları `Gfx::Canvas&` parametresini kullanır.
+- Log: `Log("x = {:.1f}", tX)` (std::format); arka plan thread'inde yok.
 - Veri: `NavDatabase` + `NavLoader` (XPLMNavigation, flight loop'ta 4 ms
   adımlar), `AirportGeometryStore`, `LocalizerMatch` (ILS -> pist eşiği),
   `AirwayDatabase` (earth_awy.dat 1100; Custom Data önce; 104.581 segment,
@@ -107,7 +116,7 @@ listesi ve dosya görevleri: `README.md`.
   (işçi thread, LOD 64/256/1024/4096-parça), `layers/TerrainLayer` (min zoom
   5, LRU 256 MB, karede en çok 3 doku yükleme).
 - Arka plan thread'lerinde XPLM/Log YOK: rapor metni döner, ana thread loglar.
-- X-Plane'siz çekirdek testlere girer (`tests/tests.cpp`, 275 kontrol);
+- X-Plane'siz çekirdek testlere girer (`tests/tests.cpp`, 291 kontrol);
   `tools/preview` aynı katman kodunu XPLM taklitleriyle resme çizer.
 
 ## Doğrulanmış biçim / SDK gerçekleri
@@ -137,10 +146,21 @@ listesi ve dosya görevleri: `README.md`.
   yapılacak); harita X-Plane'inkinden farklı, X-Plane gibi harita modları
   istiyor; OpenGL hâlâ eski (glBegin/glEnd) ve kod fazla C tarzı.
 
+- 0.9 (2026-11-04): OpenGL 3.3'e geçiş + C tarzı temizlik (std::format,
+  std::array, std::optional, string_view). Önizlemede eskisiyle aynı görüntü
+  (~%1,4 piksel farkı, çizgi kenarları). **X-Plane'de henüz denenmedi**
+  (OpenGL ve Vulkan modunda denenecek).
+
 ## Sıradaki
-- **`GOREV_0.9.md`**: işyerindeki AI için ayrıntılı görev dosyası.
-  A: OpenGL 3.3'e geçiş + C tarzı temizlik; B: havalimanı yüzeyleri (ekip
-  motoru; iş bilgisayarı git'e bağlı değil, proje oraya elle kopyalanır); C: harita
-  modları (Scenery / VFR / IFR Low / IFR High). Sıra A → B → C.
+- **Karar (2026-11-04):** ekip motoru KULLANILMAYACAK (Qt bağımlılığı).
+  apt.dat okuyucuyu biz saf C++ ile yazıyoruz: spesifikasyon XP-APT-1100
+  (developer.x-plane.com, rev 16.11.2021; kullanıcı verdi). Dosya başlığı 1130.
+  Tasarım: açılışta bayt-offset indeksi (diskte önbellek), ekrandaki
+  havalimanları arka planda ayrıntılı ayrıştırılır (LRU). Custom Scenery
+  apt.dat'ları Global'i ezer. Tüm öğeler (yüzey, çizgi, ışık, tabela, tulum,
+  beacon, kalkış noktası...) gruplu açılır/kapanır katmanlarda.
+- `GOREV_0.9.md` artık geçmiş kayıt (iş bilgisayarı planı iptal); A paketi
+  burada yapıldı, B (motorla) iptal, C (modlar) parser'dan sonra.
+- Harita modları: Scenery + VFR + IFR Low + IFR High (kullanıcı onayladı).
 - Açık sorular: zemin renkleri, önbellek disk sınırı, eski HaritaPlugin
   klasörünü silme.

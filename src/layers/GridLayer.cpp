@@ -3,9 +3,9 @@
 
 #include <cmath>
 
-#include "GLInclude.h"
 #include "MapFormat.h"
 #include "MapView.h"
+#include "gfx/Canvas.h"
 #include "ui/UiDraw.h"
 
 namespace
@@ -48,36 +48,31 @@ void GridLayer::Draw(const DrawContext& pContext)
     const double tStep = StepFor(pContext);
     const LatLon tCenter = tView.Center();
 
-    Ui::UseFlatState();
-    glColor4f(kLineColor.mR, kLineColor.mG, kLineColor.mB, kLineColor.mA);
-    glLineWidth(1.0f);
-    glBegin(GL_LINES);
+    const float tLeft = static_cast<float>(pContext.mArea.mLeft);
+    const float tRight = static_cast<float>(pContext.mArea.mRight);
+    const float tBottom = static_cast<float>(pContext.mArea.mBottom);
+    const float tTop = static_cast<float>(pContext.mArea.mTop);
+    Gfx::Mesh tLines;
 
-    // Boylam cizgileri (dikey)
+    // Boylam cizgileri (dikey). 1 boxel kalinlik, piksel sinirina oturur.
     long long tFirst = 0;
     long long tLast = 0;
     StepRange(tBounds.mWest, tBounds.mEast, tStep, &tFirst, &tLast);
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
-        double tX = 0.0;
-        double tY = 0.0;
-        tView.LatLonToBoxel({tCenter.mLat, tIndex * tStep}, &tX, &tY);
-        glVertex2f(static_cast<float>(tX) + 0.5f, static_cast<float>(pContext.mArea.mBottom));
-        glVertex2f(static_cast<float>(tX) + 0.5f, static_cast<float>(pContext.mArea.mTop));
+        const float tX = std::floor(tView.ToScreen({tCenter.mLat, tIndex * tStep}).mX) + 0.5f;
+        tLines.AddLine({tX, tBottom}, {tX, tTop}, 1.0f, kLineColor);
     }
 
     // Enlem cizgileri (yatay)
     StepRange(tBounds.mSouth, tBounds.mNorth, tStep, &tFirst, &tLast);
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
-        double tX = 0.0;
-        double tY = 0.0;
-        tView.LatLonToBoxel({tIndex * tStep, tCenter.mLon}, &tX, &tY);
-        glVertex2f(static_cast<float>(pContext.mArea.mLeft), static_cast<float>(tY) + 0.5f);
-        glVertex2f(static_cast<float>(pContext.mArea.mRight), static_cast<float>(tY) + 0.5f);
+        const float tY = std::floor(tView.ToScreen({tIndex * tStep, tCenter.mLon}).mY) + 0.5f;
+        tLines.AddLine({tLeft, tY}, {tRight, tY}, 1.0f, kLineColor);
     }
 
-    glEnd();
+    pContext.mCanvas->Draw(tLines);
 }
 
 void GridLayer::DrawLabels(const DrawContext& pContext)
@@ -87,7 +82,6 @@ void GridLayer::DrawLabels(const DrawContext& pContext)
     const double tStep = StepFor(pContext);
     const LatLon tCenter = tView.Center();
     const RectD& tClear = pContext.mClearArea;
-    char tLabel[32];
 
     // Boylam etiketleri: alt kenarda, cizginin hemen saginda
     long long tFirst = 0;
@@ -95,30 +89,26 @@ void GridLayer::DrawLabels(const DrawContext& pContext)
     StepRange(tBounds.mWest, tBounds.mEast, tStep, &tFirst, &tLast);
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
-        double tX = 0.0;
-        double tY = 0.0;
-        tView.LatLonToBoxel({tCenter.mLat, tIndex * tStep}, &tX, &tY);
+        const float tX = tView.ToScreen({tCenter.mLat, tIndex * tStep}).mX;
         if (tX < tClear.mLeft || tX > tClear.mRight - 40)
         {
             continue;
         }
-        FormatGridLabel(NormalizeLon(tIndex * tStep), false, tStep, tLabel, sizeof(tLabel));
-        Ui::Text(static_cast<int>(tX) + 4, static_cast<int>(tClear.mBottom) + 5, tLabel, kLabelColor);
+        Ui::Text(static_cast<int>(tX) + 4, static_cast<int>(tClear.mBottom) + 5,
+                 FormatGridLabel(NormalizeLon(tIndex * tStep), false, tStep), kLabelColor);
     }
 
     // Enlem etiketleri: sol kenarda, cizginin hemen ustunde
     StepRange(tBounds.mSouth, tBounds.mNorth, tStep, &tFirst, &tLast);
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
-        double tX = 0.0;
-        double tY = 0.0;
-        tView.LatLonToBoxel({tIndex * tStep, tCenter.mLon}, &tX, &tY);
+        const float tY = tView.ToScreen({tIndex * tStep, tCenter.mLon}).mY;
         if (tY < tClear.mBottom + 20 || tY > tClear.mTop - 14)
         {
             continue;
         }
-        FormatGridLabel(tIndex * tStep, true, tStep, tLabel, sizeof(tLabel));
-        Ui::Text(static_cast<int>(tClear.mLeft) + 5, static_cast<int>(tY) + 4, tLabel, kLabelColor);
+        Ui::Text(static_cast<int>(tClear.mLeft) + 5, static_cast<int>(tY) + 4,
+                 FormatGridLabel(tIndex * tStep, true, tStep), kLabelColor);
     }
 }
 

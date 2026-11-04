@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <format>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -13,12 +14,11 @@
 #include "XPLMProcessing.h"
 
 #include "Drawings.h"
-#include "GLInclude.h"
-#include "GlScreen.h"
 #include "LayerManager.h"
 #include "Log.h"
 #include "Settings.h"
 #include "data/AircraftData.h"
+#include "gfx/GlScreen.h"
 #include "ui/UiDraw.h"
 
 namespace
@@ -98,10 +98,10 @@ void MapWindow::Create()
 
     XPLMSetWindowPositioningMode(mWindow, xplm_WindowPositionFree, -1);
     XPLMSetWindowResizingLimits(mWindow, kMinWidth, kMinHeight, kMaxSize, kMaxSize);
-    char tTitle[] = "Map";
-    XPLMSetWindowTitle(mWindow, tTitle);
+    std::string tTitle = "Map";  // SDK degistirilebilir char* istiyor
+    XPLMSetWindowTitle(mWindow, tTitle.data());
     mFramePeriodRef = XPLMFindDataRef("sim/operation/misc/frame_rate_period");  // saniye/kare
-    Log("map window created (%d,%d - %d,%d)", mFloatingGeometry.mLeft, mFloatingGeometry.mTop,
+    Log("map window created ({},{} - {},{})", mFloatingGeometry.mLeft, mFloatingGeometry.mTop,
         mFloatingGeometry.mRight, mFloatingGeometry.mBottom);
 
     if (mStartVisible)
@@ -249,18 +249,22 @@ void MapWindow::OnDraw()
         mToolbar.Layout(mArea, tToolbarState);
     }
 
-    // boxel -> piksel: glScissor icin gerekli (UI olcek %100 degilse fark eder)
-    Affine2D tBoxelToPixel;
-    const bool tHasTransform = ReadBoxelToPixel(&tBoxelToPixel);
-
-    CullFaceOff tCullGuard;  // dolu sekiller gorunsun
-    std::optional<ScissorGuard> tScissor;
-    if (tHasTransform)
+    // Cizim kapisi: ilk karede OpenGL fonksiyonlari ve shader'lar yuklenir
+    if (!PrepareCanvas())
     {
-        tScissor.emplace(tBoxelToPixel, ToRectD(mArea));  // pencere disina tasma
+        return;
+    }
+    mCanvas.BeginFrame();
+
+    // boxel -> piksel: glScissor icin gerekli (UI olcek %100 degilse fark eder)
+    const std::optional<Affine2D> tBoxelToPixel = ReadBoxelToPixel();
+    std::optional<ScissorGuard> tScissor;
+    if (tBoxelToPixel)
+    {
+        tScissor.emplace(*tBoxelToPixel, ToRectD(mArea));  // pencere disina tasma
     }
 
-    Ui::FillRect(mArea, kBackground);
+    Ui::FillRect(mCanvas, mArea, kBackground);
 
     int tMouseX = 0;
     int tMouseY = 0;
@@ -268,9 +272,10 @@ void MapWindow::OnDraw()
 
     DrawContext tContext;
     tContext.mView = &mView;
+    tContext.mCanvas = &mCanvas;
     tContext.mArea = ToRectD(mArea);
     tContext.mClearArea = ClearArea();
-    tContext.mPixelsPerBoxel = tHasTransform ? PixelsPerBoxel(tBoxelToPixel) : 1.0;
+    tContext.mPixelsPerBoxel = tBoxelToPixel ? PixelsPerBoxel(*tBoxelToPixel) : 1.0;
     tContext.mNow = tNow;
     tContext.mHasCursor = tMouseInside && !IsOverControls(tMouseX, tMouseY);
     tContext.mCursorX = tMouseX;
@@ -280,8 +285,6 @@ void MapWindow::OnDraw()
     mLayers.DrawAll(tContext);
 
     DrawControls(tMouseX, tMouseY, tMouseInside);
-
-    glLineWidth(1.0f);
 
     // Bizim cizim suremiz (yumusatilmis): teshis modunda alt seritte gorunur
     const double tDrawMs =
@@ -295,13 +298,31 @@ void MapWindow::OnDraw()
     }
 }
 
+bool MapWindow::PrepareCanvas()
+{
+    const bool tFirstTry = !mCanvasChecked;
+    mCanvasChecked = true;
+    if (mCanvas.Init())
+    {
+        if (tFirstTry)
+        {
+            Log("OpenGL ready: {}", mCanvas.ContextText());
+        }
+        return true;
+    }
+    if (tFirstTry)
+    {
+        Log("ERROR: map cannot draw: {}", mCanvas.ErrorText());
+    }
+    // Sekil cizemiyoruz ama X-Plane'in yazisi calisir: nedeni pencereye yaz
+    Ui::Text(mArea.mLeft + 10, mArea.mTop - 30, "Map cannot draw: " + mCanvas.ErrorText(), Ui::kTextYellow);
+    return false;
+}
+
 std::string MapWindow::PerformanceText() const
 {
     const float tPeriod = mFramePeriodRef ? XPLMGetDataf(mFramePeriodRef) : 0.0f;
-    char tText[64];
-    std::snprintf(tText, sizeof(tText), "FPS %.0f  draw %.2f ms", tPeriod > 0.0f ? 1.0f / tPeriod : 0.0f,
-                  mDrawMs);
-    return tText;
+    return std::format("FPS {:.0f}  draw {:.2f} ms", tPeriod > 0.0f ? 1.0f / tPeriod : 0.0f, mDrawMs);
 }
 
 std::string MapWindow::HintText() const
@@ -329,7 +350,7 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
         if (pMouseInside)
         {
             const RectI tButton = ShowControlsButtonRect();
-            Ui::Button(tButton, "Controls", false, true, tButton.Contains(pMouseX, pMouseY));
+            Ui::Button(mCanvas, tButton, "Controls", false, true, tButton.Contains(pMouseX, pMouseY));
         }
         return;
     }
@@ -338,8 +359,11 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
     mLayerPanel.Layout(mToolbar.ButtonRect(ToolbarAction::Layers), mLayers);
 
     // Imlecin altindaki nokta: kontrollerin ustundeyse gosterme
-    const bool tHasCursor = pMouseInside && !IsOverControls(pMouseX, pMouseY);
-    const LatLon tCursor = mView.BoxelToLatLon(pMouseX, pMouseY);
+    std::optional<LatLon> tCursor;
+    if (pMouseInside && !IsOverControls(pMouseX, pMouseY))
+    {
+        tCursor = mView.BoxelToLatLon(pMouseX, pMouseY);
+    }
 
     // Durum yazisi onceligi: yukleme mesaji > teshis (performans) > cizim ipucu
     std::string tMessage = mStatusMessage;
@@ -352,9 +376,9 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
         tMessage = HintText();
     }
 
-    mToolbar.Draw(pMouseX, pMouseY, tState);
-    mStatusBar.Draw(mArea, mView, tHasCursor, tCursor, tMessage.c_str());
-    mLayerPanel.Draw(pMouseX, pMouseY, mLayers);  // en ustte: acilir panel
+    mToolbar.Draw(mCanvas, pMouseX, pMouseY, tState);
+    mStatusBar.Draw(mCanvas, mArea, mView, tCursor, tMessage);
+    mLayerPanel.Draw(mCanvas, pMouseX, pMouseY, mLayers);  // en ustte: acilir panel
 }
 
 RectD MapWindow::ClearArea() const
@@ -424,12 +448,13 @@ void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& 
     int tGlobalY = 0;
     XPLMGetMouseLocationGlobal(&tGlobalX, &tGlobalY);
     const LatLon tCenter = mView.Center();
-    Log("DIAG t=%.1f window=(%d,%d,%d,%d) popped_out=%d pixels_per_boxel=%.3f scissor=(%.0f,%.0f,%.0f,%.0f) "
-        "zoom=%.2f center=%.5f,%.5f mouse=(%d,%d,%s) mouse_global=(%d,%d) aircraft=%d labels=%d %s",
+    Log("DIAG t={:.1f} window=({},{},{},{}) popped_out={} pixels_per_boxel={:.3f} "
+        "scissor=({:.0f},{:.0f},{:.0f},{:.0f}) "
+        "zoom={:.2f} center={:.5f},{:.5f} mouse=({},{},{}) mouse_global=({},{}) aircraft={} labels={} {}",
         pNow, mArea.mLeft, mArea.mTop, mArea.mRight, mArea.mBottom, XPLMWindowIsPoppedOut(mWindow),
         pPixelsPerBoxel, pScissor.mLeft, pScissor.mTop, pScissor.mRight, pScissor.mBottom, mView.Zoom(),
         tCenter.mLat, tCenter.mLon, tMouseX, tMouseY, tInside ? "inside" : "outside", tGlobalX, tGlobalY,
-        mAircraft.State().mValid ? 1 : 0, mLabelPlacer.PlacedCount(), PerformanceText().c_str());
+        mAircraft.State().mValid ? 1 : 0, mLabelPlacer.PlacedCount(), PerformanceText());
 }
 
 // ============================================================================
@@ -553,7 +578,7 @@ bool MapWindow::HandleControlClick(int pX, int pY)
         if (tLayer)
         {
             tLayer->SetVisible(!tLayer->IsVisible());
-            Log("layer '%s': %s", tLayer->Id().c_str(), tLayer->IsVisible() ? "on" : "off");
+            Log("layer '{}': {}", tLayer->Id(), tLayer->IsVisible() ? "on" : "off");
             SaveSettings();
         }
         return true;
@@ -706,7 +731,7 @@ void MapWindow::SaveSettings()
 
     if (!mSettings.Save())
     {
-        Log("WARNING: could not write the settings file: %s", mSettings.Path().c_str());
+        Log("WARNING: could not write the settings file: {}", mSettings.Path());
     }
 }
 
@@ -720,7 +745,7 @@ void MapWindow::LoadDrawings()
     std::ostringstream tText;
     tText << tFile.rdbuf();
     const int tCount = mDrawings.Deserialize(tText.str());
-    Log("drawings loaded: %d shapes from %s", tCount, mDrawingsPath.c_str());
+    Log("drawings loaded: {} shapes from {}", tCount, mDrawingsPath);
 }
 
 void MapWindow::SaveDrawings()
@@ -728,7 +753,7 @@ void MapWindow::SaveDrawings()
     std::ofstream tFile(mDrawingsPath, std::ios::trunc);
     if (!tFile)
     {
-        Log("WARNING: could not write the drawings file: %s", mDrawingsPath.c_str());
+        Log("WARNING: could not write the drawings file: {}", mDrawingsPath);
         return;
     }
     tFile << mDrawings.Serialize();

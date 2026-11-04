@@ -10,12 +10,14 @@
 // sekilde calisir, cunku her cizimde yeniden okunur.
 #pragma once
 
-#include "GLInclude.h"
+#include <array>
+#include <optional>
+
 #include "ScreenMath.h"
 
-// Su anki OpenGL matrislerinden boxel -> piksel donusumunu okur.
+// Su anki OpenGL matrislerinden boxel -> piksel donusumu.
 // Sadece bir XPLM penceresinin draw callback'i icinde anlamlidir.
-bool ReadBoxelToPixel(Affine2D* pOut);
+std::optional<Affine2D> ReadBoxelToPixel();
 
 // Bir donusumun boxel basina piksel orani (UI olcek: 1.0, 1.5, 2.0 ...)
 double PixelsPerBoxel(const Affine2D& pBoxelToPixel);
@@ -35,7 +37,7 @@ public:
     const RectD& PixelRect() const;  // teshis icin: uygulanan kutu (piksel)
 
 private:
-    GLboolean mWasEnabled;
-    GLint mOldBox[4];
+    bool mWasEnabled = false;
+    std::array<int, 4> mOldBox = {0, 0, 0, 0};
     RectD mPixelRect;
 };

@@ -2,20 +2,20 @@
 // Arayuz cizim yardimcilari: dolu kutu, cerceve, cizgi, yazi, dugme, onay kutusu.
 // Tum koordinatlar global boxel (pencere draw callback'inin koordinatlari).
 //
-// Onemli: XPLMDrawString yazi cizerken grafik durumunu degistirir (doku acar).
-// Bu yuzden her geometri yardimcisi once UseFlatState() cagirir; yoksa yazidan
-// sonra cizilen kutular dokulu cizilip gorunmez olabilir.
+// Sekiller Gfx::Canvas ile (modern OpenGL), yazilar X-Plane'in kendi yazi
+// tipiyle (XPLMDrawString) cizilir. Yazilar Turkce harf ve derece isareti
+// cizemez: metinler ASCII olmali.
 #pragma once
 
+#include <string_view>
+
+#include "Color.h"
 #include "ScreenMath.h"
 
-struct Rgba
+namespace Gfx
 {
-    float mR;
-    float mG;
-    float mB;
-    float mA;
-};
+class Canvas;
+}
 
 namespace Ui
 {
@@ -35,29 +35,27 @@ const Rgba kTextDim = {0.40f, 0.43f, 0.48f, 1.0f};
 const Rgba kTextCyan = {0.45f, 0.85f, 1.00f, 1.0f};
 const Rgba kTextYellow = {1.00f, 0.80f, 0.25f, 1.0f};
 
-// fog yok, doku yok, isik yok, alpha test yok, saydamlik var, derinlik yok
-void UseFlatState();
-
-void FillRect(const RectI& pRect, const Rgba& pColor);
-void FrameRect(const RectI& pRect, const Rgba& pColor);
-void Line(float pX0, float pY0, float pX1, float pY1, float pWidth, const Rgba& pColor);
+void FillRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor);
+void FrameRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor);
+void Line(Gfx::Canvas& pCanvas, const PointF& pFrom, const PointF& pTo, float pWidth, const Rgba& pColor);
 
 // pX, pY: yazinin sol alt kosesi (taban cizgisi). Saydamlik desteklenmez.
-void Text(int pX, int pY, const char* pText, const Rgba& pColor);
-int TextWidth(const char* pText);
+void Text(int pX, int pY, std::string_view pText, const Rgba& pColor);
+int TextWidth(std::string_view pText);
 int FontHeight();
 
 // Yaziyi kutunun ortasina hizalar
-void TextCentered(const RectI& pRect, const char* pText, const Rgba& pColor);
+void TextCentered(const RectI& pRect, std::string_view pText, const Rgba& pColor);
 
 // Harita uzerindeki yazilar icin: once 1 boxel sag-asagiya siyah golge,
 // sonra yazi. Her zemin renginde okunur kalir.
-void TextShadowed(int pX, int pY, const char* pText, const Rgba& pColor);
+void TextShadowed(int pX, int pY, std::string_view pText, const Rgba& pColor);
 
 // Etiketi sigdiracak dugme genisligi
-int ButtonWidth(const char* pLabel);
+int ButtonWidth(std::string_view pLabel);
 
-void Button(const RectI& pRect, const char* pLabel, bool pActive, bool pEnabled, bool pHover);
-void CheckBox(const RectI& pBox, bool pChecked, bool pHover);
+void Button(Gfx::Canvas& pCanvas, const RectI& pRect, std::string_view pLabel, bool pActive, bool pEnabled,
+            bool pHover);
+void CheckBox(Gfx::Canvas& pCanvas, const RectI& pBox, bool pChecked, bool pHover);
 
 }  // namespace Ui

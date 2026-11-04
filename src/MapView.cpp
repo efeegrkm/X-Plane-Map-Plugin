@@ -119,6 +119,14 @@ void MapView::LatLonToBoxel(const LatLon& pPoint, double* pX, double* pY) const
     *pY = tMidY + tDeltaY * tWorld;
 }
 
+PointF MapView::ToScreen(const LatLon& pPoint) const
+{
+    double tX = 0.0;
+    double tY = 0.0;
+    LatLonToBoxel(pPoint, &tX, &tY);
+    return {static_cast<float>(tX), static_cast<float>(tY)};
+}
+
 LatLon MapView::BoxelToLatLon(double pX, double pY) const
 {
     const double tWorld = WorldSize();

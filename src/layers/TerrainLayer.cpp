@@ -6,8 +6,7 @@
 #include <vector>
 
 #include "MapView.h"
-#include "gfx/Batch.h"
-#include "gfx/Texture.h"
+#include "gfx/Canvas.h"
 
 namespace
 {
@@ -29,6 +28,33 @@ int WrapLon(int pLon)
     return tLon - 180;
 }
 
+// Enlem/boylam dikdortgenine oturan doku: pStrips yatay seride bolunur. Doku
+// enlem/boylam izgarasinda, harita Mercator: her serit kendi enleminde
+// cizilince Mercator'un kuzeye dogru uzamasi izlenir. Satir 0 (v = 0) = kuzey.
+void AddLatLonStrips(std::vector<Gfx::TexturedVertex>& pOut, const MapView& pView, double pWest, double pSouth,
+                     double pEast, double pNorth, int pStrips)
+{
+    for (int tStrip = 0; tStrip < pStrips; ++tStrip)
+    {
+        const double tTop = static_cast<double>(tStrip) / pStrips;
+        const double tBottom = static_cast<double>(tStrip + 1) / pStrips;
+        const double tTopLat = pNorth - (pNorth - pSouth) * tTop;
+        const double tBottomLat = pNorth - (pNorth - pSouth) * tBottom;
+        const PointF tTopLeft = pView.ToScreen({tTopLat, pWest});
+        const PointF tTopRight = pView.ToScreen({tTopLat, pEast});
+        const PointF tBottomLeft = pView.ToScreen({tBottomLat, pWest});
+        const PointF tBottomRight = pView.ToScreen({tBottomLat, pEast});
+        const float tV0 = static_cast<float>(tTop);
+        const float tV1 = static_cast<float>(tBottom);
+        pOut.push_back({tTopLeft.mX, tTopLeft.mY, 0.0f, tV0});
+        pOut.push_back({tBottomLeft.mX, tBottomLeft.mY, 0.0f, tV1});
+        pOut.push_back({tBottomRight.mX, tBottomRight.mY, 1.0f, tV1});
+        pOut.push_back({tTopLeft.mX, tTopLeft.mY, 0.0f, tV0});
+        pOut.push_back({tBottomRight.mX, tBottomRight.mY, 1.0f, tV1});
+        pOut.push_back({tTopRight.mX, tTopRight.mY, 1.0f, tV0});
+    }
+}
+
 }  // namespace
 
 TerrainLayer::TerrainLayer(TerrainStore& pStore, const TerrainPalette& pPalette)
@@ -36,14 +62,6 @@ TerrainLayer::TerrainLayer(TerrainStore& pStore, const TerrainPalette& pPalette)
     , mStore(pStore)
     , mPalette(pPalette)
 {
-}
-
-TerrainLayer::~TerrainLayer()
-{
-    for (const auto& tEntry : mTextures)
-    {
-        Gfx::DeleteTexture(tEntry.second.mTexture);
-    }
 }
 
 int TerrainLayer::TextureCount() const
@@ -78,23 +96,23 @@ void TerrainLayer::UploadReadyImages()
             continue;  // ayni goruntu iki kez istenmis olabilir
         }
         CachedTexture tCached;
-        tCached.mTexture = Gfx::CreateTexture(tImage.mSize, tImage.mRgba.data());
+        tCached.mTexture = Gfx::Texture::FromRgba(tImage.mSize, tImage.mRgba.data());
         tCached.mBytes = tImage.mRgba.size();
         tCached.mLastFrame = mFrame;
         mTextureBytes += tCached.mBytes;
-        mTextures.emplace(tImage.mKey, tCached);
+        mTextures.emplace(tImage.mKey, std::move(tCached));
     }
 }
 
-int TerrainLayer::UseTexture(const TerrainImageKey& pKey)
+const Gfx::Texture* TerrainLayer::UseTexture(const TerrainImageKey& pKey)
 {
     const auto tFound = mTextures.find(pKey);
     if (tFound == mTextures.end())
     {
-        return 0;
+        return nullptr;
     }
     tFound->second.mLastFrame = mFrame;
-    return tFound->second.mTexture;
+    return &tFound->second.mTexture;
 }
 
 void TerrainLayer::EvictUnused()
@@ -115,9 +133,8 @@ void TerrainLayer::EvictUnused()
         {
             return;  // hepsi su an ekranda
         }
-        Gfx::DeleteTexture(tOldest->second.mTexture);
         mTextureBytes -= tOldest->second.mBytes;
-        mTextures.erase(tOldest);
+        mTextures.erase(tOldest);  // Gfx::Texture yikicisi dokuyu siler
     }
 }
 
@@ -146,7 +163,9 @@ void TerrainLayer::Draw(const DrawContext& pContext)
     const TerrainColor& tWaterColor = mPalette.ColorOf(TerrainClass::Water);
     const Rgba tWater = {tWaterColor.mR / 255.0f, tWaterColor.mG / 255.0f, tWaterColor.mB / 255.0f, 1.0f};
 
-    Gfx::TriangleBatch tOcean;
+    Gfx::Canvas& tCanvas = *pContext.mCanvas;
+    Gfx::Mesh tOcean;
+    std::vector<Gfx::TexturedVertex> tStrips;
     for (int tLat = tSouth; tLat <= tNorth; ++tLat)
     {
         for (int tColumn = tWest; tColumn <= tEast; ++tColumn)
@@ -164,37 +183,33 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             const double tTileEast = tColumn + 1.0;
             if (tCoverage == TileCoverage::Ocean || tState == TerrainTileState::Ocean)
             {
-                double tX0 = 0.0;
-                double tY0 = 0.0;
-                double tX1 = 0.0;
-                double tY1 = 0.0;
-                tView.LatLonToBoxel({static_cast<double>(tLat), tTileWest}, &tX0, &tY0);
-                tView.LatLonToBoxel({tLat + 1.0, tTileEast}, &tX1, &tY1);
-                tOcean.AddQuad({static_cast<float>(tX0), static_cast<float>(tY0)},
-                               {static_cast<float>(tX1), static_cast<float>(tY0)},
-                               {static_cast<float>(tX1), static_cast<float>(tY1)},
-                               {static_cast<float>(tX0), static_cast<float>(tY1)}, tWater);
+                const PointF tSouthWest = tView.ToScreen({static_cast<double>(tLat), tTileWest});
+                const PointF tNorthEast = tView.ToScreen({tLat + 1.0, tTileEast});
+                tOcean.AddQuad(tSouthWest, {tNorthEast.mX, tSouthWest.mY}, tNorthEast, {tSouthWest.mX, tNorthEast.mY},
+                               tWater);
                 continue;
             }
 
             // Tum karoyu kaplayan en iyi doku (istenen seviyeye kadar; yoksa daha kabasi)
             const int tFullLevel = std::min(tLevel, 2);
-            int tTexture = 0;
-            for (int tTry = tFullLevel; tTry >= 0 && tTexture == 0; --tTry)
+            const Gfx::Texture* tTexture = nullptr;
+            for (int tTry = tFullLevel; tTry >= 0 && !tTexture; --tTry)
             {
                 tTexture = UseTexture({tLon, tLat, tTry, 0});
             }
-            if (UseTexture({tLon, tLat, tFullLevel, 0}) == 0)
+            if (!UseTexture({tLon, tLat, tFullLevel, 0}))
             {
                 mStore.Request({tLon, tLat, tFullLevel, 0});
             }
-            if (UseTexture({tLon, tLat, 0, 0}) == 0)
+            if (!UseTexture({tLon, tLat, 0, 0}))
             {
                 mStore.Request({tLon, tLat, 0, 0});  // en kaba seviye hep olsun: hizli yedek
             }
-            if (tTexture != 0)
+            if (tTexture)
             {
-                Gfx::DrawTextureLatLon(tTexture, tView, tTileWest, tLat, tTileEast, tLat + 1.0, kFullTileStrips);
+                tStrips.clear();
+                AddLatLonStrips(tStrips, tView, tTileWest, tLat, tTileEast, tLat + 1.0, kFullTileStrips);
+                tCanvas.DrawTextured(*tTexture, tStrips);
             }
 
             // En ince seviye: sadece ekrana giren 0.25 derecelik parcalar
@@ -209,18 +224,20 @@ void TerrainLayer::Draw(const DrawContext& pContext)
                     {
                         continue;
                     }
-                    const int tChunkTexture = UseTexture({tLon, tLat, 3, tChunk});
-                    if (tChunkTexture == 0)
+                    const Gfx::Texture* tChunkTexture = UseTexture({tLon, tLat, 3, tChunk});
+                    if (!tChunkTexture)
                     {
                         mStore.Request({tLon, tLat, 3, tChunk});
                         continue;
                     }
-                    Gfx::DrawTextureLatLon(tChunkTexture, tView, tChunkWest, tChunkNorth - 0.25, tChunkWest + 0.25,
-                                           tChunkNorth, kChunkStrips);
+                    tStrips.clear();
+                    AddLatLonStrips(tStrips, tView, tChunkWest, tChunkNorth - 0.25, tChunkWest + 0.25, tChunkNorth,
+                                    kChunkStrips);
+                    tCanvas.DrawTextured(*tChunkTexture, tStrips);
                 }
             }
         }
     }
-    tOcean.Draw();
+    tCanvas.Draw(tOcean);
     EvictUnused();
 }

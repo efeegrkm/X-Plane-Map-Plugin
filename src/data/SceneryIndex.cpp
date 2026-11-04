@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <cstdio>
+#include <format>
 #include <filesystem>
 #include <system_error>
 
@@ -34,9 +34,7 @@ int SceneryIndex::TileKey(int pWest, int pSouth)
 
 std::string SceneryIndex::TileName(int pWest, int pSouth)
 {
-    char tName[16];
-    std::snprintf(tName, sizeof(tName), "%+03d%+04d", pSouth, pWest);
-    return tName;
+    return std::format("{:+03d}{:+04d}", pSouth, pWest);  // "+47-123"
 }
 
 std::string SceneryIndex::FolderName(int pWest, int pSouth)

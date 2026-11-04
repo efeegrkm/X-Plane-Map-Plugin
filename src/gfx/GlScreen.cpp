@@ -1,9 +1,11 @@
 // GlScreen.cpp
-#include "GlScreen.h"
+#include "gfx/GlScreen.h"
 
 #include <cmath>
 
-bool ReadBoxelToPixel(Affine2D* pOut)
+#include "gfx/GlInclude.h"
+
+std::optional<Affine2D> ReadBoxelToPixel()
 {
     float tModelview[16];
     float tProjection[16];
@@ -12,7 +14,12 @@ bool ReadBoxelToPixel(Affine2D* pOut)
     glGetFloatv(GL_PROJECTION_MATRIX, tProjection);
     glGetIntegerv(GL_VIEWPORT, tViewport);
     const int tViewportInt[4] = {tViewport[0], tViewport[1], tViewport[2], tViewport[3]};
-    return AffineFromGL(tModelview, tProjection, tViewportInt, pOut);
+    Affine2D tResult;
+    if (!AffineFromGL(tModelview, tProjection, tViewportInt, &tResult))
+    {
+        return std::nullopt;
+    }
+    return tResult;
 }
 
 double PixelsPerBoxel(const Affine2D& pBoxelToPixel)
@@ -21,9 +28,9 @@ double PixelsPerBoxel(const Affine2D& pBoxelToPixel)
 }
 
 ScissorGuard::ScissorGuard(const Affine2D& pBoxelToPixel, const RectD& pBoxels)
-    : mWasEnabled(glIsEnabled(GL_SCISSOR_TEST))
+    : mWasEnabled(glIsEnabled(GL_SCISSOR_TEST) == GL_TRUE)
 {
-    glGetIntegerv(GL_SCISSOR_BOX, mOldBox);
+    glGetIntegerv(GL_SCISSOR_BOX, mOldBox.data());
 
     RectD tPixels = TransformRectBBox(pBoxelToPixel, pBoxels);
     if (mWasEnabled)

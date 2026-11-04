@@ -3,9 +3,9 @@
 
 #include <cmath>
 
-#include "GLInclude.h"
 #include "MapView.h"
 #include "data/AirportGeometryStore.h"
+#include "gfx/Canvas.h"
 #include "layers/MapSymbols.h"
 
 namespace
@@ -85,11 +85,9 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
             tScreen.mRunway = &tRunway;
             for (int tEnd = 0; tEnd < 2; ++tEnd)
             {
-                double tX = 0.0;
-                double tY = 0.0;
-                tView.LatLonToBoxel(tRunway.mEnds[tEnd].mPosition, &tX, &tY);
-                tScreen.mEndX[tEnd] = static_cast<float>(tX);
-                tScreen.mEndY[tEnd] = static_cast<float>(tY);
+                const PointF tPoint = tView.ToScreen(tRunway.mEnds[tEnd].mPosition);
+                tScreen.mEndX[tEnd] = tPoint.mX;
+                tScreen.mEndY[tEnd] = tPoint.mY;
             }
             const float tDeltaX = tScreen.mEndX[1] - tScreen.mEndX[0];
             const float tDeltaY = tScreen.mEndY[1] - tScreen.mEndY[0];
@@ -120,23 +118,18 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
     }
 }
 
-void RunwayLayer::EmitRectangle(const ScreenRunway& pRunway, float pFrom, float pTo, float pHalfWidth) const
+void RunwayLayer::AddRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
+                               float pHalfWidth, const Rgba& pColor)
 {
-    // Pist ekseni boyunca uc 0'dan pFrom..pTo boxel arasi, pHalfWidth genisliginde
-    // dikdortgen (iki ucgen). Normal: yonun 90 derece dondurulmusu.
+    // Normal: pist yonunun 90 derece dondurulmusu
     const float tNormalX = -pRunway.mDirY * pHalfWidth;
     const float tNormalY = pRunway.mDirX * pHalfWidth;
     const float tStartX = pRunway.mEndX[0] + pRunway.mDirX * pFrom;
     const float tStartY = pRunway.mEndY[0] + pRunway.mDirY * pFrom;
     const float tStopX = pRunway.mEndX[0] + pRunway.mDirX * pTo;
     const float tStopY = pRunway.mEndY[0] + pRunway.mDirY * pTo;
-
-    glVertex2f(tStartX + tNormalX, tStartY + tNormalY);
-    glVertex2f(tStartX - tNormalX, tStartY - tNormalY);
-    glVertex2f(tStopX - tNormalX, tStopY - tNormalY);
-    glVertex2f(tStartX + tNormalX, tStartY + tNormalY);
-    glVertex2f(tStopX - tNormalX, tStopY - tNormalY);
-    glVertex2f(tStopX + tNormalX, tStopY + tNormalY);
+    pMesh.AddQuad({tStartX + tNormalX, tStartY + tNormalY}, {tStartX - tNormalX, tStartY - tNormalY},
+                  {tStopX - tNormalX, tStopY - tNormalY}, {tStopX + tNormalX, tStopY + tNormalY}, pColor);
 }
 
 void RunwayLayer::Draw(const DrawContext& pContext)
@@ -147,36 +140,34 @@ void RunwayLayer::Draw(const DrawContext& pContext)
         return;
     }
     const double tZoom = pContext.mView->Zoom();
-    Ui::UseFlatState();
+    Gfx::Mesh tMesh;
 
-    glBegin(GL_TRIANGLES);
     // Blast pad / overrun: pistin iki ucundan disari
     if (tZoom >= kOverrunMinZoom)
     {
-        MapSymbols::SetColor(kOverrunColor);
         for (const ScreenRunway& tRunway : mVisible)
         {
             const float tOverrun0 = static_cast<float>(tRunway.mRunway->mEnds[0].mOverrunM) * tRunway.mBoxelsPerMeter;
             const float tOverrun1 = static_cast<float>(tRunway.mRunway->mEnds[1].mOverrunM) * tRunway.mBoxelsPerMeter;
             if (tOverrun0 > 0.5f)
             {
-                EmitRectangle(tRunway, -tOverrun0, 0.0f, tRunway.mHalfWidth);
+                AddRectangle(tMesh, tRunway, -tOverrun0, 0.0f, tRunway.mHalfWidth, kOverrunColor);
             }
             if (tOverrun1 > 0.5f)
             {
-                EmitRectangle(tRunway, tRunway.mLength, tRunway.mLength + tOverrun1, tRunway.mHalfWidth);
+                AddRectangle(tMesh, tRunway, tRunway.mLength, tRunway.mLength + tOverrun1, tRunway.mHalfWidth,
+                             kOverrunColor);
             }
         }
     }
 
-    // Once TUM pistlerin koyu kenari, sonra TUM yuzeyler: kesisen pistlerde
+    // Once TUM pistlerin acik kenari, sonra TUM yuzeyler: kesisen pistlerde
     // birinin kenari digerinin yuzeyini cizmesin
-    MapSymbols::SetColor(kEdgeColor);
     for (const ScreenRunway& tRunway : mVisible)
     {
         if (tRunway.mHalfWidth >= 2.0f)
         {
-            EmitRectangle(tRunway, -1.0f, tRunway.mLength + 1.0f, tRunway.mHalfWidth + 1.0f);
+            AddRectangle(tMesh, tRunway, -1.0f, tRunway.mLength + 1.0f, tRunway.mHalfWidth + 1.0f, kEdgeColor);
         }
     }
     for (const ScreenRunway& tRunway : mVisible)
@@ -185,11 +176,10 @@ void RunwayLayer::Draw(const DrawContext& pContext)
         {
             // Uzaktan (cok dar) pist: koyu dolgu gorunmez, acik renkli cizgi olarak ciz
             const bool tThin = tRunway.mHalfWidth < 2.0f;
-            MapSymbols::SetColor(tThin ? kEdgeColor : SurfaceColor(tRunway.mRunway->mSurface));
-            EmitRectangle(tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth);
+            AddRectangle(tMesh, tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth,
+                         tThin ? kEdgeColor : SurfaceColor(tRunway.mRunway->mSurface));
         }
     }
-    glEnd();
 
     if (tZoom >= kMarkingMinZoom)
     {
@@ -197,13 +187,14 @@ void RunwayLayer::Draw(const DrawContext& pContext)
         {
             if (tRunway.mRunway->mSurface == RunwaySurface::Paved && tRunway.mHalfWidth >= 3.0f)
             {
-                DrawMarkings(tRunway);
+                AddMarkings(tMesh, tRunway);
             }
         }
     }
+    pContext.mCanvas->Draw(tMesh);
 }
 
-void RunwayLayer::DrawMarkings(const ScreenRunway& pRunway) const
+void RunwayLayer::AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
 {
     // Esikler: kaydirilmis esik varsa uctan o kadar iceride
     const float tThreshold0 = static_cast<float>(pRunway.mRunway->mEnds[0].mDisplacedThresholdM) *
@@ -211,20 +202,16 @@ void RunwayLayer::DrawMarkings(const ScreenRunway& pRunway) const
     const float tThreshold1 = pRunway.mLength - static_cast<float>(pRunway.mRunway->mEnds[1].mDisplacedThresholdM) *
                                                     pRunway.mBoxelsPerMeter;
     const float tBar = 1.5f;  // esik cizgisinin kalinligi (boxel)
-
-    MapSymbols::SetColor(kMarkingColor);
-    glBegin(GL_TRIANGLES);
-    EmitRectangle(pRunway, tThreshold0, tThreshold0 + tBar, pRunway.mHalfWidth * 0.85f);
-    EmitRectangle(pRunway, tThreshold1 - tBar, tThreshold1, pRunway.mHalfWidth * 0.85f);
+    AddRectangle(pMesh, pRunway, tThreshold0, tThreshold0 + tBar, pRunway.mHalfWidth * 0.85f, kMarkingColor);
+    AddRectangle(pMesh, pRunway, tThreshold1 - tBar, tThreshold1, pRunway.mHalfWidth * 0.85f, kMarkingColor);
 
     // Orta hat: esikler arasinda kesikli (bosluk = kesik boyu)
     const float tDash = std::fmax(static_cast<float>(kDashMeters) * pRunway.mBoxelsPerMeter, 3.0f);
     const float tLineHalf = std::fmax(pRunway.mHalfWidth * 0.03f, 0.5f);
     for (float tAt = tThreshold0 + tDash; tAt + tDash < tThreshold1 - tDash; tAt += 2.0f * tDash)
     {
-        EmitRectangle(pRunway, tAt, tAt + tDash, tLineHalf);
+        AddRectangle(pMesh, pRunway, tAt, tAt + tDash, tLineHalf, kMarkingColor);
     }
-    glEnd();
 }
 
 void RunwayLayer::DrawLabels(const DrawContext& pContext)
@@ -244,7 +231,7 @@ void RunwayLayer::DrawLabels(const DrawContext& pContext)
             const float tOffset = kLabelGap + tOverrun;
             const float tX = tRunway.mEndX[tEnd] + tSign * tRunway.mDirX * tOffset;
             const float tY = tRunway.mEndY[tEnd] + tSign * tRunway.mDirY * tOffset;
-            MapSymbols::DrawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName.c_str(),
+            MapSymbols::DrawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName,
                                           kLabelColor);
         }
     }

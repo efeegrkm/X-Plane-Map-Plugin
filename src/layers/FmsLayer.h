@@ -14,7 +14,7 @@
 
 #include "Geo.h"
 #include "Layer.h"
-#include "gfx/Batch.h"
+#include "gfx/Mesh.h"
 
 class FmsLayer : public Layer
 {

@@ -35,7 +35,7 @@ void Drawings::SetMode(Mode pMode)
     }
     Finish();
     mMode = pMode;
-    Log("mode: %s", ModeName(pMode));
+    Log("mode: {}", ModeName(pMode));
 }
 
 void Drawings::AddVertex(const LatLon& pPoint)
@@ -54,7 +54,7 @@ void Drawings::AddVertex(const LatLon& pPoint)
             tShape.mNumber = ++CounterFor(ShapeKind::Point);
             tShape.mPoints.push_back(pPoint);
             mShapes.push_back(tShape);
-            Log("P%d added: %.5f, %.5f", tShape.mNumber, pPoint.mLat, pPoint.mLon);
+            Log("P{} added: {:.5f}, {:.5f}", tShape.mNumber, pPoint.mLat, pPoint.mLon);
             return;
         }
 
@@ -69,7 +69,7 @@ void Drawings::AddVertex(const LatLon& pPoint)
                 mHasCurrent = true;
             }
             mCurrent.mPoints.push_back(pPoint);
-            Log("%s vertex %d: %.5f, %.5f", ModeName(mMode), static_cast<int>(mCurrent.mPoints.size()),
+            Log("{} vertex {}: {:.5f}, {:.5f}", ModeName(mMode), static_cast<int>(mCurrent.mPoints.size()),
                 pPoint.mLat, pPoint.mLon);
             return;
         }
@@ -90,7 +90,7 @@ void Drawings::Finish()
     const size_t tNeeded = (tShape.mKind == ShapeKind::Route) ? 2 : 3;
     if (tShape.mPoints.size() < tNeeded)
     {
-        Log("unfinished shape discarded (%d vertices, at least %d needed)", static_cast<int>(tShape.mPoints.size()),
+        Log("unfinished shape discarded ({} vertices, at least {} needed)", static_cast<int>(tShape.mPoints.size()),
             static_cast<int>(tNeeded));
         return;
     }
@@ -103,7 +103,7 @@ void Drawings::Finish()
     }
     tShape.mNumber = ++CounterFor(tShape.mKind);
     mShapes.push_back(tShape);
-    Log("%s%d finished (%d vertices)", tShape.mKind == ShapeKind::Route ? "R" : "A", tShape.mNumber,
+    Log("{}{} finished ({} vertices)", tShape.mKind == ShapeKind::Route ? "R" : "A", tShape.mNumber,
         static_cast<int>(tShape.mPoints.size()));
 }
 

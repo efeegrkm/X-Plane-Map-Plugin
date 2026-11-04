@@ -59,6 +59,8 @@ public:
     // lat/lon -> boxel. Boylam farki 180'i gecerse dunyanin en yakin
     // kopyasi secilir (180. boylam civarinda cizgiler kopmasin).
     void LatLonToBoxel(const LatLon& pPoint, double* pX, double* pY) const;
+    // Ayni donusum, cizim icin: dogrudan ekran noktasi doner
+    PointF ToScreen(const LatLon& pPoint) const;
     LatLon BoxelToLatLon(double pX, double pY) const;
 
     // Goruntuyu pDeltaX/pDeltaY boxel kaydirir (fare ile surukleme:

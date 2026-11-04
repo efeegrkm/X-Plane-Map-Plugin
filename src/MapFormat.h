@@ -4,16 +4,16 @@
 // Ciktilar ASCII: XPLMDrawString derece isareti ve Turkce harf cizemez.
 #pragma once
 
-#include <cstddef>
+#include <string>
 
 #include "Geo.h"
 
 // "41.12345 N  28.12345 E"
-void FormatLatLon(const LatLon& pPoint, char* pOut, size_t pSize);
+std::string FormatLatLon(const LatLon& pPoint);
 
 // Izgara etiketi. Aralik 1 derece veya buyukse "41N", degilse derece +
 // dakika: "41 30N", dakikadan kucukse "41 30.5N".
-void FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees, char* pOut, size_t pSize);
+std::string FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees);
 
 // Ekranda en az pMinSpacing boxel aralik birakan en kucuk "yuvarlak"
 // izgara araligi (derece): 30, 20, 10, 5, 2, 1, 30', 20', 10', 5', 2', 1', 30".

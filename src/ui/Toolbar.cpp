@@ -91,17 +91,17 @@ void Toolbar::Layout(const RectI& pArea, const ToolbarState& pState)
     }
 }
 
-void Toolbar::Draw(int pMouseX, int pMouseY, const ToolbarState& pState) const
+void Toolbar::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const
 {
-    Ui::FillRect(mStrip, Ui::kStripBg);
-    Ui::Line(static_cast<float>(mStrip.mLeft), mStrip.mBottom + 0.5f, static_cast<float>(mStrip.mRight),
-             mStrip.mBottom + 0.5f, 1.0f, Ui::kBorder);
+    Ui::FillRect(pCanvas, mStrip, Ui::kStripBg);
+    Ui::Line(pCanvas, {static_cast<float>(mStrip.mLeft), mStrip.mBottom + 0.5f},
+             {static_cast<float>(mStrip.mRight), mStrip.mBottom + 0.5f}, 1.0f, Ui::kBorder);
 
     for (const Item& tItem : mItems)
     {
         const bool tEnabled = IsEnabled(tItem.mAction, pState);
         const bool tHover = tEnabled && tItem.mRect.Contains(pMouseX, pMouseY);
-        Ui::Button(tItem.mRect, tItem.mLabel, IsActive(tItem.mAction, pState), tEnabled, tHover);
+        Ui::Button(pCanvas, tItem.mRect, tItem.mLabel, IsActive(tItem.mAction, pState), tEnabled, tHover);
     }
 }
 

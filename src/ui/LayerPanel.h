@@ -15,6 +15,11 @@
 
 class LayerManager;
 
+namespace Gfx
+{
+class Canvas;
+}
+
 class LayerPanel
 {
 public:
@@ -26,7 +31,7 @@ public:
     // hizali acilir. Her cizimden once cagrilir.
     void Layout(const RectI& pAnchor, const LayerManager& pLayers);
 
-    void Draw(int pMouseX, int pMouseY, const LayerManager& pLayers) const;
+    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const LayerManager& pLayers) const;
 
     // (pX, pY) panelin ustundeyse true. Bir katman satirina denk geldiyse
     // pOutIndex o katmanin indeksi, degilse -1 olur.

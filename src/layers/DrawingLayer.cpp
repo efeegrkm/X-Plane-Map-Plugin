@@ -2,12 +2,14 @@
 #include "layers/DrawingLayer.h"
 
 #include <cmath>
-#include <cstdio>
+#include <format>
 
 #include "Drawings.h"
 #include "Geo.h"
 #include "LabelPlacer.h"
 #include "MapView.h"
+#include "gfx/Canvas.h"
+#include "ui/UiDraw.h"
 
 namespace
 {
@@ -24,6 +26,7 @@ const Rgba kLabelColor = {0.95f, 0.97f, 1.0f, 1.0f};
 
 const double kDensifyNm = 5.0;     // uzun parcalar bu araliklarla bolunur (egri dogru cizilsin)
 const float kDashLength = 8.0f;    // lastik cizginin kesik boyu (boxel)
+const float kLineWidth = 2.5f;     // rota / bolge kenari (boxel)
 
 }  // namespace
 
@@ -35,10 +38,7 @@ DrawingLayer::DrawingLayer(const Drawings& pDrawings)
 
 Gfx::Point DrawingLayer::Project(const MapView& pView, const LatLon& pPoint)
 {
-    double tX = 0.0;
-    double tY = 0.0;
-    pView.LatLonToBoxel(pPoint, &tX, &tY);
-    return {static_cast<float>(tX), static_cast<float>(tY)};
+    return pView.ToScreen(pPoint);
 }
 
 std::vector<Gfx::Point> DrawingLayer::ProjectPath(const MapView& pView, const std::vector<LatLon>& pPoints,
@@ -78,7 +78,7 @@ void DrawingLayer::AddLabel(const DrawContext& pContext, const std::string& pTex
     {
         RectD tBox;
         tBox.mLeft = tLabel.mX - 1;
-        tBox.mRight = tLabel.mX + Ui::TextWidth(pText.c_str()) + 2;
+        tBox.mRight = tLabel.mX + Ui::TextWidth(pText) + 2;
         tBox.mBottom = tLabel.mY - 3;
         tBox.mTop = tLabel.mY + Ui::FontHeight() + 1;
         pContext.mLabels->Reserve(tBox);
@@ -86,7 +86,7 @@ void DrawingLayer::AddLabel(const DrawContext& pContext, const std::string& pTex
     mLabels.push_back(tLabel);
 }
 
-void DrawingLayer::AddDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::LineBatch& pLines)
+void DrawingLayer::AddDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::OutlinedLines& pLines)
 {
     const float tDeltaX = pTo.mX - pFrom.mX;
     const float tDeltaY = pTo.mY - pFrom.mY;
@@ -101,7 +101,7 @@ void DrawingLayer::AddDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo,
     {
         const float tEnd = std::fmin(tAt + kDashLength, tLength);
         pLines.AddLine({pFrom.mX + tStepX * tAt, pFrom.mY + tStepY * tAt},
-                       {pFrom.mX + tStepX * tEnd, pFrom.mY + tStepY * tEnd}, kCurrentColor);
+                       {pFrom.mX + tStepX * tEnd, pFrom.mY + tStepY * tEnd}, kLineWidth, kCurrentColor);
     }
 }
 
@@ -110,10 +110,9 @@ void DrawingLayer::Draw(const DrawContext& pContext)
     mLabels.clear();
     const MapView& tView = *pContext.mView;
 
-    Gfx::TriangleBatch tFills;
-    Gfx::LineBatch tLines;
-    Gfx::TriangleBatch tMarkers;
-    char tText[96];
+    Gfx::Mesh tFills;
+    Gfx::OutlinedLines tLines;
+    Gfx::Mesh tMarkers;
 
     for (const Drawings::Shape& tShape : mDrawings.Shapes())
     {
@@ -131,7 +130,7 @@ void DrawingLayer::Draw(const DrawContext& pContext)
             }
             case Drawings::ShapeKind::Route:
             {
-                tLines.AddPolyline(ProjectPath(tView, tShape.mPoints, false), false, kRouteColor);
+                tLines.AddPolyline(ProjectPath(tView, tShape.mPoints, false), false, kLineWidth, kRouteColor);
                 double tLengthNm = 0.0;
                 for (size_t tIndex = 0; tIndex + 1 < tShape.mPoints.size(); ++tIndex)
                 {
@@ -141,8 +140,8 @@ void DrawingLayer::Draw(const DrawContext& pContext)
                 {
                     tMarkers.AddDisc(Project(tView, tVertex), 3.5f, kRouteColor);
                 }
-                std::snprintf(tText, sizeof(tText), "%s  %.1f NM", Drawings::LabelOf(tShape).c_str(), tLengthNm);
-                AddLabel(pContext, tText, Project(tView, tShape.mPoints.back()));
+                AddLabel(pContext, std::format("{}  {:.1f} NM", Drawings::LabelOf(tShape), tLengthNm),
+                         Project(tView, tShape.mPoints.back()));
                 break;
             }
             case Drawings::ShapeKind::Region:
@@ -158,7 +157,7 @@ void DrawingLayer::Draw(const DrawContext& pContext)
                     }
                     tFills.AddIndexed(tVertices, tShape.mTriangles, kRegionFill);
                 }
-                tLines.AddPolyline(tCorners, true, kRegionColor);
+                tLines.AddPolyline(tCorners, true, kLineWidth, kRegionColor);
                 Gfx::Point tCentroid = {0.0f, 0.0f};
                 const float tCount = static_cast<float>(tShape.mPoints.size());
                 for (const LatLon& tVertex : tShape.mPoints)
@@ -168,9 +167,9 @@ void DrawingLayer::Draw(const DrawContext& pContext)
                     tCentroid.mX += tPoint.mX / tCount;
                     tCentroid.mY += tPoint.mY / tCount;
                 }
-                std::snprintf(tText, sizeof(tText), "%s  %.1f NM2", Drawings::LabelOf(tShape).c_str(),
-                              PolygonAreaNm2(tShape.mPoints));
-                AddLabel(pContext, tText, tCentroid);
+                AddLabel(pContext,
+                         std::format("{}  {:.1f} NM2", Drawings::LabelOf(tShape), PolygonAreaNm2(tShape.mPoints)),
+                         tCentroid);
                 break;
             }
         }
@@ -193,7 +192,7 @@ void DrawingLayer::Draw(const DrawContext& pContext)
                 tFills.AddIndexed(tVertices, tTriangles, kCurrentFill);
             }
         }
-        tLines.AddPolyline(ProjectPath(tView, tCurrent->mPoints, false), false, kCurrentColor);
+        tLines.AddPolyline(ProjectPath(tView, tCurrent->mPoints, false), false, kLineWidth, kCurrentColor);
         for (const LatLon& tVertex : tCurrent->mPoints)
         {
             tMarkers.AddDisc(Project(tView, tVertex), 4.0f, kCurrentColor);
@@ -215,20 +214,20 @@ void DrawingLayer::Draw(const DrawContext& pContext)
             {
                 tLengthNm += DistanceNm(tCurrent->mPoints[tIndex], tCurrent->mPoints[tIndex + 1]);
             }
-            std::snprintf(tText, sizeof(tText), "%.1f NM", tLengthNm);
-            AddLabel(pContext, tText, Project(tView, tCurrent->mPoints.back()));
+            AddLabel(pContext, std::format("{:.1f} NM", tLengthNm), Project(tView, tCurrent->mPoints.back()));
         }
     }
 
-    tFills.Draw();
-    tLines.DrawOutlined(2.5f);
-    tMarkers.Draw();
+    Gfx::Canvas& tCanvas = *pContext.mCanvas;
+    tCanvas.Draw(tFills);
+    tCanvas.Draw(tLines);
+    tCanvas.Draw(tMarkers);
 }
 
 void DrawingLayer::DrawLabels(const DrawContext& /*pContext*/)
 {
     for (const PendingLabel& tLabel : mLabels)
     {
-        Ui::TextShadowed(tLabel.mX, tLabel.mY, tLabel.mText.c_str(), kLabelColor);
+        Ui::TextShadowed(tLabel.mX, tLabel.mY, tLabel.mText, kLabelColor);
     }
 }

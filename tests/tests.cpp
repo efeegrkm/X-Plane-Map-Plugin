@@ -3,6 +3,7 @@
 // cografi hesaplar, cizim modeli, ayar dosyasi, katman yoneticisi.
 //
 // Derleme: cmake -DMAP_TESTS=ON ... ; calistirma: map_tests(.exe)
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -14,6 +15,7 @@
 #include "Geo.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
+#include "Log.h"
 #include "MapFormat.h"
 #include "MapView.h"
 #include "ScreenMath.h"
@@ -28,6 +30,7 @@
 #include "data/SevenZip.h"
 #include "data/TerrainClasses.h"
 #include "data/TerrainRaster.h"
+#include "gfx/Mesh.h"
 
 #include <chrono>
 #include <filesystem>
@@ -35,7 +38,7 @@
 #include <thread>
 
 // Log.cpp (XPLMDebugString kullanir) yerine bos bir taklit
-void Log(const char* /*pFormat*/, ...)
+void LogLine(std::string_view /*pText*/)
 {
 }
 
@@ -444,22 +447,115 @@ void TestDrawings()
 
 // ---------------------------------------------------------------------------
 
+// Mesh'in koselerini kapsayan dikdortgen
+RectD MeshBounds(const Gfx::Mesh& pMesh)
+{
+    RectD tBounds;
+    tBounds.mLeft = 1e9;
+    tBounds.mBottom = 1e9;
+    tBounds.mRight = -1e9;
+    tBounds.mTop = -1e9;
+    for (const Gfx::ColorVertex& tVertex : pMesh.Vertices())
+    {
+        tBounds.mLeft = std::min<double>(tBounds.mLeft, tVertex.mX);
+        tBounds.mRight = std::max<double>(tBounds.mRight, tVertex.mX);
+        tBounds.mBottom = std::min<double>(tBounds.mBottom, tVertex.mY);
+        tBounds.mTop = std::max<double>(tBounds.mTop, tVertex.mY);
+    }
+    return tBounds;
+}
+
+// Ucgenlerin toplam alani (yon fark etmez)
+double MeshArea(const Gfx::Mesh& pMesh)
+{
+    const std::vector<Gfx::ColorVertex>& tVertices = pMesh.Vertices();
+    double tArea = 0.0;
+    for (size_t tIndex = 0; tIndex + 2 < tVertices.size(); tIndex += 3)
+    {
+        const Gfx::ColorVertex& tA = tVertices[tIndex];
+        const Gfx::ColorVertex& tB = tVertices[tIndex + 1];
+        const Gfx::ColorVertex& tC = tVertices[tIndex + 2];
+        tArea += std::fabs((tB.mX - tA.mX) * (tC.mY - tA.mY) - (tC.mX - tA.mX) * (tB.mY - tA.mY)) * 0.5;
+    }
+    return tArea;
+}
+
+void TestMesh()
+{
+    const Rgba tRed = {1.0f, 0.0f, 0.0f, 1.0f};
+
+    Gfx::Mesh tLine;
+    tLine.AddLine({0.0f, 0.0f}, {10.0f, 0.0f}, 2.0f, tRed);
+    const RectD tLineBounds = MeshBounds(tLine);
+    CHECK(tLine.Vertices().size() == 6, "cizgi = 2 ucgen");
+    CHECK(Near(tLineBounds.mBottom, -1.0, 1e-6) && Near(tLineBounds.mTop, 1.0, 1e-6) &&
+              Near(tLineBounds.mRight, 10.0, 1e-6),
+          "cizgi kalinligi iki yana yari yariya");
+    CHECK(Near(MeshArea(tLine), 20.0, 1e-4), "cizgi alani = boy x kalinlik");
+    CHECK(tLine.Vertices()[0].mColor.mR == 1.0f, "renk koseye yazildi");
+
+    Gfx::Mesh tEmpty;
+    tEmpty.AddLine({3.0f, 3.0f}, {3.0f, 3.0f}, 2.0f, tRed);
+    CHECK(tEmpty.IsEmpty(), "sifir uzunluklu cizgi atlanir");
+
+    Gfx::Mesh tOpen;
+    tOpen.AddPolyline({{0.0f, 0.0f}, {10.0f, 0.0f}, {10.0f, 10.0f}}, false, 2.0f, tRed);
+    CHECK(tOpen.Vertices().size() == 2 * 6 + 1 * 6, "acik cizgi: 2 parca + 1 kose birlesimi");
+
+    Gfx::Mesh tClosed;
+    tClosed.AddPolyline({{0.0f, 0.0f}, {10.0f, 0.0f}, {10.0f, 10.0f}, {0.0f, 10.0f}}, true, 2.0f, tRed);
+    const RectD tClosedBounds = MeshBounds(tClosed);
+    CHECK(tClosed.Vertices().size() == 4 * 6 + 4 * 6, "kapali cizgi: 4 parca + 4 kose");
+    CHECK(Near(tClosedBounds.mLeft, -1.0, 1e-6) && Near(tClosedBounds.mTop, 11.0, 1e-6),
+          "kose birlesimi disari en fazla yari kalinlik tasar");
+
+    Gfx::Mesh tFrame;
+    RectD tBox;
+    tBox.mLeft = 0.0;
+    tBox.mBottom = 0.0;
+    tBox.mRight = 20.0;
+    tBox.mTop = 10.0;
+    tFrame.AddFrame(tBox, 1.0f, tRed);
+    const RectD tFrameBounds = MeshBounds(tFrame);
+    CHECK(tFrame.Vertices().size() == 4 * 6, "cerceve = 4 dikdortgen");
+    CHECK(Near(tFrameBounds.mLeft, 0.0, 1e-9) && Near(tFrameBounds.mRight, 20.0, 1e-9) &&
+              Near(tFrameBounds.mTop, 10.0, 1e-9),
+          "cerceve kutunun icinde kalir");
+    CHECK(Near(MeshArea(tFrame), 20.0 * 10.0 - 18.0 * 8.0, 1e-4), "cerceve ust uste binmez");
+
+    Gfx::Mesh tDisc;
+    tDisc.AddDisc({0.0f, 0.0f}, 10.0f, tRed);
+    CHECK(tDisc.Vertices().size() == static_cast<size_t>(Gfx::Mesh::SegmentsFor(10.0f)) * 3, "daire parca sayisi");
+    CHECK(MeshArea(tDisc) > 3.0 * 100.0 && MeshArea(tDisc) < 3.1416 * 100.0, "daire alani ~ pi r^2");
+
+    Gfx::Mesh tDots;
+    tDots.AddDottedCircle({0.0f, 0.0f}, 7.0f, 12, 2.0f, tRed);
+    CHECK(tDots.Vertices().size() == 12 * 6 && Near(MeshArea(tDots), 12 * 4.0, 1e-3), "12 kare nokta");
+
+    Gfx::OutlinedLines tOutlined(2.0f);
+    tOutlined.AddLine({0.0f, 0.0f}, {10.0f, 0.0f}, 1.5f, tRed);
+    CHECK(Near(MeshBounds(tOutlined.Outline()).mTop, 1.75, 1e-6) && Near(MeshBounds(tOutlined.Fill()).mTop, 0.75, 1e-6),
+          "kontur cizgiden 2 boxel kalin");
+    CHECK(tOutlined.Outline().Vertices()[0].mColor.mA == Gfx::kOutline.mA, "kontur rengi");
+}
+
+// ---------------------------------------------------------------------------
+
 void TestMapFormat()
 {
-    char tText[64];
-    FormatLatLon({41.26201, -28.74205}, tText, sizeof(tText));
-    CHECK(std::strcmp(tText, "41.26201 N  28.74205 W") == 0, "lat/lon bicimi: '%s'", tText);
+    std::string tText = FormatLatLon({41.26201, -28.74205});
+    CHECK(tText == "41.26201 N  28.74205 W", "lat/lon bicimi: '%s'", tText.c_str());
 
-    FormatGridLabel(41.0, true, 1.0, tText, sizeof(tText));
-    CHECK(std::strcmp(tText, "41N") == 0, "izgara etiketi derece: '%s'", tText);
-    FormatGridLabel(41.5, true, 0.5, tText, sizeof(tText));
-    CHECK(std::strcmp(tText, "41 30N") == 0, "izgara etiketi dakika: '%s'", tText);
-    FormatGridLabel(28.0 + 5.5 / 60.0, false, 0.5 / 60.0, tText, sizeof(tText));
-    CHECK(std::strcmp(tText, "28 05.5E") == 0, "izgara etiketi yarim dakika: '%s'", tText);
-    FormatGridLabel(-(12.0 + 20.0 / 60.0), false, 10.0 / 60.0, tText, sizeof(tText));
-    CHECK(std::strcmp(tText, "12 20W") == 0, "izgara etiketi bati: '%s'", tText);
-    FormatGridLabel(29.0 + 59.9999999 / 60.0, true, 1.0 / 60.0, tText, sizeof(tText));
-    CHECK(std::strcmp(tText, "30 00N") == 0, "yuvarlama tasmasi: '%s'", tText);
+    tText = FormatGridLabel(41.0, true, 1.0);
+    CHECK(tText == "41N", "izgara etiketi derece: '%s'", tText.c_str());
+    tText = FormatGridLabel(41.5, true, 0.5);
+    CHECK(tText == "41 30N", "izgara etiketi dakika: '%s'", tText.c_str());
+    tText = FormatGridLabel(28.0 + 5.5 / 60.0, false, 0.5 / 60.0);
+    CHECK(tText == "28 05.5E", "izgara etiketi yarim dakika: '%s'", tText.c_str());
+    tText = FormatGridLabel(-(12.0 + 20.0 / 60.0), false, 10.0 / 60.0);
+    CHECK(tText == "12 20W", "izgara etiketi bati: '%s'", tText.c_str());
+    tText = FormatGridLabel(29.0 + 59.9999999 / 60.0, true, 1.0 / 60.0);
+    CHECK(tText == "30 00N", "yuvarlama tasmasi: '%s'", tText.c_str());
 
     CHECK(Near(ChooseGridStepDeg(100.0, 90.0), 1.0, 1e-12), "izgara araligi 1 derece");
     CHECK(Near(ChooseGridStepDeg(1000.0, 90.0), 10.0 / 60.0, 1e-12), "izgara araligi 10 dakika");
@@ -1492,6 +1588,7 @@ int main()
     TestGeo();
     TestDrawings();
     TestMapFormat();
+    TestMesh();
     TestSettings();
     TestLayerManager();
     TestNavDatabase();

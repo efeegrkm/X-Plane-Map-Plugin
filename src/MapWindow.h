@@ -20,6 +20,7 @@
 #include "LabelPlacer.h"
 #include "MapView.h"
 #include "ScreenMath.h"
+#include "gfx/Canvas.h"
 #include "ui/LayerPanel.h"
 #include "ui/StatusBar.h"
 #include "ui/Toolbar.h"
@@ -73,6 +74,7 @@ private:
     static int WheelCallback(XPLMWindowID pWindow, int pX, int pY, int pWheel, int pClicks, void* pRefcon);
 
     void OnDraw();
+    bool PrepareCanvas();  // OpenGL hazir mi (ilk karede yukler); degilse hatayi pencereye yazar
     int OnClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnRightClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnWheel(int pX, int pY, int pWheel, int pClicks);
@@ -107,6 +109,8 @@ private:
 
     XPLMWindowID mWindow = nullptr;
     MapView mView;
+    Gfx::Canvas mCanvas;               // tum seklin cizildigi kapi (modern OpenGL)
+    bool mCanvasChecked = false;
     Toolbar mToolbar;
     LayerPanel mLayerPanel;
     StatusBar mStatusBar;

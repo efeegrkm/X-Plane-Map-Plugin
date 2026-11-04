@@ -13,7 +13,7 @@
 #include "XPLMNavigation.h"
 #include "XPLMUtilities.h"
 
-#include "GLInclude.h"
+#include "gfx/GlInclude.h"
 #include "tools/preview/XplmStubs.h"
 
 namespace

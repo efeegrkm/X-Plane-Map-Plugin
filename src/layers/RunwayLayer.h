@@ -11,7 +11,13 @@
 
 #include <vector>
 
+#include "Color.h"
 #include "Layer.h"
+
+namespace Gfx
+{
+class Mesh;
+}
 
 class AirportGeometryStore;
 struct Runway;
@@ -43,8 +49,10 @@ private:
     };
 
     void CollectVisible(const DrawContext& pContext);
-    void EmitRectangle(const ScreenRunway& pRunway, float pFrom, float pTo, float pHalfWidth) const;
-    void DrawMarkings(const ScreenRunway& pRunway) const;
+    // Pist ekseni boyunca pFrom..pTo (boxel, uc 0'dan), pHalfWidth genisliginde dikdortgen
+    static void AddRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
+                             float pHalfWidth, const Rgba& pColor);
+    static void AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway);
 
     const AirportGeometryStore& mStore;
     std::vector<int> mQuery;

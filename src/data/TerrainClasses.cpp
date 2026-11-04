@@ -1,7 +1,8 @@
 // TerrainClasses.cpp
 #include "data/TerrainClasses.h"
 
-#include <cstdio>
+#include <array>
+#include <format>
 
 #include "Settings.h"
 
@@ -15,7 +16,7 @@ struct PrefixRule
 };
 
 // Sira onemli degil (on ekler birbirinin basi degil); "sq_" once atilir
-const PrefixRule kPrefixRules[] = {
+const auto kPrefixRules = std::to_array<PrefixRule>({
     {"urban", TerrainClass::Urban},         {"coni", TerrainClass::ForestConifer},
     {"broad", TerrainClass::ForestBroadleaf}, {"rainforest", TerrainClass::ForestBroadleaf},
     {"shrb", TerrainClass::Shrub},          {"grass", TerrainClass::Grass},
@@ -29,7 +30,7 @@ const PrefixRule kPrefixRules[] = {
     {"tun", TerrainClass::Tundra},          {"sand", TerrainClass::Sand},
     {"semidry", TerrainClass::Sand},        {"dry", TerrainClass::Sand},
     {"apt", TerrainClass::Airport},
-};
+});
 
 const char* kClassKeys[kTerrainClassCount] = {
     "none",  "water", "urban", "forest_conifer", "forest_broadleaf", "shrub", "grass", "crop",
@@ -120,9 +121,7 @@ void TerrainPalette::Save(Settings& pSettings) const
     for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
     {
         const TerrainColor& tColor = mColors[tIndex];
-        char tValue[32];
-        std::snprintf(tValue, sizeof(tValue), "%d %d %d", tColor.mR, tColor.mG, tColor.mB);
-        pSettings.SetString("colors", kClassKeys[tIndex], tValue);
+        pSettings.SetString("colors", kClassKeys[tIndex], std::format("{} {} {}", tColor.mR, tColor.mG, tColor.mB));
     }
     pSettings.SetDouble("shading", "strength", mShadingStrength);
 }

@@ -9,8 +9,9 @@
 //
 // Katman sirasi (alttan uste) CreateLayers() icinde belirlenir.
 
+#include <array>
 #include <cstdint>
-#include <cstdio>
+#include <format>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -49,7 +50,7 @@
 namespace
 {
 
-const char* kVersion = "0.8";
+const char* kVersion = "0.9";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
@@ -132,11 +133,11 @@ void MapPlugin::Start()
     const std::string tSettingsPath = tPluginDirectory + kSettingsFileName;
     if (mSettings.Load(tSettingsPath))
     {
-        Log("settings loaded: %s", tSettingsPath.c_str());
+        Log("settings loaded: {}", tSettingsPath);
     }
     else
     {
-        Log("no settings file yet, using defaults: %s", tSettingsPath.c_str());
+        Log("no settings file yet, using defaults: {}", tSettingsPath);
     }
 
     mAircraft.Init();
@@ -151,7 +152,7 @@ void MapPlugin::Start()
     CreateMenu();
 
     XPLMRegisterFlightLoopCallback(FlightLoopCallback, -1.0f, this);
-    Log("loaded (version %s)", kVersion);
+    Log("loaded (version {})", kVersion);
 }
 
 void MapPlugin::Stop()
@@ -247,15 +248,15 @@ void MapPlugin::ToggleDiagnostics()
     {
         XPLMCheckMenuItem(mMenu, mDiagnosticsItem, mDiagnostics ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     }
-    Log("diagnostics mode: %s (DIAG lines in Log.txt)", mDiagnostics ? "on" : "off");
+    Log("diagnostics mode: {} (DIAG lines in Log.txt)", mDiagnostics ? "on" : "off");
 }
 
 std::string MapPlugin::FindPluginDirectory()
 {
     // .../Resources/plugins/MapPlugin/64/win.xpl -> .../Resources/plugins/MapPlugin/
-    char tXplPath[2048] = "";
-    XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath, nullptr, nullptr);
-    std::string tPath = tXplPath;
+    std::array<char, 2048> tXplPath = {};  // SDK: en az 256 bayt
+    XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath.data(), nullptr, nullptr);
+    std::string tPath = tXplPath.data();
     for (int tLevel = 0; tLevel < 2; ++tLevel)  // dosya adini ve "64" klasorunu at
     {
         const size_t tCut = tPath.find_last_of("/\\");
@@ -338,17 +339,17 @@ void MapPlugin::StepLoading()
     if (!mAirportLoadStarted)
     {
         mAirportLoadStarted = true;
-        char tSystemPath[2048] = "";
-        XPLMGetSystemPath(tSystemPath);  // "C:\X-Plane 11\" (sonunda ayirici ile)
-        mXPlaneDirectory = tSystemPath;
-        Log("reading runway data in the background: %s", mAirportGeometry.SourceName());
+        std::array<char, 2048> tSystemPath = {};
+        XPLMGetSystemPath(tSystemPath.data());  // "C:\X-Plane 11\" (sonunda ayirici ile)
+        mXPlaneDirectory = tSystemPath.data();
+        Log("reading runway data in the background: {}", mAirportGeometry.SourceName());
         mAirportGeometry.StartLoading(mXPlaneDirectory);
         mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette);
     }
     LogReport(mTerrainStore.TakeLogLines());
     if (mAirportGeometry.Poll())
     {
-        Log("runway data %s: %d airports, %d runways", mAirportGeometry.LastLoadSucceeded() ? "ready" : "FAILED",
+        Log("runway data {}: {} airports, {} runways", mAirportGeometry.LastLoadSucceeded() ? "ready" : "FAILED",
             mAirportGeometry.Count(), mAirportGeometry.RunwayCount());
         LogReport(mAirportGeometry.LastReport());
     }
@@ -367,7 +368,7 @@ void MapPlugin::StepLoading()
     }
     if (mAirways.Poll())
     {
-        Log("airways %s: %s", mAirways.IsReady() ? "ready" : "FAILED", mAirways.LastReport().c_str());
+        Log("airways {}: {}", mAirways.IsReady() ? "ready" : "FAILED", mAirways.LastReport());
     }
 
     // Alt seritteki durum yazisi
@@ -378,9 +379,7 @@ void MapPlugin::StepLoading()
     std::string tMessage;
     if (!mNavLoader.IsDone() && mNavLoader.VisitedCount() > 0)
     {
-        char tText[64];
-        std::snprintf(tText, sizeof(tText), "Loading nav data: %d", mNavLoader.VisitedCount());
-        tMessage = tText;
+        tMessage = std::format("Loading nav data: {}", mNavLoader.VisitedCount());
     }
     if (mAirportGeometry.IsLoading())
     {
@@ -409,7 +408,7 @@ void MapPlugin::LoadTerrainColors()
     if (tColors.Load(tPath))
     {
         mTerrainPalette.Load(tColors);
-        Log("terrain colors loaded: %s", tPath.c_str());
+        Log("terrain colors loaded: {}", tPath);
         return;
     }
     mTerrainPalette.Save(tColors);
@@ -418,7 +417,7 @@ void MapPlugin::LoadTerrainColors()
                        "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be deleted.\n"
                        "Delete this file to get the default colors back.");
     tColors.Save();
-    Log("terrain colors file created with defaults: %s", tPath.c_str());
+    Log("terrain colors file created with defaults: {}", tPath);
 }
 
 void MapPlugin::LogReport(const std::string& pReport)
@@ -434,7 +433,7 @@ void MapPlugin::LogReport(const std::string& pReport)
         }
         if (tEnd > tStart)
         {
-            Log("  %s", pReport.substr(tStart, tEnd - tStart).c_str());
+            Log("  {}", pReport.substr(tStart, tEnd - tStart));
         }
         tStart = tEnd + 1;
     }
