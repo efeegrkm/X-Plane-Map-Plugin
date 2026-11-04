@@ -283,6 +283,10 @@ void MapWindow::OnDraw()
     mLabelPlacer.Reset(tContext.mClearArea);  // etiketler seritlerin altina girmesin
     tContext.mLabels = &mLabelPlacer;
     mLayers.DrawAll(tContext);
+    if (tContext.mHasCursor)
+    {
+        DrawTooltip(tContext, mLayers.DescribeAt(tContext, tMouseX, tMouseY));
+    }
 
     DrawControls(tMouseX, tMouseY, tMouseInside);
 
@@ -296,6 +300,36 @@ void MapWindow::OnDraw()
         mLastDiagnosticsTime = tNow;
         LogDiagnostics(tNow, tContext.mPixelsPerBoxel, tScissor ? tScissor->PixelRect() : RectD());
     }
+}
+
+void MapWindow::DrawTooltip(const DrawContext& pContext, const std::string& pText)
+{
+    if (pText.empty())
+    {
+        return;
+    }
+    // Imlecin sag altina; pencereden tasacaksa soluna / ustune
+    const int tPadding = 5;
+    const int tWidth = Ui::TextWidth(pText) + 2 * tPadding;
+    const int tHeight = Ui::FontHeight() + 2 * tPadding;
+    int tLeft = static_cast<int>(pContext.mCursorX) + 14;
+    int tTop = static_cast<int>(pContext.mCursorY) - 14;
+    if (tLeft + tWidth > pContext.mClearArea.mRight)
+    {
+        tLeft = static_cast<int>(pContext.mCursorX) - 8 - tWidth;
+    }
+    if (tTop - tHeight < pContext.mClearArea.mBottom)
+    {
+        tTop = static_cast<int>(pContext.mCursorY) + 8 + tHeight;
+    }
+    RectI tBox;
+    tBox.mLeft = tLeft;
+    tBox.mRight = tLeft + tWidth;
+    tBox.mTop = tTop;
+    tBox.mBottom = tTop - tHeight;
+    Ui::FillRect(mCanvas, tBox, Ui::kPanelBg);
+    Ui::FrameRect(mCanvas, tBox, Ui::kBorder);
+    Ui::Text(tLeft + tPadding, tBox.mBottom + tPadding + 1, pText, Ui::kTextWhite);
 }
 
 bool MapWindow::PrepareCanvas()

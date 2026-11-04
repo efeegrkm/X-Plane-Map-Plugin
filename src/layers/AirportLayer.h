@@ -25,6 +25,7 @@ public:
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
+    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
     int LabelPriority() const override
     {
         return 10;  // en onemli etiketler

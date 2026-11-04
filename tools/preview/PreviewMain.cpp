@@ -32,6 +32,7 @@
 #include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
+#include "layers/AirportObjectsLayer.h"
 #include "layers/AirportSurfaceLayer.h"
 #include "layers/AirwayLayer.h"
 #include "layers/DrawingLayer.h"
@@ -79,6 +80,8 @@ struct Options
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
+    // --describe x,y: o noktadaki fare aciklamasini yazdir (resim pikseli, ust = 0)
+    std::vector<std::pair<double, double>> mDescribe;
 };
 
 bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
@@ -133,6 +136,17 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--hide" && tHasValue)
         {
             pOut->mHidden.push_back(pArgv[++tIndex]);
+        }
+        else if (tArg == "--describe" && tHasValue)
+        {
+            double tX = 0.0;
+            double tY = 0.0;
+            if (std::sscanf(pArgv[++tIndex], "%lf,%lf", &tX, &tY) != 2)
+            {
+                std::fprintf(stderr, "--describe expects x,y\n");
+                return false;
+            }
+            pOut->mDescribe.emplace_back(tX, tY);
         }
         else
         {
@@ -281,7 +295,7 @@ int main(int pArgc, char** pArgv)
     NavDatabase tNav;
     const int tNavCount = LoadNavFromFiles(tOptions.mXPlane, tNav);
     AirportGeometryStore tRunways(std::make_unique<AptDatIndexer>());
-    tRunways.StartLoading(tOptions.mXPlane);
+    tRunways.StartLoading(tOptions.mXPlane, tOptions.mCache + "airports/");
     while (!tRunways.Poll())
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -313,6 +327,7 @@ int main(int pArgc, char** pArgv)
     tLayers.Add(std::make_unique<GridLayer>());
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
     tLayers.Add(std::make_unique<RunwayLayer>(tRunways));
+    tLayers.Add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, false));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, true));
     tLayers.Add(std::make_unique<AirportLayer>(tNav));
@@ -360,6 +375,7 @@ int main(int pArgc, char** pArgv)
         tWarmup.mClearArea = tWarmup.mArea;
         tLayers.At(0)->Draw(tWarmup);
         tSurfaceLayer->Draw(tWarmup);  // havalimani ayrintilarini da iste
+        tAirportDetails.Update();
         const std::string tLog = tTerrain.TakeLogLines() + tAirportDetails.TakeLogLines();
         if (!tLog.empty())
         {
@@ -411,6 +427,13 @@ int main(int pArgc, char** pArgv)
     tLabels.Reset(tContext.mClearArea);
     tContext.mLabels = &tLabels;
     tLayers.DrawAll(tContext);
+    for (const auto& tPoint : tOptions.mDescribe)
+    {
+        // Resim pikseli (ust = 0) -> boxel (alt = 0)
+        const double tY = tHeight - tPoint.second;
+        std::printf("describe %.0f,%.0f: %s\n", tPoint.first, tPoint.second,
+                    tLayers.DescribeAt(tContext, tPoint.first, tY).c_str());
+    }
 
     if (tOptions.mUi)
     {

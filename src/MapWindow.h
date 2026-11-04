@@ -30,6 +30,8 @@ class Drawings;
 class LayerManager;
 class Settings;
 
+struct DrawContext;
+
 class MapWindow
 {
 public:
@@ -75,6 +77,7 @@ private:
 
     void OnDraw();
     bool PrepareCanvas();  // OpenGL hazir mi (ilk karede yukler); degilse hatayi pencereye yazar
+    void DrawTooltip(const DrawContext& pContext, const std::string& pText);  // imlecin yaninda kucuk aciklama
     int OnClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnRightClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnWheel(int pX, int pY, int pWheel, int pClicks);

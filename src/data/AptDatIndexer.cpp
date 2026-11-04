@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -15,6 +16,100 @@ namespace
 {
 
 const size_t kReadChunk = 4u << 20;  // dosya 4 MB'lik parcalarla okunur
+const char kCacheMagic[4] = {'M', 'P', 'A', 'I'};
+const uint32_t kCacheVersion = 1;  // AirportGeometry'nin kayitli alanlari degisirse artir
+const char* kCacheFileName = "airport_index.bin";
+
+// --- Onbellek dosyasi icin kucuk ikili okuma / yazma yardimcilari ---
+
+class BinaryWriter
+{
+public:
+    explicit BinaryWriter(std::ofstream& pFile)
+        : mFile(pFile)
+    {
+    }
+
+    template <typename TValue>
+    void Value(const TValue& pValue)
+    {
+        mFile.write(reinterpret_cast<const char*>(&pValue), sizeof(TValue));
+    }
+
+    void Text(const std::string& pText)
+    {
+        Value(static_cast<uint32_t>(pText.size()));
+        mFile.write(pText.data(), static_cast<std::streamsize>(pText.size()));
+    }
+
+private:
+    std::ofstream& mFile;
+};
+
+class BinaryReader
+{
+public:
+    explicit BinaryReader(std::ifstream& pFile)
+        : mFile(pFile)
+    {
+    }
+
+    template <typename TValue>
+    bool Value(TValue& pValue)
+    {
+        return static_cast<bool>(mFile.read(reinterpret_cast<char*>(&pValue), sizeof(TValue)));
+    }
+
+    bool Text(std::string& pText)
+    {
+        uint32_t tSize = 0;
+        if (!Value(tSize) || tSize > (16u << 20))
+        {
+            return false;
+        }
+        pText.resize(tSize);
+        return static_cast<bool>(mFile.read(pText.data(), static_cast<std::streamsize>(tSize)));
+    }
+
+private:
+    std::ifstream& mFile;
+};
+
+void WriteRunway(BinaryWriter& pOut, const Runway& pRunway)
+{
+    pOut.Value(pRunway.mWidthM);
+    pOut.Value(pRunway.mSurface);
+    pOut.Value(pRunway.mSurfaceCode);
+    pOut.Value(pRunway.mShoulderCode);
+    pOut.Value(pRunway.mCenterLights);
+    pOut.Value(pRunway.mEdgeLights);
+    pOut.Value(pRunway.mWater);
+    for (const RunwayEnd& tEnd : pRunway.mEnds)
+    {
+        pOut.Text(tEnd.mName);
+        pOut.Value(tEnd.mPosition);
+        pOut.Value(tEnd.mDisplacedThresholdM);
+        pOut.Value(tEnd.mOverrunM);
+        pOut.Value(tEnd.mMarkings);
+        pOut.Value(tEnd.mApproachLights);
+        pOut.Value(tEnd.mTouchdownLights);
+        pOut.Value(tEnd.mReil);
+    }
+}
+
+bool ReadRunway(BinaryReader& pIn, Runway& pRunway)
+{
+    bool tOk = pIn.Value(pRunway.mWidthM) && pIn.Value(pRunway.mSurface) && pIn.Value(pRunway.mSurfaceCode) &&
+               pIn.Value(pRunway.mShoulderCode) && pIn.Value(pRunway.mCenterLights) && pIn.Value(pRunway.mEdgeLights) &&
+               pIn.Value(pRunway.mWater);
+    for (RunwayEnd& tEnd : pRunway.mEnds)
+    {
+        tOk = tOk && pIn.Text(tEnd.mName) && pIn.Value(tEnd.mPosition) && pIn.Value(tEnd.mDisplacedThresholdM) &&
+              pIn.Value(tEnd.mOverrunM) && pIn.Value(tEnd.mMarkings) && pIn.Value(tEnd.mApproachLights) &&
+              pIn.Value(tEnd.mTouchdownLights) && pIn.Value(tEnd.mReil);
+    }
+    return tOk;
+}
 
 bool IsHeaderCode(int pCode)
 {
@@ -202,6 +297,124 @@ const char* AptDatIndexer::Name() const
     return "apt.dat indexer";
 }
 
+void AptDatIndexer::SetCacheDirectory(const std::string& pDirectory)
+{
+    mCacheDirectory = pDirectory;
+}
+
+std::string AptDatIndexer::CacheKey(const std::vector<std::string>& pFiles)
+{
+    std::string tKey = std::format("v{}", kCacheVersion);
+    for (const std::string& tPath : pFiles)
+    {
+        std::error_code tError;
+        const uintmax_t tSize = std::filesystem::file_size(tPath, tError);
+        const auto tTime = std::filesystem::last_write_time(tPath, tError).time_since_epoch().count();
+        tKey += std::format("|{}|{}|{}", tPath, tSize, tTime);
+    }
+    return tKey;
+}
+
+bool AptDatIndexer::SaveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex)
+{
+    std::error_code tError;
+    std::filesystem::create_directories(std::filesystem::path(pPath).parent_path(), tError);
+    std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
+    if (!tFile)
+    {
+        return false;
+    }
+    BinaryWriter tOut(tFile);
+    tFile.write(kCacheMagic, 4);
+    tOut.Value(kCacheVersion);
+    tOut.Text(pKey);
+    tOut.Value(static_cast<uint32_t>(pIndex.mFiles.size()));
+    for (const std::string& tPath : pIndex.mFiles)
+    {
+        tOut.Text(tPath);
+    }
+    tOut.Value(static_cast<uint32_t>(pIndex.mAirports.size()));
+    for (const AirportGeometry& tAirport : pIndex.mAirports)
+    {
+        tOut.Text(tAirport.mId);
+        tOut.Text(tAirport.mIcaoCode);
+        tOut.Text(tAirport.mName);
+        tOut.Value(tAirport.mType);
+        tOut.Value(tAirport.mElevationFt);
+        tOut.Value(tAirport.mHasTower);
+        tOut.Value(tAirport.mReference);
+        tOut.Value(tAirport.mBounds);
+        tOut.Value(tAirport.mPavementCount);
+        tOut.Value(tAirport.mNodeCount);
+        tOut.Value(tAirport.mLocation);
+        tOut.Value(static_cast<uint32_t>(tAirport.mRunways.size()));
+        for (const Runway& tRunway : tAirport.mRunways)
+        {
+            WriteRunway(tOut, tRunway);
+        }
+    }
+    return static_cast<bool>(tFile);
+}
+
+bool AptDatIndexer::LoadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut)
+{
+    std::ifstream tFile(pPath, std::ios::binary);
+    if (!tFile)
+    {
+        return false;
+    }
+    BinaryReader tIn(tFile);
+    char tMagic[4] = {0, 0, 0, 0};
+    uint32_t tVersion = 0;
+    std::string tKey;
+    if (!tFile.read(tMagic, 4) || std::memcmp(tMagic, kCacheMagic, 4) != 0 || !tIn.Value(tVersion) ||
+        tVersion != kCacheVersion || !tIn.Text(tKey) || tKey != pKey)
+    {
+        return false;  // eski bicim ya da dosyalar degismis: yeniden taranacak
+    }
+    AirportIndex tIndex;
+    uint32_t tCount = 0;
+    if (!tIn.Value(tCount))
+    {
+        return false;
+    }
+    tIndex.mFiles.resize(tCount);
+    for (std::string& tPath : tIndex.mFiles)
+    {
+        if (!tIn.Text(tPath))
+        {
+            return false;
+        }
+    }
+    if (!tIn.Value(tCount))
+    {
+        return false;
+    }
+    tIndex.mAirports.resize(tCount);
+    for (AirportGeometry& tAirport : tIndex.mAirports)
+    {
+        uint32_t tRunways = 0;
+        if (!tIn.Text(tAirport.mId) || !tIn.Text(tAirport.mIcaoCode) || !tIn.Text(tAirport.mName) ||
+            !tIn.Value(tAirport.mType) || !tIn.Value(tAirport.mElevationFt) || !tIn.Value(tAirport.mHasTower) ||
+            !tIn.Value(tAirport.mReference) || !tIn.Value(tAirport.mBounds) || !tIn.Value(tAirport.mPavementCount) ||
+            !tIn.Value(tAirport.mNodeCount) || !tIn.Value(tAirport.mLocation) || !tIn.Value(tRunways) ||
+            tRunways > 10000)
+        {
+            return false;
+        }
+        tAirport.mRunways.resize(tRunways);
+        for (Runway& tRunway : tAirport.mRunways)
+        {
+            if (!ReadRunway(tIn, tRunway))
+            {
+                return false;
+            }
+        }
+    }
+    pOut = std::move(tIndex);
+    return true;
+}
+
 std::vector<std::string> AptDatIndexer::AptFiles(const std::string& pXPlaneDirectory)
 {
     std::vector<std::string> tFiles;
@@ -276,15 +489,31 @@ bool AptDatIndexer::LoadAll(const std::string& pXPlaneDirectory, const std::atom
                             AirportIndex& pOut, std::string& pOutReport)
 {
     const auto tStart = std::chrono::steady_clock::now();
-    std::unordered_set<std::string> tSeen;
-    int tNodes = 0;
+    std::vector<std::string> tFiles;
     for (const std::string& tPath : AptFiles(pXPlaneDirectory))
     {
         std::error_code tError;
-        if (!std::filesystem::is_regular_file(tPath, tError))
+        if (std::filesystem::is_regular_file(tPath, tError))
         {
-            continue;  // paketin apt.dat'i yok (cogu manzara paketinde olmaz)
+            tFiles.push_back(tPath);  // paketin apt.dat'i yoksa atlanir (cogu manzara paketinde olmaz)
         }
+    }
+
+    // Onbellek: dosyalar degismediyse taramaya gerek yok
+    const std::string tKey = CacheKey(tFiles);
+    const std::string tCachePath = mCacheDirectory.empty() ? "" : mCacheDirectory + kCacheFileName;
+    if (!tCachePath.empty() && LoadCache(tCachePath, tKey, pOut))
+    {
+        const double tSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count();
+        pOutReport += std::format("{} apt.dat files, {} airports, from cache {} ({:.2f} s)\n", pOut.mFiles.size(),
+                                  pOut.mAirports.size(), tCachePath, tSeconds);
+        return !pOut.mFiles.empty();
+    }
+
+    std::unordered_set<std::string> tSeen;
+    int tNodes = 0;
+    for (const std::string& tPath : tFiles)
+    {
         const int tFileIndex = static_cast<int>(pOut.mFiles.size());
         AptDatScanner tScanner(tFileIndex, tSeen, pOut.mAirports);
         if (!ScanFile(tPath, tScanner, pCancel))
@@ -298,7 +527,12 @@ bool AptDatIndexer::LoadAll(const std::string& pXPlaneDirectory, const std::atom
                                   tScanner.RunwayCount(), tScanner.NodeCount());
     }
     const double tSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count();
-    pOutReport += std::format("{} apt.dat files, {} airports, {} nodes, {:.1f} s\n", pOut.mFiles.size(),
+    pOutReport += std::format("{} apt.dat files, {} airports, {} nodes, scanned in {:.2f} s\n", pOut.mFiles.size(),
                               pOut.mAirports.size(), tNodes, tSeconds);
+    if (!tCachePath.empty())
+    {
+        pOutReport += SaveCache(tCachePath, tKey, pOut) ? std::format("  cache written: {}\n", tCachePath)
+                                                         : std::format("  cannot write cache: {}\n", tCachePath);
+    }
     return !pOut.mFiles.empty();
 }

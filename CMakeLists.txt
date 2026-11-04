@@ -52,7 +52,6 @@ set(CORE_SOURCES
     src/data/AptDatParser.cpp
     src/data/AptDatIndexer.cpp
     src/data/AirportShapes.cpp
-    src/data/Earcut.cpp
     src/data/AirportDetailStore.cpp
 )
 
@@ -71,6 +70,8 @@ set(PLUGIN_SOURCES
     src/layers/MapSymbols.cpp
     src/layers/TerrainLayer.cpp
     src/layers/AirportSurfaceLayer.cpp
+    src/layers/AirportObjectsLayer.cpp
+    src/layers/AirportVisibility.cpp
     src/layers/GridLayer.cpp
     src/layers/RunwayLayer.cpp
     src/layers/AirwayLayer.cpp
@@ -103,6 +104,8 @@ endif()
 # Ortak derleyici ayarlari (uyarilar acik; hem plugin hem test)
 function(map_compile_options target)
     target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    # earcut.hpp (dis kutuphane, tek baslik): third_party/earcut/README.txt
+    target_include_directories(${target} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/third_party/earcut)
     target_link_libraries(${target} PRIVATE Threads::Threads lzma_sdk)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /utf-8 /permissive-)
@@ -201,6 +204,8 @@ if(MAP_PREVIEW AND WIN32)
         src/layers/MapSymbols.cpp
         src/layers/TerrainLayer.cpp
         src/layers/AirportSurfaceLayer.cpp
+        src/layers/AirportObjectsLayer.cpp
+        src/layers/AirportVisibility.cpp
         src/layers/GridLayer.cpp
         src/layers/RunwayLayer.cpp
         src/layers/AirwayLayer.cpp

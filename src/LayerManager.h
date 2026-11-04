@@ -6,6 +6,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "Layer.h"
@@ -26,6 +27,9 @@ public:
     // Once gorunen katmanlarin geometrisi (liste sirasiyla), sonra yazilari
     // (Layer::LabelPriority sirasiyla)
     void DrawAll(const DrawContext& pContext);
+
+    // Imlecin altindaki seyin aciklamasi: en ustteki gorunen katmandan baslar
+    std::string DescribeAt(const DrawContext& pContext, double pX, double pY) const;
 
     // [layers] bolumu: anahtar = katman kimligi, deger = 1/0
     void LoadVisibility(const Settings& pSettings);

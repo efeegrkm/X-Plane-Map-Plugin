@@ -9,6 +9,7 @@
 //   zoom >= 13   : esik cizgileri ve kesikli orta hat
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "Color.h"
@@ -29,6 +30,7 @@ public:
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
+    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
     int LabelPriority() const override
     {
         return 15;

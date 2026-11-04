@@ -968,6 +968,56 @@ void TestAptDatScanner()
           "araliktan ayrinti okunur");
 }
 
+void TestAptIndexCache()
+{
+    AirportIndex tIndex;
+    tIndex.mFiles = {"C:/X-Plane 11/Custom Scenery/Global Airports/Earth nav data/apt.dat"};
+    AirportGeometry tAirport;
+    tAirport.mId = "LTAC";
+    tAirport.mIcaoCode = "LTAC";
+    tAirport.mName = "Esenboga Intl";
+    tAirport.mType = AirportType::Land;
+    tAirport.mElevationFt = 3125;
+    tAirport.mHasTower = true;
+    tAirport.mReference = {40.128, 32.995};
+    tAirport.mBounds = {40.10, 32.97, 40.15, 33.02};
+    tAirport.mPavementCount = 12;
+    tAirport.mNodeCount = 345;
+    tAirport.mLocation = {0, 123456789012ull, 4567};
+    Runway tRunway;
+    tRunway.mWidthM = 59.0;
+    tRunway.mSurfaceCode = 1;
+    tRunway.mEnds[0].mName = "03R";
+    tRunway.mEnds[0].mPosition = {40.114, 32.983};
+    tRunway.mEnds[1].mName = "21L";
+    tRunway.mEnds[1].mOverrunM = 60.0;
+    tRunway.mEnds[1].mTouchdownLights = true;
+    tAirport.mRunways.push_back(tRunway);
+    tIndex.mAirports.push_back(tAirport);
+
+    const std::string tPath = "map_test_airport_index.bin";
+    CHECK(AptDatIndexer::SaveCache(tPath, "anahtar-1", tIndex), "onbellek yazilir");
+    AirportIndex tLoaded;
+    CHECK(AptDatIndexer::LoadCache(tPath, "anahtar-1", tLoaded), "ayni anahtarla okunur");
+    CHECK(tLoaded.mFiles == tIndex.mFiles && tLoaded.mAirports.size() == 1, "dosya ve havalimani sayisi");
+    if (tLoaded.mAirports.size() == 1)
+    {
+        const AirportGeometry& tBack = tLoaded.mAirports[0];
+        CHECK(tBack.mId == "LTAC" && tBack.mName == "Esenboga Intl" && tBack.mElevationFt == 3125 && tBack.mHasTower &&
+                  Near(tBack.mBounds.mEast, 33.02, 1e-12) && tBack.mLocation.mOffset == 123456789012ull &&
+                  tBack.mLocation.mLength == 4567 && tBack.mNodeCount == 345,
+              "ozet alanlari birebir");
+        CHECK(tBack.mRunways.size() == 1 && tBack.mRunways[0].mEnds[1].mName == "21L" &&
+                  Near(tBack.mRunways[0].mEnds[1].mOverrunM, 60.0, 1e-12) &&
+                  tBack.mRunways[0].mEnds[1].mTouchdownLights,
+              "pistler birebir");
+    }
+    AirportIndex tStale;
+    CHECK(!AptDatIndexer::LoadCache(tPath, "anahtar-2", tStale), "dosyalar degisti (anahtar farkli): reddedilir");
+    CHECK(!AptDatIndexer::LoadCache("yok_boyle_dosya.bin", "anahtar-1", tStale), "dosya yok: reddedilir");
+    std::remove(tPath.c_str());
+}
+
 void TestAptDatDetail()
 {
     // Spesifikasyondaki KBFI ornegi + gercek veride gorulen bicimler
@@ -1863,6 +1913,7 @@ int main()
     TestAptLine();
     TestAptDatScanner();
     TestAptDatDetail();
+    TestAptIndexCache();
     TestAirportShapes();
     TestAirportGeometryStore();
     TestStoreCancel();

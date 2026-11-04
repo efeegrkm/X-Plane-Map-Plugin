@@ -1,11 +1,39 @@
 // AirportShapes.cpp
 #include "data/AirportShapes.h"
 
-#include "data/Earcut.h"
 #include "MapView.h"
+#include "mapbox/earcut.hpp"  // third_party/earcut (dis kutuphane)
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+
+// earcut noktanin x'ini nth<0>, y'sini nth<1> ile okur: LocalPoint'i tanit
+namespace mapbox
+{
+namespace util
+{
+
+template <>
+struct nth<0, LocalPoint>
+{
+    static double get(const LocalPoint& pPoint)
+    {
+        return pPoint.mX;
+    }
+};
+
+template <>
+struct nth<1, LocalPoint>
+{
+    static double get(const LocalPoint& pPoint)
+    {
+        return pPoint.mY;
+    }
+};
+
+}  // namespace util
+}  // namespace mapbox
 
 namespace
 {
@@ -212,32 +240,30 @@ bool Triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::v
     pOutVertices.clear();
     pOutTriangles.clear();
 
-    // Tum halkalarin noktalari tek listede; halkalar bu listeye indeks tutar
-    auto tAddRing = [&](const std::vector<LocalPoint>& pRing)
-    {
-        std::vector<int> tIndices;
-        for (const LocalPoint& tPoint : Cleaned(pRing))
-        {
-            tIndices.push_back(static_cast<int>(pOutVertices.size()));
-            pOutVertices.push_back(tPoint);
-        }
-        return tIndices;
-    };
-    const std::vector<int> tOuter = tAddRing(pOuter);
-    if (tOuter.size() < 3)
+    // earcut'in girdisi: halka listesi, [0] dis sinir, digerleri delik.
+    // Cikti indeksleri halkalarin arka arkaya dizilmis noktalarina gore.
+    std::vector<std::vector<LocalPoint>> tRings;
+    tRings.push_back(Cleaned(pOuter));
+    if (tRings[0].size() < 3)
     {
         return false;
     }
-    std::vector<std::vector<int>> tHoles;
     for (const std::vector<LocalPoint>& tHole : pHoles)
     {
-        std::vector<int> tIndices = tAddRing(tHole);
-        if (tIndices.size() >= 3)
+        std::vector<LocalPoint> tCleaned = Cleaned(tHole);
+        if (tCleaned.size() >= 3)
         {
-            tHoles.push_back(std::move(tIndices));
+            tRings.push_back(std::move(tCleaned));
         }
     }
-    pOutTriangles = Earcut::Triangulate(pOutVertices, tOuter, tHoles);
+    for (const std::vector<LocalPoint>& tRing : tRings)
+    {
+        pOutVertices.insert(pOutVertices.end(), tRing.begin(), tRing.end());
+    }
+    for (uint32_t tIndex : mapbox::earcut<uint32_t>(tRings))
+    {
+        pOutTriangles.push_back(static_cast<int>(tIndex));
+    }
     return !pOutTriangles.empty();
 }
 
@@ -270,6 +296,7 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
         std::vector<LocalPoint> tVertices;
         SurfaceMesh tMesh;
         tMesh.mSurfaceCode = tPavement.mSurfaceCode;
+        tMesh.mName = tPavement.mName;
         if (Triangulate(tRings[0].mPoints, tHoles, tVertices, tMesh.mTriangles))
         {
             tMesh.mVertices = tWriter.Convert(tVertices);

@@ -3,11 +3,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 
 #include "MapView.h"
 #include "data/AirportDetailStore.h"
 #include "data/AirportGeometryStore.h"
 #include "gfx/Canvas.h"
+#include "layers/AirportVisibility.h"
 
 namespace
 {
@@ -15,7 +17,6 @@ namespace
 const double kBoundaryMinZoom = 10.5;
 const double kSurfaceMinZoom = 11.0;
 const double kLineMinZoom = 14.0;
-const double kQueryMarginDeg = 0.05;  // havalimani referansindan disari tasan kisim icin
 const size_t kMaxGpuAirports = 64;    // GPU'da tutulan en fazla havalimani
 
 // Yuzey renkleri (koyu tema). Pistler (RunwayLayer) bunlardan biraz daha koyu.
@@ -215,45 +216,15 @@ void AirportSurfaceLayer::EvictUnused()
 void AirportSurfaceLayer::Draw(const DrawContext& pContext)
 {
     ++mFrame;
-    mDetails.BeginFrame();
+    mDrawn.clear();  // Describe eski karenin (silinmis olabilecek) ayrintilarina bakmasin
     const MapView& tView = *pContext.mView;
     const double tZoom = tView.Zoom();
     if (!mSummaries.IsReady() || tZoom < kBoundaryMinZoom)
     {
-        mDetails.EndFrame();
         return;
     }
 
-    // Ekrana degen havalimanlari; merkeze yakin olan once okunsun
-    const GeoBounds tScreen = tView.VisibleBounds();
-    GeoBounds tQuery = tScreen;
-    tQuery.mSouth -= kQueryMarginDeg;
-    tQuery.mNorth += kQueryMarginDeg;
-    tQuery.mWest -= kQueryMarginDeg;
-    tQuery.mEast += kQueryMarginDeg;
-    mQuery.clear();
-    mSummaries.Query(tQuery, mQuery);
-    mVisible.clear();
-    for (int tIndex : mQuery)
-    {
-        const AirportGeometry& tAirport = mSummaries.At(tIndex);
-        const GeoBounds& tBox = tAirport.mBounds;
-        if (tAirport.mNodeCount == 0 || tBox.mNorth < tScreen.mSouth || tBox.mSouth > tScreen.mNorth ||
-            tBox.mEast < tScreen.mWest || tBox.mWest > tScreen.mEast)
-        {
-            continue;
-        }
-        mVisible.push_back(tIndex);
-    }
-    const LatLon tCenter = tView.Center();
-    std::sort(mVisible.begin(), mVisible.end(), [&](int pA, int pB)
-              {
-                  const LatLon& tA = mSummaries.At(pA).mReference;
-                  const LatLon& tB = mSummaries.At(pB).mReference;
-                  const double tDistA = std::hypot(tA.mLat - tCenter.mLat, tA.mLon - tCenter.mLon);
-                  const double tDistB = std::hypot(tB.mLat - tCenter.mLat, tB.mLon - tCenter.mLon);
-                  return tDistA < tDistB;
-              });
+    FindVisibleAirports(tView, mSummaries, mQuery, mVisible);
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     const double tScale = tView.WorldSize();  // Mercator birimi -> boxel
@@ -261,6 +232,7 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
     // Yukleniyor isareti yaklasik saniyede bir yanip soner
     const float tPulse = 0.35f + 0.35f * std::sin(pContext.mNow * 6.0f);
     std::vector<GpuAirport*> tReady;
+    mDrawn.clear();
 
     for (int tIndex : mVisible)
     {
@@ -289,8 +261,8 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
         }
         tGpu.mLastFrame = mFrame;
         tReady.push_back(&tGpu);
+        mDrawn.push_back(tLoaded);
     }
-    mDetails.EndFrame();
 
     // Once tum dolgular, sonra kenarlar ve cizgiler (komsu havalimanlari birbirini ortmesin)
     for (int tPass = 0; tPass < 4; ++tPass)
@@ -318,4 +290,50 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
     }
     tCanvas.Draw(tLoading);
     EvictUnused();
+}
+
+std::string AirportSurfaceLayer::Describe(const DrawContext& pContext, double pX, double pY) const
+{
+    const MapView& tView = *pContext.mView;
+    if (tView.Zoom() < kSurfaceMinZoom)
+    {
+        return "";
+    }
+    // Imlecin Mercator koordinati; her havalimaninin sekilleri ona gore fark
+    const LatLon tCursor = tView.BoxelToLatLon(pX, pY);
+    const double tCursorX = Mercator::LonToX(tCursor.mLon);
+    const double tCursorY = Mercator::LatToY(tCursor.mLat);
+    for (const LoadedAirport* tLoaded : mDrawn)
+    {
+        const AirportShapes& tShapes = tLoaded->mShapes;
+        const PointF tPoint = {static_cast<float>(tCursorX - tShapes.mOriginX),
+                               static_cast<float>(tCursorY - tShapes.mOriginY)};
+        // Cizim sirasi alttan uste: en ustteki yuzey once sorulur
+        for (auto tSurface = tShapes.mPavements.rbegin(); tSurface != tShapes.mPavements.rend(); ++tSurface)
+        {
+            if (!SurfaceColor(tSurface->mSurfaceCode))
+            {
+                continue;  // cizilmeyen (su / saydam) yuzey
+            }
+            const std::vector<int>& tTriangles = tSurface->mTriangles;
+            for (size_t tIndex = 0; tIndex + 2 < tTriangles.size(); tIndex += 3)
+            {
+                const PointF& tA = tSurface->mVertices[tTriangles[tIndex]];
+                const PointF& tB = tSurface->mVertices[tTriangles[tIndex + 1]];
+                const PointF& tC = tSurface->mVertices[tTriangles[tIndex + 2]];
+                const float tD1 = (tB.mX - tA.mX) * (tPoint.mY - tA.mY) - (tB.mY - tA.mY) * (tPoint.mX - tA.mX);
+                const float tD2 = (tC.mX - tB.mX) * (tPoint.mY - tB.mY) - (tC.mY - tB.mY) * (tPoint.mX - tB.mX);
+                const float tD3 = (tA.mX - tC.mX) * (tPoint.mY - tC.mY) - (tA.mY - tC.mY) * (tPoint.mX - tC.mX);
+                const bool tNegative = tD1 < 0.0f || tD2 < 0.0f || tD3 < 0.0f;
+                const bool tPositive = tD1 > 0.0f || tD2 > 0.0f || tD3 > 0.0f;
+                if (!(tNegative && tPositive))
+                {
+                    const std::string tName = tSurface->mName.empty() ? "" : tSurface->mName + "  ";
+                    return std::format("Pavement: {}({}) - {}", tName, SurfaceName(tSurface->mSurfaceCode),
+                                       tLoaded->mDetail.mId);
+                }
+            }
+        }
+    }
+    return "";
 }

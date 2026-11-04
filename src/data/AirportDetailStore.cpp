@@ -54,8 +54,9 @@ void AirportDetailStore::Stop()
     }
 }
 
-void AirportDetailStore::BeginFrame()
+void AirportDetailStore::Update()
 {
+    SubmitWanted();
     ++mFrame;
     mWanted.clear();
     mWantedSet.clear();
@@ -97,7 +98,7 @@ const LoadedAirport* AirportDetailStore::Use(int pAirport)
     return nullptr;
 }
 
-void AirportDetailStore::EndFrame()
+void AirportDetailStore::SubmitWanted()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     // Kuyrugu bu karenin isteklerine gore yeniden kur: ekrandan cikanlar

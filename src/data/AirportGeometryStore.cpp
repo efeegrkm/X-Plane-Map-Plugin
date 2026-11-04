@@ -17,12 +17,13 @@ AirportGeometryStore::~AirportGeometryStore()
     }
 }
 
-void AirportGeometryStore::StartLoading(const std::string& pXPlaneDirectory)
+void AirportGeometryStore::StartLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory)
 {
     if (mLoading || mReady || !mSource)
     {
         return;
     }
+    mSource->SetCacheDirectory(pCacheDirectory);
     mLoading = true;
     mFinished.store(false);
     mThread = std::thread(

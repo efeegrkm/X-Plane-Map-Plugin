@@ -93,6 +93,13 @@ public:
     {
     }
 
+    // Fare (pX, pY) boxel noktasinin ustundeyse ne oldugunu anlatan kisa
+    // metin ("Runway 16L/34R ..."); yoksa bos. Son cizimdeki konumlara gore.
+    virtual std::string Describe(const DrawContext& /*pContext*/, double /*pX*/, double /*pY*/) const
+    {
+        return "";
+    }
+
     // Etiket onceligi: kucuk sayi once yer bulur (cizim sirasindan bagimsiz).
     // Ornek: havalimani adlari hava yolu adlarindan once yerlesir.
     virtual int LabelPriority() const

@@ -39,6 +39,7 @@
 #include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
+#include "layers/AirportObjectsLayer.h"
 #include "layers/AirportSurfaceLayer.h"
 #include "layers/AirwayLayer.h"
 #include "layers/DrawingLayer.h"
@@ -52,11 +53,12 @@
 namespace
 {
 
-const char* kVersion = "0.10";
+const char* kVersion = "0.11";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
 const char* kTerrainCacheFolder = "cache/terrain/";
+const char* kAirportCacheFolder = "cache/airports/";
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
 // Havalimani ozetlerinin kaynagi: apt.dat dosyalarini tarayan indeksleyici
@@ -187,6 +189,7 @@ void MapPlugin::CreateLayers()
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase, &mAirportGeometry));
     mLayers.Add(std::make_unique<RunwayLayer>(mAirportGeometry));
+    mLayers.Add(std::make_unique<AirportObjectsLayer>(mAirportGeometry, mAirportDetails));  // pistlerin ustunde
     // Hava yollari navaid sembollerinin altinda (cizgiler sembolleri ortmesin)
     mLayers.Add(std::make_unique<AirwayLayer>(mAirways, false));
     mLayers.Add(std::make_unique<AirwayLayer>(mAirways, true));
@@ -343,10 +346,11 @@ void MapPlugin::StepLoading()
         XPLMGetSystemPath(tSystemPath.data());  // "C:\X-Plane 11\" (sonunda ayirici ile)
         mXPlaneDirectory = tSystemPath.data();
         Log("indexing airports in the background: {}", mAirportGeometry.SourceName());
-        mAirportGeometry.StartLoading(mXPlaneDirectory);
+        mAirportGeometry.StartLoading(mXPlaneDirectory, mPluginDirectory + kAirportCacheFolder);
         mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette);
     }
     LogReport(mTerrainStore.TakeLogLines());
+    mAirportDetails.Update();  // onceki karede istenen havalimani ayrintilari isciye
     LogReport(mAirportDetails.TakeLogLines());
     if (mAirportGeometry.Poll())
     {

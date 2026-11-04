@@ -9,6 +9,11 @@
 // havalimaninin baslangicina dogrudan atlanip sadece o kisim okunur
 // (AirportDetailStore).
 //
+// Disk onbellegi: tarama sonucu <onbellek>/airport_index.bin dosyasina
+// yazilir. Anahtar = her apt.dat'in yolu + boyutu + degisiklik zamani; sahne
+// eklenir, cikarilir, sirasi degisir veya guncellenirse anahtar tutmaz ve
+// dosyalar yeniden taranir. Onbellek dosyasini silmek bir sey bozmaz.
+//
 // Dosya sirasi (X-Plane'in kurali, ayni kimlik icin ONCE gelen kazanir;
 // boylece ozel sahnedeki havalimani Global Airports'takini tamamen ezer):
 //   1. Custom Scenery/scenery_packs.ini'deki etkin paketler, yukaridan asagi,
@@ -62,12 +67,21 @@ class AptDatIndexer : public IAirportGeometrySource
 {
 public:
     const char* Name() const override;
+    void SetCacheDirectory(const std::string& pDirectory) override;
     bool LoadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel, AirportIndex& pOut,
                  std::string& pOutReport) override;
+
+    // Onbellek dosyasi: anahtar tutarsa pOut'u doldurup true. Testler icin acik.
+    static bool LoadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut);
+    static bool SaveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex);
+    // Dosya listesinin anahtari (yol | boyut | degisiklik zamani)
+    static std::string CacheKey(const std::vector<std::string>& pFiles);
 
     // Okunacak apt.dat yollari, oncelik sirasiyla (var olup olmadigina bakmaz)
     static std::vector<std::string> AptFiles(const std::string& pXPlaneDirectory);
 
 private:
+    std::string mCacheDirectory;
+
     static bool ScanFile(const std::string& pPath, AptDatScanner& pScanner, const std::atomic<bool>& pCancel);
 };

@@ -25,8 +25,8 @@ public:
     AirportGeometryStore(const AirportGeometryStore&) = delete;
     AirportGeometryStore& operator=(const AirportGeometryStore&) = delete;
 
-    // Okumayi arka planda baslatir (bir kez)
-    void StartLoading(const std::string& pXPlaneDirectory);
+    // Okumayi arka planda baslatir (bir kez). pCacheDirectory: kaynagin disk onbellegi (bos olabilir)
+    void StartLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory = "");
 
     // Ana thread'den her karede. Okuma bu cagrida bittiyse true doner (bir kez);
     // o andan sonra IsReady() true'dur. Rapor: LastReport().

@@ -8,6 +8,7 @@
 // ise derecelerle degil metrelerle saglikli calisir.
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "data/AirportDetail.h"
@@ -51,6 +52,7 @@ struct FlatChain
 struct SurfaceMesh
 {
     int mSurfaceCode = 1;
+    std::string mName;              // 110 satirindaki aciklama (fareyle gosterilir)
     std::vector<PointF> mVertices;  // Mercator farki
     std::vector<int> mTriangles;    // 3'erli indeksler
 };

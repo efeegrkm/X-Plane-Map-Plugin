@@ -357,3 +357,40 @@ std::string NavaidLayer::FormatLabel(const NavRecord& pRecord, bool pDetail) con
     }
     return std::format("{} {}", pRecord.mId, tFrequency);
 }
+
+std::string NavaidLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+{
+    const float tRadius = (mType == NavaidType::Fix ? kFixRadius : kDmeBoxRadius) + 3.0f;
+    for (const VisibleNavaid& tNavaid : mVisible)
+    {
+        if (std::hypot(tNavaid.mPoint.mX - pX, tNavaid.mPoint.mY - pY) > tRadius)
+        {
+            continue;
+        }
+        const NavRecord& tRecord = mDatabase.At(tNavaid.mIndex);
+        const char* tKind = "Fix";
+        switch (tRecord.mKind)
+        {
+            case NavKind::Vor:
+                tKind = tRecord.mHasDme ? "VOR/DME" : "VOR";
+                break;
+            case NavKind::Dme:
+                tKind = "DME";
+                break;
+            case NavKind::Ndb:
+                tKind = "NDB";
+                break;
+            case NavKind::Ils:
+                tKind = "ILS";
+                break;
+            case NavKind::Localizer:
+                tKind = "LOC";
+                break;
+            default:
+                break;
+        }
+        const std::string tName = (tRecord.mKind == NavKind::Fix || tRecord.mName.empty()) ? "" : "  " + tRecord.mName;
+        return std::format("{}  {}{}", tKind, FormatLabel(tRecord, true), tName);
+    }
+    return "";
+}

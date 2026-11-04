@@ -2,7 +2,9 @@
 #include "layers/RunwayLayer.h"
 
 #include <cmath>
+#include <format>
 
+#include "Geo.h"
 #include "MapView.h"
 #include "data/AirportGeometryStore.h"
 #include "gfx/Canvas.h"
@@ -235,4 +237,26 @@ void RunwayLayer::DrawLabels(const DrawContext& pContext)
                                           kLabelColor);
         }
     }
+}
+
+std::string RunwayLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+{
+    for (const ScreenRunway& tRunway : mVisible)
+    {
+        // Imlec, pist ekseni koordinatinda: boyuna (0..boy) ve enine (yari genislik)
+        const float tDeltaX = static_cast<float>(pX) - tRunway.mEndX[0];
+        const float tDeltaY = static_cast<float>(pY) - tRunway.mEndY[0];
+        const float tAlong = tDeltaX * tRunway.mDirX + tDeltaY * tRunway.mDirY;
+        const float tAcross = std::fabs(-tDeltaX * tRunway.mDirY + tDeltaY * tRunway.mDirX);
+        if (tAlong < 0.0f || tAlong > tRunway.mLength || tAcross > tRunway.mHalfWidth + 2.0f)
+        {
+            continue;
+        }
+        const Runway& tData = *tRunway.mRunway;
+        const double tLengthM = DistanceNm(tData.mEnds[0].mPosition, tData.mEnds[1].mPosition) * 1852.0;
+        return std::format("{} {}/{}  {:.0f} x {:.0f} m, {}", tData.mWater ? "Water runway" : "Runway",
+                           tData.mEnds[0].mName, tData.mEnds[1].mName, tLengthM, tData.mWidthM,
+                           SurfaceName(tData.mSurfaceCode));
+    }
+    return "";
 }

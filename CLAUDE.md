@@ -110,17 +110,26 @@ listesi ve dosya görevleri: `README.md`.
      başlık, pistler (100/101), kapsayan kutu, kule (54/1054), 1302
      icao_code/datum, dosya + bayt aralığı (`AptFileLocation`). Sıra:
      scenery_packs.ini, sonra default apt.dat; aynı kimlikte ilk gelen kazanır.
-     Disk önbelleği YOK (tarama zaten 0,8 s; kullanıcıya soruldu).
-  2. Ayrıntı: `data/AirportDetailStore` (işçi thread, LRU 64): ekrandaki
+     Disk önbelleği (0.11, kullanıcı istedi): `cache/airports/airport_index.bin`
+     (9 MB), anahtar = her apt.dat yolu|boyut|mtime; tarama 0,82 s -> 0,03 s.
+  2. Ayrıntı: `data/AirportDetailStore` (işçi thread, LRU 64; katmanlar
+     `Use()` ile ister, plugin flight loop'u her karede `Update()` çağırır): ekrandaki
      havalimanının bayt aralığına seek edip `AptDatParser::ParseAirport` ile
      `AirportDetail`'e (tüm satır kodları), `Shapes::Build` ile çizim
      şekillerine çevirir.
-  - `AptLine`: yerel ayardan bağımsız alan okuyucu. `Earcut`: mapbox/earcut
-    algoritmasının yeniden yazımı (ISC notu dosyada; Z-düzeni + köşegen
-    testlerinin sırası değiştirildi, sonuç aynı).
+  - `AptLine`: yerel ayardan bağımsız alan okuyucu. Üçgenleme: dış kütüphane
+    `third_party/earcut/mapbox/earcut.hpp` (v2.2.4, ISC, DEĞİŞTİRİLMEDEN;
+    kullanıcı kuralı: dış kod third_party'de, kendi kodumuza karıştırılmaz).
+    Orijinal sürümle en kötü havalimanı WAHI ~2,6 s, YSSY 0,54 s (arka planda).
   - `AirportShapes` noktaları Mercator farkı (float, referansa göre) →
     `layers/AirportSurfaceLayer` bunları bir kez `Gfx::StaticMesh`'e yükler,
     her karede `Canvas::DrawStatic` (uTransform: ölçek + kaydırma).
+  - `layers/AirportObjectsLayer` (0.11): kalkış/park (1300/15, burun yönüne
+    ok; kapı/bağlama/hangar/diğer ayrı), helipad (yöne dönük H), beacon,
+    rüzgar tulumu, PAPI/VASI/wig-wag, tabela. Ortak `layers/AirportVisibility`.
+  - Fare açıklaması (0.11): `Layer::Describe` + `LayerManager::DescribeAt`,
+    `MapWindow::DrawTooltip`. Pist, yüzey, nesne, havalimanı, navaid
+    katmanları açıklama veriyor. Önizlemede `--describe x,y` ile sınanır.
 - Ölçümler (Global Airports, bu PC): tüm havalimanları ayrıştır + üçgenle
   25 s toplam; en yavaş PANC 581 ms, YSSY 200 ms, KORD 53 ms; 156.345
   yüzeyden 1'i üçgenlenemiyor; reddedilen satır 0.
@@ -179,7 +188,12 @@ listesi ve dosya görevleri: `README.md`.
   RTX 5070 Laptop". Vulkan modu denendi mi bilinmiyor.
 - 0.10 (2026-11-04): apt.dat okuyucu adım 1+2 (indeks, ayrıntı, Bezier,
   earcut, yüzey/sınır/boya çizgisi çizimi, GPU önbelleği). 334 test.
-  Önizlemede KSEA doğru. **X-Plane'de henüz denenmedi.**
+  Önizlemede KSEA doğru. Kullanıcı X-Plane'de denedi: "gayet güzel".
+- 0.11 (2026-11-04): earcut third_party'ye, indeks önbelleği, havalimanı
+  nesneleri + fare açıklaması. 341 test. **X-Plane'de henüz denenmedi.**
+- scenery_packs.ini'ye ASLA yazılmaz (sadece okunur); X-Plane her açılışta
+  kendisi yeniden yazar. Bu kurulumda Global Airports en üstte (X-Plane'in
+  demo dosyası); KSEA zaten Global'de yok.
 
 ## Sıradaki
 - **Karar (2026-11-04):** ekip motoru KULLANILMAYACAK (Qt bağımlılığı).
@@ -192,8 +206,9 @@ listesi ve dosya görevleri: `README.md`.
 - `GOREV_0.9.md` artık geçmiş kayıt (iş bilgisayarı planı iptal); A paketi
   burada yapıldı, B (motorla) iptal, C (modlar) parser'dan sonra.
 - Harita modları: Scenery + VFR + IFR Low + IFR High (kullanıcı onayladı).
-- apt.dat sıradaki adımlar: (3) ışıklar, tabelalar, tulum, beacon, kalkış
-  noktaları, heliport pedi, taksi ağı + ikonlar; (4) gruplu katman paneli
-  (Airports ▸ alt katmanlar, üç durumlu kutu); sonra modlar.
+- apt.dat sıradaki adımlar: kalanlar = kenar/orta hat ışıkları (101-108),
+  taksi ağı (1201/1202, varsayılan kapalı), kalın boya çizgileri (soru);
+  (4) gruplu katman paneli (Airports ▸ alt katmanlar, üç durumlu kutu);
+  sonra modlar.
 - Açık sorular: zemin renkleri, önbellek disk sınırı, eski HaritaPlugin
   klasörünü silme.

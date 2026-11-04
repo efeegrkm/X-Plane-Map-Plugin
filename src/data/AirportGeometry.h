@@ -100,6 +100,11 @@ public:
     // Log'da gorunen ad
     virtual const char* Name() const = 0;
 
+    // Kaynak diskte onbellek tutabiliyorsa klasoru (sonunda '/' ile). Bos: onbellek yok.
+    virtual void SetCacheDirectory(const std::string& /*pDirectory*/)
+    {
+    }
+
     // Tum havalimanlarinin ozetini cikarir. ARKA PLAN thread'inde cagrilir:
     // icinde XPLM fonksiyonu (Log dahil) cagrilmaz; log'a yazilacaklar
     // pOutReport'a eklenir. pCancel true olursa cabucak false donup cikar.
@@ -110,3 +115,6 @@ public:
 
 // apt.dat yuzey kodunu gruba cevirir (bilinmeyen kod: Paved)
 RunwaySurface SurfaceFromAptCode(int pCode);
+
+// apt.dat yuzey kodunun Ingilizce adi ("asphalt", "concrete", "grass" ...)
+const char* SurfaceName(int pCode);

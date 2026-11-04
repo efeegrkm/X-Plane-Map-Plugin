@@ -41,6 +41,22 @@ void LayerManager::UpdateAll(float pNow)
     }
 }
 
+std::string LayerManager::DescribeAt(const DrawContext& pContext, double pX, double pY) const
+{
+    for (auto tIterator = mLayers.rbegin(); tIterator != mLayers.rend(); ++tIterator)
+    {
+        if ((*tIterator)->IsVisible())
+        {
+            std::string tText = (*tIterator)->Describe(pContext, pX, pY);
+            if (!tText.empty())
+            {
+                return tText;
+            }
+        }
+    }
+    return "";
+}
+
 void LayerManager::DrawAll(const DrawContext& pContext)
 {
     for (const std::unique_ptr<Layer>& tLayer : mLayers)

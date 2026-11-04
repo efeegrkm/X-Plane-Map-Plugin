@@ -2,10 +2,12 @@
 // Ekrandaki havalimanlarinin AYRINTISINI (yuzeyler, cizgiler, tabelalar...)
 // arka planda okuyup cizime hazirlayan depo. X-Plane'e bagimli DEGIL.
 //
-// Akis (her karede, ana thread):
-//   tStore.BeginFrame();                    // biten isleri al
-//   const LoadedAirport* t = tStore.Use(i); // hazirsa ver; degilse iste
-//   tStore.EndFrame();                      // bu karenin isteklerini iscide sirala
+// Akis (ana thread):
+//   cizimde, herhangi bir katman:  const LoadedAirport* t = tStore.Use(i);
+//       hazirsa verir; degilse istek listesine yazar
+//   her karede bir kez (flight loop): tStore.Update();
+//       onceki karenin isteklerini isciye gonderir, biten isleri alir
+// Boylece birden fazla katman (yuzeyler, nesneler) ayni depoyu kullanabilir.
 //
 // Isci thread'i: havalimaninin dosyadaki bayt araligina dogrudan atlar
 // (AptFileLocation), sadece o satirlari okur, AptDatParser ile ayristirir,
@@ -50,11 +52,11 @@ public:
     void Start();  // isci thread'ini baslatir (bir kez)
     void Stop();   // o anki isi bitirip durur
 
-    void BeginFrame();
+    // Her karede bir kez: istekleri isciye gonder, biten isleri al, eskileri sil
+    void Update();
     // Ayrinti hazirsa verir (ve bu karede kullanildi diye isaretler); degilse
     // istek listesine ekler ve nullptr doner. Siralama onemli: once istenen once okunur.
     const LoadedAirport* Use(int pAirport);
-    void EndFrame();
 
     bool IsWaiting(int pAirport) const;  // istendi ama henuz hazir degil
     int PendingCount() const;            // bu karede istenip bekleyen
@@ -84,6 +86,7 @@ private:
         uint64_t mLastFrame = 0;
     };
 
+    void SubmitWanted();  // istek listesini isci kuyruguna yazar
     void WorkerLoop();
     std::unique_ptr<LoadedAirport> Load(const Request& pRequest, std::string& pLog) const;
     void EvictUnused();

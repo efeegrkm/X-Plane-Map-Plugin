@@ -2,6 +2,7 @@
 #include "layers/AirportLayer.h"
 
 #include <array>
+#include <cmath>
 #include <string>
 
 #include "MapView.h"
@@ -197,4 +198,17 @@ void AirportLayer::DrawLabels(const DrawContext& pContext)
         MapSymbols::DrawLabelNear(*pContext.mLabels, tAirport.mX, tAirport.mY, tStyle.mRadius + 4.0f, tText,
                                   tStyle.mLabelColor);
     }
+}
+
+std::string AirportLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+{
+    for (const VisibleAirport& tAirport : mVisible)
+    {
+        if (std::hypot(tAirport.mX - pX, tAirport.mY - pY) <= StyleOf(tAirport.mCategory).mRadius + 3.0)
+        {
+            const NavRecord& tRecord = mDatabase.At(tAirport.mIndex);
+            return tRecord.mName.empty() ? tRecord.mId : tRecord.mId + "  " + tRecord.mName;
+        }
+    }
+    return "";
 }

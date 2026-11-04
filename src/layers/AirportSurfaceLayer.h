@@ -29,6 +29,7 @@ public:
     AirportSurfaceLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails);
 
     void Draw(const DrawContext& pContext) override;
+    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
 
 private:
     // Bir havalimaninin GPU'daki sekilleri
@@ -52,5 +53,6 @@ private:
     std::vector<int> mQuery;
     std::vector<int> mVisible;
     std::unordered_map<int, GpuAirport> mGpu;
+    std::vector<const LoadedAirport*> mDrawn;  // son karede cizilenler (merkeze yakin once)
     uint64_t mFrame = 0;
 };
