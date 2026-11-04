@@ -48,39 +48,38 @@ bool AirportGeometryStore::Poll()
 
 void AirportGeometryStore::TakeResult()
 {
-    mAirports = std::move(mPending);
-    mPending.clear();
+    mAirports = std::move(mPending.mAirports);
+    mFiles = std::move(mPending.mFiles);
+    mPending = AirportIndex();
     mReport = std::move(mPendingReport);
     mSucceeded = mPendingSucceeded;
 
-    mByIcao.clear();
+    mById.clear();
     mRunwayCount = 0;
     std::vector<GridItem> tItems;
     tItems.reserve(mAirports.size());
     for (int tIndex = 0; tIndex < Count(); ++tIndex)
     {
-        const AirportGeometry& tAirport = mAirports[tIndex];
-        mByIcao.emplace(tAirport.mIcao, tIndex);
-        mRunwayCount += static_cast<int>(tAirport.mRunways.size());
-
-        // Izgara konumu: pist uclarinin ortalamasi
-        double tLat = 0.0;
-        double tLon = 0.0;
-        int tPoints = 0;
-        for (const Runway& tRunway : tAirport.mRunways)
+        AirportGeometry& tAirport = mAirports[tIndex];
+        if (tAirport.mReference.mLat == 0.0 && tAirport.mReference.mLon == 0.0 && !tAirport.mRunways.empty())
         {
-            for (const RunwayEnd& tEnd : tRunway.mEnds)
+            // Kaynak referans vermediyse: pist uclarinin ortalamasi
+            LatLon tSum = {0.0, 0.0};
+            for (const Runway& tRunway : tAirport.mRunways)
             {
-                tLat += tEnd.mPosition.mLat;
-                tLon += tEnd.mPosition.mLon;
-                ++tPoints;
+                for (const RunwayEnd& tEnd : tRunway.mEnds)
+                {
+                    tSum.mLat += tEnd.mPosition.mLat;
+                    tSum.mLon += tEnd.mPosition.mLon;
+                }
             }
+            const double tPoints = 2.0 * tAirport.mRunways.size();
+            tAirport.mReference = {tSum.mLat / tPoints, tSum.mLon / tPoints};
         }
-        if (tPoints > 0)
-        {
-            tItems.push_back({static_cast<uint32_t>(tIndex), static_cast<float>(tLat / tPoints),
-                              static_cast<float>(tLon / tPoints)});
-        }
+        mById.emplace(tAirport.mId, tIndex);
+        mRunwayCount += static_cast<int>(tAirport.mRunways.size());
+        tItems.push_back({static_cast<uint32_t>(tIndex), static_cast<float>(tAirport.mReference.mLat),
+                          static_cast<float>(tAirport.mReference.mLon)});
     }
     mGrid.Build(tItems);
     mReady = true;
@@ -126,10 +125,16 @@ const AirportGeometry& AirportGeometryStore::At(int pIndex) const
     return mAirports[pIndex];
 }
 
-const AirportGeometry* AirportGeometryStore::Find(const std::string& pIcao) const
+const AirportGeometry* AirportGeometryStore::Find(const std::string& pId) const
 {
-    const auto tFound = mByIcao.find(pIcao);
-    return tFound == mByIcao.end() ? nullptr : &mAirports[tFound->second];
+    const auto tFound = mById.find(pId);
+    return tFound == mById.end() ? nullptr : &mAirports[tFound->second];
+}
+
+const std::string& AirportGeometryStore::FilePath(int pFile) const
+{
+    static const std::string kNone;
+    return (pFile >= 0 && pFile < static_cast<int>(mFiles.size())) ? mFiles[pFile] : kNone;
 }
 
 void AirportGeometryStore::Query(const GeoBounds& pBounds, std::vector<int>& pOut) const

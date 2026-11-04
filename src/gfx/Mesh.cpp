@@ -8,6 +8,7 @@ namespace
 {
 
 const float kPi = 3.14159265f;
+const float kThinLine = 1.5f;  // bu kalinliga kadar kose birlestirme yapilmaz
 
 float Length(float pX, float pY)
 {
@@ -160,7 +161,13 @@ void Mesh::AddPolyline(const std::vector<Point>& pPoints, bool pClosed, float pW
         AddLine(pPoints[tSegment], pPoints[(tSegment + 1) % tCount], pWidth, pColor);
     }
 
-    // Kose birlestirme: iki seritin arasinda kalan kamayi iki yandan da doldur
+    // Kose birlestirme: iki seritin arasinda kalan kamayi iki yandan da doldur.
+    // Ince cizgide (<= kThinLine) kama gozle gorulmez; binlerce noktali
+    // apron kenarlarinda kose sayisini ucte birine indirir.
+    if (pWidth <= kThinLine)
+    {
+        return;
+    }
     const float tHalf = pWidth * 0.5f;
     const size_t tFirstJoint = pClosed ? 0 : 1;
     const size_t tLastJoint = pClosed ? tCount : tCount - 1;

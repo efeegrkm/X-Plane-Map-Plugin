@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "data/AptDatReader.h"
+#include "data/AptDatIndexer.h"
 #include "data/NavDatabase.h"
 
 namespace
@@ -196,11 +196,7 @@ int LoadNavFromFiles(const std::string& pXPlaneDirectory, NavDatabase& pDatabase
     LoadNav(pXPlaneDirectory + "Resources/default data/earth_nav.dat", pDatabase);
     LoadFixes(pXPlaneDirectory + "Resources/default data/earth_fix.dat", pDatabase);
     // Havalimanlari: X-Plane'in sirasiyla (scenery_packs.ini, sonra default apt.dat)
-    std::ifstream tIni(pXPlaneDirectory + "Custom Scenery/scenery_packs.ini");
-    std::ostringstream tIniText;
-    tIniText << tIni.rdbuf();
-    std::vector<std::string> tFiles = AptDatReader::AptFilesFromSceneryPacks(tIniText.str(), pXPlaneDirectory);
-    tFiles.push_back(pXPlaneDirectory + "Resources/default scenery/default apt dat/Earth nav data/apt.dat");
+    const std::vector<std::string> tFiles = AptDatIndexer::AptFiles(pXPlaneDirectory);
     std::unordered_set<std::string> tSeen;
     for (const std::string& tFile : tFiles)
     {

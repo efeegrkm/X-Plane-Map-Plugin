@@ -119,6 +119,23 @@ void MapView::LatLonToBoxel(const LatLon& pPoint, double* pX, double* pY) const
     *pY = tMidY + tDeltaY * tWorld;
 }
 
+PointF MapView::MercatorToScreen(double pX, double pY) const
+{
+    double tDeltaX = pX - mCenterX;
+    if (tDeltaX > 0.5)
+    {
+        tDeltaX -= 1.0;
+    }
+    else if (tDeltaX < -0.5)
+    {
+        tDeltaX += 1.0;
+    }
+    const double tWorld = WorldSize();
+    const double tMidX = (mViewport.mLeft + mViewport.mRight) * 0.5;
+    const double tMidY = (mViewport.mBottom + mViewport.mTop) * 0.5;
+    return {static_cast<float>(tMidX + tDeltaX * tWorld), static_cast<float>(tMidY + (pY - mCenterY) * tWorld)};
+}
+
 PointF MapView::ToScreen(const LatLon& pPoint) const
 {
     double tX = 0.0;

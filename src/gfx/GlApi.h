@@ -76,5 +76,6 @@ GLint GetUniformLocation(GLuint pProgram, const char* pName);
 void UniformMatrix4(GLint pLocation, const float pMatrix[16]);
 void Uniform1i(GLint pLocation, GLint pValue);
 void Uniform1f(GLint pLocation, float pValue);
+void Uniform4(GLint pLocation, float pX, float pY, float pZ, float pW);
 
 }  // namespace Gl

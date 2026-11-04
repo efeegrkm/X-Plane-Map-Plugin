@@ -1,10 +1,9 @@
 // AirportGeometryStore.h
-// Havalimani geometrisinin (pistler) haritadaki deposu:
+// Havalimani OZETLERININ (pistler, kapsayan kutu, dosyadaki yer) deposu:
 //   - kaynagi (IAirportGeometrySource) arka plan thread'inde calistirir,
 //   - bitince sonucu ana thread'de devralir (Poll),
 //   - havalimanlarini 1x1 derece izgaraya koyar, ekrandakileri sorgulatir.
-// Katmanlar sadece bu sinifi bilir; verinin nereden geldigini (gecici okuyucu
-// mu, ekip motoru mu) bilmez. X-Plane'e bagimli DEGIL.
+// Ayrintilar (yuzeyler, cizgiler...) AirportDetailStore'da. X-Plane'e bagimli DEGIL.
 #pragma once
 
 #include <atomic>
@@ -42,10 +41,11 @@ public:
     int Count() const;
     int RunwayCount() const;
     const AirportGeometry& At(int pIndex) const;
-    const AirportGeometry* Find(const std::string& pIcao) const;
+    const AirportGeometry* Find(const std::string& pId) const;  // baslik kimligiyle
+    const std::string& FilePath(int pFile) const;  // AptFileLocation::mFile -> yol
 
     // pBounds'un degdigi hucrelerdeki havalimanlarinin indekslerini pOut'a ekler.
-    // Havalimani konumu = pist uclarinin ortalamasi; pistler bundan birkac km
+    // Havalimani konumu = referans noktasi; havalimani bundan birkac km
     // tasabilecegi icin cagiran sinirlari biraz genisletmeli.
     void Query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
@@ -58,13 +58,14 @@ private:
     std::atomic<bool> mFinished{false};
 
     // Arka plan thread'inin yazdiklari (mFinished true olduktan sonra okunur)
-    std::vector<AirportGeometry> mPending;
+    AirportIndex mPending;
     std::string mPendingReport;
     bool mPendingSucceeded = false;
 
     // Ana thread'in verisi
     std::vector<AirportGeometry> mAirports;
-    std::unordered_map<std::string, int> mByIcao;
+    std::vector<std::string> mFiles;
+    std::unordered_map<std::string, int> mById;
     GeoGrid mGrid;
     std::string mReport;
     bool mLoading = false;

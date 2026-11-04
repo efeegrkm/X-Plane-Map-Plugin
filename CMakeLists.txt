@@ -48,7 +48,12 @@ set(CORE_SOURCES
     src/data/TerrainClasses.cpp
     src/data/TerrainRaster.cpp
     src/data/TerrainStore.cpp
-    src/data/AptDatReader.cpp          # GECICI: ekip apt.dat motoru gelince degisecek
+    src/data/AptLine.cpp
+    src/data/AptDatParser.cpp
+    src/data/AptDatIndexer.cpp
+    src/data/AirportShapes.cpp
+    src/data/Earcut.cpp
+    src/data/AirportDetailStore.cpp
 )
 
 # X-Plane SDK'si ve OpenGL kullanan dosyalar
@@ -61,9 +66,11 @@ set(PLUGIN_SOURCES
     src/gfx/GlApi.cpp
     src/gfx/GlScreen.cpp
     src/gfx/Canvas.cpp
+    src/gfx/StaticMesh.cpp
     src/gfx/Texture.cpp
     src/layers/MapSymbols.cpp
     src/layers/TerrainLayer.cpp
+    src/layers/AirportSurfaceLayer.cpp
     src/layers/GridLayer.cpp
     src/layers/RunwayLayer.cpp
     src/layers/AirwayLayer.cpp
@@ -189,9 +196,11 @@ if(MAP_PREVIEW AND WIN32)
         src/gfx/GlApi.cpp
         src/gfx/GlScreen.cpp
         src/gfx/Canvas.cpp
+        src/gfx/StaticMesh.cpp
         src/gfx/Texture.cpp
         src/layers/MapSymbols.cpp
         src/layers/TerrainLayer.cpp
+        src/layers/AirportSurfaceLayer.cpp
         src/layers/GridLayer.cpp
         src/layers/RunwayLayer.cpp
         src/layers/AirwayLayer.cpp

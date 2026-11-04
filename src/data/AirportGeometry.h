@@ -1,52 +1,40 @@
 // AirportGeometry.h
-// Havalimani geometrisi (pistler) veri yapilari ve bu veriyi ureten
-// kaynagin arayuzu. X-Plane'e bagimli DEGIL.
+// Havalimani OZETI: her zaman bellekte duran kisim (kimlik, ad, tur, pistler,
+// kapsadigi alan ve apt.dat dosyasindaki yeri). X-Plane'e bagimli DEGIL.
 //
-// ============================================================================
-// EKIP apt.dat MOTORUNU BAGLAMA (yerel AI / gelistirici icin talimat)
-// ============================================================================
-// Haritanin pist katmani apt.dat'i dogrudan bilmez; sadece bu dosyadaki
-// IAirportGeometrySource arayuzunu bilir. Su an arayuzu GECICI bir okuyucu
-// (data/AptDatReader.*) uyguluyor. Ekip motorunu baglamak icin:
-//
-//   1. IAirportGeometrySource'dan tureyen bir adaptor sinifi yaz
-//      (ornek ad: data/TeamAptDatSource.h/.cpp). LoadAll() icinde ekip
-//      motorunu calistir ve sonucunu asagidaki AirportGeometry yapilarina
-//      cevir. Birimler: derece (WGS84, kuzey/dogu +), metre.
-//   2. src/Plugin.cpp'de "MOTOR BAGLAMA NOKTASI" yazan TEK satirda
-//      std::make_unique<AptDatReader>() yerine kendi sinifini ver.
-//   3. Yeni .cpp dosyasini CMakeLists.txt'de PLUGIN_SOURCES'a ekle.
-//      (Ekip motorunun kendi dosyalari/kutuphanesi de oraya eklenir.)
-//   4. AptDatReader'a dokunmak gerekmez; istersen silebilirsin (testleri de
-//      tests/tests.cpp'deki TestAptDatReader'dadir).
-//
-// Kurallar:
-//   - LoadAll ARKA PLAN thread'inde cagrilir: icinde hicbir XPLM fonksiyonu
-//     (XPLMDebugString / Log dahil) cagrilmamali. Log'a yazilacak her sey
-//     pOutReport'a eklenir; ana thread sonra Log.txt'ye yazar.
-//   - pCancel true olursa (X-Plane kapaniyor / plugin yeniden yukleniyor)
-//     olabildigince cabuk false donerek cik.
-//   - Ayni ICAO bir kez verilmeli. X-Plane'in kurali: Custom Scenery
-//     paketleri scenery_packs.ini sirasiyla, sonra default apt.dat; once gelen
-//     kazanir. (Ekip motoru bunu zaten yapiyorsa oldugu gibi kullan.)
-//   - Pisti olmayan havalimanlarini (heliport vb.) vermek zorunlu degil.
-// ============================================================================
+// Iki seviyeli veri:
+//   1. Ozet (bu dosya): acilista tum apt.dat dosyalari bir kez taranarak
+//      ~37 bin havalimani icin cikarilir (data/AptDatIndexer). Pist katmani,
+//      ILS eslestirme ve "hangi havalimanlari ekranda" sorusu bununla calisir.
+//   2. Ayrinti (data/AirportDetail.h): yuzeyler, cizgiler, tabelalar, isiklar...
+//      Sadece ekrandaki havalimanlari icin, dosyadaki yerine (mLocation)
+//      dogrudan atlanip arka planda okunur (data/AirportDetailStore).
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "Geo.h"
+#include "MapView.h"
 
 // Pist yuzeyi, cizim rengi icin gruplanmis (apt.dat yuzey kodlari parantezde)
 enum class RunwaySurface : unsigned char
 {
     Paved,        // asfalt (1), beton (2); XP12'nin asfalt/beton turleri (20-38, 50-57)
     Unpaved,      // cim (3), toprak (4), cakil (5), kuru gol yatagi (12)
-    Water,        // su (13)
+    Water,        // su (13) ve su pistleri (101)
     Snow,         // kar / buz (14)
     Transparent,  // saydam (15): sadece isaretler var, yuzey cizilmez
+};
+
+// Satir kodu 1 / 16 / 17
+enum class AirportType : unsigned char
+{
+    Land,
+    Seaplane,
+    Heliport,
 };
 
 struct RunwayEnd
@@ -55,21 +43,53 @@ struct RunwayEnd
     LatLon mPosition = {0.0, 0.0};      // pist ucunun orta noktasi (kaydirilmis esik DAHIL degil)
     double mDisplacedThresholdM = 0.0;  // kaydirilmis esik: uctan iceri, metre
     double mOverrunM = 0.0;             // blast pad / stopway: uctan disari, metre
+    int mMarkings = 0;                  // pist isareti kodu (0 yok, 1 gorsel, 2 hassas olmayan, 3 hassas ...)
+    int mApproachLights = 0;            // yaklasma isigi kodu (0 yok, 1 ALSF-I ... 12 RAIL)
+    bool mTouchdownLights = false;
+    int mReil = 0;                      // 0 yok, 1 her yone, 2 tek yone
 };
 
 struct Runway
 {
     double mWidthM = 0.0;
     RunwaySurface mSurface = RunwaySurface::Paved;
+    int mSurfaceCode = 1;      // apt.dat yuzey kodu (ayrinti icin)
+    int mShoulderCode = 0;     // 0 yok, 1 asfalt, 2 beton
+    bool mCenterLights = false;
+    int mEdgeLights = 0;       // 0 yok, 2 orta siddet
+    bool mWater = false;       // 101 su pisti
     RunwayEnd mEnds[2];
+};
+
+// Havalimaninin hangi dosyada, hangi bayt araliginda oldugu
+struct AptFileLocation
+{
+    int mFile = -1;         // AirportIndex::mFiles icindeki sira
+    uint64_t mOffset = 0;   // baslik satirinin ilk bayti
+    uint32_t mLength = 0;   // sonraki havalimanina (veya dosya sonuna) kadar bayt
 };
 
 struct AirportGeometry
 {
-    std::string mIcao;  // X-Plane'deki havalimani kimligi (nav verisindekiyle ayni)
+    std::string mId;        // baslik satirindaki kimlik (X-Plane nav verisindekiyle ayni)
+    std::string mIcaoCode;  // 1302 icao_code (varsa; X-Plane 10.45+ bunu "ICAO" olarak kullanir)
     std::string mName;
-    std::vector<Runway> mRunways;
-    // Ileride (motor verebiliyorsa): taksi yollari, apron poligonlari, binalar...
+    AirportType mType = AirportType::Land;
+    int mElevationFt = 0;
+    bool mHasTower = false;  // kule frekansi (54 / 1054) var
+    LatLon mReference = {0.0, 0.0};  // 1302 datum_lat/lon; yoksa kapsayan kutunun ortasi
+    GeoBounds mBounds;       // havalimaninin tum koordinatlarini kapsayan kutu
+    std::vector<Runway> mRunways;  // kara (100) ve su (101) pistleri
+    int mPavementCount = 0;  // 110 sayisi (ayrinti var mi, ne kadar)
+    int mNodeCount = 0;      // 111..116 sayisi
+    AptFileLocation mLocation;
+};
+
+// Kaynagin ciktisi: okunan dosyalar ve havalimanlari
+struct AirportIndex
+{
+    std::vector<std::string> mFiles;  // oncelik sirasiyla apt.dat yollari
+    std::vector<AirportGeometry> mAirports;
 };
 
 class IAirportGeometrySource
@@ -77,15 +97,15 @@ class IAirportGeometrySource
 public:
     virtual ~IAirportGeometrySource() = default;
 
-    // Log'da gorunen ad (ornek: "temporary apt.dat reader")
+    // Log'da gorunen ad
     virtual const char* Name() const = 0;
 
-    // Tum havalimanlarini okuyup pOutAirports'a ekler. ARKA PLAN thread'inde
-    // cagrilir (yukaridaki kurallar). pXPlaneDirectory: "C:\X-Plane 11\"
-    // gibi, sonunda ayirici ile. pOutReport: Log.txt'ye yazilacak kisa rapor.
-    // Basarisizsa false (pOutReport'a nedeni yazilir).
+    // Tum havalimanlarinin ozetini cikarir. ARKA PLAN thread'inde cagrilir:
+    // icinde XPLM fonksiyonu (Log dahil) cagrilmaz; log'a yazilacaklar
+    // pOutReport'a eklenir. pCancel true olursa cabucak false donup cikar.
+    // pXPlaneDirectory: "C:\X-Plane 11\" gibi, sonunda ayirici ile.
     virtual bool LoadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel,
-                         std::vector<AirportGeometry>& pOutAirports, std::string& pOutReport) = 0;
+                         AirportIndex& pOut, std::string& pOutReport) = 0;
 };
 
 // apt.dat yuzey kodunu gruba cevirir (bilinmeyen kod: Paved)

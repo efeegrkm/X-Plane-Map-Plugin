@@ -7,6 +7,7 @@
 //
 // Cikti PPM (P6). PNG'ye cevirmek icin: magick kSEA.ppm kSEA.png
 // Not: ucak ve FMS onizlemede yok (SDK yok); nav verisi dosyalardan okunur.
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -25,11 +26,13 @@
 #include "data/AircraftData.h"
 #include "data/AirportGeometryStore.h"
 #include "data/AirwayDatabase.h"
-#include "data/AptDatReader.h"
+#include "data/AirportDetailStore.h"
+#include "data/AptDatIndexer.h"
 #include "data/NavDatabase.h"
 #include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
+#include "layers/AirportSurfaceLayer.h"
 #include "layers/AirwayLayer.h"
 #include "layers/DrawingLayer.h"
 #include "layers/GridLayer.h"
@@ -75,6 +78,7 @@ struct Options
     bool mDemoDrawings = false;
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
+    std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
 };
 
 bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
@@ -125,6 +129,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--fixes")
         {
             pOut->mFixes = true;
+        }
+        else if (tArg == "--hide" && tHasValue)
+        {
+            pOut->mHidden.push_back(pArgv[++tIndex]);
         }
         else
         {
@@ -250,7 +258,7 @@ int main(int pArgc, char** pArgv)
     if (!ParseOptions(pArgc, pArgv, &tOptions))
     {
         std::fprintf(stderr, "usage: map_preview --lat L --lon L --zoom Z --out file.ppm [--size WxH] "
-                             "[--xplane DIR] [--no-ui] [--demo-drawings] [--fixes]\n");
+                             "[--xplane DIR] [--no-ui] [--demo-drawings] [--fixes] [--hide LAYER_ID]\n");
         return 2;
     }
     HDC tDc = nullptr;
@@ -272,7 +280,7 @@ int main(int pArgc, char** pArgv)
     const std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
     NavDatabase tNav;
     const int tNavCount = LoadNavFromFiles(tOptions.mXPlane, tNav);
-    AirportGeometryStore tRunways(std::make_unique<AptDatReader>());
+    AirportGeometryStore tRunways(std::make_unique<AptDatIndexer>());
     tRunways.StartLoading(tOptions.mXPlane);
     while (!tRunways.Poll())
     {
@@ -287,6 +295,7 @@ int main(int pArgc, char** pArgv)
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     std::printf("airways: %s\n", tAirways.LastReport().c_str());
+    std::printf("airport index:\n%s", tRunways.LastReport().c_str());
     std::printf("data: %d nav records, %d airports with runways (%.1f s)\n", tNavCount, tRunways.Count(),
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count());
 
@@ -298,6 +307,9 @@ int main(int pArgc, char** pArgv)
     tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette);
     LayerManager tLayers;
     tLayers.Add(std::make_unique<TerrainLayer>(tTerrain, tPalette));
+    AirportDetailStore tAirportDetails(tRunways);
+    tAirportDetails.Start();
+    Layer* tSurfaceLayer = tLayers.Add(std::make_unique<AirportSurfaceLayer>(tRunways, tAirportDetails));
     tLayers.Add(std::make_unique<GridLayer>());
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
     tLayers.Add(std::make_unique<RunwayLayer>(tRunways));
@@ -310,6 +322,14 @@ int main(int pArgc, char** pArgv)
     tFixLayer->SetVisible(tOptions.mFixes);
     tLayers.Add(std::make_unique<AircraftLayer>(tAircraft));
     tLayers.Add(std::make_unique<DrawingLayer>(tDrawings));
+    for (int tIndex = 0; tIndex < tLayers.Count(); ++tIndex)
+    {
+        Layer* tLayer = tLayers.At(tIndex);
+        if (std::find(tOptions.mHidden.begin(), tOptions.mHidden.end(), tLayer->Id()) != tOptions.mHidden.end())
+        {
+            tLayer->SetVisible(false);
+        }
+    }
 
     // --- Gorunum: pencere = tum resim, boxel = piksel ---
     const int tWidth = tOptions.mWidth;
@@ -339,12 +359,13 @@ int main(int pArgc, char** pArgv)
         tWarmup.mArea = ToRectD(tArea);
         tWarmup.mClearArea = tWarmup.mArea;
         tLayers.At(0)->Draw(tWarmup);
-        const std::string tLog = tTerrain.TakeLogLines();
+        tSurfaceLayer->Draw(tWarmup);  // havalimani ayrintilarini da iste
+        const std::string tLog = tTerrain.TakeLogLines() + tAirportDetails.TakeLogLines();
         if (!tLog.empty())
         {
             std::printf("%s", tLog.c_str());
         }
-        if (tRound > 2 && tTerrain.IsIdle())
+        if (tRound > 2 && tTerrain.IsIdle() && tAirportDetails.PendingCount() == 0)
         {
             break;
         }

@@ -27,6 +27,7 @@ namespace Gfx
 {
 
 class Texture;
+class StaticMesh;
 
 class Canvas
 {
@@ -52,12 +53,15 @@ public:
     void Draw(const OutlinedLines& pLines);  // once kontur, sonra renkli cizgi
     // pVertices: 3'erli ucgenler (doku koordinatli)
     void DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices);
+    // GPU'da duran sekli ciz: ekrandaki konum = pOffset + kose * pScale (boxel)
+    void DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale);
 
 private:
     struct Program
     {
         unsigned int mId = 0;
         int mMvpLocation = -1;
+        int mTransformLocation = -1;  // vec4(olcek x, olcek y, kaydirma x, kaydirma y)
     };
 
     bool BuildProgram(const char* pVertexSource, const char* pFragmentSource, Program& pOut);

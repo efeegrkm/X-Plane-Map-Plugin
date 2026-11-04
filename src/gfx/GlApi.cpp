@@ -34,6 +34,7 @@ using GetUniformLocationFn = GLint(APIENTRY*)(GLuint, const GLchar*);
 using UniformMatrix4fvFn = void(APIENTRY*)(GLint, GLsizei, GLboolean, const float*);
 using Uniform1iFn = void(APIENTRY*)(GLint, GLint);
 using Uniform1fFn = void(APIENTRY*)(GLint, float);
+using Uniform4fFn = void(APIENTRY*)(GLint, float, float, float, float);
 
 // Yuklenen adresler. Surec boyunca tek bir OpenGL surucusu oldugu icin
 // global tutulmalari dogal (X-Plane'in butun baglamlari ayni surucuden).
@@ -65,6 +66,7 @@ struct Functions
     UniformMatrix4fvFn mUniformMatrix4fv = nullptr;
     Uniform1iFn mUniform1i = nullptr;
     Uniform1fFn mUniform1f = nullptr;
+    Uniform4fFn mUniform4f = nullptr;
 };
 
 Functions gFunctions;
@@ -149,6 +151,7 @@ bool Load(std::string& pOutError)
     LoadOne("glUniformMatrix4fv", tF.mUniformMatrix4fv, tMissing);
     LoadOne("glUniform1i", tF.mUniform1i, tMissing);
     LoadOne("glUniform1f", tF.mUniform1f, tMissing);
+    LoadOne("glUniform4f", tF.mUniform4f, tMissing);
     if (!tMissing.empty())
     {
         pOutError = "OpenGL functions missing: " + tMissing;
@@ -307,6 +310,11 @@ void Uniform1i(GLint pLocation, GLint pValue)
 void Uniform1f(GLint pLocation, float pValue)
 {
     gFunctions.mUniform1f(pLocation, pValue);
+}
+
+void Uniform4(GLint pLocation, float pX, float pY, float pZ, float pW)
+{
+    gFunctions.mUniform4f(pLocation, pX, pY, pZ, pW);
 }
 
 }  // namespace Gl

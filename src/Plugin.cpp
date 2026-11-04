@@ -31,13 +31,15 @@
 #include "data/AircraftData.h"
 #include "data/AirwayDatabase.h"
 #include "data/AirportGeometryStore.h"
-#include "data/AptDatReader.h"
+#include "data/AirportDetailStore.h"
+#include "data/AptDatIndexer.h"
 #include "data/NavDatabase.h"
 #include "data/NavLoader.h"
 #include "data/TerrainClasses.h"
 #include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
+#include "layers/AirportSurfaceLayer.h"
 #include "layers/AirwayLayer.h"
 #include "layers/DrawingLayer.h"
 #include "layers/FmsLayer.h"
@@ -50,23 +52,18 @@
 namespace
 {
 
-const char* kVersion = "0.9";
+const char* kVersion = "0.10";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
 const char* kTerrainCacheFolder = "cache/terrain/";
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
-// ============================ MOTOR BAGLAMA NOKTASI ============================
-// Pist (havalimani geometrisi) verisinin kaynagi. Ekip apt.dat motoru
-// baglanirken SADECE bu fonksiyondaki satir degisir, ornek:
-//     return std::make_unique<TeamAptDatSource>();
-// Ayrintili talimat: src/data/AirportGeometry.h dosyasinin basi.
+// Havalimani ozetlerinin kaynagi: apt.dat dosyalarini tarayan indeksleyici
 std::unique_ptr<IAirportGeometrySource> CreateAirportGeometrySource()
 {
-    return std::make_unique<AptDatReader>();  // GECICI okuyucu
+    return std::make_unique<AptDatIndexer>();
 }
-// ===============================================================================
 
 class MapPlugin
 {
@@ -103,6 +100,7 @@ private:
     NavDatabase mNavDatabase;
     NavLoader mNavLoader{mNavDatabase};  // mNavDatabase'den sonra tanimli olmali
     AirportGeometryStore mAirportGeometry{CreateAirportGeometrySource()};
+    AirportDetailStore mAirportDetails{mAirportGeometry};  // mAirportGeometry'den sonra tanimli olmali
     bool mAirportLoadStarted = false;
     AirwayDatabase mAirways;  // nav verisi hazir olunca arka planda okunur
     TerrainPalette mTerrainPalette;
@@ -159,6 +157,7 @@ void MapPlugin::Stop()
 {
     XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);
     mTerrainStore.Stop();  // zemin iscisi: o an uretilen karoyu bitirip durur
+    mAirportDetails.Stop();
     XPLMUnregisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
     XPLMUnregisterCommandHandler(mControlsCommand, CommandCallback, 1, this);
     XPLMUnregisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
@@ -183,6 +182,7 @@ void MapPlugin::CreateLayers()
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
     // kullanici cizimleri etiketlerinin yerini onceden ayirir).
     mLayers.Add(std::make_unique<TerrainLayer>(mTerrainStore, mTerrainPalette));  // en altta: zemin
+    mLayers.Add(std::make_unique<AirportSurfaceLayer>(mAirportGeometry, mAirportDetails));
     mLayers.Add(std::make_unique<GridLayer>());
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase, &mAirportGeometry));
@@ -342,16 +342,18 @@ void MapPlugin::StepLoading()
         std::array<char, 2048> tSystemPath = {};
         XPLMGetSystemPath(tSystemPath.data());  // "C:\X-Plane 11\" (sonunda ayirici ile)
         mXPlaneDirectory = tSystemPath.data();
-        Log("reading runway data in the background: {}", mAirportGeometry.SourceName());
+        Log("indexing airports in the background: {}", mAirportGeometry.SourceName());
         mAirportGeometry.StartLoading(mXPlaneDirectory);
         mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette);
     }
     LogReport(mTerrainStore.TakeLogLines());
+    LogReport(mAirportDetails.TakeLogLines());
     if (mAirportGeometry.Poll())
     {
-        Log("runway data {}: {} airports, {} runways", mAirportGeometry.LastLoadSucceeded() ? "ready" : "FAILED",
+        Log("airport index {}: {} airports, {} runways", mAirportGeometry.LastLoadSucceeded() ? "ready" : "FAILED",
             mAirportGeometry.Count(), mAirportGeometry.RunwayCount());
         LogReport(mAirportGeometry.LastReport());
+        mAirportDetails.Start();  // ayrintilar artik dosyadaki yerlerinden okunabilir
     }
 
     // Nav verisi: ana thread'de, her karede birkac ms
@@ -384,7 +386,12 @@ void MapPlugin::StepLoading()
     if (mAirportGeometry.IsLoading())
     {
         tMessage += tMessage.empty() ? "" : "   ";
-        tMessage += "Reading runway data...";
+        tMessage += "Indexing airports...";
+    }
+    if (mAirportDetails.PendingCount() > 0)
+    {
+        tMessage += tMessage.empty() ? "" : "   ";
+        tMessage += std::format("Loading airport details: {}", mAirportDetails.PendingCount());
     }
     if (mAirways.IsLoading())
     {

@@ -61,6 +61,8 @@ public:
     void LatLonToBoxel(const LatLon& pPoint, double* pX, double* pY) const;
     // Ayni donusum, cizim icin: dogrudan ekran noktasi doner
     PointF ToScreen(const LatLon& pPoint) const;
+    // Mercator koordinatindan (0..1) ekrana; 180. boylam sarilmasi dahil
+    PointF MercatorToScreen(double pX, double pY) const;
     LatLon BoxelToLatLon(double pX, double pY) const;
 
     // Goruntuyu pDeltaX/pDeltaY boxel kaydirir (fare ile surukleme:

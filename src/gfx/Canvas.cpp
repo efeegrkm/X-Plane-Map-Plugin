@@ -6,22 +6,26 @@
 #include "XPLMGraphics.h"
 
 #include "gfx/GlApi.h"
+#include "gfx/StaticMesh.h"
 #include "gfx/Texture.h"
 
 namespace
 {
 
 // --- Shader'lar (GLSL 3.30) ---
-// Renkli: her kosenin kendi rengi var, matris koseyi boxel'den ekrana tasir.
+// Renkli: her kosenin kendi rengi var. uTransform kosesi once boxel'e
+// tasir (GPU'da duran sekiller icin: olcek + kaydirma; normal cizimde 1, 0),
+// matris de boxel'den ekrana.
 const char* kColorVertexShader = R"(#version 330 core
 layout(location = 0) in vec2 aPosition;
 layout(location = 1) in vec4 aColor;
 uniform mat4 uMvp;
+uniform vec4 uTransform;
 out vec4 vColor;
 void main()
 {
     vColor = aColor;
-    gl_Position = uMvp * vec4(aPosition, 0.0, 1.0);
+    gl_Position = uMvp * vec4(aPosition * uTransform.xy + uTransform.zw, 0.0, 1.0);
 }
 )";
 
@@ -226,6 +230,7 @@ bool Canvas::BuildProgram(const char* pVertexSource, const char* pFragmentSource
     }
     pOut.mId = tProgram;
     pOut.mMvpLocation = Gl::GetUniformLocation(tProgram, "uMvp");
+    pOut.mTransformLocation = Gl::GetUniformLocation(tProgram, "uTransform");
     return true;
 }
 
@@ -279,6 +284,7 @@ void Canvas::Draw(const Mesh& pMesh)
     BindingGuard tGuard;
     Gl::UseProgram(mColorProgram.mId);
     Gl::UniformMatrix4(mColorProgram.mMvpLocation, mMvp);
+    Gl::Uniform4(mColorProgram.mTransformLocation, 1.0f, 1.0f, 0.0f, 0.0f);
     Gl::BindVertexArray(mColorArray);
     Gl::BindBuffer(Gl::kArrayBuffer, mColorBuffer);
     // Her cizimde buffer bastan ayrilir ("orphaning"): surucu eski veriyi
@@ -292,6 +298,23 @@ void Canvas::Draw(const OutlinedLines& pLines)
 {
     Draw(pLines.Outline());
     Draw(pLines.Fill());
+}
+
+void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale)
+{
+    if (!mReady || pMesh.IsEmpty())
+    {
+        return;
+    }
+    XPLMSetGraphicsState(0, 0, 0, 0, 1, 0, 0);
+
+    BindingGuard tGuard;
+    Gl::UseProgram(mColorProgram.mId);
+    Gl::UniformMatrix4(mColorProgram.mMvpLocation, mMvp);
+    const float tScale = static_cast<float>(pScale);
+    Gl::Uniform4(mColorProgram.mTransformLocation, tScale, tScale, pOffset.mX, pOffset.mY);
+    Gl::BindVertexArray(pMesh.VertexArray());
+    glDrawArrays(pMesh.GetPrimitive() == Primitive::Lines ? GL_LINES : GL_TRIANGLES, 0, pMesh.VertexCount());
 }
 
 void Canvas::DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices)
