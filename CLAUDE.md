@@ -5,7 +5,8 @@ X-Plane 11 içinde, Kaşif / OSM / dış harita servisi kullanmadan, sadece
 X-Plane'in kendi verisi + OpenGL ile, **kendi penceresinde** çalışan ve
 katmanları tek tek açılıp kapatılabilen bir harita (AR-GE). Ayrıntılı görev
 tanımı, kararlar ve aşamalar: **`GOREV.md`** (önce onu oku). Kullanım, test
-listesi ve dosya görevleri: `README.md`.
+listesi ve dosya görevleri: `README.md`. Kod haritası: `MIMARI.md`; başka
+bir yapay zekâ için devir notu: `AGENTS.md` (durum değişince ikisini de güncelle).
 
 ## Çalışma şekli
 - Kullanıcıyla Türkçe konuş. Kullanıcı X-Plane plugin geliştirmeye yeni,

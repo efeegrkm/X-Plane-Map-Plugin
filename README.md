@@ -21,6 +21,9 @@ yeni sahne kurulunca harita da kendiliğinden güncellenir.
 
 Eski XPLMMap prototipi (0.3): `legacy/xplmmap_prototype/` (derlenmiyor).
 
+
+Kod haritası: `MIMARI.md`. Başka bir yapay zekâ asistanı için devir notu: `AGENTS.md`.
+
 ## Kurulum ve derleme
 
 Qt Creator'da projeyi aç ve derle (kit: Desktop Qt 6.10.1 MSVC2022 64bit).
