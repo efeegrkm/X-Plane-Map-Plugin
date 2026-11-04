@@ -1,8 +1,11 @@
 # GÖREV 0.9 — OpenGL yenileme, havalimanı yüzeyleri, harita modları
 
-> Bu dosya işyerindeki AI (ve geliştirici) için yazıldı. Hazırlayan: Claude,
 > 2026-11-04, kullanıcının isteğiyle. Başlangıç noktası: sürüm 0.8
-> (commit `bfd2372` ve sonrası).
+> (bu dosyayla birlikte verilen proje klasörü).
+>
+> **Çalışma ortamı:** Proje klasörü iş bilgisayarına elle kopyalanır. Bu
+> bilgisayar git'e / GitHub'a bağlı değildir; commit, push, pull yoktur.
+> Ekip apt.dat motoru aynı bilgisayardadır ve doğrudan projeye bağlanır.
 
 ## 0. Önce oku, sonra bu sırayla çalış
 
@@ -51,20 +54,15 @@ Bir adım X-Plane'de geçmeden sonrakine geçilmez.
   - X-Plane başka bir klasördeyse `-DXPLANE_DIR=...` ver.
   - X-Plane açıkken `win.xpl` kilitlidir; kopyalama başarısız olur.
 
-### 1.1 GÜVENLİK: ekip motoru GitHub'a gitmez
+### 1.1 Motor kodu nerede durur
 
-- Depo: `github.com/efeegrkm/X-Plane-Map-Plugin`. Görünürlüğü herkese açık
-  kabul et.
-- Depoya **hiçbiri girmez**, commit mesajları ve kod yorumları dahil:
-  - ekip apt.dat motorunun kodu ve başlıkları,
-  - adapter (motorun başlığını include eden her dosya),
-  - motorun çıktısı ya da örnek verisi,
-  - motorun iç adları (namespace, sınıf adları).
-- Bunun düzeni B.1'deki "dış bağlama": adapter ve motor depo dışındaki bir
-  klasörde durur, CMake'e yol olarak verilir.
-- Her push'tan önce:
-  - `git status` ve `git diff --cached --stat` ile girecek dosyalara bak,
-  - motorun namespace ve sınıf adlarıyla `git grep` çalıştır: sonuç boş olmalı.
+- İş bilgisayarında motor ve adapter doğrudan projeye eklenebilir
+  (`src/data/` altına ya da ayrı bir klasöre; `CMakeLists.txt`'ye eklenir).
+- Yine de motora bağlı dosyaları ayrı tut (adapter + motor tek yerde; geri
+  kalan kod sadece `IAirportGeometrySource` arayüzünü bilir). Böylece proje
+  motor olmadan da derlenir (geçici `AptDatReader` ile) ve kullanıcı
+  değişiklikleri kendi bilgisayarına taşırken motor dosyalarını kolayca
+  dışarıda bırakabilir.
 
 ---
 
@@ -427,49 +425,32 @@ testler ve önizleme karşılaştırması.
   nokta listesi veriyorsa adapter düğümleri `mHasControl = false` olarak
   verir; geri kalanı aynen çalışır.
 
-### B.1 Dış bağlama (güvenlik, bkz. 1.1)
+### B.1 Motoru bağlama
 
-**Depo dışında bir klasör** (örnek: `D:/work/map_airport_source/`). İçinde:
-- ekip motoru (ya da ona giden yol),
-- adapter: `IAirportGeometrySource`'tan türeyen sınıf + aşağıdaki
-  `CreateExternalAirportSource()`'un tanımı,
-- `MapPluginBinding.cmake`: adapter ve motor kaynaklarını `MapPlugin` ve
-  `map_preview` hedeflerine ekler.
-
-**Depoya eklenecek genel kanca** (motorun adı hiçbir yerde geçmez):
-- **CMake:** `set(MAP_AIRPORT_SOURCE_DIR "" CACHE PATH "External airport geometry source")`.
-  Doluysa `include(${MAP_AIRPORT_SOURCE_DIR}/MapPluginBinding.cmake)` ve
-  `MAP_EXTERNAL_AIRPORT_SOURCE=1` tanımı eklenir.
+- Adapter: `IAirportGeometrySource`'tan türeyen sınıf (örnek ad
+  `src/data/TeamAptDatSource.h/.cpp`). `LoadAll()` içinde motoru çalıştırır
+  ve sonucu B.2'deki yapılara kopyalar.
+- Motorun kaynakları/kütüphanesi ve adapter `CMakeLists.txt`'de
+  `PLUGIN_SOURCES`'a eklenir. Bir CMake seçeneği önerilir:
+  `option(MAP_TEAM_APTDAT "Use the team apt.dat engine" ON)`; kapalıyken
+  proje geçici `AptDatReader` ile derlenir.
 - **Fabrika dosyası:** `CreateAirportGeometrySource()` `src/Plugin.cpp`'den
   yeni bir çekirdek dosyaya taşınır: `src/data/AirportSourceFactory.h/.cpp`.
   Böylece önizleme aracı da aynı kaynağı kullanır (bugün preview
   `AptDatReader`'ı doğrudan yaratıyor: `tools/preview/PreviewMain.cpp:267`).
 
   ```cpp
-  // AirportSourceFactory.h
-  std::unique_ptr<IAirportGeometrySource> CreateAirportGeometrySource();
-  #if MAP_EXTERNAL_AIRPORT_SOURCE
-  // Tanimi depo DISINDAKI adapter dosyasinda
-  std::unique_ptr<IAirportGeometrySource> CreateExternalAirportSource();
-  #endif
-
-  // AirportSourceFactory.cpp
   std::unique_ptr<IAirportGeometrySource> CreateAirportGeometrySource()
   {
-  #if MAP_EXTERNAL_AIRPORT_SOURCE
-      return CreateExternalAirportSource();
+  #if MAP_TEAM_APTDAT
+      return std::make_unique<TeamAptDatSource>();
   #else
       return std::make_unique<AptDatReader>();  // GECICI okuyucu
   #endif
   }
   ```
-
-  Depodaki kod motorun hiçbir adını bilmez.
-- **`.gitignore` güvenlik ağı:** `external_airport_source/` (biri klasörü
-  yanlışlıkla depo içine koyarsa diye).
 - **Talimatları güncelle:** `src/data/AirportGeometry.h`'nin başındaki
-  bağlama talimatı ve README'deki "apt.dat motorunu bağlama" bölümü bu düzene
-  göre yeniden yazılır.
+  bağlama talimatı ve README'deki "apt.dat motorunu bağlama" bölümü.
 
 ### B.2 Arayüz genişletme (`src/data/AirportGeometry.h`)
 
@@ -653,10 +634,10 @@ Kimlik `airport_surfaces`, panelde görünen ad "Airport surfaces".
 ### B.7 Adımlar
 
 **B1 — Kanca ve arayüz.**
-- Dış bağlama düzenini ve arayüz genişletmesini yap.
+- Fabrika dosyasını ve arayüz genişletmesini yap.
 - `FakeAirportSource`'a (`tests/tests.cpp`) delikli bir yüzey ekle: motor
   olmadan derlenmeli, testler geçmeli.
-- Depo tarafını commit et; dış klasör commit **edilmez**.
+- Bu adım motorsuz (`MAP_TEAM_APTDAT=OFF`) da derlenmeli.
 
 **B2 — Şekil hesapları.** `AirportShapes` (Bezier düzleştirme + üçgenleme)
 ve testleri.
@@ -704,7 +685,7 @@ Low Enroute ve IFR High Enroute. Bizde dört mod olacak:
   - Rainier (dağlık),
   - Pasifik kıyısı.
 - Renkleri görüntüden örnekle (örnek: `magick x.png -crop 1x1+X+Y txt:`).
-- Görüntüler sadece yerel referanstır; depoya konmaz.
+- Görüntüler sadece referanstır; proje klasörüne konmaz.
 
 ### C.2 Tasarım
 
@@ -809,7 +790,9 @@ renkler.
 4. X-Plane testi (adımdaki liste). Sonucu kullanıcıya göster.
 5. README.md (Türkçe: katmanlar, kullanım, test listesi) ve CLAUDE.md
    (mimari, durum, sıradaki) güncellenir; `Plugin.cpp`'deki `kVersion` da.
-6. Commit (İngilizce mesaj). Push'tan önce güvenlik kontrolü (1.1).
+6. Adımın sonunda yapılanları kısa bir listeyle `CHANGES_0.9.md`'ye yaz
+   (kullanıcı değişiklikleri kendi bilgisayarına bununla taşıyacak; motor
+   dosyalarını ayrı belirt).
 
 ## E. Bu turda kapsam dışı
 

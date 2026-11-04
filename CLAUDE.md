@@ -140,7 +140,7 @@ listesi ve dosya görevleri: `README.md`.
 ## Sıradaki
 - **`GOREV_0.9.md`**: işyerindeki AI için ayrıntılı görev dosyası.
   A: OpenGL 3.3'e geçiş + C tarzı temizlik; B: havalimanı yüzeyleri (ekip
-  motoru, depo DIŞINDAN bağlanır: motor kodu GitHub'a girmez); C: harita
+  motoru; iş bilgisayarı git'e bağlı değil, proje oraya elle kopyalanır); C: harita
   modları (Scenery / VFR / IFR Low / IFR High). Sıra A → B → C.
 - Açık sorular: zemin renkleri, önbellek disk sınırı, eski HaritaPlugin
   klasörünü silme.
