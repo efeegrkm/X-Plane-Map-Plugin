@@ -60,9 +60,9 @@ listesi ve dosya görevleri: `README.md`.
   Kaynak: XP-APT-1100 spesifikasyonu (kullanıcı verdi; ekip motorunu da buna
   göre yazmıştı). Ölçülen Global Airports apt.dat: 325 MB, 29.856 havalimanı,
   7,25 milyon düğüm (111-116), 156 bin yüzey (110), 881 bin çizgi (120).
-- Arayüz  () ve bağlama
-  noktası   duruyor; yeni okuyucu
-  bunların yerini alacak/genişletecek. Geçici  sadece
+- Arayüz `data/AirportGeometry.h` (`IAirportGeometrySource`) ve bağlama
+  noktası `Plugin.cpp` `CreateAirportGeometrySource()` duruyor; yeni okuyucu
+  bunların yerini alacak/genişletecek. Geçici `data/AptDatReader` sadece
   1/16/17 ve 100 satırlarını okuyor.
 
 ## Zemin kararı (kullanıcı)
