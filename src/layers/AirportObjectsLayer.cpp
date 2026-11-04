@@ -8,6 +8,7 @@
 #include "LabelPlacer.h"
 #include "MapView.h"
 #include "data/AirportDetailStore.h"
+#include "data/AirportShapes.h"
 #include "data/AirportGeometryStore.h"
 #include "gfx/Canvas.h"
 #include "layers/AirportVisibility.h"
@@ -25,6 +26,7 @@ const double kStartMinZoom = 15.0;
 const double kStartLabelMinZoom = 16.5;
 const double kLightMinZoom = 15.0;
 const double kSignMinZoom = 16.0;
+const double kLampMinZoom = 15.0;  // cizgi boyunca isiklar (101-108)
 const float kHitSlop = 3.0f;  // fare isabeti icin semboller biraz buyuk sayilir
 
 const Rgba kGate = {0.35f, 0.75f, 1.00f, 1.0f};
@@ -51,6 +53,31 @@ PointF Rotated(const PointF& pCenter, double pHeadingDeg, float pRight, float pF
     const float tSin = static_cast<float>(std::sin(pHeadingDeg * kPi / 180.0));
     const float tCos = static_cast<float>(std::cos(pHeadingDeg * kPi / 180.0));
     return {pCenter.mX + pRight * tCos + pForward * tSin, pCenter.mY - pRight * tSin + pForward * tCos};
+}
+
+// Isik turu (101-108) -> renk. Iki renkli dizilerde (105, 108) lambalar sirayla degisir.
+Rgba LampColor(int pType, size_t pIndex)
+{
+    const Rgba tGreen = {0.30f, 1.00f, 0.40f, 1.0f};
+    const Rgba tBlue = {0.35f, 0.55f, 1.00f, 1.0f};
+    switch (pType)
+    {
+        case 101:  // taksi orta hatti
+        case 107:  // pistten cikis
+            return tGreen;
+        case 102:  // taksi kenari
+            return tBlue;
+        case 103:  // bekleme cizgisi
+        case 104:  // pist bekleme (yanip sonen)
+            return kAmber;
+        case 105:  // pist emniyet bolgesi orta hatti
+        case 108:  // piste giris
+            return (pIndex % 2 == 0) ? tGreen : kAmber;
+        case 106:  // tehlikeli bolge kenari
+            return kRed;
+        default:
+            return kWhite;
+    }
 }
 
 // Burun yonune donuk ok (ucak / park noktasi)
@@ -242,6 +269,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
     Gfx::Mesh tFills;  // dolgular (ustune konturlu cizgiler)
     Gfx::OutlinedLines tLines(MapSymbols::kOutlineExtra);
     Gfx::Mesh tThin;   // konturu olmayan ince cizgiler
+    Gfx::Mesh tLamps;  // isik noktalari (en altta: semboller ustune binsin)
     const RectD& tArea = pContext.mArea;
     auto tOnScreen = [&](const PointF& pPoint)
     {
@@ -256,6 +284,30 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
             continue;  // yuzey katmani "yukleniyor" kutusunu zaten ciziyor
         }
         const AirportDetail& tDetail = tLoaded->mDetail;
+
+        // Isik dizileri: lambalar GPU'daki sekillerle ayni donusumle (kaydirma + olcek)
+        if (tZoom >= kLampMinZoom)
+        {
+            const AirportShapes& tShapes = tLoaded->mShapes;
+            const PointF tOffset = tView.MercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
+            const float tScale = static_cast<float>(tView.WorldSize());
+            const double tHalf = tZoom >= 16.5 ? 1.4 : 1.0;
+            for (size_t tLamp = 0; tLamp < tShapes.mLights.size(); ++tLamp)
+            {
+                const LightPoint& tLight = tShapes.mLights[tLamp];
+                const PointF tPoint = {tOffset.mX + tLight.mPoint.mX * tScale, tOffset.mY + tLight.mPoint.mY * tScale};
+                if (!tOnScreen(tPoint))
+                {
+                    continue;
+                }
+                RectD tBox;
+                tBox.mLeft = tPoint.mX - tHalf;
+                tBox.mRight = tPoint.mX + tHalf;
+                tBox.mBottom = tPoint.mY - tHalf;
+                tBox.mTop = tPoint.mY + tHalf;
+                tLamps.AddRect(tBox, LampColor(tLight.mType, tLamp));
+            }
+        }
         const double tMetersToBoxels = 1.0 / tView.MetersPerBoxelAt(mSummaries.At(tIndex).mReference.mLat);
 
         // Helipad: gercek boyunda (en az 9 boxel) cember + yone donuk "H"
@@ -434,6 +486,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
     }
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
+    tCanvas.Draw(tLamps);
     tCanvas.Draw(tFills);
     tCanvas.Draw(tLines);
     tCanvas.Draw(tThin);

@@ -65,6 +65,23 @@ struct LineMesh
     bool mClosed = false;
 };
 
+// Cizgi boyunca dizili tek bir isik (101-108), Mercator farki
+struct LightPoint
+{
+    PointF mPoint;
+    int mType = 0;
+};
+
+// Taksi agi kenari (1202): uclar Mercator farki
+struct TaxiEdgeShape
+{
+    PointF mFrom;
+    PointF mTo;
+    std::string mName;  // "A", "16L/34R"; bos olabilir
+    bool mRunway = false;
+    bool mOneWay = false;
+};
+
 // Bir havalimaninin cizilebilir sekilleri
 struct AirportShapes
 {
@@ -74,6 +91,8 @@ struct AirportShapes
     std::vector<std::vector<PointF>> mPavementEdges;  // yuzeylerin kenar halkalari (ucgenleme basarisizsa da cizilir)
     std::vector<std::vector<PointF>> mBoundaries;     // havalimani siniri halkalari (130)
     std::vector<LineMesh> mLines;                     // boya cizgileri ve isik dizileri (120 + yuzey kenari stilleri)
+    std::vector<LightPoint> mLights;                  // isik dizilerinin tek tek lambalari
+    std::vector<TaxiEdgeShape> mTaxiEdges;            // ucak taksi agi (1202; yer araci kenarlari haric)
     int mFailedPolygons = 0;                          // ucgenlenemeyen yuzey sayisi (sadece kenari cizilir)
     size_t mVertexCount = 0;                          // bellek / teshis icin
 };

@@ -663,10 +663,17 @@ bool Earcut<N>::pointInTriangle(double ax, double ay, double bx, double by, doub
 // check if a diagonal between two polygon nodes is valid (lies in polygon interior)
 template <typename N>
 bool Earcut<N>::isValidDiagonal(Node* a, Node* b) {
-    return a->next->i != b->i && a->prev->i != b->i && !intersectsPolygon(a, b) && // dones't intersect other edges
-           ((locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && // locally visible
-            (area(a->prev, a, b->prev) != 0.0 || area(a, b->prev, b) != 0.0)) || // does not create opposite-facing sectors
-            (equals(a, b) && area(a->prev, a, a->next) > 0 && area(b->prev, b, b->next) > 0)); // special zero-length case
+    // MapPlugin patch (see third_party/earcut/README.txt): same conditions as the
+    // original, evaluated cheap-first. intersectsPolygon() walks every edge (O(n));
+    // the original called it before the O(1) visibility tests, which made
+    // splitEarcut() very slow on large self-intersecting pavements.
+    if (a->next->i == b->i || a->prev->i == b->i) return false;
+    const bool visible = locallyInside(a, b) && locallyInside(b, a) && // locally visible
+                         (area(a->prev, a, b->prev) != 0.0 || area(a, b->prev, b) != 0.0); // no opposite-facing sectors
+    const bool zeroLength = equals(a, b) && area(a->prev, a, a->next) > 0 && area(b->prev, b, b->next) > 0;
+    if (!visible && !zeroLength) return false;
+    if (intersectsPolygon(a, b)) return false; // doesn't intersect other edges
+    return zeroLength || middleInside(a, b);
 }
 
 // signed area of a triangle

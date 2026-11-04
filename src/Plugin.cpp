@@ -40,6 +40,7 @@
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
 #include "layers/AirportObjectsLayer.h"
+#include "layers/TaxiRouteLayer.h"
 #include "layers/AirportSurfaceLayer.h"
 #include "layers/AirwayLayer.h"
 #include "layers/DrawingLayer.h"
@@ -189,6 +190,7 @@ void MapPlugin::CreateLayers()
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mNavDatabase, &mAirportGeometry));
     mLayers.Add(std::make_unique<RunwayLayer>(mAirportGeometry));
+    mLayers.Add(std::make_unique<TaxiRouteLayer>(mAirportGeometry, mAirportDetails));  // varsayilan kapali
     mLayers.Add(std::make_unique<AirportObjectsLayer>(mAirportGeometry, mAirportDetails));  // pistlerin ustunde
     // Hava yollari navaid sembollerinin altinda (cizgiler sembolleri ortmesin)
     mLayers.Add(std::make_unique<AirwayLayer>(mAirways, false));

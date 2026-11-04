@@ -71,6 +71,7 @@ set(PLUGIN_SOURCES
     src/layers/TerrainLayer.cpp
     src/layers/AirportSurfaceLayer.cpp
     src/layers/AirportObjectsLayer.cpp
+    src/layers/TaxiRouteLayer.cpp
     src/layers/AirportVisibility.cpp
     src/layers/GridLayer.cpp
     src/layers/RunwayLayer.cpp
@@ -205,6 +206,7 @@ if(MAP_PREVIEW AND WIN32)
         src/layers/TerrainLayer.cpp
         src/layers/AirportSurfaceLayer.cpp
         src/layers/AirportObjectsLayer.cpp
+        src/layers/TaxiRouteLayer.cpp
         src/layers/AirportVisibility.cpp
         src/layers/GridLayer.cpp
         src/layers/RunwayLayer.cpp

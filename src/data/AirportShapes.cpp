@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <unordered_map>
 
 // earcut noktanin x'ini nth<0>, y'sini nth<1> ile okur: LocalPoint'i tanit
 namespace mapbox
@@ -42,6 +43,7 @@ const double kPi = 3.14159265358979323846;
 const double kMaxStepM = 2.0;          // egri uzerinde en fazla ~2 m'de bir nokta
 const int kMaxSegmentPieces = 32;      // bir egri en fazla bu kadar parcaya bolunur
 const double kSamePointM = 0.01;       // 1 cm'den yakin ardisik noktalar tek nokta sayilir
+const double kLightSpacingM = 15.0;    // isik dizisinde lambalar arasi (orta hat isiklari 15 m civari)
 
 double Distance(const LocalPoint& pA, const LocalPoint& pB)
 {
@@ -100,6 +102,19 @@ public:
     {
     }
 
+    PointF Convert(const LocalPoint& pPoint) const
+    {
+        const LatLon tLatLon = mFrame.ToLatLon(pPoint);
+        return {static_cast<float>(Mercator::LonToX(tLatLon.mLon) - mOriginX),
+                static_cast<float>(Mercator::LatToY(tLatLon.mLat) - mOriginY)};
+    }
+
+    PointF Convert(const LatLon& pPoint) const
+    {
+        return {static_cast<float>(Mercator::LonToX(pPoint.mLon) - mOriginX),
+                static_cast<float>(Mercator::LatToY(pPoint.mLat) - mOriginY)};
+    }
+
     std::vector<PointF> Convert(const std::vector<LocalPoint>& pPoints) const
     {
         std::vector<PointF> tResult;
@@ -118,6 +133,41 @@ private:
     double mOriginX;
     double mOriginY;
 };
+
+// Isik tipli parcalar boyunca kLightSpacingM araliklarla lamba koyar (aralik
+// parcadan parcaya tasinir: kavisli dizilerde de lambalar esit aralikli kalir)
+void AddLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LightPoint>& pOut)
+{
+    const size_t tCount = pChain.mPoints.size();
+    const size_t tSegments = pChain.mClosed ? tCount : (tCount > 0 ? tCount - 1 : 0);
+    double tCarry = 0.0;  // bir sonraki lambaya kalan mesafe
+    for (size_t tSegment = 0; tSegment < tSegments && tSegment < pChain.mLightTypes.size(); ++tSegment)
+    {
+        const int tType = pChain.mLightTypes[tSegment];
+        if (tType == 0)
+        {
+            tCarry = 0.0;
+            continue;
+        }
+        const LocalPoint& tFrom = pChain.mPoints[tSegment];
+        const LocalPoint& tTo = pChain.mPoints[(tSegment + 1) % tCount];
+        const double tLength = Distance(tFrom, tTo);
+        if (tCarry >= tLength)
+        {
+            tCarry -= tLength;  // bu parcaya lamba dusmuyor
+            continue;
+        }
+        double tAt = tCarry;
+        for (; tAt < tLength; tAt += kLightSpacingM)
+        {
+            const double tT = tAt / tLength;
+            pOut.push_back({pWriter.Convert(LocalPoint{tFrom.mX + (tTo.mX - tFrom.mX) * tT,
+                                                       tFrom.mY + (tTo.mY - tFrom.mY) * tT}),
+                            tType});
+        }
+        tCarry = tAt - tLength;  // son lambadan sonraki lambaya kalan mesafe
+    }
+}
 
 // Stili olan zincirleri (boya cizgisi / isik) cizgi listesine ekler
 void AddStyledLine(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LineMesh>& pOut)
@@ -311,6 +361,7 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
         {
             tShapes.mPavementEdges.push_back(tWriter.Convert(tRing.mPoints));
             AddStyledLine(tRing, tWriter, tShapes.mLines);  // yuzey kenarindaki cizgi ve isiklar
+            AddLights(tRing, tWriter, tShapes.mLights);
         }
     }
 
@@ -326,13 +377,34 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
     {
         for (const AptChain& tChain : tFeature.mChains)
         {
-            AddStyledLine(Flatten(tChain, tFrame, kMaxStepM), tWriter, tShapes.mLines);
+            const FlatChain tFlat = Flatten(tChain, tFrame, kMaxStepM);
+            AddStyledLine(tFlat, tWriter, tShapes.mLines);
+            AddLights(tFlat, tWriter, tShapes.mLights);
         }
     }
+    // Taksi agi: dugum kimligi -> konum, sonra ucak kenarlari
+    std::unordered_map<int, LatLon> tNodes;
+    for (const AptTaxiNode& tNode : pDetail.mTaxiNodes)
+    {
+        tNodes[tNode.mId] = tNode.mPosition;
+    }
+    for (const AptTaxiEdge& tEdge : pDetail.mTaxiEdges)
+    {
+        const auto tFrom = tNodes.find(tEdge.mFrom);
+        const auto tTo = tNodes.find(tEdge.mTo);
+        if (tEdge.mGroundVehicles || tFrom == tNodes.end() || tTo == tNodes.end())
+        {
+            continue;
+        }
+        tShapes.mTaxiEdges.push_back(
+            {tWriter.Convert(tFrom->second), tWriter.Convert(tTo->second), tEdge.mName, tEdge.mRunway, tEdge.mOneWay});
+    }
+
     for (const LineMesh& tLine : tShapes.mLines)
     {
         tShapes.mVertexCount += tLine.mPoints.size();
     }
+    tShapes.mVertexCount += tShapes.mLights.size() + 2 * tShapes.mTaxiEdges.size();
     return tShapes;
 }
 

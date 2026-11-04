@@ -33,6 +33,7 @@
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
 #include "layers/AirportObjectsLayer.h"
+#include "layers/TaxiRouteLayer.h"
 #include "layers/AirportSurfaceLayer.h"
 #include "layers/AirwayLayer.h"
 #include "layers/DrawingLayer.h"
@@ -80,6 +81,7 @@ struct Options
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
+    std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
     // --describe x,y: o noktadaki fare aciklamasini yazdir (resim pikseli, ust = 0)
     std::vector<std::pair<double, double>> mDescribe;
 };
@@ -136,6 +138,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--hide" && tHasValue)
         {
             pOut->mHidden.push_back(pArgv[++tIndex]);
+        }
+        else if (tArg == "--show" && tHasValue)
+        {
+            pOut->mShown.push_back(pArgv[++tIndex]);
         }
         else if (tArg == "--describe" && tHasValue)
         {
@@ -327,6 +333,7 @@ int main(int pArgc, char** pArgv)
     tLayers.Add(std::make_unique<GridLayer>());
     tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
     tLayers.Add(std::make_unique<RunwayLayer>(tRunways));
+    tLayers.Add(std::make_unique<TaxiRouteLayer>(tRunways, tAirportDetails));
     tLayers.Add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, false));
     tLayers.Add(std::make_unique<AirwayLayer>(tAirways, true));
@@ -343,6 +350,10 @@ int main(int pArgc, char** pArgv)
         if (std::find(tOptions.mHidden.begin(), tOptions.mHidden.end(), tLayer->Id()) != tOptions.mHidden.end())
         {
             tLayer->SetVisible(false);
+        }
+        if (std::find(tOptions.mShown.begin(), tOptions.mShown.end(), tLayer->Id()) != tOptions.mShown.end())
+        {
+            tLayer->SetVisible(true);
         }
     }
 

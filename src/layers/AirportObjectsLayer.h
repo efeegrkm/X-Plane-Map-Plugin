@@ -10,6 +10,8 @@
 //   ruzgar tulumu (19)       direk + turuncu/beyaz koni           14+
 //   PAPI / VASI (21)         kirmizi-beyaz isik sirasi            15+
 //   tabela (20)              rengine gore kucuk dikdortgen        16+
+//   isik dizileri (101-108)  turune gore renkli kucuk noktalar,   15+
+//                            15 m arayla (yesil orta hat, mavi kenar ...)
 //
 // Fare uzerine gelince Describe ne oldugunu soyler ("Gate A10 (jets)").
 // Veri AirportDetailStore'dan; okunmamis havalimani icin istek gonderir.
