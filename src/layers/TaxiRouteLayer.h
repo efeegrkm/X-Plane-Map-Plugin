@@ -1,7 +1,7 @@
 // TaxiRouteLayer.h
 // Taksi agi (apt.dat 1201 dugum + 1202 kenar): X-Plane ATC'nin taksi
 // talimatlarinda kullandigi yollar ve taksi yolu adlari ("A", "B" ...).
-// Uzaktan cok yogun gorundugu icin VARSAYILAN KAPALI, zoom 14+ cizilir.
+// Uzaktan cok yogun gorundugu icin VARSAYILAN KAPALI, zoom 13.5+ cizilir.
 // Fare uzerine gelince kenarin adi ve yonu gorunur.
 #pragma once
 

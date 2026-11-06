@@ -19,15 +19,49 @@ namespace
 
 const double kPi = 3.14159265358979323846;
 
-const double kHelipadMinZoom = 13.0;
-const double kBeaconMinZoom = 13.0;
-const double kWindsockMinZoom = 14.0;
-const double kStartMinZoom = 15.0;
-const double kStartLabelMinZoom = 16.5;
-const double kLightMinZoom = 15.0;
-const double kSignMinZoom = 16.0;
-const double kLampMinZoom = 15.0;  // cizgi boyunca isiklar (101-108)
+const double kHelipadMinZoom = 12.5;
+const double kBeaconMinZoom = 12.5;
+const double kWindsockMinZoom = 13.5;
+const double kStartMinZoom = 14.0;    // 15'ten 2 tik erken: kapilar uzaktan gorunsun
+const double kStartLabelMinZoom = 15.5;
+const double kLightMinZoom = 14.5;    // PAPI / VASI: 1 tik erken
+const double kSignMinZoom = 15.5;
+const double kLampMinZoom = 14.5;     // cizgi boyunca isiklar (101-108): 1 tik erken
 const float kHitSlop = 3.0f;  // fare isabeti icin semboller biraz buyuk sayilir
+
+// Alt katmanlar (yapicidaki AddSubLayer sirasi)
+enum ObjectPart
+{
+    kPartLighting,
+    kPartHelipads,
+    kPartBeacons,
+    kPartWindsocks,
+    kPartGates,
+    kPartTieDowns,
+    kPartHangars,
+    kPartOtherStarts,
+    kPartStartNames,
+    kPartApproachLights,
+    kPartSigns,
+};
+
+// Kalkis/park noktasi turu -> alt katman
+int StartPartOf(const std::string& pType)
+{
+    if (pType == "gate")
+    {
+        return kPartGates;
+    }
+    if (pType == "tie_down" || pType == "tie-down")
+    {
+        return kPartTieDowns;
+    }
+    if (pType == "hangar")
+    {
+        return kPartHangars;
+    }
+    return kPartOtherStarts;
+}
 
 const Rgba kGate = {0.35f, 0.75f, 1.00f, 1.0f};
 const Rgba kTieDown = {0.45f, 0.90f, 0.45f, 1.0f};
@@ -253,6 +287,17 @@ AirportObjectsLayer::AirportObjectsLayer(const AirportGeometryStore& pSummaries,
     , mSummaries(pSummaries)
     , mDetails(pDetails)
 {
+    AddSubLayer("lighting", "Edge / taxi lights");
+    AddSubLayer("helipads", "Helipads");
+    AddSubLayer("beacons", "Beacons");
+    AddSubLayer("windsocks", "Windsocks");
+    AddSubLayer("gates", "Gates");
+    AddSubLayer("tie_downs", "Tie-downs");
+    AddSubLayer("hangars", "Hangars");
+    AddSubLayer("other_starts", "Other start locations");
+    AddSubLayer("start_names", "Parking names");
+    AddSubLayer("approach_lights", "PAPI / VASI");
+    AddSubLayer("signs", "Taxi signs");
 }
 
 void AirportObjectsLayer::Draw(const DrawContext& pContext)
@@ -287,7 +332,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         const AirportDetail& tDetail = tLoaded->mDetail;
 
         // Isik dizileri: lambalar GPU'daki sekillerle ayni donusumle (kaydirma + olcek)
-        if (tZoom >= kLampMinZoom)
+        if (tZoom >= kLampMinZoom && IsSubLayerVisible(kPartLighting))
         {
             const AirportShapes& tShapes = tLoaded->mShapes;
             const PointF tOffset = tView.MercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
@@ -315,7 +360,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         for (const AptHelipad& tPad : tDetail.mHelipads)
         {
             const PointF tCenter = tView.ToScreen(tPad.mCenter);
-            if (!tOnScreen(tCenter))
+            if (!IsSubLayerVisible(kPartHelipads) || !tOnScreen(tCenter))
             {
                 continue;
             }
@@ -352,7 +397,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         for (const AptBeacon& tBeacon : tDetail.mBeacons)
         {
             const PointF tCenter = tView.ToScreen(tBeacon.mPosition);
-            if (tBeacon.mType == 0 || !tOnScreen(tCenter))
+            if (tBeacon.mType == 0 || !IsSubLayerVisible(kPartBeacons) || !tOnScreen(tCenter))
             {
                 continue;
             }
@@ -367,7 +412,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         }
 
         // Ruzgar tulumu: direk + turuncu/beyaz seritli koni
-        if (tZoom >= kWindsockMinZoom)
+        if (tZoom >= kWindsockMinZoom && IsSubLayerVisible(kPartWindsocks))
         {
             for (const AptWindsock& tSock : tDetail.mWindsocks)
             {
@@ -399,7 +444,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
             for (const AptStartLocation& tStart : tDetail.mStartLocations)
             {
                 const PointF tCenter = tView.ToScreen(tStart.mPosition);
-                if (!tOnScreen(tCenter))
+                if (!IsSubLayerVisible(StartPartOf(tStart.mType)) || !tOnScreen(tCenter))
                 {
                     continue;
                 }
@@ -437,12 +482,12 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
                 {
                     tText += ": " + ReadableList(tStart.mAirlines, true);
                 }
-                mMarkers.push_back({tCenter, 6.0f, tText, tStart.mName});
+                mMarkers.push_back({tCenter, 6.0f, tText, IsSubLayerVisible(kPartStartNames) ? tStart.mName : ""});
             }
         }
 
         // PAPI / VASI / wig-wag: yaklasma yonune dik isik sirasi
-        if (tZoom >= kLightMinZoom)
+        if (tZoom >= kLightMinZoom && IsSubLayerVisible(kPartApproachLights))
         {
             for (const AptLightObject& tLight : tDetail.mLightObjects)
             {
@@ -472,7 +517,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         }
 
         // Tabelalar: rengine gore kucuk dikdortgen; metin fareyle
-        if (tZoom >= kSignMinZoom)
+        if (tZoom >= kSignMinZoom && IsSubLayerVisible(kPartSigns))
         {
             for (const AptSign& tSign : tDetail.mSigns)
             {

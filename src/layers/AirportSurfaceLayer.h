@@ -9,7 +9,7 @@
 // sadece olcek + kaydirma degisir; nokta basina CPU isi yok.
 //
 // Zoom esikleri:
-//   10.5+ sinir cizgisi, 11+ yuzeyler, 14+ boya cizgileri
+//   10.5+ sinir cizgisi, 11+ yuzeyler, 13.5+ boya cizgileri
 #pragma once
 
 #include <cstdint>

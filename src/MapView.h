@@ -40,7 +40,7 @@ class MapView
 {
 public:
     static constexpr double kMinZoom = 3.0;
-    static constexpr double kMaxZoom = 18.0;
+    static constexpr double kMaxZoom = 16.5;  // son 3 tekerlek kademesi kapali (18 - 3 x 0.5): gereksiz yakin bakis
     static constexpr double kTileSize = 256.0;  // zoom 0'da dunyanin kenari (boxel)
 
     // Haritanin cizildigi alan (global boxel). Her cizimde pencereden alinir.

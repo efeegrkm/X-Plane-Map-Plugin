@@ -32,7 +32,7 @@ const auto kCategoryStyles = std::to_array<CategoryStyle>({
     {11.0, 13.0, 99.0, 3.5f},  // kapali
 });
 
-const double kHelipadDetailZoom = 13.0;  // AirportObjectsLayer kHelipadMinZoom ile ayni
+const double kHelipadDetailZoom = 12.5;  // AirportObjectsLayer kHelipadMinZoom ile ayni
 const size_t kMaxSymbols = 3000;  // FPS korumasi: bir karede en fazla bu kadar sembol
 const double kEdgeMargin = 20.0;  // kenardan tasan semboller de cizilsin (boxel)
 

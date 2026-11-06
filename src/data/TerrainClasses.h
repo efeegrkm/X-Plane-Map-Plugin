@@ -15,8 +15,11 @@
 // Renkler kullanicinin degistirebilecegi bir dosyadadir (terrain_colors.ini).
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
+
+#include "data/TerrainNoise.h"
 
 class Settings;
 
@@ -74,16 +77,56 @@ TerrainColor ElevationColor(double pMeters);
 class TerrainPalette
 {
 public:
+    static const int kPaletteVersion = 2;  // varsayilan renkler degisince artar (dosyadaki eski renkler atilir)
+
     TerrainPalette();  // varsayilan renkler
 
-    // [colors] bolumu: <sinif> = R G B (0..255); [shading] strength = 0..1
+    // [colors] bolumu: <sinif> = R G B (0..255); [shading] strength = 0..1;
+    // [palette] version: varsayilan renklerin surumu; [blend] meters/max_pixels:
+    // Scenery'de arazi siniflari arasi yumusak gecis (metre; yakin zoomda piksel tavani);
+    // [warp] meters/wavelength: kara siniflarinin dogal (kivrilmis) sinirlari;
+    // [closeup] class_mix: yakin zoomda sinif renklerinin ortak kara tona karismasi
     void Load(const Settings& pSettings);
     void Save(Settings& pSettings) const;
 
     const TerrainColor& ColorOf(TerrainClass pClass) const;
     double ShadingStrength() const;  // kabartma golgesinin gucu (0 = yok)
 
+    // [blend] meters: Scenery'de arazi siniflari arasi yumusak gecis mesafesi (0 = kapali)
+    double BlendMeters() const;
+    void SetBlendMeters(double pMeters);  // testler ve ileride ayar penceresi icin
+
+    // [blend] max_pixels: yumusatma eriminin doku pikseli tavani (0 = tavan yok)
+    double BlendMaxPixels() const;
+    void SetBlendMaxPixels(double pPixels);
+
+    // [warp] meters/wavelength: kara sinirlarini buken gurultu (meters = en buyuk kayma, 0 = duz kenarlar)
+    const TerrainWarpParams& Warp() const;
+    void SetWarp(const TerrainWarpParams& pParams);
+
+    // [closeup] class_mix: yakin zoomda kara sinif renklerinin ortak kara tona karisma orani (0 = kapali)
+    double CloseupClassMix() const;
+    void SetCloseupClassMix(double pMix);
+
+    // Bitki ortusu siniflarinin ortalamasi ([closeup] karisiminin referansi)
+    TerrainColor ReferenceLandColor() const;
+
+    // Yakin zoom sinif karisimi: piksel boyu 50 m ve ustu -> 0, 5 m ve alti -> tam oran; arasi logaritmik
+    double CloseupMixAt(double pMetersPerPixel) const;
+
+    // Bu doku icin sinif renkleri: pMix > 0 iken kara siniflari (su, kar, None haric) referans
+    // kara tona dogru pMix oraninda karisir
+    std::array<TerrainColor, kTerrainClassCount> MixedColors(double pMix) const;
+
+    // Load sonrasi: dosyadaki [palette] version guncel miydi (false: renkler varsayilandan, dosya yeniden yazilmali)
+    bool LoadedCurrentVersion() const;
+
 private:
     TerrainColor mColors[kTerrainClassCount];
     double mShadingStrength;
+    double mBlendMeters;
+    double mBlendMaxPixels;
+    TerrainWarpParams mWarp;
+    double mCloseupClassMix;
+    bool mLoadedCurrentVersion = true;
 };

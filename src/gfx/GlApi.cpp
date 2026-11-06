@@ -35,6 +35,9 @@ using UniformMatrix4fvFn = void(APIENTRY*)(GLint, GLsizei, GLboolean, const floa
 using Uniform1iFn = void(APIENTRY*)(GLint, GLint);
 using Uniform1fFn = void(APIENTRY*)(GLint, float);
 using Uniform4fFn = void(APIENTRY*)(GLint, float, float, float, float);
+using IsVertexArrayFn = GLboolean(APIENTRY*)(GLuint);
+using IsProgramFn = GLboolean(APIENTRY*)(GLuint);
+using GenerateMipmapFn = void(APIENTRY*)(GLenum);
 
 // Yuklenen adresler. Surec boyunca tek bir OpenGL surucusu oldugu icin
 // global tutulmalari dogal (X-Plane'in butun baglamlari ayni surucuden).
@@ -67,10 +70,15 @@ struct Functions
     Uniform1iFn mUniform1i = nullptr;
     Uniform1fFn mUniform1f = nullptr;
     Uniform4fFn mUniform4f = nullptr;
+    IsVertexArrayFn mIsVertexArray = nullptr;
+    IsProgramFn mIsProgram = nullptr;
+    GenerateMipmapFn mGenerateMipmap = nullptr;
 };
 
 Functions gFunctions;
 bool gLoaded = false;
+void* gLastContext = nullptr;      // en son cizimin yapildigi baglam
+unsigned int gContextGeneration = 0;
 
 // Bir fonksiyonun adresini surucuden al. wglGetProcAddress hata durumunda
 // nullptr disinda 1, 2, 3 veya -1 de donebilir; hepsi "yok" demek.
@@ -152,6 +160,9 @@ bool Load(std::string& pOutError)
     LoadOne("glUniform1i", tF.mUniform1i, tMissing);
     LoadOne("glUniform1f", tF.mUniform1f, tMissing);
     LoadOne("glUniform4f", tF.mUniform4f, tMissing);
+    LoadOne("glIsVertexArray", tF.mIsVertexArray, tMissing);
+    LoadOne("glIsProgram", tF.mIsProgram, tMissing);
+    LoadOne("glGenerateMipmap", tF.mGenerateMipmap, tMissing);
     if (!tMissing.empty())
     {
         pOutError = "OpenGL functions missing: " + tMissing;
@@ -169,6 +180,45 @@ bool IsLoaded()
 std::string DescribeContext()
 {
     return GlString(GL_VERSION) + " / " + GlString(GL_RENDERER) + " / GLSL " + GlString(kShadingLanguageVersion);
+}
+
+void* CurrentContext()
+{
+#if IBM
+    return reinterpret_cast<void*>(wglGetCurrentContext());
+#else
+    return nullptr;
+#endif
+}
+
+void NoteContext()
+{
+    void* tContext = CurrentContext();
+    if (tContext != gLastContext)
+    {
+        gLastContext = tContext;
+        ++gContextGeneration;  // pop-out / pop-in: eski VAO'lar bu baglamda gecersiz
+    }
+}
+
+unsigned int ContextGeneration()
+{
+    return gContextGeneration;
+}
+
+GLboolean IsVertexArray(GLuint pArray)
+{
+    return gFunctions.mIsVertexArray(pArray);
+}
+
+GLboolean IsProgram(GLuint pProgram)
+{
+    return gFunctions.mIsProgram(pProgram);
+}
+
+void GenerateMipmap(GLenum pTarget)
+{
+    gFunctions.mGenerateMipmap(pTarget);
 }
 
 void GenBuffers(GLsizei pCount, GLuint* pBuffers)

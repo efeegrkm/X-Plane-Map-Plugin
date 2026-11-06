@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "gfx/ContextVertexArray.h"
 #include "gfx/Mesh.h"
 
 namespace Gfx
@@ -39,12 +40,15 @@ public:
     bool IsEmpty() const;
     int VertexCount() const;
     Primitive GetPrimitive() const;
-    unsigned int VertexArray() const;  // Canvas icin
+    // Canvas icin: koselerin VAO'sunu SU ANKI OpenGL baglaminda baglar.
+    // Pop-out penceresi ayri baglam oldugu icin VAO gerekirse yeniden olusur;
+    // koseler (vertex buffer) baglamlar arasi paylasildigi icin yeniden yuklenmez.
+    void BindVertexArray() const;
 
 private:
     void Release();
 
-    unsigned int mArray = 0;
+    mutable ContextVertexArray mArray;  // baglam basina; cizerken tembel olusturulur
     unsigned int mBuffer = 0;
     int mCount = 0;
     Primitive mPrimitive = Primitive::Triangles;

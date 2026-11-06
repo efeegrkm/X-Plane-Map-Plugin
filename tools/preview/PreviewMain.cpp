@@ -47,6 +47,7 @@
 #include "tools/preview/XplmStubs.h"
 #include "ui/LayerPanel.h"
 #include "ui/StatusBar.h"
+#include "ui/ToolPalette.h"
 #include "ui/Toolbar.h"
 #include "ui/UiDraw.h"
 
@@ -85,6 +86,7 @@ struct Options
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
     MapMode mMode = MapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
+    bool mPaletteCollapsed = false;          // --palette-collapsed: cizim paleti katlanmis
     std::vector<std::string> mPanelGroups;  // --panel <grup>: katman panelini bu grup acik ciz
     bool mPanel = false;
     // --describe x,y: o noktadaki fare aciklamasini yazdir (resim pikseli, ust = 0)
@@ -151,6 +153,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--show" && tHasValue)
         {
             pOut->mShown.push_back(pArgv[++tIndex]);
+        }
+        else if (tArg == "--palette-collapsed")
+        {
+            pOut->mPaletteCollapsed = true;
         }
         else if (tArg == "--panel" && tHasValue)
         {
@@ -437,6 +443,7 @@ int main(int pArgc, char** pArgv)
     tToolbarState.mMode = tDrawings.GetMode();
     const std::string tModeLabel = std::string("Map: ") + tTheme.mName;
     tToolbarState.mModeLabel = tModeLabel.c_str();
+    tToolbarState.mToolsOpen = true;
     tToolbarState.mCanFinish = tDrawings.Current() != nullptr;
     tToolbarState.mCanUndo = tDrawings.ShapeCount() > 0;
     if (tOptions.mUi)
@@ -474,15 +481,26 @@ int main(int pArgc, char** pArgv)
     {
         StatusBar tStatus;
         tToolbar.Draw(tCanvas, -1, -1, tToolbarState);
+        // Cizim paleti: varsayilan yerinde (sag ust); --palette-collapsed ile katlanmis
+        ToolPalette tToolPalette;
+        tToolPalette.SetCollapsed(tOptions.mPaletteCollapsed);
+        RectI tPaletteBounds = tArea;
+        tPaletteBounds.mTop -= tToolbar.Height() + 4;
+        tPaletteBounds.mBottom += StatusBar::kHeight + 4;
+        tPaletteBounds.mLeft += 4;
+        tPaletteBounds.mRight -= 4;
+        tToolPalette.Layout(tPaletteBounds, tToolbarState);
+        tToolPalette.Draw(tCanvas, -1, -1, tToolbarState);
         if (tOptions.mPanel)
         {
             LayerPanel tPanel;
             tPanel.SetOpen(true);
-            for (const std::string& tGroup : tOptions.mPanelGroups)
+            // "--panel Airports" grubu, "--panel layer:runways" katmanin alt listesini acar
+            for (const std::string& tKey : tOptions.mPanelGroups)
             {
-                tPanel.ToggleGroup(tGroup);
+                tPanel.ToggleExpanded(tKey.find(':') == std::string::npos ? "group:" + tKey : tKey);
             }
-            tPanel.Layout(tToolbar.ButtonRect(ToolbarAction::Layers), tLayers);
+            tPanel.Layout(tToolbar.ButtonRect(ToolbarAction::Layers), tArea.mBottom + StatusBar::kHeight + 4, tLayers);
             tPanel.Draw(tCanvas, -1, -1, tLayers);
         }
         tStatus.Draw(tCanvas, tArea, tView, tView.BoxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");

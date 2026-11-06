@@ -25,6 +25,7 @@
 #include "ui/LayerPanel.h"
 #include "ui/ModePanel.h"
 #include "ui/StatusBar.h"
+#include "ui/ToolPalette.h"
 #include "ui/Toolbar.h"
 
 class AircraftData;
@@ -95,6 +96,8 @@ private:
     bool HandleControlClick(int pX, int pY);  // kontrollere tiklandiysa true
     void HandleMapClick(int pX, int pY);      // haritaya (surukleme olmadan) tiklandi
     void PerformToolbarAction(ToolbarAction pAction);
+    void ApplyLayerPanelHit(const LayerPanel::Hit& pHit);
+    RectI PaletteBounds() const;  // cizim paletinin kalabilecegi alan (seritlerin arasi)
     void TogglePopOut();
     void CenterOnAircraft();
     ToolbarState CurrentToolbarState() const;
@@ -122,9 +125,11 @@ private:
     MapView mView;
     Gfx::Canvas mCanvas;               // tum seklin cizildigi kapi (modern OpenGL)
     bool mCanvasChecked = false;
+    bool mContextWarned = false;  // pop-out baglaminda shader yok uyarisi bir kez loglandi
     Toolbar mToolbar;
     LayerPanel mLayerPanel;
     ModePanel mModePanel;
+    ToolPalette mToolPalette;          // yuzen cizim araclari paneli
     MapMode mMapMode = MapMode::Scenery;
     StatusBar mStatusBar;
     LabelPlacer mLabelPlacer;          // tum katmanlarin ortak etiket seyreltmesi
@@ -149,6 +154,7 @@ private:
     // etmezse birakinca tiklama sayilir
     bool mPressOnMap = false;
     bool mPressMoved = false;
+    bool mPaletteDrag = false;         // cizim paleti basligindan tasiniyor
     int mPressX = 0;
     int mPressY = 0;
     int mDragLastX = 0;

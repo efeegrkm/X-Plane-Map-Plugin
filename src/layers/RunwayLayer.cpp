@@ -20,6 +20,28 @@ const double kMarkingMinZoom = 13.0;
 const double kQueryMarginDeg = 0.1;   // havalimani merkezinden pist ucuna ~ birkac km
 const double kEdgeMargin = 40.0;      // boxel
 const float kMinHalfWidth = 1.0f;     // cok uzaktan bakinca bile pist 2 boxel gorunsun
+const float kEdgeWidth = 2.0f;        // pist kenar cizgisi (boxel): kritik cizgi, 2 piksel
+
+// Alt katmanlar (yapicidaki AddSubLayer sirasi)
+enum RunwayPart
+{
+    kPartPaved,
+    kPartUnpaved,
+    kPartWater,
+    kPartOverruns,
+    kPartMarkings,
+    kPartNumbers,
+};
+
+// Pistin hangi alt katmana ait oldugu (su pisti / kaplamali / kaplamasiz)
+int PartOf(const Runway& pRunway)
+{
+    if (pRunway.mWater || pRunway.mSurface == RunwaySurface::Water)
+    {
+        return kPartWater;
+    }
+    return pRunway.mSurface == RunwaySurface::Paved ? kPartPaved : kPartUnpaved;
+}
 const float kMinLength = 3.0f;        // bundan kisa pist cizilmez (havalimani simgesi yeter)
 const float kLabelGap = 10.0f;        // pist numarasinin uctan uzakligi (boxel)
 const double kDashMeters = 30.0;      // orta hat kesik uzunlugu (gercek pistlerde ~36 m)
@@ -52,6 +74,12 @@ RunwayLayer::RunwayLayer(const AirportGeometryStore& pStore)
     : Layer("runways", "Runways", true)
     , mStore(pStore)
 {
+    AddSubLayer("paved", "Paved (land)");
+    AddSubLayer("unpaved", "Unpaved (land)");
+    AddSubLayer("water", "Water runways");
+    AddSubLayer("overruns", "Blast pads / overruns");
+    AddSubLayer("markings", "Markings");
+    AddSubLayer("numbers", "Runway numbers");
 }
 
 void RunwayLayer::CollectVisible(const DrawContext& pContext)
@@ -81,6 +109,10 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
     {
         for (const Runway& tRunway : mStore.At(tAirportIndex).mRunways)
         {
+            if (!IsSubLayerVisible(PartOf(tRunway)))
+            {
+                continue;  // bu tur pist (kara / su) panelden kapatildi
+            }
             ScreenRunway tScreen;
             tScreen.mRunway = &tRunway;
             for (int tEnd = 0; tEnd < 2; ++tEnd)
@@ -143,7 +175,7 @@ void RunwayLayer::Draw(const DrawContext& pContext)
     Gfx::Mesh tMesh;
 
     // Blast pad / overrun: pistin iki ucundan disari
-    if (tZoom >= kOverrunMinZoom)
+    if (tZoom >= kOverrunMinZoom && IsSubLayerVisible(kPartOverruns))
     {
         for (const ScreenRunway& tRunway : mVisible)
         {
@@ -171,7 +203,8 @@ void RunwayLayer::Draw(const DrawContext& pContext)
     {
         if (tRunway.mHalfWidth >= 2.0f)
         {
-            AddRectangle(tMesh, tRunway, -1.0f, tRunway.mLength + 1.0f, tRunway.mHalfWidth + 1.0f, tEdgeColor);
+            AddRectangle(tMesh, tRunway, -kEdgeWidth, tRunway.mLength + kEdgeWidth, tRunway.mHalfWidth + kEdgeWidth,
+                         tEdgeColor);
         }
     }
     for (const ScreenRunway& tRunway : mVisible)
@@ -185,7 +218,7 @@ void RunwayLayer::Draw(const DrawContext& pContext)
         }
     }
 
-    if (tZoom >= kMarkingMinZoom)
+    if (tZoom >= kMarkingMinZoom && IsSubLayerVisible(kPartMarkings))
     {
         for (const ScreenRunway& tRunway : mVisible)
         {
@@ -220,7 +253,7 @@ void RunwayLayer::AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
 
 void RunwayLayer::DrawLabels(const DrawContext& pContext)
 {
-    if (!pContext.mLabels || pContext.mView->Zoom() < kLabelMinZoom)
+    if (!pContext.mLabels || pContext.mView->Zoom() < kLabelMinZoom || !IsSubLayerVisible(kPartNumbers))
     {
         return;
     }

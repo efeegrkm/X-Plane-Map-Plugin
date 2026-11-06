@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "gfx/ContextVertexArray.h"
 #include "gfx/Mesh.h"
 
 namespace Gfx
@@ -49,12 +50,18 @@ public:
     // Her cizimin basinda: boxel -> ekran matrisini o anki OpenGL'den okur
     void BeginFrame();
 
+    // Bu karenin baglaminda shader'larimiz gorunuyor mu? X-Plane pop-out
+    // baglamini paylasimsiz acarsa false olur; o zaman hic cizim yapilmaz
+    // (cokmek yerine bos pencere + log).
+    bool IsContextUsable() const;
+
     void Draw(const Mesh& pMesh);
     void Draw(const OutlinedLines& pLines);  // once kontur, sonra renkli cizgi
     // pVertices: 3'erli ucgenler (doku koordinatli)
     void DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices);
     // GPU'da duran sekli ciz: ekrandaki konum = pOffset + kose * pScale (boxel)
-    void DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale);
+    // pLineWidth: Primitive::Lines icin gercek piksel kalinligi (1 = ince; uclarda kose yok)
+    void DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth = 1.0f);
 
 private:
     struct Program
@@ -67,6 +74,10 @@ private:
     bool BuildProgram(const char* pVertexSource, const char* pFragmentSource, Program& pOut);
     void Release();
 
+    bool CanDraw() const;
+    void BindColorArray();    // renkli koselerin VAO'su (bu baglam icin)
+    void BindTextureArray();  // dokulu koselerin VAO'su (bu baglam icin)
+
     bool mTried = false;
     bool mReady = false;
     std::string mError;
@@ -74,9 +85,10 @@ private:
 
     Program mColorProgram;
     Program mTextureProgram;
-    unsigned int mColorArray = 0;   // vertex array (koselerin duzeni)
-    unsigned int mColorBuffer = 0;  // vertex buffer (koseler)
-    unsigned int mTextureArray = 0;
+    bool mContextUsable = false;
+    ContextVertexArray mColorArray;  // vertex array (koselerin duzeni), baglam basina
+    unsigned int mColorBuffer = 0;   // vertex buffer (koseler), baglamlar arasi paylasilir
+    ContextVertexArray mTextureArray;
     unsigned int mTextureBuffer = 0;
     float mMvp[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };

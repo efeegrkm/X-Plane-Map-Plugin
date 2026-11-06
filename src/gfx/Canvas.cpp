@@ -159,28 +159,12 @@ bool Canvas::Init()
         return false;
     }
 
-    BindingGuard tGuard;
-
-    // Renkli koseler: x, y (2 float) + renk (4 float)
-    Gl::GenVertexArrays(1, &mColorArray);
+    // Vertex buffer'lar burada (baglamlar arasi paylasilir). VAO'lar ise
+    // ilk cizimde, o anki baglam icin olusturulur (BindColorArray).
     Gl::GenBuffers(1, &mColorBuffer);
-    Gl::BindVertexArray(mColorArray);
-    Gl::BindBuffer(Gl::kArrayBuffer, mColorBuffer);
-    Gl::EnableVertexAttribArray(0);
-    Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mX));
-    Gl::EnableVertexAttribArray(1);
-    Gl::VertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mColor));
-
-    // Dokulu koseler: x, y + u, v
-    Gl::GenVertexArrays(1, &mTextureArray);
     Gl::GenBuffers(1, &mTextureBuffer);
-    Gl::BindVertexArray(mTextureArray);
-    Gl::BindBuffer(Gl::kArrayBuffer, mTextureBuffer);
-    Gl::EnableVertexAttribArray(0);
-    Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TexturedVertex), offsetof(TexturedVertex, mX));
-    Gl::EnableVertexAttribArray(1);
-    Gl::VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(TexturedVertex), offsetof(TexturedVertex, mU));
 
+    BindingGuard tGuard;
     Gl::UseProgram(mTextureProgram.mId);
     Gl::Uniform1i(Gl::GetUniformLocation(mTextureProgram.mId, "uTexture"), 0);
 
@@ -244,10 +228,11 @@ void Canvas::Release()
     {
         Gl::DeleteBuffers(1, &mColorBuffer);
         Gl::DeleteBuffers(1, &mTextureBuffer);
-        Gl::DeleteVertexArrays(1, &mColorArray);
-        Gl::DeleteVertexArrays(1, &mTextureArray);
         mColorBuffer = 0;
+        mTextureBuffer = 0;
     }
+    mColorArray.Release();
+    mTextureArray.Release();
     if (mColorProgram.mId != 0)
     {
         Gl::DeleteProgram(mColorProgram.mId);
@@ -270,11 +255,60 @@ void Canvas::BeginFrame()
     glGetFloatv(GL_MODELVIEW_MATRIX, tModelview);
     glGetFloatv(GL_PROJECTION_MATRIX, tProjection);
     Multiply(tProjection, tModelview, mMvp);
+
+    // Pop-out penceresi ayri bir OpenGL baglamidir: degisimi not et (VAO'lar
+    // yeniden olusturulur) ve shader'larimizin bu baglamda gecerli oldugunu dogrula
+    mContextUsable = false;
+    if (mReady)
+    {
+        Gl::NoteContext();
+        mContextUsable = Gl::IsProgram(mColorProgram.mId) == GL_TRUE &&
+                         Gl::IsProgram(mTextureProgram.mId) == GL_TRUE;
+    }
+}
+
+bool Canvas::IsContextUsable() const
+{
+    return mContextUsable;
+}
+
+bool Canvas::CanDraw() const
+{
+    return mReady && mContextUsable;
+}
+
+void Canvas::BindColorArray()
+{
+    mColorArray.Get(
+        [this]()
+        {
+            // Renkli koseler: x, y (2 float) + renk (4 float)
+            Gl::BindBuffer(Gl::kArrayBuffer, mColorBuffer);
+            Gl::EnableVertexAttribArray(0);
+            Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mX));
+            Gl::EnableVertexAttribArray(1);
+            Gl::VertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ColorVertex),
+                                    offsetof(ColorVertex, mColor));
+        });
+}
+
+void Canvas::BindTextureArray()
+{
+    mTextureArray.Get(
+        [this]()
+        {
+            // Dokulu koseler: x, y + u, v
+            Gl::BindBuffer(Gl::kArrayBuffer, mTextureBuffer);
+            Gl::EnableVertexAttribArray(0);
+            Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TexturedVertex), offsetof(TexturedVertex, mX));
+            Gl::EnableVertexAttribArray(1);
+            Gl::VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(TexturedVertex), offsetof(TexturedVertex, mU));
+        });
 }
 
 void Canvas::Draw(const Mesh& pMesh)
 {
-    if (!mReady || pMesh.IsEmpty())
+    if (!CanDraw() || pMesh.IsEmpty())
     {
         return;
     }
@@ -285,7 +319,7 @@ void Canvas::Draw(const Mesh& pMesh)
     Gl::UseProgram(mColorProgram.mId);
     Gl::UniformMatrix4(mColorProgram.mMvpLocation, mMvp);
     Gl::Uniform4(mColorProgram.mTransformLocation, 1.0f, 1.0f, 0.0f, 0.0f);
-    Gl::BindVertexArray(mColorArray);
+    BindColorArray();
     Gl::BindBuffer(Gl::kArrayBuffer, mColorBuffer);
     // Her cizimde buffer bastan ayrilir ("orphaning"): surucu eski veriyi
     // kullanan cizimi beklemeden yeni alan verir
@@ -300,9 +334,9 @@ void Canvas::Draw(const OutlinedLines& pLines)
     Draw(pLines.Fill());
 }
 
-void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale)
+void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth)
 {
-    if (!mReady || pMesh.IsEmpty())
+    if (!CanDraw() || pMesh.IsEmpty())
     {
         return;
     }
@@ -313,13 +347,31 @@ void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double p
     Gl::UniformMatrix4(mColorProgram.mMvpLocation, mMvp);
     const float tScale = static_cast<float>(pScale);
     Gl::Uniform4(mColorProgram.mTransformLocation, tScale, tScale, pOffset.mX, pOffset.mY);
-    Gl::BindVertexArray(pMesh.VertexArray());
-    glDrawArrays(pMesh.GetPrimitive() == Primitive::Lines ? GL_LINES : GL_TRIANGLES, 0, pMesh.VertexCount());
+    pMesh.BindVertexArray();  // bu baglam icin (gerekirse olusturur)
+    if (pMesh.GetPrimitive() != Primitive::Lines)
+    {
+        glDrawArrays(GL_TRIANGLES, 0, pMesh.VertexCount());
+        return;
+    }
+    // Kalin GL_LINES: X-Plane 11 uyumluluk (compatibility) baglaminda calisir.
+    // X-Plane'in degerini bozmamak icin eskisini okuyup geri koyariz.
+    GLfloat tOldWidth = 1.0f;
+    const bool tWide = pLineWidth > 1.0f;
+    if (tWide)
+    {
+        glGetFloatv(GL_LINE_WIDTH, &tOldWidth);
+        glLineWidth(pLineWidth);
+    }
+    glDrawArrays(GL_LINES, 0, pMesh.VertexCount());
+    if (tWide)
+    {
+        glLineWidth(tOldWidth);
+    }
 }
 
 void Canvas::DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices)
 {
-    if (!mReady || pVertices.empty() || !pTexture.IsValid())
+    if (!CanDraw() || pVertices.empty() || !pTexture.IsValid())
     {
         return;
     }
@@ -329,7 +381,7 @@ void Canvas::DrawTextured(const Texture& pTexture, const std::vector<TexturedVer
     BindingGuard tGuard;
     Gl::UseProgram(mTextureProgram.mId);
     Gl::UniformMatrix4(mTextureProgram.mMvpLocation, mMvp);
-    Gl::BindVertexArray(mTextureArray);
+    BindTextureArray();
     Gl::BindBuffer(Gl::kArrayBuffer, mTextureBuffer);
     Gl::BufferData(Gl::kArrayBuffer, static_cast<GLsizeiptr>(pVertices.size() * sizeof(TexturedVertex)),
                    pVertices.data(), Gl::kStreamDraw);

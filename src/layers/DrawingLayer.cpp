@@ -18,6 +18,29 @@ const Rgba kPointColor = {0.0f, 0.72f, 0.95f, 1.0f};
 const Rgba kRouteColor = {0.0f, 0.72f, 0.95f, 1.0f};
 const Rgba kRegionColor = {0.10f, 0.78f, 0.38f, 1.0f};
 const Rgba kRegionFill = {0.10f, 0.78f, 0.38f, 0.25f};
+
+// Alt katmanlar (yapicidaki AddSubLayer sirasi). Yarim kalan cizim her zaman gorunur.
+enum DrawingPart
+{
+    kPartPoints,
+    kPartRoutes,
+    kPartRegions,
+    kPartLabels,
+};
+
+int PartOf(Drawings::ShapeKind pKind)
+{
+    switch (pKind)
+    {
+        case Drawings::ShapeKind::Point:
+            return kPartPoints;
+        case Drawings::ShapeKind::Route:
+            return kPartRoutes;
+        case Drawings::ShapeKind::Region:
+            return kPartRegions;
+    }
+    return kPartPoints;
+}
 const Rgba kCurrentColor = {1.0f, 0.55f, 0.08f, 1.0f};
 const Rgba kCurrentFill = {1.0f, 0.55f, 0.08f, 0.16f};
 const Rgba kWhite = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -34,6 +57,10 @@ DrawingLayer::DrawingLayer(const Drawings& pDrawings)
     : Layer("drawings", "User drawings", true)
     , mDrawings(pDrawings)
 {
+    AddSubLayer("points", "Points");
+    AddSubLayer("routes", "Routes");
+    AddSubLayer("regions", "Regions");
+    AddSubLayer("labels", "Names and distances");
 }
 
 Gfx::Point DrawingLayer::Project(const MapView& pView, const LatLon& pPoint)
@@ -68,6 +95,10 @@ std::vector<Gfx::Point> DrawingLayer::ProjectPath(const MapView& pView, const st
 
 void DrawingLayer::AddLabel(const DrawContext& pContext, const std::string& pText, const Gfx::Point& pAnchor)
 {
+    if (!IsSubLayerVisible(kPartLabels))
+    {
+        return;
+    }
     // Yazi isaretin sag ustune; yeri hemen ayrilir ki baska katmanlarin
     // etiketleri bunun ustune binmesin
     PendingLabel tLabel;
@@ -116,6 +147,10 @@ void DrawingLayer::Draw(const DrawContext& pContext)
 
     for (const Drawings::Shape& tShape : mDrawings.Shapes())
     {
+        if (!IsSubLayerVisible(PartOf(tShape.mKind)))
+        {
+            continue;
+        }
         switch (tShape.mKind)
         {
             case Drawings::ShapeKind::Point:

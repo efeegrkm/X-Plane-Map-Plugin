@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -29,11 +30,15 @@
 #include "data/AptLine.h"
 #include "data/LocalizerMatch.h"
 #include "data/DsfReader.h"
+#include "data/LandColorField.h"
 #include "data/NavDatabase.h"
 #include "data/SceneryIndex.h"
 #include "data/SevenZip.h"
 #include "data/TerrainClasses.h"
+#include "data/TerrainNoise.h"
 #include "data/TerrainRaster.h"
+#include "data/TerrainStore.h"
+#include "data/TerrainTriangles.h"
 #include "gfx/Mesh.h"
 
 #include <chrono>
@@ -634,6 +639,48 @@ public:
 private:
     std::string* mTrace;
 };
+
+// Alt katmanli sahte katman
+class PartedLayer : public Layer
+{
+public:
+    PartedLayer()
+        : Layer("parted", "Parted", true)
+    {
+        AddSubLayer("one", "One");
+        AddSubLayer("two", "Two", false);
+    }
+
+    void Draw(const DrawContext& /*pContext*/) override
+    {
+    }
+};
+
+void TestSubLayers()
+{
+    LayerManager tLayers;
+    tLayers.Add(std::make_unique<PartedLayer>());
+    Layer& tLayer = *tLayers.At(0);
+    CHECK(tLayer.SubLayerCount() == 2 && tLayer.IsSubLayerVisible(0) && !tLayer.IsSubLayerVisible(1),
+          "alt katman varsayilanlari");
+    CHECK(tLayer.IsSubLayerVisible(7) && tLayer.VisibleSubLayerCount() == 1, "gecersiz indeks gorunur sayilir");
+    CHECK(LayerManager::SubLayerKey(tLayer, 1) == "parted.two", "alt katman anahtari");
+
+    const MapTheme& tScenery = ThemeFor(MapMode::Scenery);
+    Settings tSettings;
+    tLayer.SetSubLayerVisible(0, false);
+    tLayer.SetSubLayerVisible(1, true);
+    tLayers.SaveVisibility(tSettings, tScenery);
+    CHECK(!tSettings.GetBool("layers.scenery", "parted.one", true) &&
+              tSettings.GetBool("layers.scenery", "parted.two", false),
+          "alt katman kaydi");
+
+    Settings tEmpty;
+    tLayers.LoadVisibility(tEmpty, tScenery);
+    CHECK(tLayer.IsSubLayerVisible(0) && !tLayer.IsSubLayerVisible(1), "ayar yoksa alt katman varsayilani");
+    tLayers.LoadVisibility(tSettings, tScenery);
+    CHECK(!tLayer.IsSubLayerVisible(0) && tLayer.IsSubLayerVisible(1), "alt katman geri okunur");
+}
 
 void TestLayerManager()
 {
@@ -1775,6 +1822,68 @@ void TestTerrain()
               tImage[0] == tPalette.ColorOf(TerrainClass::Water).mR,
           "goruntu: su pikseli");
 
+    // Seviye 4: DSF ucgenlerinden boyanan 1/32 derecelik parcalar
+    TerrainTriangles tTriangles;
+    tTriangles.Reset(29, 41);
+    tReader.ForEachTriangle(
+        [&](const DsfTriangle& pTriangle)
+        {
+            if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0)
+            {
+                tTriangles.Add(pTriangle.mLon, pTriangle.mLat,
+                               ClassifyTerrain(tReader.Info().mTerrainNames[pTriangle.mTerrain]));
+            }
+        },
+        &tError);
+    const int tDetailChunks = TerrainTriangles::kChunksPerSide;
+    std::vector<uint8_t> tWaterChunk;
+    std::vector<uint8_t> tForestChunk;
+    const int tSize = 64;
+    tRaster.BuildDetailImage(tTriangles, tDetailChunks, 5 * tDetailChunks + 15, tSize, tPalette, TerrainImageStyle(),
+                             &tWaterChunk);
+    tRaster.BuildDetailImage(tTriangles, tDetailChunks, 5 * tDetailChunks + 16, tSize, tPalette, TerrainImageStyle(),
+                             &tForestChunk);
+    bool tAllOpaque = true;
+    for (size_t tPixel = 0; tPixel < static_cast<size_t>(tSize) * tSize; ++tPixel)
+    {
+        if (tWaterChunk[tPixel * 4 + 3] != 255 || tForestChunk[tPixel * 4 + 3] != 255)
+        {
+            tAllOpaque = false;
+            break;
+        }
+    }
+    CHECK(tAllOpaque && tWaterChunk.size() == static_cast<size_t>(tSize) * tSize * 4 &&
+              tWaterChunk[0] == tPalette.ColorOf(TerrainClass::Water).mR &&
+              tForestChunk[0] == tPalette.ColorOf(TerrainClass::ForestConifer).mR,
+          "seviye 4 olculeri");
+    TerrainImageKeyHash tHash;
+    CHECK(tHash({29, 41, 4, 17, 0}) != tHash({29, 41, 3, 33, 0}) &&
+              tHash({29, 41, 4, 1023, 3}) != tHash({29, 41, 4, 1023, 2}) &&
+              tHash({29, 41, 5, 16383, 0}) != tHash({29, 41, 5, 16382, 0}) &&
+              tHash({29, 41, 5, 16383, 0}) != tHash({29, 42, 5, 16383, 0}),
+          "anahtar ozeti carpismaz (seviye 5 dahil)");
+
+    // Seviye 5: 4 kat ince parca. Sol ust ince parca (satir 20, sutun 60) seviye 4'teki
+    // (satir 5, sutun 15) parcanin sol ust ceyregi: ikisinde de ayni yer ayni renk.
+    CHECK(TerrainStore::ChunksPerSide(TerrainStore::kFineLevel) == 4 * TerrainTriangles::kChunksPerSide &&
+              TerrainStore::ImageSize(TerrainStore::kFineLevel) == 1024,
+          "seviye 5 olculeri");
+    std::vector<uint8_t> tFineChunk;
+    const int tFineChunks = TerrainStore::ChunksPerSide(TerrainStore::kFineLevel);
+    tRaster.BuildDetailImage(tTriangles, tFineChunks, 20 * tFineChunks + 60, tSize, tPalette, TerrainImageStyle(),
+                             &tFineChunk);
+    CHECK(tFineChunk.size() == tWaterChunk.size() && tFineChunk[3] == 255 && tFineChunk[0] == tWaterChunk[0] &&
+              tFineChunk[2] == tWaterChunk[2],
+          "ince parca ust parcanin ceyregiyle ayni");
+
+    // Saydam piksel rengi komsudan dolar, alfa 0 kalir
+    std::vector<uint8_t> tBleed = {0, 0, 0, 0, 10, 20, 30, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    TerrainRaster::BleedTransparent(3, &tBleed);
+    CHECK(tBleed[0] == 10 && tBleed[3] == 0 && tBleed[8] == 10 && tBleed[2 * 12 + 4 + 1] == 20 &&
+              tBleed[2 * 12 + 4 + 3] == 0 && tBleed[4 + 3] == 255,
+          "saydam piksel rengi komsudan");
+
     // Onbellek: ayni anahtarla okunur, farkli anahtarla reddedilir
     const std::string tPath = "map_test_tile.terrain";
     CHECK(tRaster.Save(tPath, "key-1"), "onbellege yazilir");
@@ -1784,6 +1893,421 @@ void TestTerrain()
           "onbellekten okunur");
     CHECK(!tCached.Load(tPath, "key-2"), "anahtar degisti: yeniden uretilmeli");
     std::remove(tPath.c_str());
+}
+
+void TestLandBlend()
+{
+    // --- 1) Plan: erim metreden piksele cevrilir; kucukse bos plan (filtre kapali) ---
+    LandBlendPlan tPlan = PlanLandBlend(0.0, 1.0, 1.0, 24.0);
+    CHECK(tPlan.mPad == 0, "plan: blend 0 -> bos");
+    tPlan = PlanLandBlend(150.0, 108.0, 108.0, 24.0);
+    CHECK(tPlan.mPad == 0, "seviye 2 (~108 m/px): erim 1,5 pikselden kucuk, plan bos");
+    tPlan = PlanLandBlend(150.0, 27.0, 27.0, 24.0);
+    CHECK(tPlan.mPad > 0 && tPlan.mFactor == 1 && tPlan.mPad >= 6, "seviye 3 (~27 m/px): plan dolu, carpan 1");
+    tPlan = PlanLandBlend(11.0, 1.0, 1.6, 24.0);
+    CHECK(tPlan.mFactor > 1 && tPlan.mHalfX > tPlan.mHalfY,
+          "dogu-bati pikseli kucuk -> hucre buyur, yari genislik dogu-batida buyuk");
+    tPlan = PlanLandBlend(150.0, 3.4, 3.4, 24.0);
+    CHECK(tPlan.mPad > 0 && tPlan.mPad <= 24 + 3, "tavan 24: erim 24 pikselle sinirli (pay = erim + izgara carpani)");
+    // 0.16: [blend] max_pixels = 5 -> yakin seviyede erim kenar yumusatma duzeyinde
+    tPlan = PlanLandBlend(150.0, 3.4, 3.4, 5.0);
+    CHECK(tPlan.mPad > 0 && tPlan.mPad <= 5 + 2, "max_pixels 5: erim 5 pikselle sinirli");
+    tPlan = PlanLandBlend(150.0, 0.58, 0.85, 5.0);
+    CHECK(tPlan.mPad > 0 && tPlan.mPad <= 5 + 2, "seviye 5 olceginde de erim 5 pikselle sinirli");
+    tPlan = PlanLandBlend(150.0, 0.58, 0.85, 0.0);
+    CHECK(tPlan.mPad > 5 + 2, "max_pixels 0 = tavan yok (metre degeri devrede)");
+
+    // --- 2) Duz renk korunur (normalize evrisim karartmaz) ---
+    LandColorField tField;
+    tField.Reset(64, 1);
+    for (int tRow = 0; tRow < 64; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < 64; ++tColumn)
+        {
+            tField.Add(tColumn, tRow, {100, 150, 200}, 1.0f);
+        }
+    }
+    tField.Blur(4, 4);
+    double tRgb[3] = {0.0, 0.0, 0.0};
+    CHECK(tField.ColorAt(32, 32, tRgb) && Near(tRgb[0], 100.0, 0.5) && Near(tRgb[1], 150.0, 0.5) &&
+              Near(tRgb[2], 200.0, 0.5),
+          "duz renk: merkez korunur");
+    CHECK(tField.ColorAt(0, 0, tRgb) && Near(tRgb[0], 100.0, 0.5) && Near(tRgb[1], 150.0, 0.5) &&
+              Near(tRgb[2], 200.0, 0.5),
+          "duz renk: kose de korunur (pencere kirpilse de oran ayni)");
+
+    // --- 3) Iki renk arasinda gecis olusur ---
+    tField.Reset(64, 1);
+    for (int tRow = 0; tRow < 64; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < 64; ++tColumn)
+        {
+            tField.Add(tColumn, tRow, tColumn < 32 ? TerrainColor{40, 80, 40} : TerrainColor{120, 110, 70}, 1.0f);
+        }
+    }
+    tField.Blur(3, 3);
+    CHECK(tField.ColorAt(32, 32, tRgb) && tRgb[1] > 81.0 && tRgb[1] < 109.0,
+          "sinir pikseli iki rengin arasinda (G 80..110, kesin uclarda degil)");
+    CHECK(tField.ColorAt(52, 32, tRgb) && Near(tRgb[0], 120.0, 1.0) && Near(tRgb[1], 110.0, 1.0) &&
+              Near(tRgb[2], 70.0, 1.0),
+          "sinirdan 20 px uzak: kendi rengi");
+
+    // --- 4) Veri yok: hanya eklenen yerden uzakta renk yok, erim icinde sol rengin aynisi ---
+    tField.Reset(64, 1);
+    for (int tRow = 0; tRow < 64; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < 32; ++tColumn)
+        {
+            tField.Add(tColumn, tRow, {40, 80, 40}, 1.0f);
+        }
+    }
+    tField.Blur(3, 3);
+    CHECK(!tField.ColorAt(63, 32, tRgb), "erimin disinda veri yok");
+    CHECK(tField.ColorAt(36, 32, tRgb) && Near(tRgb[0], 40.0, 1.0) && Near(tRgb[1], 80.0, 1.0) &&
+              Near(tRgb[2], 40.0, 1.0),
+          "erimin icinde: sol rengin aynisi (normalize, karartmaz)");
+
+    // --- 8) Palet surumu: eski dosya renkleri atilir, blend sinirlanir ---
+    TerrainPalette tVersionPalette;
+    Settings tVersionSettings;
+    tVersionSettings.SetString("colors", "forest_conifer", "1 2 3");
+    tVersionPalette.Load(tVersionSettings);
+    CHECK(!tVersionPalette.LoadedCurrentVersion() &&
+              tVersionPalette.ColorOf(TerrainClass::ForestConifer).mR == 52 &&
+              tVersionPalette.ColorOf(TerrainClass::ForestConifer).mB == 58,
+          "eski surum: dosyadaki renk atilir, yeni varsayilan kalir");
+    tVersionSettings.SetInt("palette", "version", 2);
+    tVersionPalette.Load(tVersionSettings);
+    CHECK(tVersionPalette.LoadedCurrentVersion() &&
+              tVersionPalette.ColorOf(TerrainClass::ForestConifer).mR == 1 &&
+              tVersionPalette.ColorOf(TerrainClass::ForestConifer).mB == 3,
+          "guncel surum: dosyadaki renk okunur");
+    tVersionSettings.SetDouble("blend", "meters", 5000.0);
+    tVersionPalette.Load(tVersionSettings);
+    CHECK(Near(tVersionPalette.BlendMeters(), 1000.0, 1e-9), "blend 1000 metreyle sinirli");
+    tVersionPalette.SetBlendMeters(-5.0);
+    CHECK(tVersionPalette.BlendMeters() == 0.0, "SetBlendMeters negatif -> 0");
+    // 0.16 ayarlari: okunur, sinirlanir, Save/Load tur dondurur
+    tVersionSettings.SetDouble("blend", "max_pixels", 500.0);
+    tVersionSettings.SetDouble("warp", "meters", 9999.0);
+    tVersionSettings.SetDouble("warp", "wavelength", 1.0);
+    tVersionSettings.SetDouble("closeup", "class_mix", 5.0);
+    tVersionPalette.Load(tVersionSettings);
+    CHECK(Near(tVersionPalette.BlendMaxPixels(), 64.0, 1e-9), "max_pixels 64 ile sinirli");
+    CHECK(Near(tVersionPalette.Warp().mAmplitudeMeters, 300.0, 1e-9), "warp meters 300 ile sinirli");
+    CHECK(Near(tVersionPalette.Warp().mWavelengthMeters, 50.0, 1e-9), "warp wavelength 50 ile sinirli");
+    CHECK(Near(tVersionPalette.CloseupClassMix(), 0.8, 1e-9), "class_mix 0,8 ile sinirli");
+    tVersionPalette.SetBlendMaxPixels(-1.0);
+    tVersionPalette.SetWarp({-5.0, 3000.0, 3});
+    tVersionPalette.SetCloseupClassMix(2.0);
+    CHECK(tVersionPalette.BlendMaxPixels() == 0.0, "SetBlendMaxPixels negatif -> 0");
+    CHECK(tVersionPalette.Warp().mAmplitudeMeters == 0.0 && Near(tVersionPalette.Warp().mWavelengthMeters, 2000.0, 1e-9),
+          "SetWarp sinirlar");
+    CHECK(Near(tVersionPalette.CloseupClassMix(), 0.8, 1e-9), "SetCloseupClassMix sinirlar");
+    const TerrainColor tReference = tVersionPalette.ReferenceLandColor();
+    CHECK(tReference.mR > 0 && tReference.mG > 0 && tReference.mB > 0, "referans kara tonu hesaplanir");
+    Settings tSavedSettings;
+    tVersionPalette.Save(tSavedSettings);
+    CHECK(tSavedSettings.GetInt("palette", "version", 0) == TerrainPalette::kPaletteVersion,
+          "Save palet surumunu yazar");
+    CHECK(Near(tSavedSettings.GetDouble("blend", "meters", -1.0), 1000.0, 1e-9),
+          "Save blend degerini yazar (son Load ile sinirli 1000)");
+    CHECK(Near(tSavedSettings.GetDouble("blend", "max_pixels", -1.0), 0.0, 1e-9) &&
+              Near(tSavedSettings.GetDouble("warp", "meters", -1.0), 0.0, 1e-9) &&
+              Near(tSavedSettings.GetDouble("warp", "wavelength", -1.0), 2000.0, 1e-9) &&
+              Near(tSavedSettings.GetDouble("closeup", "class_mix", -1.0), 0.8, 1e-9),
+          "Save max_pixels / warp / closeup degerlerini yazar");
+
+    // --- 5/6/7) Doku yolu: su keskin, sinir yumusak, parca dikisi yok ---
+    // Sentetik karo (10,50): 10.499 boylamina kadar grass, oradan doguya shrub (iki KARA sinifi;
+    // sinir 10.5'teki parca sinirinin hemen solunda, yani dikis testi sinirin dibinde yapilir)
+    TerrainRaster tLandRaster;
+    tLandRaster.Reset(10, 50);
+    TerrainTriangles tLandTriangles;
+    tLandTriangles.Reset(10, 50);
+    const double tBoundary = 10.499;
+    auto tAddRect = [&](double pWest, double pEast, TerrainClass pClass)
+    {
+        const double tLonA[3] = {pWest, pEast, pWest};
+        const double tLatA[3] = {50.0, 50.0, 51.0};
+        const double tLonB[3] = {pEast, pEast, pWest};
+        const double tLatB[3] = {50.0, 51.0, 51.0};
+        tLandTriangles.Add(tLonA, tLatA, pClass);
+        tLandTriangles.Add(tLonB, tLatB, pClass);
+    };
+    tAddRect(10.0, tBoundary, TerrainClass::Grass);
+    tAddRect(tBoundary, 11.0, TerrainClass::Shrub);
+
+    TerrainPalette tBlendPalette;  // varsayilan [blend] 150 metre
+    // 0.16 notu: bu testler kesin sinif rengini dogrular; sinir bukmesi ve yakin zoom karisimi kapali
+    // (bukme acikken sinir pikselleri sinif degistirebilir; TestTerrainWarp bukmeyi ayri dogrular)
+    tBlendPalette.SetWarp({0.0, 250.0, 3});
+    tBlendPalette.SetCloseupClassMix(0.0);
+    const int tSize = 64;
+    const int tChunks = TerrainTriangles::kChunksPerSide;
+
+    // 5) Su keskin kalir: su/orman DSF'inde su pikseli tam su rengi, kiyidaki kara orman renginde
+    const std::vector<uint8_t> tData = MakeTestDsf(false);
+    DsfReader tReader;
+    std::string tError;
+    tReader.Open(tData, &tError);
+    TerrainRaster tRaster;
+    tRaster.Reset(29, 41);
+    TerrainTriangles tSeaTriangles;
+    tSeaTriangles.Reset(29, 41);
+    tReader.ForEachTriangle(
+        [&](const DsfTriangle& pTriangle)
+        {
+            if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0)
+            {
+                const TerrainClass tClass =
+                    ClassifyTerrain(tReader.Info().mTerrainNames[pTriangle.mTerrain]);
+                tRaster.FillTriangle(pTriangle.mLon, pTriangle.mLat, tClass);
+                tSeaTriangles.Add(pTriangle.mLon, pTriangle.mLat, tClass);
+            }
+        },
+        &tError);
+    std::vector<uint8_t> tSeaImage;
+    tRaster.BuildDetailImage(tSeaTriangles, tChunks, 5 * tChunks + 15, tSize, tBlendPalette, TerrainImageStyle(),
+                             &tSeaImage);
+    CHECK(tSeaImage.size() == static_cast<size_t>(tSize) * tSize * 4 &&
+              tSeaImage[(32 * tSize + 32) * 4 + 0] == tBlendPalette.ColorOf(TerrainClass::Water).mR &&
+              tSeaImage[(32 * tSize + 32) * 4 + 3] == 255,
+          "su pikseli tam su rengi ve opak");
+    std::vector<uint8_t> tCoastImage;
+    tRaster.BuildDetailImage(tSeaTriangles, tChunks, 5 * tChunks + 16, tSize, tBlendPalette, TerrainImageStyle(),
+                             &tCoastImage);
+    const uint8_t* tCoastLand = tCoastImage.data() + (32 * tSize + 0) * 4;  // kiyiya yakin kara pikseli
+    CHECK(tCoastLand[3] == 255 &&
+              std::abs(static_cast<int>(tCoastLand[0]) -
+                       static_cast<int>(tBlendPalette.ColorOf(TerrainClass::ForestConifer).mR)) <= 2 &&
+              std::abs(static_cast<int>(tCoastLand[1]) -
+                       static_cast<int>(tBlendPalette.ColorOf(TerrainClass::ForestConifer).mG)) <= 2,
+          "kiyidaki kara pikseli su rengine kaymaz (orman renginde)");
+
+    // 6) Sinir yumusar: blend 150'de sinir pikseli ara ton, blend 0'da kendi sinif rengi
+    std::vector<uint8_t> tSoftImage;
+    tLandRaster.BuildDetailImage(tLandTriangles, tChunks, 5 * tChunks + 15, tSize, tBlendPalette, TerrainImageStyle(),
+                                 &tSoftImage);
+    // Sinir (10.499) parca icinde sutun ~62; sutun 61 sinirin hemen solunda (grass tarafi)
+    const uint8_t* tSoftPixel = tSoftImage.data() + (32 * tSize + 61) * 4;
+    CHECK(tSoftPixel[3] == 255 && tSoftPixel[1] > 98 + 1 && tSoftPixel[1] < 106 - 1,
+          "sinir pikseli ara ton (G iki sinif rengi arasinda)");
+    TerrainPalette tSharpPalette;
+    tSharpPalette.SetBlendMeters(0.0);  // yumusatma kapali: ayni piksel keskin kendi renginde
+    tSharpPalette.SetWarp({0.0, 250.0, 3});  // bukme de kapali: piksel kaymadan kendi sinifinda
+    tSharpPalette.SetCloseupClassMix(0.0);
+    std::vector<uint8_t> tSharpImage;
+    tLandRaster.BuildDetailImage(tLandTriangles, tChunks, 5 * tChunks + 15, tSize, tSharpPalette, TerrainImageStyle(),
+                                 &tSharpImage);
+    const uint8_t* tSharpPixel = tSharpImage.data() + (32 * tSize + 61) * 4;
+    CHECK(tSharpPixel[0] == tSharpPalette.ColorOf(TerrainClass::Grass).mR &&
+              tSharpPixel[1] == tSharpPalette.ColorOf(TerrainClass::Grass).mG,
+          "blend 0: sinir pikseli keskin kendi sinif renginde");
+
+    // 7) Dikiş yok: sinira yakin parca kenarlarinda (15. parcanin son sutunu, 16. parcanin
+    // ilk sutunu) kanal basina fark <= 3; pay olmasaydi yumusatma farki buyurdu
+    std::vector<uint8_t> tRightImage;
+    tLandRaster.BuildDetailImage(tLandTriangles, tChunks, 5 * tChunks + 16, tSize, tBlendPalette, TerrainImageStyle(),
+                                 &tRightImage);
+    bool tSeamOk = true;
+    for (int tRow = 0; tRow < tSize; ++tRow)
+    {
+        const uint8_t* tLeftPixel = tSoftImage.data() + (static_cast<size_t>(tRow) * tSize + 63) * 4;
+        const uint8_t* tRightPixel = tRightImage.data() + (static_cast<size_t>(tRow) * tSize + 0) * 4;
+        for (int tChannel = 0; tChannel < 3; ++tChannel)
+        {
+            const int tDiff = static_cast<int>(tLeftPixel[tChannel]) - static_cast<int>(tRightPixel[tChannel]);
+            if (tDiff < -3 || tDiff > 3)
+            {
+                tSeamOk = false;
+            }
+        }
+        if (tLeftPixel[3] != 255 || tRightPixel[3] != 255)
+        {
+            tSeamOk = false;
+        }
+    }
+    CHECK(tSeamOk, "parca sinirinda dikis yok (payli uretim)");
+}
+
+void TestTerrainWarp()
+{
+    // --- 1) Gurultu: deterministik, [-1, 1] icinde, ortalamasi 0'a yakin, yakin noktalar surekli ---
+    double tSum = 0.0;
+    double tMaxDiff = 0.0;
+    uint32_t tState = 12345u;
+    for (int tIndex = 0; tIndex < 10000; ++tIndex)
+    {
+        tState = tState * 1664525u + 1013904223u;  // LCG: test icin yeterli dagilim
+        const double tX = (static_cast<double>(tState) / 4294967296.0 - 0.5) * 100.0;
+        tState = tState * 1664525u + 1013904223u;
+        const double tY = (static_cast<double>(tState) / 4294967296.0 - 0.5) * 100.0;
+        const double tValue = TerrainNoise(tX, tY, 7u, 3);
+        CHECK(std::abs(tValue) <= 1.0, "gurultu [-1, 1] icinde");
+        CHECK(TerrainNoise(tX, tY, 7u, 3) == tValue, "gurultu deterministik (ayni girdi ayni deger)");
+        tSum += tValue;
+        // Sureklilik: dalga boyunun %1'i kadar yakin iki nokta
+        const double tNear = TerrainNoise(tX + 0.01, tY + 0.01, 7u, 3);
+        tMaxDiff = std::max(tMaxDiff, std::abs(tNear - tValue));
+    }
+    CHECK(std::abs(tSum / 10000.0) < 0.05, "gurultunun isaretli ortalamasi 0'a yakin");
+    CHECK(tMaxDiff < 0.1, "yakin noktalar arasi fark kucuk (sureklilik)");
+
+    // --- 2) Kayma siniri: |kayma| <= genlik * koku(2); bilesenler genligi asmaz ---
+    TerrainWarpParams tParams;  // varsayilan 65 / 250 / 3
+    double tMaxLen = 0.0;
+    for (int tIndex = 0; tIndex < 10000; ++tIndex)
+    {
+        const double tLon = -122.0 + tIndex * 0.0001;
+        const double tLat = 47.0 + (tIndex % 97) * 0.001;
+        double tEast = 0.0;
+        double tNorth = 0.0;
+        TerrainWarpOffset(tLon, tLat, tParams, &tEast, &tNorth);
+        CHECK(std::abs(tEast) <= tParams.mAmplitudeMeters && std::abs(tNorth) <= tParams.mAmplitudeMeters,
+              "kayma bilesenleri genlik icinde");
+        tMaxLen = std::max(tMaxLen, std::hypot(tEast, tNorth));
+    }
+    CHECK(tMaxLen <= tParams.mAmplitudeMeters * std::sqrt(2.0) + 1e-9, "kayma uzunlugu genlik * koku(2) icinde");
+
+    // --- 3) Karo sinirinda sureklilik: 1e-9 derece kayma kaymayi degistirmez ---
+    double tEa = 0.0;
+    double tNa = 0.0;
+    double tEb = 0.0;
+    double tNb = 0.0;
+    TerrainWarpOffset(-122.0, 47.0, tParams, &tEa, &tNa);
+    TerrainWarpOffset(-122.0 + 1e-9, 47.0 + 1e-9, tParams, &tEb, &tNb);
+    CHECK(std::hypot(tEb - tEa, tNb - tNa) < 1e-3, "karo sinirinda kayma surekli");
+
+    // --- 4) Plan: uzak seviye etkisiz, yakin seviye aktif; meters 0 = kapali ---
+    TerrainWarpPlan tPlan = TerrainPlanWarp(tParams, 108.0, 108.0);
+    CHECK(!tPlan.mActive, "seviye 2 (~108 m/px): bukme etkisiz");
+    tPlan = TerrainPlanWarp(tParams, 27.0, 27.0);
+    CHECK(tPlan.mActive && tPlan.mPad >= 3 && tPlan.mStep == 1, "seviye 3 (~27 m/px): bukme aktif");
+    tPlan = TerrainPlanWarp(tParams, 0.85, 0.85);
+    CHECK(tPlan.mActive && tPlan.mPad >= 77 && tPlan.mStep > 1, "seviye 5: pay buyuk, izgara adimi > 1");
+    tParams.mAmplitudeMeters = 0.0;
+    CHECK(!TerrainPlanWarp(tParams, 0.85, 0.85).mActive, "warp meters 0 = duz kenarlar");
+
+    // --- 5) Kara-kara kurali (BuildDetailImage): su birebir ayni, kara-kara siniri degisir ---
+    TerrainRaster tRaster;
+    tRaster.Reset(10, 50);
+    TerrainTriangles tTriangles;
+    tTriangles.Reset(10, 50);
+    auto tAddRect = [&](double pWest, double pEast, TerrainClass pClass)
+    {
+        const double tLonA[3] = {pWest, pEast, pWest};
+        const double tLatA[3] = {50.0, 50.0, 51.0};
+        const double tLonB[3] = {pEast, pEast, pWest};
+        const double tLatB[3] = {50.0, 51.0, 51.0};
+        tTriangles.Add(tLonA, tLatA, pClass);
+        tTriangles.Add(tLonB, tLatB, pClass);
+    };
+    tAddRect(10.0, 10.25, TerrainClass::Water);
+    tAddRect(10.25, 10.3, TerrainClass::ForestConifer);
+    tAddRect(10.3, 10.499, TerrainClass::Grass);
+    tAddRect(10.499, 11.0, TerrainClass::Shrub);
+    TerrainPalette tPlainPalette;
+    tPlainPalette.SetBlendMeters(0.0);
+    tPlainPalette.SetCloseupClassMix(0.0);
+    tPlainPalette.SetWarp({0.0, 250.0, 3});  // karsilastirmanin "kapali" tarafi: duz kenarlar
+    const int tChunks = TerrainTriangles::kChunksPerSide;
+    const int tSize = 64;
+    TerrainPalette tWarpPalette = tPlainPalette;  // bukme acik: varsayilan 65 m geri verilir
+    tWarpPalette.SetWarp({65.0, 250.0, 3});
+    // 5a) Su: parca 7 (10.21875..10.25) tamamen su; bukme acik/kapali goruntuler birebir ayni
+    std::vector<uint8_t> tOffImage;
+    std::vector<uint8_t> tOnImage;
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 7, tSize, tPlainPalette, TerrainImageStyle(),
+                             &tOffImage);
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 7, tSize, tWarpPalette, TerrainImageStyle(), &tOnImage);
+    int tWaterOff = 0;
+    int tWaterOn = 0;
+    bool tWaterSame = true;
+    for (int tPixel = 0; tPixel < tSize * tSize; ++tPixel)
+    {
+        const uint8_t* tA = tOffImage.data() + static_cast<size_t>(tPixel) * 4;
+        const uint8_t* tB = tOnImage.data() + static_cast<size_t>(tPixel) * 4;
+        const bool tWaterA = tA[3] == 255 && tA[0] == tPlainPalette.ColorOf(TerrainClass::Water).mR &&
+                             tA[1] == tPlainPalette.ColorOf(TerrainClass::Water).mG;
+        const bool tWaterB = tB[3] == 255 && tB[0] == tPlainPalette.ColorOf(TerrainClass::Water).mR &&
+                             tB[1] == tPlainPalette.ColorOf(TerrainClass::Water).mG;
+        if (tWaterA)
+        {
+            ++tWaterOff;
+        }
+        if (tWaterB)
+        {
+            ++tWaterOn;
+        }
+        if (tA[0] != tB[0] || tA[1] != tB[1] || tA[2] != tB[2] || tA[3] != tB[3])
+        {
+            tWaterSame = false;
+        }
+    }
+    CHECK(tWaterOff > 0 && tWaterOff == tWaterOn, "su piksel sayisi degismedi (kiyi aynen)");
+    CHECK(tWaterSame, "su parcasindaki her piksel bukmeyle birebir ayni");
+    // 5b) Kara-kara siniri: parca 9'da orman/cimen siniri (10.3) bukmeyle kayar
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 9, tSize, tPlainPalette, TerrainImageStyle(),
+                             &tOffImage);
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 9, tSize, tWarpPalette, TerrainImageStyle(), &tOnImage);
+    int tLandChanged = 0;
+    for (int tPixel = 0; tPixel < tSize * tSize; ++tPixel)
+    {
+        const uint8_t* tA = tOffImage.data() + static_cast<size_t>(tPixel) * 4;
+        const uint8_t* tB = tOnImage.data() + static_cast<size_t>(tPixel) * 4;
+        if (tA[0] != tB[0] || tA[1] != tB[1] || tA[2] != tB[2])
+        {
+            ++tLandChanged;
+        }
+    }
+    CHECK(tLandChanged > 0, "bukme acikken bazi kara pikselleri sinif degistirdi (%d piksel)", tLandChanged);
+
+    // --- 6) Dikis yok: bukme acikken parca kenarinda kanal basina fark <= 3.
+    // Ornek sinir (10.3) dikişin (10.3125) ~26 piksel onunde: gecis dikiÅŸten once biter
+    tWarpPalette.SetBlendMeters(150.0);  // blur + bukme birlikte: toplam pay ile uretim
+    tWarpPalette.SetCloseupClassMix(0.3);
+    std::vector<uint8_t> tLeftImage;
+    std::vector<uint8_t> tRightImage;
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 9, tSize, tWarpPalette, TerrainImageStyle(),
+                             &tLeftImage);
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 10, tSize, tWarpPalette, TerrainImageStyle(),
+                             &tRightImage);
+    bool tSeamOk = true;
+    for (int tRow = 0; tRow < tSize; ++tRow)
+    {
+        const uint8_t* tLeftPixel = tLeftImage.data() + (static_cast<size_t>(tRow) * tSize + 63) * 4;
+        const uint8_t* tRightPixel = tRightImage.data() + (static_cast<size_t>(tRow) * tSize + 0) * 4;
+        for (int tChannel = 0; tChannel < 4; ++tChannel)
+        {
+            const int tDiff = static_cast<int>(tLeftPixel[tChannel]) - static_cast<int>(tRightPixel[tChannel]);
+            if (tDiff < -3 || tDiff > 3)
+            {
+                tSeamOk = false;
+            }
+        }
+    }
+    CHECK(tSeamOk, "bukme acikken parca sinirinda dikis yok");
+
+    // --- 7) Sinif karisimi: orana gore referans kara tona yaklasir; su ve kar degismez ---
+    CHECK(Near(tWarpPalette.CloseupMixAt(100.0), 0.0, 1e-9), "piksel 50 m'den buyuk: karisim 0");
+    const double tMid = tWarpPalette.CloseupMixAt(27.0);
+    CHECK(tMid > 0.0 && tMid < 0.15, "piksel 27 m: karisim dusuk");
+    CHECK(Near(tWarpPalette.CloseupMixAt(3.0), tWarpPalette.CloseupClassMix(), 1e-9), "piksel 3 m: tam oran");
+    const auto tMixed = tWarpPalette.MixedColors(0.3);
+    CHECK(tMixed[static_cast<int>(TerrainClass::Water)].mR == tWarpPalette.ColorOf(TerrainClass::Water).mR &&
+              tMixed[static_cast<int>(TerrainClass::SnowIce)].mG == tWarpPalette.ColorOf(TerrainClass::SnowIce).mG,
+          "su ve kar karismaz");
+    const TerrainColor tRef = tWarpPalette.ReferenceLandColor();
+    const TerrainColor tForest = tWarpPalette.ColorOf(TerrainClass::ForestConifer);
+    const TerrainColor tMixedForest = tMixed[static_cast<int>(TerrainClass::ForestConifer)];
+    CHECK(tMixedForest.mR > std::min(tForest.mR, tRef.mR) - 1 &&
+              tMixedForest.mR < std::max(tForest.mR, tRef.mR) + 1 &&
+              tMixedForest.mG > std::min(tForest.mG, tRef.mG) - 1 &&
+              tMixedForest.mG < std::max(tForest.mG, tRef.mG) + 1,
+          "orman rengi referansa yaklasmis (kanallar arada)");
+    const auto tUnmixed = tWarpPalette.MixedColors(0.0);
+    CHECK(tUnmixed[static_cast<int>(TerrainClass::ForestConifer)].mR == tForest.mR, "karisim 0: paletle ayni");
 }
 
 void TestSceneryIndex()
@@ -1950,6 +2474,7 @@ int main()
     TestMesh();
     TestSettings();
     TestLayerManager();
+    TestSubLayers();
     TestNavDatabase();
     TestLabelPlacer();
     TestMapViewBounds();
@@ -1966,6 +2491,8 @@ int main()
     TestLabelPriority();
     TestDsfReader();
     TestTerrain();
+    TestLandBlend();
+    TestTerrainWarp();
     TestSceneryIndex();
     std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;

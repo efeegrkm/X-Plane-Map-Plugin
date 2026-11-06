@@ -2,15 +2,15 @@
 // Havalimanindaki nokta nesneleri, her biri kendi sekli ve rengiyle:
 //
 //   Nesne (apt.dat)          Sembol                               Zoom
-//   kalkis / park (1300, 15) burun yonune donuk ok:               15+  (ad 16.5+)
+//   kalkis / park (1300, 15) burun yonune donuk ok:               14+  (ad 15.5+)
 //                              kapi = dolu mavi, baglama = bos yesil,
 //                              hangar = kare + ok, diger = gri ok
-//   helipad (102)            cember + yonune donuk "H"            13+
-//   beacon (18)              isinli yildiz (renk = beacon turu)   13+
-//   ruzgar tulumu (19)       direk + turuncu/beyaz koni           14+
-//   PAPI / VASI (21)         kirmizi-beyaz isik sirasi            15+
-//   tabela (20)              rengine gore kucuk dikdortgen        16+
-//   isik dizileri (101-108)  turune gore renkli kucuk noktalar,   15+
+//   helipad (102)            cember + yonune donuk "H"            12.5+
+//   beacon (18)              isinli yildiz (renk = beacon turu)   12.5+
+//   ruzgar tulumu (19)       direk + turuncu/beyaz koni           13.5+
+//   PAPI / VASI (21)         kirmizi-beyaz isik sirasi            14.5+
+//   tabela (20)              rengine gore kucuk dikdortgen        15.5+
+//   isik dizileri (101-108)  turune gore renkli kucuk noktalar,   14.5+
 //                            15 m arayla (yesil orta hat, mavi kenar ...)
 //
 // Fare uzerine gelince Describe ne oldugunu soyler ("Gate A10 (jets)").

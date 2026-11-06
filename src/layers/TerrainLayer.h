@@ -8,15 +8,20 @@
 //   ekranda derece basina piksel  < 100  -> seviye 0 (64 px karo)
 //                                 < 400  -> seviye 1 (256 px)
 //                                 < 1600 -> seviye 2 (1024 px)
-//                                 daha cok -> seviye 3 (4096 px, 16 parca)
+//                                 < 8000 -> seviye 3 (4096 px, 16 parca)
+//                                 daha cok -> seviye 4 (DSF ucgenlerinden 1/32
+//                                             derecelik parcalar, ~32768 px/derece)
 // Ince seviye hazir olana kadar elde olan en iyi kaba seviye gosterilir.
 // Deniz karolari (DSF yok, bolge kurulu) su rengiyle doldurulur.
 #pragma once
 
 #include <cstdint>
 #include <unordered_map>
+#include <vector>
 
 #include "Layer.h"
+#include "MapView.h"
+#include "gfx/Mesh.h"
 #include "gfx/Texture.h"
 #include "data/TerrainClasses.h"
 #include "data/TerrainStore.h"
@@ -43,6 +48,10 @@ private:
     const Gfx::Texture* UseTexture(const TerrainImageKey& pKey);
     void EvictUnused();
     static int DesiredLevel(double pPixelsPerDegree);
+    // Seviye 4: karonun ekrana giren 1/32 derecelik parcalarini ister ve cizer
+    // pLevel: TerrainStore::kDetailLevel (1/32 derece) veya kFineLevel (1/128 derece)
+    void DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, const GeoBounds& pBounds, int pLevel, int pLon,
+                          int pLat, double pTileWest, int pStyle, std::vector<Gfx::TexturedVertex>& pStrips);
 
     TerrainStore& mStore;
     TerrainPalette mPalette;

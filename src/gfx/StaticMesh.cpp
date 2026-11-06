@@ -2,6 +2,7 @@
 #include "gfx/StaticMesh.h"
 
 #include <cstddef>
+#include <utility>
 
 #include "gfx/GlApi.h"
 
@@ -21,12 +22,11 @@ StaticMesh::~StaticMesh()
 }
 
 StaticMesh::StaticMesh(StaticMesh&& pOther) noexcept
-    : mArray(pOther.mArray)
+    : mArray(std::move(pOther.mArray))
     , mBuffer(pOther.mBuffer)
     , mCount(pOther.mCount)
     , mPrimitive(pOther.mPrimitive)
 {
-    pOther.mArray = 0;
     pOther.mBuffer = 0;
     pOther.mCount = 0;
 }
@@ -36,11 +36,10 @@ StaticMesh& StaticMesh::operator=(StaticMesh&& pOther) noexcept
     if (this != &pOther)
     {
         Release();
-        mArray = pOther.mArray;
+        mArray = std::move(pOther.mArray);
         mBuffer = pOther.mBuffer;
         mCount = pOther.mCount;
         mPrimitive = pOther.mPrimitive;
-        pOther.mArray = 0;
         pOther.mBuffer = 0;
         pOther.mCount = 0;
     }
@@ -57,25 +56,30 @@ void StaticMesh::Upload(const std::vector<ColorVertex>& pVertices, Primitive pPr
         mCount = 0;
         return;
     }
-    // X-Plane'in bagli tuttugu vertex array / buffer'i bozmamak icin kaydet
-    GLint tOldArray = 0;
+    // X-Plane'in bagli tuttugu buffer'i bozmamak icin kaydet. VAO burada
+    // OLUSTURULMAZ: cizim hangi baglamda olacaksa orada olusur (BindVertexArray).
     GLint tOldBuffer = 0;
-    glGetIntegerv(Gl::kVertexArrayBinding, &tOldArray);
     glGetIntegerv(Gl::kArrayBufferBinding, &tOldBuffer);
-
-    Gl::GenVertexArrays(1, &mArray);
     Gl::GenBuffers(1, &mBuffer);
-    Gl::BindVertexArray(mArray);
     Gl::BindBuffer(Gl::kArrayBuffer, mBuffer);
     Gl::BufferData(Gl::kArrayBuffer, static_cast<GLsizeiptr>(pVertices.size() * sizeof(ColorVertex)),
                    pVertices.data(), kStaticDraw);
-    Gl::EnableVertexAttribArray(0);
-    Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mX));
-    Gl::EnableVertexAttribArray(1);
-    Gl::VertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mColor));
-
-    Gl::BindVertexArray(static_cast<GLuint>(tOldArray));
     Gl::BindBuffer(Gl::kArrayBuffer, static_cast<GLuint>(tOldBuffer));
+}
+
+void StaticMesh::BindVertexArray() const
+{
+    const unsigned int tBuffer = mBuffer;
+    mArray.Get(
+        [tBuffer]()
+        {
+            Gl::BindBuffer(Gl::kArrayBuffer, tBuffer);
+            Gl::EnableVertexAttribArray(0);
+            Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mX));
+            Gl::EnableVertexAttribArray(1);
+            Gl::VertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ColorVertex),
+                                    offsetof(ColorVertex, mColor));
+        });
 }
 
 bool StaticMesh::IsEmpty() const
@@ -93,20 +97,14 @@ Primitive StaticMesh::GetPrimitive() const
     return mPrimitive;
 }
 
-unsigned int StaticMesh::VertexArray() const
-{
-    return mArray;
-}
-
 void StaticMesh::Release()
 {
     if (mBuffer != 0 && Gl::IsLoaded())
     {
         Gl::DeleteBuffers(1, &mBuffer);
-        Gl::DeleteVertexArrays(1, &mArray);
     }
+    mArray.Release();
     mBuffer = 0;
-    mArray = 0;
     mCount = 0;
 }
 

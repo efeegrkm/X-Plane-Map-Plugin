@@ -63,6 +63,7 @@ int main(int pArgc, char** pArgv)
 
     std::map<int, long long> tBase;
     std::map<int, long long> tOverlay;
+    std::map<std::pair<int, int>, long long> tFlagsPlanes;
     double tMinLon = 1e9;
     double tMaxLon = -1e9;
     double tMinLat = 1e9;
@@ -73,6 +74,7 @@ int main(int pArgc, char** pArgv)
         [&](const DsfTriangle& pTriangle)
         {
             ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) ? tOverlay : tBase)[pTriangle.mTerrain]++;
+            tFlagsPlanes[{pTriangle.mPatchFlags & 3, pTriangle.mPlaneCount}]++;
             for (int tCorner = 0; tCorner < 3; ++tCorner)
             {
                 tMinLon = std::min(tMinLon, pTriangle.mLon[tCorner]);
@@ -86,6 +88,11 @@ int main(int pArgc, char** pArgv)
         &tError);
     std::printf("triangles: %s; lon %.4f..%.4f lat %.4f..%.4f elevation %.0f..%.0f m\n",
                 tOk ? "ok" : tError.c_str(), tMinLon, tMaxLon, tMinLat, tMaxLat, tMinElevation, tMaxElevation);
+    std::printf("patch flags x pool planes (1 = fiziksel, 2 = overlay):\n");
+    for (const auto& tEntry : tFlagsPlanes)
+    {
+        std::printf("  flags %d planes %d : %8lld\n", tEntry.first.first, tEntry.first.second, tEntry.second);
+    }
     for (size_t tIndex = 0; tIndex < tInfo.mTerrainNames.size(); ++tIndex)
     {
         const int tKey = static_cast<int>(tIndex);

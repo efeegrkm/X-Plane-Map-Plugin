@@ -26,6 +26,7 @@ namespace
 
 const char* kWindowSection = "window";
 const char* kViewSection = "view";
+const char* kToolsSection = "tools";
 
 const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
@@ -254,6 +255,19 @@ void MapWindow::OnDraw()
         return;
     }
     mCanvas.BeginFrame();
+    if (!mCanvas.IsContextUsable())
+    {
+        // Pop-out penceresi shader'larimizi paylasmayan bir baglamda: cizim
+        // yapilirsa gecersiz nesneler kullanilir. Cizme, nedenini yaz.
+        if (!mContextWarned)
+        {
+            Log("ERROR: this OpenGL context does not share the map's shaders (popped out = {})",
+                XPLMWindowIsPoppedOut(mWindow) != 0);
+            mContextWarned = true;
+        }
+        Ui::Text(mArea.mLeft + 10, mArea.mTop - 30, "Map cannot draw in this window, use Pop in", Ui::kTextYellow);
+        return;
+    }
 
     // boxel -> piksel: glScissor icin gerekli (UI olcek %100 degilse fark eder)
     const std::optional<Affine2D> tBoxelToPixel = ReadBoxelToPixel();
@@ -391,7 +405,8 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
     }
 
     const ToolbarState tState = CurrentToolbarState();
-    mLayerPanel.Layout(mToolbar.ButtonRect(ToolbarAction::Layers), mLayers);
+    mLayerPanel.Layout(mToolbar.ButtonRect(ToolbarAction::Layers), mArea.mBottom + StatusBar::kHeight + 4, mLayers);
+    mToolPalette.Layout(PaletteBounds(), tState);
     mModePanel.Layout(mToolbar.ButtonRect(ToolbarAction::MapMode));
 
     // Imlecin altindaki nokta: kontrollerin ustundeyse gosterme
@@ -414,6 +429,7 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
 
     mToolbar.Draw(mCanvas, pMouseX, pMouseY, tState);
     mStatusBar.Draw(mCanvas, mArea, mView, tCursor, tMessage);
+    mToolPalette.Draw(mCanvas, pMouseX, pMouseY, tState);
     mLayerPanel.Draw(mCanvas, pMouseX, pMouseY, mLayers);  // en ustte: acilir paneller
     mModePanel.Draw(mCanvas, pMouseX, pMouseY, mMapMode);
 }
@@ -427,6 +443,16 @@ RectD MapWindow::ClearArea() const
         tClear.mBottom += StatusBar::kHeight;
     }
     return tClear;
+}
+
+RectI MapWindow::PaletteBounds() const
+{
+    RectI tBounds = mArea;
+    tBounds.mTop -= mToolbar.Height() + 4;
+    tBounds.mBottom += StatusBar::kHeight + 4;
+    tBounds.mLeft += 4;
+    tBounds.mRight -= 4;
+    return tBounds;
 }
 
 RectI MapWindow::ShowControlsButtonRect() const
@@ -450,6 +476,7 @@ ToolbarState MapWindow::CurrentToolbarState() const
     tState.mFollowing = mFollowAircraft;
     tState.mHasAircraft = mAircraft.State().mValid;
     tState.mPoppedOut = mWindow && XPLMWindowIsPoppedOut(mWindow);
+    tState.mToolsOpen = mToolPalette.IsVisible();
     tState.mMode = mDrawings.GetMode();
     tState.mCanFinish = mDrawings.Current() != nullptr;
     tState.mCanUndo = tState.mCanFinish || mDrawings.ShapeCount() > 0;
@@ -478,7 +505,7 @@ bool MapWindow::IsOverControls(int pX, int pY) const
     }
     std::optional<MapMode> tMode;
     return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, mLayers).mInside ||
-           mModePanel.HitTest(pX, pY, &tMode);
+           mModePanel.HitTest(pX, pY, &tMode) || mToolPalette.Contains(pX, pY);
 }
 
 void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor)
@@ -517,10 +544,19 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
     if (pStatus == xplm_MouseDown)
     {
         XPLMBringWindowToFront(mWindow);
+        mPaletteDrag = false;
         mPressOnMap = !HandleControlClick(pX, pY);
         mPressMoved = false;
         mPressX = pX;
         mPressY = pY;
+        mDragLastX = pX;
+        mDragLastY = pY;
+        return 1;
+    }
+
+    if (pStatus == xplm_MouseDrag && mPaletteDrag)
+    {
+        mToolPalette.MoveBy(pX - mDragLastX, pY - mDragLastY);
         mDragLastX = pX;
         mDragLastY = pY;
         return 1;
@@ -549,7 +585,12 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
         {
             HandleMapClick(mPressX, mPressY);
         }
+        if (mPaletteDrag)
+        {
+            SaveSettings();  // paletin yeni yeri
+        }
         mPressOnMap = false;
+        mPaletteDrag = false;
     }
     return 1;  // tiklamayi her zaman tuket (gecirmek fare takibini bozuyor)
 }
@@ -585,6 +626,10 @@ int MapWindow::OnWheel(int pX, int pY, int pWheel, int pClicks)
     if (pWheel != 0)
     {
         return 1;  // yatay tekerlek: kullanmiyoruz
+    }
+    if (mShowControls && mLayerPanel.Scroll(pX, pY, pClicks))
+    {
+        return 1;  // uzun katman listesini kaydir (harita zoom yapmasin)
     }
     const double tDelta = pClicks * kWheelZoomStep;
     if (mFollowAircraft && mAircraft.State().mValid)
@@ -626,25 +671,24 @@ bool MapWindow::HandleControlClick(int pX, int pY)
     const LayerPanel::Hit tPanelHit = mLayerPanel.HitTest(pX, pY, mLayers);
     if (tPanelHit.mInside)
     {
-        if (!tPanelHit.mExpandGroup.empty())
+        ApplyLayerPanelHit(tPanelHit);
+        return true;
+    }
+    const ToolPalette::Hit tPaletteHit = mToolPalette.HitTest(pX, pY, CurrentToolbarState());
+    if (tPaletteHit.mInside)
+    {
+        if (tPaletteHit.mStartDrag)
         {
-            mLayerPanel.ToggleGroup(tPanelHit.mExpandGroup);  // grubu ac / kapa (katmanlar degismez)
-            return true;
+            mPaletteDrag = true;
         }
-        for (int tIndex : tPanelHit.mToggle)
+        else if (tPaletteHit.mToggleCollapse)
         {
-            Layer* tLayer = mLayers.At(tIndex);
-            // Grup kutusu: hepsini ayni duruma getir; tek katman: tersine cevir
-            const bool tVisible = tPanelHit.mIsGroupBox ? tPanelHit.mGroupOn : !tLayer->IsVisible();
-            if (tLayer->IsVisible() != tVisible)
-            {
-                tLayer->SetVisible(tVisible);
-                Log("layer '{}': {}", tLayer->Id(), tVisible ? "on" : "off");
-            }
-        }
-        if (!tPanelHit.mToggle.empty())
-        {
+            mToolPalette.SetCollapsed(!mToolPalette.IsCollapsed());
             SaveSettings();
+        }
+        else
+        {
+            PerformToolbarAction(tPaletteHit.mAction);
         }
         return true;
     }
@@ -654,6 +698,58 @@ bool MapWindow::HandleControlClick(int pX, int pY)
         return true;
     }
     return mStatusBar.Contains(pX, pY);
+}
+
+void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
+{
+    if (!pHit.mExpandKey.empty())
+    {
+        mLayerPanel.ToggleExpanded(pHit.mExpandKey);  // grubu / katmani ac-kapa (gorunurluk degismez)
+        return;
+    }
+    bool tChanged = false;
+    if (pHit.mSubLayerOwner >= 0)
+    {
+        // Alt katman: tersine cevir. Acilirsa katman da acilir (yoksa gorunmezdi);
+        // son alt katman kapanirsa katman da kapanir (kutu "bos" gorunsun)
+        Layer* tLayer = mLayers.At(pHit.mSubLayerOwner);
+        const bool tVisible = !(tLayer->IsVisible() && tLayer->IsSubLayerVisible(pHit.mSubLayer));
+        tLayer->SetSubLayerVisible(pHit.mSubLayer, tVisible);
+        if (tVisible)
+        {
+            tLayer->SetVisible(true);
+        }
+        else if (tLayer->VisibleSubLayerCount() == 0)
+        {
+            tLayer->SetVisible(false);
+        }
+        Log("layer '{}': {}", LayerManager::SubLayerKey(*tLayer, pHit.mSubLayer), tVisible ? "on" : "off");
+        tChanged = true;
+    }
+    for (int tIndex : pHit.mToggle)
+    {
+        Layer* tLayer = mLayers.At(tIndex);
+        // Grup kutusu: hepsini ayni duruma getir; tek katman: tersine cevir
+        const bool tVisible = pHit.mIsGroupBox ? pHit.mGroupOn : !tLayer->IsVisible();
+        if (tLayer->IsVisible() != tVisible)
+        {
+            tLayer->SetVisible(tVisible);
+            Log("layer '{}': {}", tLayer->Id(), tVisible ? "on" : "off");
+        }
+        // Butun alt katmanlari kapali bir katman acilirsa hepsini ac (bos katman gostermesin)
+        if (tVisible && tLayer->SubLayerCount() > 0 && tLayer->VisibleSubLayerCount() == 0)
+        {
+            for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+            {
+                tLayer->SetSubLayerVisible(tSub, true);
+            }
+        }
+        tChanged = true;
+    }
+    if (tChanged)
+    {
+        SaveSettings();
+    }
 }
 
 void MapWindow::SetMapMode(MapMode pMode)
@@ -700,6 +796,15 @@ void MapWindow::PerformToolbarAction(ToolbarAction pAction)
             break;
         case ToolbarAction::CenterAircraft:
             CenterOnAircraft();
+            break;
+        case ToolbarAction::DrawTools:
+            mToolPalette.SetVisible(!mToolPalette.IsVisible());
+            if (!mToolPalette.IsVisible() && mDrawings.GetMode() != Drawings::Mode::Pan)
+            {
+                mDrawings.SetMode(Drawings::Mode::Pan);  // gizli palette cizim modunda kalinmasin
+            }
+            SaveDrawings();
+            SaveSettings();
             break;
         case ToolbarAction::ModePan:
             mDrawings.SetMode(Drawings::Mode::Pan);
@@ -800,6 +905,11 @@ void MapWindow::LoadSettings()
     mShowControls = mSettings.GetBool(kViewSection, "show_controls", true);
     mMapMode = ModeFromId(mSettings.GetString(kViewSection, "mode", "scenery"), MapMode::Scenery);
 
+    mToolPalette.SetVisible(mSettings.GetBool(kToolsSection, "visible", true));
+    mToolPalette.SetCollapsed(mSettings.GetBool(kToolsSection, "collapsed", false));
+    mToolPalette.SetOffset(mSettings.GetInt(kToolsSection, "offset_right", 8),
+                           mSettings.GetInt(kToolsSection, "offset_top", 8));
+
     mLayers.LoadVisibility(mSettings, ThemeFor(mMapMode));
 }
 
@@ -821,6 +931,11 @@ void MapWindow::SaveSettings()
     mSettings.SetBool(kViewSection, "follow_aircraft", mFollowAircraft);
     mSettings.SetBool(kViewSection, "show_controls", mShowControls);
     mSettings.SetString(kViewSection, "mode", ThemeFor(mMapMode).mId);
+
+    mSettings.SetBool(kToolsSection, "visible", mToolPalette.IsVisible());
+    mSettings.SetBool(kToolsSection, "collapsed", mToolPalette.IsCollapsed());
+    mSettings.SetInt(kToolsSection, "offset_right", mToolPalette.OffsetRight());
+    mSettings.SetInt(kToolsSection, "offset_top", mToolPalette.OffsetTop());
 
     mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));
 

@@ -24,8 +24,10 @@ public:
     Texture(const Texture&) = delete;
     Texture& operator=(const Texture&) = delete;
 
-    // pSize x pSize RGBA goruntuden doku (satir 0 = dokunun v = 0 kenari)
-    static Texture FromRgba(int pSize, const uint8_t* pRgba);
+    // pSize x pSize RGBA goruntuden doku (satir 0 = dokunun v = 0 kenari).
+    // pMipmaps: kucultulmus seviyeler de uretilir (uzaktan bakinca kumlanma /
+    // titreme olmaz; bellek 4/3 kat). Zemin dokulari bunu kullanir.
+    static Texture FromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps = false);
 
     bool IsValid() const;
     int Id() const;  // XPLMBindTexture2d'ye verilen numara

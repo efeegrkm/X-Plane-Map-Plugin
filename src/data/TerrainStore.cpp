@@ -11,11 +11,13 @@
 #include "data/DsfReader.h"
 #include "data/SevenZip.h"
 #include "data/TerrainRaster.h"
+#include "data/TerrainTriangles.h"
 
 namespace
 {
 
 const size_t kMaxRastersInMemory = 3;   // her biri ~17 MB
+const size_t kMaxTriangleTiles = 2;     // yakin zoom ucgenleri, her biri ~30 MB
 const uint64_t kStaleFrames = 120;       // bu kadar karedir istenmeyen istek atilir
 const size_t kMaxQueuedResults = 64;     // ana thread almazsa isci bekler
 const char* kCacheVersion = "terrain-v1";
@@ -68,12 +70,20 @@ bool ReadWholeFile(const std::string& pPath, std::vector<uint8_t>* pOut)
 
 int TerrainStore::ImageSize(int pLevel)
 {
-    const int kSizes[kLevelCount] = {64, 256, 1024, 1024};
+    const int kSizes[kLevelCount] = {64, 256, 1024, 1024, 1024, 1024};
     return kSizes[pLevel];
 }
 
 int TerrainStore::ChunksPerSide(int pLevel)
 {
+    if (pLevel == kDetailLevel)
+    {
+        return TerrainTriangles::kChunksPerSide;
+    }
+    if (pLevel == kFineLevel)
+    {
+        return TerrainTriangles::kChunksPerSide * 4;
+    }
     return pLevel == 3 ? 4 : 1;
 }
 
@@ -257,86 +267,178 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
     }
 
     const Clock::time_point tStart = Clock::now();
-    // Oncelik sirasiyla: overlay olmayan ilk DSF karonun temel mesh'idir
-    for (const DsfCandidate& tCandidate : *tCandidates)
+    std::vector<uint8_t> tData;
+    DsfReader tReader;
+    std::string tPath;
+    if (!OpenBaseMesh(*tCandidates, tName, &tData, &tReader, &tPath, pLog))
     {
-        std::vector<uint8_t> tData;
-        if (!ReadWholeFile(tCandidate.mPath, &tData))
+        // Sadece overlay DSF'leri var (veya hepsi okunamadi): temel mesh yok
+        *pState = tNoBaseState;
+        if (!pCacheDirectory.empty())
         {
-            *pLog += "terrain " + tName + ": cannot read " + tCandidate.mPath + "\n";
+            WriteNoBaseMarker(tNoBasePath, tKey);
+        }
+        *pLog += "terrain " + tName + ": no base mesh (only overlays)\n";
+        return false;
+    }
+
+    // Arazi turu indeksi -> sinif
+    std::vector<TerrainClass> tClasses;
+    for (const std::string& tTerrain : tReader.Info().mTerrainNames)
+    {
+        tClasses.push_back(ClassifyTerrain(tTerrain));
+    }
+    pOut->Reset(pWest, pSouth);
+    std::string tError;
+    const bool tOk = tReader.ForEachTriangle(
+        [&](const DsfTriangle& pTriangle)
+        {
+            if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0 && pTriangle.mTerrain >= 0 &&
+                pTriangle.mTerrain < static_cast<int>(tClasses.size()))
+            {
+                pOut->FillTriangle(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
+            }
+        },
+        &tError);
+    if (!tOk)
+    {
+        *pLog += "terrain " + tName + ": " + tError + " (" + tPath + ")\n";
+        *pState = TerrainTileState::Failed;
+        return false;
+    }
+    DsfRaster tElevation;
+    if (tReader.ReadRaster("elevation", &tElevation))
+    {
+        pOut->ComputeShading(tElevation);
+    }
+    if (!pCacheDirectory.empty() && !pOut->Save(tCachePath, tKey))
+    {
+        *pLog += "terrain " + tName + ": cannot write cache " + tCachePath + "\n";
+    }
+    *pLog += std::format("terrain {}: built from {} in {:.1f} s (water {:.0f}%, relief {})\n", tName, tPath,
+                         std::chrono::duration<double>(Clock::now() - tStart).count(),
+                         100.0 * pOut->CountOf(TerrainClass::Water) / (TerrainRaster::kSize * TerrainRaster::kSize),
+                         pOut->HasShading() ? "yes" : "no");
+    *pState = TerrainTileState::Ready;
+    return true;
+}
+
+bool TerrainStore::OpenBaseMesh(const std::vector<DsfCandidate>& pCandidates, const std::string& pName,
+                                std::vector<uint8_t>* pData, DsfReader* pReader, std::string* pPath,
+                                std::string* pLog)
+{
+    // Oncelik sirasiyla: overlay olmayan ilk DSF karonun temel mesh'idir
+    for (const DsfCandidate& tCandidate : pCandidates)
+    {
+        if (!ReadWholeFile(tCandidate.mPath, pData))
+        {
+            *pLog += "terrain " + pName + ": cannot read " + tCandidate.mPath + "\n";
             continue;
         }
         std::string tError;
-        if (SevenZip::IsArchive(tData.data(), tData.size()))
+        if (SevenZip::IsArchive(pData->data(), pData->size()))
         {
             std::vector<uint8_t> tPlain;
-            if (!SevenZip::ExtractFirstFile(tData, &tPlain, &tError))
+            if (!SevenZip::ExtractFirstFile(*pData, &tPlain, &tError))
             {
-                *pLog += "terrain " + tName + ": " + tError + " (" + tCandidate.mPath + ")\n";
+                *pLog += "terrain " + pName + ": " + tError + " (" + tCandidate.mPath + ")\n";
                 continue;
             }
-            tData.swap(tPlain);
+            pData->swap(tPlain);
         }
-        DsfReader tReader;
-        if (!tReader.Open(tData, &tError))
+        if (!pReader->Open(*pData, &tError))
         {
-            *pLog += "terrain " + tName + ": " + tError + " (" + tCandidate.mPath + ")\n";
+            *pLog += "terrain " + pName + ": " + tError + " (" + tCandidate.mPath + ")\n";
             continue;
         }
-        if (tReader.Info().mOverlay)
+        if (pReader->Info().mOverlay)
         {
             continue;  // ustune serilen katman (havalimani, nesneler): zemin degil
         }
-
-        // Arazi turu indeksi -> sinif
-        std::vector<TerrainClass> tClasses;
-        for (const std::string& tTerrain : tReader.Info().mTerrainNames)
-        {
-            tClasses.push_back(ClassifyTerrain(tTerrain));
-        }
-        pOut->Reset(pWest, pSouth);
-        const bool tOk = tReader.ForEachTriangle(
-            [&](const DsfTriangle& pTriangle)
-            {
-                if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0 && pTriangle.mTerrain >= 0 &&
-                    pTriangle.mTerrain < static_cast<int>(tClasses.size()))
-                {
-                    pOut->FillTriangle(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
-                }
-            },
-            &tError);
-        if (!tOk)
-        {
-            *pLog += "terrain " + tName + ": " + tError + " (" + tCandidate.mPath + ")\n";
-            *pState = TerrainTileState::Failed;
-            return false;
-        }
-        DsfRaster tElevation;
-        if (tReader.ReadRaster("elevation", &tElevation))
-        {
-            pOut->ComputeShading(tElevation);
-        }
-        if (!pCacheDirectory.empty() && !pOut->Save(tCachePath, tKey))
-        {
-            *pLog += "terrain " + tName + ": cannot write cache " + tCachePath + "\n";
-        }
-        const std::string tLine = std::format(
-            "terrain {}: built from {} in {:.1f} s (water {:.0f}%, relief {})\n", tName, tCandidate.mPath,
-            std::chrono::duration<double>(Clock::now() - tStart).count(),
-            100.0 * pOut->CountOf(TerrainClass::Water) / (TerrainRaster::kSize * TerrainRaster::kSize),
-            pOut->HasShading() ? "yes" : "no");
-        *pLog += tLine;
-        *pState = TerrainTileState::Ready;
+        *pPath = tCandidate.mPath;
         return true;
     }
-    // Sadece overlay DSF'leri var (veya hepsi okunamadi): temel mesh yok
-    *pState = tNoBaseState;
-    if (!pCacheDirectory.empty())
-    {
-        WriteNoBaseMarker(tNoBasePath, tKey);
-    }
-    *pLog += "terrain " + tName + ": no base mesh (only overlays)\n";
     return false;
+}
+
+bool TerrainStore::LoadTriangles(const SceneryIndex& pIndex, int pWest, int pSouth, TerrainTriangles* pOut,
+                                 std::string* pLog)
+{
+    const std::vector<DsfCandidate>* tCandidates = pIndex.CandidatesFor(pWest, pSouth);
+    if (!tCandidates)
+    {
+        return false;
+    }
+    const std::string tName = SceneryIndex::TileName(pWest, pSouth);
+    const Clock::time_point tStart = Clock::now();
+    std::vector<uint8_t> tData;
+    DsfReader tReader;
+    std::string tPath;
+    if (!OpenBaseMesh(*tCandidates, tName, &tData, &tReader, &tPath, pLog))
+    {
+        return false;
+    }
+    std::vector<TerrainClass> tClasses;
+    for (const std::string& tTerrain : tReader.Info().mTerrainNames)
+    {
+        tClasses.push_back(ClassifyTerrain(tTerrain));
+    }
+    pOut->Reset(pWest, pSouth);
+    std::string tError;
+    const bool tOk = tReader.ForEachTriangle(
+        [&](const DsfTriangle& pTriangle)
+        {
+            if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0 && pTriangle.mTerrain >= 0 &&
+                pTriangle.mTerrain < static_cast<int>(tClasses.size()))
+            {
+                pOut->Add(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
+            }
+        },
+        &tError);
+    if (!tOk)
+    {
+        *pLog += "terrain detail " + tName + ": " + tError + " (" + tPath + ")\n";
+        return false;
+    }
+    *pLog += std::format("terrain detail {}: {} triangles, {:.0f} MB in {:.1f} s\n", tName, pOut->TriangleCount(),
+                         pOut->MemoryBytes() / 1048576.0,
+                         std::chrono::duration<double>(Clock::now() - tStart).count());
+    return true;
+}
+
+TerrainTriangles* TerrainStore::TrianglesFor(int pWest, int pSouth)
+{
+    const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+    for (auto tIterator = mTriangles.begin(); tIterator != mTriangles.end(); ++tIterator)
+    {
+        if (tIterator->first == tKey)
+        {
+            mTriangles.splice(mTriangles.begin(), mTriangles, tIterator);  // en son kullanilan basa
+            return mTriangles.front().second.get();
+        }
+    }
+    {
+        std::lock_guard<std::mutex> tLock(mMutex);
+        mStatus = "Loading terrain detail " + SceneryIndex::TileName(pWest, pSouth);
+    }
+    std::unique_ptr<TerrainTriangles> tTriangles = std::make_unique<TerrainTriangles>();
+    std::string tLog;
+    const bool tOk = LoadTriangles(mIndex, pWest, pSouth, tTriangles.get(), &tLog);
+    if (!tLog.empty())
+    {
+        tLog.pop_back();
+        AddLog(tLog);
+    }
+    if (!tOk)
+    {
+        return nullptr;
+    }
+    mTriangles.emplace_front(tKey, std::move(tTriangles));
+    if (mTriangles.size() > kMaxTriangleTiles)
+    {
+        mTriangles.pop_back();
+    }
+    return mTriangles.front().second.get();
 }
 
 TerrainRaster* TerrainStore::RasterFor(int pWest, int pSouth)
@@ -427,14 +529,29 @@ void TerrainStore::WorkerLoop()
         TerrainImage tImage;
         tImage.mKey = tKey;
         tImage.mSize = ImageSize(tKey.mLevel);
-        const int tChunks = ChunksPerSide(tKey.mLevel);
-        const int tSpan = TerrainRaster::kSize / tChunks;
-        const int tX0 = (tKey.mChunk % tChunks) * tSpan;
-        const int tY0 = (tKey.mChunk / tChunks) * tSpan;
         const TerrainImageStyle tStyle = tKey.mStyle >= 0 && tKey.mStyle < static_cast<int>(mStyles.size())
                                              ? mStyles[tKey.mStyle]
                                              : TerrainImageStyle();
-        tRaster->BuildImage(tX0, tY0, tX0 + tSpan, tY0 + tSpan, tImage.mSize, mPalette, tStyle, &tImage.mRgba);
+        if (tKey.mLevel >= kDetailLevel)
+        {
+            // Yakin zoom: parca raster'dan degil, dogrudan DSF ucgenlerinden boyanir
+            const TerrainTriangles* tTriangles = TrianglesFor(tKey.mWest, tKey.mSouth);
+            if (!tTriangles)
+            {
+                continue;
+            }
+            tRaster->BuildDetailImage(*tTriangles, ChunksPerSide(tKey.mLevel), tKey.mChunk, tImage.mSize, mPalette,
+                                      tStyle, &tImage.mRgba);
+        }
+        else
+        {
+            const int tChunks = ChunksPerSide(tKey.mLevel);
+            const int tSpan = TerrainRaster::kSize / tChunks;
+            const int tX0 = (tKey.mChunk % tChunks) * tSpan;
+            const int tY0 = (tKey.mChunk / tChunks) * tSpan;
+            tRaster->BuildImage(tX0, tY0, tX0 + tSpan, tY0 + tSpan, tImage.mSize, mPalette, tStyle, &tImage.mRgba);
+        }
+        TerrainRaster::BleedTransparent(tImage.mSize, &tImage.mRgba);  // mipmap kenarlari koyulasmasin
 
         std::lock_guard<std::mutex> tLock(mMutex);
         mResults.push_back(std::move(tImage));

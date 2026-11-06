@@ -37,6 +37,9 @@ public:
     void LoadVisibility(const Settings& pSettings, const MapTheme& pTheme);
     void SaveVisibility(Settings& pSettings, const MapTheme& pTheme) const;
 
+    // Alt katmanin ayar anahtari: "<katman>.<alt katman>" (ornek "airport_surfaces.boundary")
+    static std::string SubLayerKey(const Layer& pLayer, int pSubLayer);
+
 private:
     std::vector<std::unique_ptr<Layer>> mLayers;
 };

@@ -13,10 +13,15 @@ namespace
 
 const double kMinZoom = 5.0;                   // daha uzakta zemin cizilmez (karo sayisi patlar)
 const int kMaxVisibleTiles = 1500;
-const size_t kTextureBudget = 256u << 20;      // video belleginde en fazla ~256 MB doku
+const size_t kTextureBudget = 512u << 20;      // video belleginde en fazla ~512 MB doku (seviye 4 parcalari 4 MB)
 const int kUploadsPerFrame = 3;                // karede en fazla bu kadar doku yuklenir (FPS korumasi)
 const int kFullTileStrips = 16;                // 1 derecelik dokunun Mercator seritleri
 const int kChunkStrips = 4;                    // 0.25 derecelik parcanin seritleri
+const int kDetailStrips = 1;                   // 1/32 derecelik parcada Mercator egriligi onemsiz
+const double kDetailPixelsPerDegree = 8000.0;  // bundan yakinda zemin DSF ucgenlerinden boyanir
+// Seviye 4 dokusu derece basina 32768 piksel; ekran bunun ~1,2 katini gecince
+// (doku pikselleri bloklasmaya baslar) 4 kat ince seviye 5 parcalari cizilir.
+const double kFinePixelsPerDegree = 40000.0;
 
 int WrapLon(int pLon)
 {
@@ -83,7 +88,15 @@ int TerrainLayer::DesiredLevel(double pPixelsPerDegree)
     {
         return 2;
     }
-    return 3;
+    if (pPixelsPerDegree < kDetailPixelsPerDegree)
+    {
+        return 3;
+    }
+    if (pPixelsPerDegree < kFinePixelsPerDegree)
+    {
+        return TerrainStore::kDetailLevel;
+    }
+    return TerrainStore::kFineLevel;
 }
 
 void TerrainLayer::UploadReadyImages()
@@ -96,8 +109,8 @@ void TerrainLayer::UploadReadyImages()
             continue;  // ayni goruntu iki kez istenmis olabilir
         }
         CachedTexture tCached;
-        tCached.mTexture = Gfx::Texture::FromRgba(tImage.mSize, tImage.mRgba.data());
-        tCached.mBytes = tImage.mRgba.size();
+        tCached.mTexture = Gfx::Texture::FromRgba(tImage.mSize, tImage.mRgba.data(), true);
+        tCached.mBytes = tImage.mRgba.size() * 4 / 3;  // mipmap seviyeleri dahil
         tCached.mLastFrame = mFrame;
         mTextureBytes += tCached.mBytes;
         mTextures.emplace(tImage.mKey, std::move(tCached));
@@ -135,6 +148,39 @@ void TerrainLayer::EvictUnused()
         }
         mTextureBytes -= tOldest->second.mBytes;
         mTextures.erase(tOldest);  // Gfx::Texture yikicisi dokuyu siler
+    }
+}
+
+void TerrainLayer::DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, const GeoBounds& pBounds, int pLevel,
+                                    int pLon, int pLat, double pTileWest, int pStyle,
+                                    std::vector<Gfx::TexturedVertex>& pStrips)
+{
+    const int tCount = TerrainStore::ChunksPerSide(pLevel);
+    const double tStep = 1.0 / tCount;
+    const double tTileNorth = pLat + 1.0;
+    // Ekrandaki sutun / satir araligi (satir 0 = kuzey); karonun disi kirpilir
+    const int tFirstColumn = std::max(0, static_cast<int>(std::floor((pBounds.mWest - pTileWest) * tCount)));
+    const int tLastColumn = std::min(tCount - 1, static_cast<int>(std::floor((pBounds.mEast - pTileWest) * tCount)));
+    const int tFirstRow = std::max(0, static_cast<int>(std::floor((tTileNorth - pBounds.mNorth) * tCount)));
+    const int tLastRow = std::min(tCount - 1, static_cast<int>(std::floor((tTileNorth - pBounds.mSouth) * tCount)));
+    for (int tRow = tFirstRow; tRow <= tLastRow; ++tRow)
+    {
+        for (int tColumn = tFirstColumn; tColumn <= tLastColumn; ++tColumn)
+        {
+            const int tChunk = tRow * tCount + tColumn;
+            const TerrainImageKey tKey = {pLon, pLat, pLevel, tChunk, pStyle};
+            const Gfx::Texture* tTexture = UseTexture(tKey);
+            if (!tTexture)
+            {
+                mStore.Request(tKey);
+                continue;
+            }
+            const double tWest = pTileWest + tColumn * tStep;
+            const double tNorth = tTileNorth - tRow * tStep;
+            pStrips.clear();
+            AddLatLonStrips(pStrips, pView, tWest, tNorth - tStep, tWest + tStep, tNorth, kDetailStrips);
+            pCanvas.DrawTextured(*tTexture, pStrips);
+        }
     }
 }
 
@@ -218,7 +264,7 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             }
 
             // En ince seviye: sadece ekrana giren 0.25 derecelik parcalar
-            if (tLevel == 3)
+            if (tLevel >= 3)
             {
                 for (int tChunk = 0; tChunk < 16; ++tChunk)
                 {
@@ -240,6 +286,20 @@ void TerrainLayer::Draw(const DrawContext& pContext)
                                     kChunkStrips);
                     tCanvas.DrawTextured(*tChunkTexture, tStrips);
                 }
+            }
+
+            // Yakin zoom: ekrana giren 1/32 derecelik parcalar, DSF ucgenlerinden. Seviye 5'te
+            // de cizilir: ince parcalar hazir olana kadar altta yedek olarak gorunur.
+            if (tLevel >= TerrainStore::kDetailLevel)
+            {
+                DrawDetailChunks(tCanvas, tView, tBounds, TerrainStore::kDetailLevel, tLon, tLat, tTileWest, tStyle,
+                                 tStrips);
+            }
+            // Cok yakin zoom: 1/128 derecelik parcalar
+            if (tLevel == TerrainStore::kFineLevel)
+            {
+                DrawDetailChunks(tCanvas, tView, tBounds, TerrainStore::kFineLevel, tLon, tLat, tTileWest, tStyle,
+                                 tStrips);
             }
         }
     }

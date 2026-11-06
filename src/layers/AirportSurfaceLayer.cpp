@@ -16,8 +16,18 @@ namespace
 
 const double kBoundaryMinZoom = 10.5;
 const double kSurfaceMinZoom = 11.0;
-const double kLineMinZoom = 14.0;
+const double kLineMinZoom = 13.5;  // pist / taksi yolu orta cizgileri: 1 tik erken
 const size_t kMaxGpuAirports = 64;    // GPU'da tutulan en fazla havalimani
+const float kCriticalLinePixels = 2.0f;  // sinir ve kaplama kenari: 2 piksel (boya cizgileri 1)
+
+// Alt katmanlar (yapicidaki AddSubLayer sirasi)
+enum SurfacePart
+{
+    kPartPavement,
+    kPartPavementEdges,
+    kPartBoundary,
+    kPartMarkings,
+};
 
 // Yuzey renkleri (koyu tema). Pistler (RunwayLayer) bunlardan biraz daha koyu.
 const Rgba kAsphalt = {0.30f, 0.31f, 0.34f, 1.0f};
@@ -131,6 +141,10 @@ AirportSurfaceLayer::AirportSurfaceLayer(const AirportGeometryStore& pSummaries,
     , mSummaries(pSummaries)
     , mDetails(pDetails)
 {
+    AddSubLayer("pavement", "Pavement");
+    AddSubLayer("pavement_edges", "Pavement edges");
+    AddSubLayer("boundary", "Airport boundary");
+    AddSubLayer("markings", "Painted lines");
 }
 
 void AirportSurfaceLayer::Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded) const
@@ -264,25 +278,27 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
         mDrawn.push_back(tLoaded);
     }
 
+    // Kritik cizgiler gercek piksel olarak 2 (UI olcegi %150 ise 3)
+    const float tCriticalWidth = std::round(kCriticalLinePixels * static_cast<float>(pContext.mPixelsPerBoxel));
     // Once tum dolgular, sonra kenarlar ve cizgiler (komsu havalimanlari birbirini ortmesin)
     for (int tPass = 0; tPass < 4; ++tPass)
     {
         for (GpuAirport* tGpu : tReady)
         {
             const PointF tOffset = tView.MercatorToScreen(tGpu->mOriginX, tGpu->mOriginY);
-            if (tPass == 0 && tZoom >= kSurfaceMinZoom)
+            if (tPass == 0 && tZoom >= kSurfaceMinZoom && IsSubLayerVisible(kPartPavement))
             {
                 tCanvas.DrawStatic(tGpu->mFills, tOffset, tScale);
             }
-            else if (tPass == 1 && tZoom >= kSurfaceMinZoom)
+            else if (tPass == 1 && tZoom >= kSurfaceMinZoom && IsSubLayerVisible(kPartPavementEdges))
             {
-                tCanvas.DrawStatic(tGpu->mEdges, tOffset, tScale);
+                tCanvas.DrawStatic(tGpu->mEdges, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 2)
+            else if (tPass == 2 && IsSubLayerVisible(kPartBoundary))
             {
-                tCanvas.DrawStatic(tGpu->mBoundaries, tOffset, tScale);
+                tCanvas.DrawStatic(tGpu->mBoundaries, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 3 && tZoom >= kLineMinZoom)
+            else if (tPass == 3 && tZoom >= kLineMinZoom && IsSubLayerVisible(kPartMarkings))
             {
                 tCanvas.DrawStatic(tGpu->mLines, tOffset, tScale);
             }
@@ -295,7 +311,7 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
 std::string AirportSurfaceLayer::Describe(const DrawContext& pContext, double pX, double pY) const
 {
     const MapView& tView = *pContext.mView;
-    if (tView.Zoom() < kSurfaceMinZoom)
+    if (tView.Zoom() < kSurfaceMinZoom || !IsSubLayerVisible(kPartPavement))
     {
         return "";
     }

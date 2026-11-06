@@ -37,6 +37,8 @@ const GLenum kVertexArrayBinding = 0x85B5;    // GL_VERTEX_ARRAY_BINDING
 const GLenum kMajorVersion = 0x821B;          // GL_MAJOR_VERSION
 const GLenum kMinorVersion = 0x821C;          // GL_MINOR_VERSION
 const GLenum kClampToEdge = 0x812F;           // GL_CLAMP_TO_EDGE
+const GLenum kLinearMipmapLinear = 0x2703;    // GL_LINEAR_MIPMAP_LINEAR (GL 1.1 basligi da tanimlar)
+const GLenum kTextureMaxLevel = 0x813D;       // GL_TEXTURE_MAX_LEVEL
 
 // Fonksiyon adreslerini surucuden alir. Eksik fonksiyon ya da OpenGL < 3.3
 // ise false doner, nedeni pOutError'a yazilir. Ikinci cagri bir sey yapmaz.
@@ -45,6 +47,19 @@ bool IsLoaded();
 
 // "4.6.0 NVIDIA 566.36 / NVIDIA GeForce RTX ... / GLSL 4.60" (log icin)
 std::string DescribeContext();
+
+// --- OpenGL baglami (context) ---
+// Pencere pop-out yapilinca X-Plane onu AYRI bir OpenGL baglaminda cizer.
+// Baglamlar dokulari, buffer'lari ve shader'lari paylasir ama vertex array
+// (VAO) nesnelerini PAYLASMAZ: VAO'lar baglam basina olusturulmalidir.
+void* CurrentContext();           // o an etkin baglamin kimligi (Windows: HGLRC); yoksa nullptr
+void NoteContext();               // her pencere ciziminin basinda: baglam degistiyse nesli artirir
+unsigned int ContextGeneration(); // baglam her degistiginde bir artar (VAO onbellekleri bunu izler)
+GLboolean IsVertexArray(GLuint pArray);  // bu ad SU ANKI baglamda bir VAO mu
+GLboolean IsProgram(GLuint pProgram);    // bu ad su anki baglamda bir shader programi mi
+
+// --- Doku ---
+void GenerateMipmap(GLenum pTarget);     // bagli dokunun kucultulmus seviyelerini surucu uretir (GL 3.0)
 
 // --- Buffer / vertex array ---
 void GenBuffers(GLsizei pCount, GLuint* pBuffers);

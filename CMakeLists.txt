@@ -47,7 +47,10 @@ set(CORE_SOURCES
     src/data/SceneryPacks.cpp
     src/data/SceneryIndex.cpp
     src/data/TerrainClasses.cpp
+    src/data/LandColorField.cpp
+    src/data/TerrainNoise.cpp
     src/data/TerrainRaster.cpp
+    src/data/TerrainTriangles.cpp
     src/data/TerrainStore.cpp
     src/data/AptLine.cpp
     src/data/AptDatParser.cpp
@@ -66,6 +69,7 @@ set(PLUGIN_SOURCES
     src/gfx/GlApi.cpp
     src/gfx/GlScreen.cpp
     src/gfx/Canvas.cpp
+    src/gfx/ContextVertexArray.cpp
     src/gfx/StaticMesh.cpp
     src/gfx/Texture.cpp
     src/layers/MapSymbols.cpp
@@ -86,6 +90,7 @@ set(PLUGIN_SOURCES
     src/ui/UiDraw.cpp
     src/ui/Toolbar.cpp
     src/ui/LayerPanel.cpp
+    src/ui/ToolPalette.cpp
     src/ui/ModePanel.cpp
     src/ui/StatusBar.cpp
 )
@@ -202,6 +207,7 @@ if(MAP_PREVIEW AND WIN32)
         src/gfx/GlApi.cpp
         src/gfx/GlScreen.cpp
         src/gfx/Canvas.cpp
+        src/gfx/ContextVertexArray.cpp
         src/gfx/StaticMesh.cpp
         src/gfx/Texture.cpp
         src/layers/MapSymbols.cpp
@@ -220,6 +226,7 @@ if(MAP_PREVIEW AND WIN32)
         src/ui/UiDraw.cpp
         src/ui/Toolbar.cpp
         src/ui/LayerPanel.cpp
+        src/ui/ToolPalette.cpp
         src/ui/ModePanel.cpp
         src/ui/StatusBar.cpp)
     map_compile_options(map_preview)

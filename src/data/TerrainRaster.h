@@ -14,6 +14,7 @@
 #include "data/TerrainClasses.h"
 
 struct DsfRaster;
+class TerrainTriangles;
 
 class TerrainRaster
 {
@@ -41,11 +42,32 @@ public:
     TerrainClass ClassAt(int pX, int pY) const;
     int CountOf(TerrainClass pClass) const;  // teshis ve testler icin
 
+    // Bukulmus sinif: kendi sinifi karaysa ve kaydirilmis noktadaki de karaysa o, yoksa kendisi.
+    // pOffsetCells: kayma, karo raster hucre cinsinden (+x dogu, +y guney). Karo disina bukme yok.
+    TerrainClass WarpedClassAt(int pX, int pY, double pOffsetCellsX, double pOffsetCellsY) const;
+
     // Raster'in [pX0, pX1) x [pY0, pY1) parcasindan pOutSize x pOutSize RGBA
     // goruntu uretir (kucultmede renkler ortalanir; su olmayan yerde golge uygulanir).
     // pStyle: Classes = paletle, Elevation = rakim rampasi, LandWater = iki renk.
     void BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize, const TerrainPalette& pPalette,
                     const TerrainImageStyle& pStyle, std::vector<uint8_t>* pRgba) const;
+
+    // Yakin zoom: karo pChunksPerSide x pChunksPerSide parcaya bolunur (32 veya 128;
+    // TerrainTriangles::kChunksPerSide'in kati). pChunk. parcayi (satir 0 = kuzey)
+    // raster'dan degil DOGRUDAN DSF ucgenlerinden pOutSize x pOutSize boyar.
+    // Golge bu raster'dan bikubik (yumusak), rakim cift dogrusal okunur.
+    //
+    // Scenery stilinde kara renkleri [blend] meters mesafesinde yumusatilir
+    // (LandColorField); su ve kiyi keskin kalir, golge sonra eklenir. Doku pay ile
+    // uretilip kirpilir, komsu dokularla dikis olmaz.
+    void BuildDetailImage(const TerrainTriangles& pTriangles, int pChunksPerSide, int pChunk, int pOutSize,
+                          const TerrainPalette& pPalette, const TerrainImageStyle& pStyle,
+                          std::vector<uint8_t>* pRgba) const;
+
+    // Saydam (alfa 0) piksellerin rengini en yakin opak komsudan doldurur (alfa
+    // 0 kalir). Dogrusal suzme / mipmap saydam pikselin siyah rengini kenara
+    // karistirip koyu sacak yapmasin diye. Tamamen saydam goruntuye dokunmaz.
+    static void BleedTransparent(int pSize, std::vector<uint8_t>* pRgba);
 
     // Onbellek dosyasi. pKey, raster'in hangi DSF'lerden uretildigini tanimlar;
     // Load, dosyadaki anahtar pKey ile ayni degilse false doner (yeniden uretilmeli).
@@ -53,7 +75,16 @@ public:
     bool Load(const std::string& pPath, const std::string& pKey);
 
 private:
-    double ShadeAt(double pU, double pV) const;  // 0..1 normalize koordinat, cift dogrusal
+    double ShadeAt(double pU, double pV) const;        // 0..1 normalize koordinat, cift dogrusal
+    double ShadeAtSmooth(double pU, double pV) const;  // ayni, bikubik (Catmull-Rom): yakinda elmas deseni yok
+
+    // Bir goruntu pikselinin son rengi. pR/pG/pB: sinif renklerinin toplami
+    // (pCovered ornek), pLand: kara ornegi sayisi, pSamples: toplam ornek,
+    // pU/pV: pikselin karodaki yeri (0..1, v = 0 kuzey).
+    // pSmoothShade: golge bikubik okunur (yakin zoom parcalari)
+    void FinishPixel(double pR, double pG, double pB, int pCovered, int pLand, int pSamples, double pU, double pV,
+                     const TerrainPalette& pPalette, const TerrainImageStyle& pStyle, bool pSmoothShade,
+                     uint8_t* pPixel) const;
 
     int mWest = 0;
     int mSouth = 0;

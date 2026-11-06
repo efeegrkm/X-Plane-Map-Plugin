@@ -15,6 +15,13 @@
 //
 // Seviyeler (goruntu boyutu):  0 = 64, 1 = 256, 2 = 1024 (tum karo),
 //                              3 = 4096'nin 4x4 parcasindan biri (her biri 1024)
+//                              4 = yakin zoom: 32x32 parcadan biri (1/32 derece,
+//                                  1024 px), raster'dan degil DSF ucgenlerinden
+//                                  boyanir (TerrainTriangles) -> keskin kenarlar
+//                              5 = cok yakin zoom: 128x128 parcadan biri (1/128
+//                                  derece, 1024 px; ~0,85 m/piksel), ayni ucgenlerden
+// Her goruntunun saydam pikselleri komsu rengiyle doldurulur (BleedTransparent):
+// mipmap ve dogrusal suzme kenarlarda koyu sacak yapmasin.
 #pragma once
 
 #include <atomic>
@@ -33,6 +40,8 @@
 #include "data/TerrainClasses.h"
 
 class TerrainRaster;
+class TerrainTriangles;
+class DsfReader;
 
 struct TerrainImageKey
 {
@@ -53,9 +62,11 @@ struct TerrainImageKeyHash
 {
     size_t operator()(const TerrainImageKey& pKey) const
     {
-        return (static_cast<size_t>(SceneryIndex::TileKey(pKey.mWest, pKey.mSouth)) * 64 +
-                static_cast<size_t>(pKey.mLevel * 16 + pKey.mChunk)) * 8 +
-               static_cast<size_t>(pKey.mStyle);
+        // karo * (8 seviye) * (32768 parca; seviye 5 = 16384) * (8 bicim): carpisma yok
+        size_t tHash = static_cast<size_t>(SceneryIndex::TileKey(pKey.mWest, pKey.mSouth));
+        tHash = tHash * 8 + static_cast<size_t>(pKey.mLevel);
+        tHash = tHash * 32768 + static_cast<size_t>(pKey.mChunk);
+        return tHash * 8 + static_cast<size_t>(pKey.mStyle);
     }
 };
 
@@ -78,7 +89,9 @@ enum class TerrainTileState
 class TerrainStore
 {
 public:
-    static const int kLevelCount = 4;
+    static const int kLevelCount = 6;
+    static const int kDetailLevel = 4;  // DSF ucgenlerinden boyanan yakin zoom seviyesi (1/32 derece)
+    static const int kFineLevel = 5;    // ayni ucgenlerden daha kucuk parcalar (1/128 derece)
     static int ImageSize(int pLevel);
     static int ChunksPerSide(int pLevel);
 
@@ -110,6 +123,10 @@ public:
     static bool BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
                             TerrainRaster* pOut, std::string* pLog, TerrainTileState* pState);
 
+    // Yakin zoom icin karonun temel arazi ucgenlerini DSF'ten okur (diske yazilmaz)
+    static bool LoadTriangles(const SceneryIndex& pIndex, int pWest, int pSouth, TerrainTriangles* pOut,
+                              std::string* pLog);
+
 private:
     struct Pending
     {
@@ -119,6 +136,12 @@ private:
     void WorkerLoop();
     bool PickRequest(TerrainImageKey* pOut);
     TerrainRaster* RasterFor(int pWest, int pSouth);
+    TerrainTriangles* TrianglesFor(int pWest, int pSouth);
+
+    // Adaylar icinde overlay olmayan ilk DSF'i acar (pData okuyucu boyunca yasamali)
+    static bool OpenBaseMesh(const std::vector<DsfCandidate>& pCandidates, const std::string& pName,
+                             std::vector<uint8_t>* pData, DsfReader* pReader, std::string* pPath,
+                             std::string* pLog);
     void SetState(int pWest, int pSouth, TerrainTileState pState);
     void AddLog(const std::string& pLine);
 
@@ -142,4 +165,7 @@ private:
 
     // Sadece iscinin kullandigi bellek ici raster onbellegi (en son kullanilan basta)
     std::list<std::pair<int, std::unique_ptr<TerrainRaster>>> mRasters;
+
+    // Yakin zoom ucgenleri (karo basina ~30 MB; en son kullanilan basta)
+    std::list<std::pair<int, std::unique_ptr<TerrainTriangles>>> mTriangles;
 };

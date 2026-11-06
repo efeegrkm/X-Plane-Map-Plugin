@@ -427,19 +427,34 @@ void MapPlugin::StepLoading()
 void MapPlugin::LoadTerrainColors()
 {
     // Dosya yoksa varsayilan renklerle olustur: kullanici acip degistirebilsin
+    const char* kComment = "Map Plugin terrain colors. Edit while X-Plane is closed.\n"
+                           "[colors]: <class> = R G B (0..255). [shading] strength = 0 (flat) .. 1 (strong relief).\n"
+                           "[blend] meters = soft transition between land classes in Scenery mode (0 = off, default 150).\n"
+                           "[blend] max_pixels = cap of the blend radius in texture pixels at close zoom (default 5; 0 = no cap).\n"
+                           "[warp] meters / wavelength = natural (curved) borders between land classes; meters 0 = straight triangle edges (default 65 / 250).\n"
+                           "[closeup] class_mix = 0..0.8: at close zoom land class colors move this much toward one land tone (0 = off, default 0.3).\n"
+                           "[palette] version: do not edit; an older version resets the colors to the new defaults.\n"
+                           "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be deleted.\n"
+                           "Delete this file to get the default colors back.";
     Settings tColors;
     const std::string tPath = mPluginDirectory + kTerrainColorsFileName;
     if (tColors.Load(tPath))
     {
         mTerrainPalette.Load(tColors);
+        if (!mTerrainPalette.LoadedCurrentVersion())
+        {
+            // Eski surum: renkler yeni varsayilanlara gecti; dosyayi da guncelle (shading/blend korunur)
+            mTerrainPalette.Save(tColors);
+            tColors.SetComment(kComment);
+            tColors.Save();
+            Log("terrain colors updated to palette version {}: {}", TerrainPalette::kPaletteVersion, tPath);
+            return;
+        }
         Log("terrain colors loaded: {}", tPath);
         return;
     }
     mTerrainPalette.Save(tColors);
-    tColors.SetComment("Map Plugin terrain colors. Edit while X-Plane is closed.\n"
-                       "[colors]: <class> = R G B (0..255). [shading] strength = 0 (flat) .. 1 (strong relief).\n"
-                       "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be deleted.\n"
-                       "Delete this file to get the default colors back.");
+    tColors.SetComment(kComment);
     tColors.Save();
     Log("terrain colors file created with defaults: {}", tPath);
 }

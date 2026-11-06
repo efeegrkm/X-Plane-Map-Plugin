@@ -6,10 +6,17 @@
 //   2. Draw() icinde ciz; yazilari DrawLabels() icinde ciz
 //   3. Plugin.cpp'de LayerManager'a dogru sirada ekle
 // Gorunurluk, ac/kapa dugmesi ve ayar dosyasina kayit kendiliginden olur.
+//
+// Alt katmanlar (istege bagli): bir katman yapicisinda AddSubLayer ile
+// parcalarini (ornek: "boundary", "pavement") tanitir; Draw icinde
+// IsSubLayerVisible(indeks) ile o parcayi cizip cizmeyecegine bakar.
+// Panelde katmanin altinda acilir liste olarak cikar, ayar dosyasina
+// "<katman>.<alt katman>" anahtariyla kaydedilir.
 #pragma once
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "MapTheme.h"
 #include "ScreenMath.h"
@@ -123,9 +130,70 @@ public:
         return 50;
     }
 
+    // --- Alt katmanlar ---
+    struct SubLayer
+    {
+        std::string mId;    // ayar anahtari parcasi (kucuk harf, ASCII)
+        std::string mName;  // panelde gorunen ad
+        bool mVisible = true;
+        bool mDefaultVisible = true;
+    };
+
+    int SubLayerCount() const
+    {
+        return static_cast<int>(mSubLayers.size());
+    }
+
+    const SubLayer& SubLayerAt(int pIndex) const
+    {
+        return mSubLayers[static_cast<size_t>(pIndex)];
+    }
+
+    // Gecersiz indeks: gorunur say (alt katmani olmayan cagiranlar bozulmasin)
+    bool IsSubLayerVisible(int pIndex) const
+    {
+        if (pIndex < 0 || pIndex >= SubLayerCount())
+        {
+            return true;
+        }
+        return mSubLayers[static_cast<size_t>(pIndex)].mVisible;
+    }
+
+    void SetSubLayerVisible(int pIndex, bool pVisible)
+    {
+        if (pIndex >= 0 && pIndex < SubLayerCount())
+        {
+            mSubLayers[static_cast<size_t>(pIndex)].mVisible = pVisible;
+        }
+    }
+
+    int VisibleSubLayerCount() const
+    {
+        int tCount = 0;
+        for (const SubLayer& tSub : mSubLayers)
+        {
+            tCount += tSub.mVisible ? 1 : 0;
+        }
+        return tCount;
+    }
+
+protected:
+    // Yapicida sirayla cagrilir; donen indeks IsSubLayerVisible icin
+    int AddSubLayer(std::string_view pId, std::string_view pName, bool pDefaultVisible = true)
+    {
+        SubLayer tSub;
+        tSub.mId = pId;
+        tSub.mName = pName;
+        tSub.mVisible = pDefaultVisible;
+        tSub.mDefaultVisible = pDefaultVisible;
+        mSubLayers.push_back(tSub);
+        return SubLayerCount() - 1;
+    }
+
 private:
     std::string mId;
     std::string mName;
     bool mVisible;
     bool mDefaultVisible;
+    std::vector<SubLayer> mSubLayers;
 };

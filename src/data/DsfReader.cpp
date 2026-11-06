@@ -516,6 +516,7 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
             tBadIndex = true;
             return;
         }
+        tTriangle.mPlaneCount = tSource.mPlaneCount;
         tTriangle.mLon[tCorner] = PlaneValue(tSource, 0, pPointIndex);
         tTriangle.mLat[tCorner] = PlaneValue(tSource, 1, pPointIndex);
         tTriangle.mElevation[tCorner] = PlaneValue(tSource, 2, pPointIndex);

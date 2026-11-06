@@ -104,7 +104,27 @@ void LayerManager::LoadVisibility(const Settings& pSettings, const MapTheme& pTh
             tDefault = pSettings.GetBool(kLegacySection, tLayer->Id(), tDefault);  // eski ayar
         }
         tLayer->SetVisible(pSettings.GetBool(tSection, tLayer->Id(), tDefault));
+
+        // Alt katmanlar: "<katman>.<alt>" anahtari; tema varsayilani ayni tam anahtarla verilebilir
+        for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+        {
+            const std::string tKey = SubLayerKey(*tLayer, tSub);
+            bool tSubDefault = tLayer->SubLayerAt(tSub).mDefaultVisible;
+            for (const LayerDefault& tOverride : pTheme.mLayerDefaults)
+            {
+                if (tOverride.mId && tKey == tOverride.mId)
+                {
+                    tSubDefault = tOverride.mVisible;
+                }
+            }
+            tLayer->SetSubLayerVisible(tSub, pSettings.GetBool(tSection, tKey, tSubDefault));
+        }
     }
+}
+
+std::string LayerManager::SubLayerKey(const Layer& pLayer, int pSubLayer)
+{
+    return pLayer.Id() + "." + pLayer.SubLayerAt(pSubLayer).mId;
 }
 
 void LayerManager::SaveVisibility(Settings& pSettings, const MapTheme& pTheme) const
@@ -113,5 +133,9 @@ void LayerManager::SaveVisibility(Settings& pSettings, const MapTheme& pTheme) c
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
         pSettings.SetBool(tSection, tLayer->Id(), tLayer->IsVisible());
+        for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+        {
+            pSettings.SetBool(tSection, SubLayerKey(*tLayer, tSub), tLayer->IsSubLayerVisible(tSub));
+        }
     }
 }

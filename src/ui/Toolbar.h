@@ -1,12 +1,13 @@
 // Toolbar.h
 // Haritanin ust kenarindaki ince, yari saydam arac seridi.
 //
-//   [Layers] [Map: VFR] [Follow aircraft] [Center on aircraft]   [Pan][Point][Route][Region]
-//   [Finish][Undo][Clear]   ...   [Pop out] [Hide]      (genis pencerede hepsi tek satirda)
+//   [Layers] [Map: VFR] | [Follow aircraft] [Center on aircraft] | [Draw tools]   ...   [Pop out] [Hide]
 //
-// Pencere bu dugmelerin hepsine yetmeyecek kadar darsa serit iki satira
-// cikar: ustte genel dugmeler, altta cizim araclari. Serit sadece cizer ve
-// hangi dugmeye tiklandigini soyler; ne yapilacagina MapWindow karar verir.
+// Cizim araclari (Pan/Point/Route/Region, Finish/Undo/Clear) artik seritte
+// degil, yuzen ToolPalette panelinde; "Draw tools" o paneli gosterir/gizler.
+// Gruplar arasinda ince ayirici cizgi var. Pencere cok darsa pencere
+// dugmeleri ikinci satira iner. Serit sadece cizer ve hangi dugmeye
+// tiklandigini soyler; ne yapilacagina MapWindow karar verir.
 #pragma once
 
 #include <vector>
@@ -26,7 +27,8 @@ enum class ToolbarAction
     MapMode,         // harita modu listesini ac/kapat ("Map: VFR")
     FollowAircraft,  // ucagi takip et (ac/kapat)
     CenterAircraft,  // haritayi bir kez ucaga ortala
-    ModePan,         // cizim araclari: gezin
+    DrawTools,       // cizim araclari paletini goster/gizle
+    ModePan,         // cizim araclari (ToolPalette): gezin
     ModePoint,       //                  nokta
     ModeRoute,       //                  rota
     ModeRegion,      //                  bolge
@@ -46,6 +48,7 @@ struct ToolbarState
     bool mFollowing = false;
     bool mHasAircraft = false;
     bool mPoppedOut = false;
+    bool mToolsOpen = false;  // cizim araclari paleti gorunur
     Drawings::Mode mMode = Drawings::Mode::Pan;
     bool mCanFinish = false;  // yarim kalan cizim var
     bool mCanUndo = false;    // geri alinacak bir sey var
@@ -89,5 +92,6 @@ private:
     static const char* LabelFor(ToolbarAction pAction, const ToolbarState& pState);
 
     std::vector<Item> mItems;
+    std::vector<int> mDividers;  // gruplar arasi ince dikey cizgilerin x'i
     RectI mStrip;
 };

@@ -2,7 +2,7 @@
 
 Bu dosya kodun **nerede ne yaptığını** gruplar hâlinde anlatır. Kullanım ve
 test listesi `README.md`'de, kararların geçmişi `CLAUDE.md` ve `GOREV.md`'de.
-Sürüm: 0.13 (16.600 satır C++, `src/` + `tools/` + `tests/`).
+Sürüm: 0.15 (~20.900 satır C++, `src/` + `tools/` + `tests/`).
 
 ## 1. Büyük resim
 
@@ -105,10 +105,26 @@ Arka plan thread'inde XPLM ve Log **yok**, rapor metni döner.
 | `SceneryPacks.*` | `scenery_packs.ini` sırası (sadece okunur) |
 | `SceneryIndex.*` | Her 1×1 karo için aday DSF'ler, X-Plane'in öncelik kuralıyla |
 | `SevenZip.*` | 7z sıkıştırılmış DSF'leri açar (`third_party/lzma`) |
-| `DsfReader.*` | DSF: arazi türü adları, üçgenler, DEM rakımı |
-| `TerrainClasses.*` | Arazi türü adı → sınıf (su, şehir, orman ...), palet, `ElevationColor` rampası |
-| `TerrainRaster.*` | Karo başına sınıf (4096²), gölge (1024²), rakım (512²) raster'ı; RLE disk önbelleği (sürüm 2) |
+| `DsfReader.*` | DSF: arazi türü adları, üçgenler (yama bayrağı + düzlem sayısı dâhil), DEM rakımı |
+| `TerrainClasses.*` | Arazi türü adı → sınıf (su, şehir, orman ...), palet (v2; `[palette] version`, `[blend] meters`), `ElevationColor` rampası |
+| `LandColorField.*` | Scenery'de kara sınıfları arası yumuşak geçiş: kara renklerini metre ölçülü erimde karıştıran normalize kutu bulanıklığı (X-Plane'siz, testli) |
+| `TerrainRaster.*` | Karo başına sınıf (4096²), gölge (1024²), rakım (512²) raster'ı; kaba (seviye 0–3) ve DSF üçgenlerinden yakın (seviye 4–5) görüntü üretimi; RLE disk önbelleği (sürüm 2) |
 | `TerrainStore.*` | Zemin işçi thread'i: istenen karo + LOD + biçim (mod) için RGBA görüntü üretir |
+
+**Zemin görüntüsü üretimi (0.14–0.15 optimizasyonları):** yakın zoom'da görüntü
+DSF üçgenlerinden doğrudan boyanır (seviye 4: 1/32°, seviye 5: 1/128° parçalar;
+raster pikseli ekranda blok olmasın). Gölge bikubik (Catmull-Rom) okunur, saydam
+piksellerin rengi komşudan doldurulur (`BleedTransparent` — mipmap/dokusuz
+filtre kenarlarda koyu saçak yapmasın), doku mipmap'li yüklenir. 0.15'te
+üçgen mozağini yumuşatmak için kara renkleri `[blend] meters` (varsayılan 150)
+mesafesinde `LandColorField` ile karıştırılır: normalize evrişim sayesinde
+yalnızca kara renkleri karışır (su rengine çekilmez), kıyı keskin kalır, gölge
+en son eklenir; dokular kenarlarda pay ile üretilip kırpılır, komşu parçalar
+arasında dikiş olmaz. Uzak seviyelerde erim pikselin altına düşünce filtre
+kendiliğinden kapanır (eski görünüm değişmez); yakın seviyelerde ise erim
+ayrıca 12 dokü pikselle sınırlanır (`kMaxReachPixels`), böylece havalimanı
+ayrıntılarının göründüğü zoomlarda detay bulanıklaşmaz. Ayrıntılı bulgular
+`0.15_fixes.md`'de.
 
 **Uçak**
 | `AircraftData.*` | Kullanıcı uçağının konumu/yönü (dataref) |
@@ -119,7 +135,7 @@ Arka plan thread'inde XPLM ve Log **yok**, rapor metni döner.
 
 | Katman | Veri kaynağı | Not |
 |---|---|---|
-| `TerrainLayer` | TerrainStore | Doku LRU 256 MB, karede en çok 3 yükleme |
+| `TerrainLayer` | TerrainStore | Doku LRU 512 MB, karede en çok 3 yükleme |
 | `AirportSurfaceLayer` | AirportDetailStore | Yüzeyler bir kez `StaticMesh`'e (GPU) yüklenir |
 | `GridLayer` | — | Zoom'a göre aralık |
 | `NavaidLayer` (ILS) | NavDatabase + pistler | Tüy pistlerin altında |
@@ -154,8 +170,9 @@ Yeni katman eklemek: `Layer`'dan türet → `Draw`/`DrawLabels`/`Describe` yaz �
 ### 3.6 Arayüz — `src/ui/`
 | Dosya | Görev |
 |---|---|
-| `Toolbar.*` | Üst şerit (dar pencerede iki satır): Layers, Map: <mod>, takip, çizim araçları, Pop out |
-| `LayerPanel.*` | Gruplu katman listesi (üç durumlu kutu, aç/kapa oku) |
+| `Toolbar.*` | Üst şerit (dar pencerede iki satır): Layers, Map: <mod>, takip, Draw tools, Pop out; gruplar arası ayırıcı |
+| `ToolPalette.*` | Yüzen çizim paleti: Pan/Point/Route/Region + Finish/Undo/Clear; başlıktan sürüklenir, seçili araca katlanır; yeri `[tools]` |
+| `LayerPanel.*` | Grup > katman > alt katman listesi (üç durumlu kutu, aç/kapa oku, varsayılan katlı, tekerlekle kaydırma) |
 | `ModePanel.*` | Harita modu seçimi |
 | `StatusBar.*` | İmleç koordinatı, zoom, mesaj, ölçek çubuğu |
 | `UiDraw.*` | Kutu, düğme, onay kutusu, gölgeli yazı (`XPLMDrawString`, sadece ASCII); `Ui::k...` paleti |
@@ -163,9 +180,9 @@ Yeni katman eklemek: `Layer`'dan türet → `Draw`/`DrawLabels`/`Describe` yaz �
 ### 3.7 Araçlar ve testler
 | Yer | Görev |
 |---|---|
-| `tests/tests.cpp` | X-Plane'siz çekirdek testleri (355 kontrol): Mesh, MapView, LabelPlacer, apt.dat ayrıştırma, Bezier, DSF, ayarlar, temalar ... |
+| `tests/tests.cpp` | X-Plane'siz çekirdek testleri (387 kontrol): Mesh, MapView, LabelPlacer, apt.dat ayrıştırma, Bezier, DSF, zemin raster + yumuşatma, ayarlar, temalar ... |
 | `tools/preview/` | `map_preview`: aynı katman kodunu XPLM taklitleriyle (`XplmStubs`) PPM resme çizer; nav verisini dosyadan okur (`FileNavLoader`). `--lat --lon --zoom --mode --show --hide --panel --describe` |
-| `tools/dsfinfo/` | `dsf_info`: DSF dosyasının içeriğini döker (biçim incelemesi) |
+| `tools/dsfinfo/` | `dsf_info`: DSF dosyasının içeriğini döker (arazi türleri, üçgen sayıları, yama bayrağı × düzlem sayısı dökümü) |
 | `third_party/` | XPSDK 3.0.1, LZMA SDK 23.01, mapbox earcut 2.2.4 (tek belgelenmiş hız yaması, `README.txt`) |
 | `legacy/` | İlk prototip (eski, derlenmiyor; sadece başvuru) |
 

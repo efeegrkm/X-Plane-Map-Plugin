@@ -51,6 +51,7 @@ struct DsfTriangle
     double mElevation[3];  // metre; -32768 = deger ayri raster'da (bu okuyucu kullanmaz)
     int mTerrain;          // DsfInfo::mTerrainNames indeksi
     int mPatchFlags;       // 1 = fiziksel (carpisma), 2 = overlay (ustune cizilen)
+    int mPlaneCount = 3;   // nokta havuzunun duzlem sayisi (3 = lon/lat/elev; fazlasi alfa/serit duzlemi)
 };
 
 class DsfReader
