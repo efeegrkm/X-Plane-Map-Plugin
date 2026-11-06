@@ -61,7 +61,42 @@ const double kMaxWarpWavelength = 2000.0;
 const double kDefaultCloseupClassMix = 0.30;  // yakin zoomda sinif renklerinin kara tona karismasi
 const double kMaxCloseupClassMix = 0.8;
 
+// VFR bantlarinin varsayilanlari: sectional sinirlari, renkler ElevationColor duraklarindan
+const double kDefaultBandFeet[kVfrBandCount] = {0.0, 1000.0, 2000.0, 3000.0, 5000.0, 7000.0, 9000.0, 12000.0};
+const TerrainColor kDefaultBandColors[kVfrBandCount] = {
+    {190, 216, 166}, {210, 226, 172}, {230, 232, 180}, {238, 226, 170},
+    {230, 206, 150}, {214, 184, 134}, {196, 162, 118}, {176, 142, 106},
+};
+
+// "<feet> R G B" -> bant; bicim yanlissa false (varsayilan kalir)
+bool ParseBand(const std::string& pText, double* pFeet, TerrainColor* pColor)
+{
+    double tFeet = 0.0;
+    int tR = 0;
+    int tG = 0;
+    int tB = 0;
+    if (std::sscanf(pText.c_str(), "%lf %d %d %d", &tFeet, &tR, &tG, &tB) != 4)
+    {
+        return false;
+    }
+    *pFeet = tFeet;
+    *pColor = {static_cast<uint8_t>(std::clamp(tR, 0, 255)), static_cast<uint8_t>(std::clamp(tG, 0, 255)),
+               static_cast<uint8_t>(std::clamp(tB, 0, 255))};
+    return true;
+}
+
 }  // namespace
+
+TerrainVfrParams DefaultVfrParams()
+{
+    TerrainVfrParams tParams;
+    for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
+    {
+        tParams.mBandFeet[tBand] = kDefaultBandFeet[tBand];
+        tParams.mBandColors[tBand] = kDefaultBandColors[tBand];
+    }
+    return tParams;
+}
 
 TerrainClass ClassifyTerrain(const std::string& pTerrainName)
 {
@@ -101,7 +136,8 @@ TerrainPalette::TerrainPalette()
     : mShadingStrength(kDefaultShading),
       mBlendMeters(kDefaultBlendMeters),
       mBlendMaxPixels(kDefaultBlendMaxPixels),
-      mCloseupClassMix(kDefaultCloseupClassMix)
+      mCloseupClassMix(kDefaultCloseupClassMix),
+      mVfr(DefaultVfrParams())
 {
     for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
     {
@@ -148,6 +184,48 @@ void TerrainPalette::Load(const Settings& pSettings)
     mWarp.mOctaves = 3;
     mCloseupClassMix = std::clamp(pSettings.GetDouble("closeup", "class_mix", kDefaultCloseupClassMix), 0.0,
                                   kMaxCloseupClassMix);
+
+    // 0.16: [relief], [water], [vfr]. Yoksa varsayilan; araliklar sinirlanir.
+    const TerrainReliefParams tRelief;
+    mRelief.mMultiDirectional = pSettings.GetBool("relief", "multi_directional", tRelief.mMultiDirectional);
+    mRelief.mExaggeration = std::clamp(pSettings.GetDouble("relief", "exaggeration", tRelief.mExaggeration), 0.0, 20.0);
+    mRelief.mCoarseBoost = std::clamp(pSettings.GetDouble("relief", "coarse_boost", tRelief.mCoarseBoost), 0.0, 1.0);
+    mRelief.mSlopeTone = std::clamp(pSettings.GetDouble("relief", "slope_tone", tRelief.mSlopeTone), 0.0, 0.8);
+    mRelief.mFlatSlope = std::clamp(pSettings.GetDouble("relief", "flat_slope", tRelief.mFlatSlope), 0.0, 0.2);
+
+    const TerrainWaterParams tWater;
+    mWater.mCoastline = pSettings.GetBool("water", "coastline", tWater.mCoastline);
+    mWater.mCoastlineStrength =
+        std::clamp(pSettings.GetDouble("water", "coastline_strength", tWater.mCoastlineStrength), 0.0, 1.0);
+    mWater.mBandMeters = std::clamp(pSettings.GetDouble("water", "band_meters", tWater.mBandMeters), 0.0, 5000.0);
+    mWater.mBandMaxPixels =
+        std::clamp(pSettings.GetDouble("water", "band_max_pixels", tWater.mBandMaxPixels), 0.0, 64.0);
+    mWater.mBandStrength = std::clamp(pSettings.GetDouble("water", "band_strength", tWater.mBandStrength), 0.0, 1.0);
+    mWater.mDepthTone = std::clamp(pSettings.GetDouble("water", "depth_tone", tWater.mDepthTone), 0.0, 1.0);
+    mWater.mDepthFullMeters =
+        std::clamp(pSettings.GetDouble("water", "depth_full_meters", tWater.mDepthFullMeters), 20.0, 5000.0);
+
+    mVfr = DefaultVfrParams();
+    mVfr.mBands = pSettings.GetBool("vfr", "bands", mVfr.mBands);
+    mVfr.mContourLines = pSettings.GetBool("vfr", "contour_lines", mVfr.mContourLines);
+    mVfr.mContourStrength = std::clamp(pSettings.GetDouble("vfr", "contour_strength", mVfr.mContourStrength), 0.0, 1.0);
+    // band_1 .. band_8 = "<alt sinir feet> R G B"; sinirlar artan olmali, degilse hepsi varsayilana doner
+    TerrainVfrParams tRead = mVfr;
+    bool tIncreasing = true;
+    for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
+    {
+        const std::string tText = pSettings.GetString("vfr", std::format("band_{}", tBand + 1), "");
+        ParseBand(tText, &tRead.mBandFeet[tBand], &tRead.mBandColors[tBand]);
+        if (tBand > 0 && tRead.mBandFeet[tBand] <= tRead.mBandFeet[tBand - 1])
+        {
+            tIncreasing = false;
+        }
+    }
+    if (tIncreasing)
+    {
+        mVfr.mBandFeet = tRead.mBandFeet;
+        mVfr.mBandColors = tRead.mBandColors;
+    }
 }
 
 void TerrainPalette::Save(Settings& pSettings) const
@@ -164,6 +242,30 @@ void TerrainPalette::Save(Settings& pSettings) const
     pSettings.SetDouble("warp", "meters", mWarp.mAmplitudeMeters);
     pSettings.SetDouble("warp", "wavelength", mWarp.mWavelengthMeters);
     pSettings.SetDouble("closeup", "class_mix", mCloseupClassMix);
+
+    pSettings.SetBool("relief", "multi_directional", mRelief.mMultiDirectional);
+    pSettings.SetDouble("relief", "exaggeration", mRelief.mExaggeration);
+    pSettings.SetDouble("relief", "coarse_boost", mRelief.mCoarseBoost);
+    pSettings.SetDouble("relief", "slope_tone", mRelief.mSlopeTone);
+    pSettings.SetDouble("relief", "flat_slope", mRelief.mFlatSlope);
+
+    pSettings.SetBool("water", "coastline", mWater.mCoastline);
+    pSettings.SetDouble("water", "coastline_strength", mWater.mCoastlineStrength);
+    pSettings.SetDouble("water", "band_meters", mWater.mBandMeters);
+    pSettings.SetDouble("water", "band_max_pixels", mWater.mBandMaxPixels);
+    pSettings.SetDouble("water", "band_strength", mWater.mBandStrength);
+    pSettings.SetDouble("water", "depth_tone", mWater.mDepthTone);
+    pSettings.SetDouble("water", "depth_full_meters", mWater.mDepthFullMeters);
+
+    pSettings.SetBool("vfr", "bands", mVfr.mBands);
+    pSettings.SetBool("vfr", "contour_lines", mVfr.mContourLines);
+    pSettings.SetDouble("vfr", "contour_strength", mVfr.mContourStrength);
+    for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
+    {
+        const TerrainColor& tColor = mVfr.mBandColors[tBand];
+        pSettings.SetString("vfr", std::format("band_{}", tBand + 1),
+                            std::format("{:.0f} {} {} {}", mVfr.mBandFeet[tBand], tColor.mR, tColor.mG, tColor.mB));
+    }
 }
 
 const TerrainColor& TerrainPalette::ColorOf(TerrainClass pClass) const
@@ -280,6 +382,36 @@ std::array<TerrainColor, kTerrainClassCount> TerrainPalette::MixedColors(double 
 bool TerrainPalette::LoadedCurrentVersion() const
 {
     return mLoadedCurrentVersion;
+}
+
+const TerrainReliefParams& TerrainPalette::Relief() const
+{
+    return mRelief;
+}
+
+void TerrainPalette::SetRelief(const TerrainReliefParams& pParams)
+{
+    mRelief = pParams;
+}
+
+const TerrainWaterParams& TerrainPalette::Water() const
+{
+    return mWater;
+}
+
+void TerrainPalette::SetWater(const TerrainWaterParams& pParams)
+{
+    mWater = pParams;
+}
+
+const TerrainVfrParams& TerrainPalette::Vfr() const
+{
+    return mVfr;
+}
+
+void TerrainPalette::SetVfr(const TerrainVfrParams& pParams)
+{
+    mVfr = pParams;
 }
 
 TerrainColor ElevationColor(double pMeters)

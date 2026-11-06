@@ -4,6 +4,7 @@
 //
 //   map_preview --lat 47.45 --lon -122.31 --zoom 13 --out kSEA.ppm [--size 1200x800]
 //               [--xplane "C:/X-Plane 11/"] [--no-ui] [--demo-drawings] [--fixes] [--cache DIR/]
+//               [--terrain-colors terrain_colors.ini]
 //
 // Cikti PPM (P6). PNG'ye cevirmek icin: magick kSEA.ppm kSEA.png
 // Not: ucak ve FMS onizlemede yok (SDK yok); nav verisi dosyalardan okunur.
@@ -83,6 +84,7 @@ struct Options
     bool mDemoDrawings = false;
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
+    std::string mTerrainColors;  // --terrain-colors <ini>: eklentinin terrain_colors.ini'si (bossa varsayilan)
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
     MapMode mMode = MapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
@@ -137,6 +139,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--cache" && tHasValue)
         {
             pOut->mCache = pArgv[++tIndex];
+        }
+        else if (tArg == "--terrain-colors" && tHasValue)
+        {
+            pOut->mTerrainColors = pArgv[++tIndex];
         }
         else if (tArg == "--fixes")
         {
@@ -343,6 +349,19 @@ int main(int pArgc, char** pArgv)
     AircraftData tAircraft;  // onizlemede ucak yok (dataref yok)
     Drawings tDrawings;
     TerrainPalette tPalette;
+    if (!tOptions.mTerrainColors.empty())
+    {
+        // Ayni ini dosyasiyla eklentinin goreceginin aynisi (ayarlari derlemeden karsilastirmak icin)
+        Settings tColors;
+        if (tColors.Load(tOptions.mTerrainColors))
+        {
+            tPalette.Load(tColors);
+        }
+        else
+        {
+            std::fprintf(stderr, "cannot read terrain colors: %s\n", tOptions.mTerrainColors.c_str());
+        }
+    }
     TerrainStore tTerrain;
     tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette, AllTerrainStyles());
     LayerManager tLayers;
@@ -421,10 +440,13 @@ int main(int pArgc, char** pArgv)
         }
         if (tRound > 2 && tTerrain.IsIdle() && tAirportDetails.PendingCount() == 0)
         {
+            std::printf("terrain ready after %d rounds\n", tRound);
             break;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));  // iscinin son ozet satiri (goruntu sureleri)
+    std::printf("%s", tTerrain.TakeLogLines().c_str());
 
     glViewport(0, 0, tWidth, tHeight);
     glMatrixMode(GL_PROJECTION);

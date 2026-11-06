@@ -97,6 +97,8 @@ public:
 
     // Adi verilen raster katmanini okur (XP11: "elevation", "sea_level", "bathymetry")
     bool ReadRaster(const std::string& pName, DsfRaster* pOut) const;
+    // Dosyadaki raster katmanlarinin adlari (DEMN sirasiyla)
+    const std::vector<std::string>& RasterNames() const;
 
     // Teshis icin: nokta havuzu sayisi
     int PoolCount() const;

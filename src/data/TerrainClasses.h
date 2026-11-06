@@ -71,8 +71,51 @@ struct TerrainImageStyle
     TerrainColor mWater = {0, 0, 0};  // Elevation / LandWater: su rengi
 };
 
-// VFR rakim rampasi (sectional benzeri: alcak yesil, orta sari/ten, yuksek kahverengi)
+// VFR rakim rampasi (sectional benzeri: alcak yesil, orta sari/ten, yuksek kahverengi).
+// [vfr] bands = 0 iken kullanilir (eski surekli rampa).
 TerrainColor ElevationColor(double pMeters);
+
+// --- 0.16 (Asama 1) ayarlari: terrain_colors.ini; her biri derlemeden acilip kapatilabilir ---
+
+// [relief]: kabartma golgesi. Her doku pikselinde, piksel boyuna uygun DEM piramit
+// seviyesinden bikubik okunan egimle hesaplanir (TerrainElevation, TerrainRelief).
+struct TerrainReliefParams
+{
+    bool mMultiDirectional = true;  // 4 yonlu isik (agirlik kuzeybatida); false: tek isik 315 derece
+    double mExaggeration = 2.5;     // egim abartmasi (kucuk olcekte kabartma gorunsun)
+    double mCoarseBoost = 0.35;     // kaba seviyelerde abartma artisi: (hucre / en ince hucre) ^ bu; 0 = sabit
+    double mSlopeTone = 0.12;       // dik yamaclari isiktan bagimsiz koyulastirma (0 = kapali)
+    double mFlatSlope = 0.02;       // bu egimin (~%2) altindaki egimler bastirilir: DEM'in 1 m basamaklari
+                                    // duz ovada dalga gibi gorunmesin (0 = kapali)
+};
+
+// [water]: su ve kiyi
+struct TerrainWaterParams
+{
+    bool mCoastline = true;           // kara/su sinirinda ince, kenari yumusak cizgi (IFR dahil)
+    double mCoastlineStrength = 0.5;  // cizginin koyulugu 0..1
+    double mBandMeters = 200.0;       // kiyidan aciga acik serit genisligi (0 = kapali)
+    double mBandMaxPixels = 24.0;     // seridin doku pikseli tavani (yakin zoomda ekrani kaplamasin)
+    double mBandStrength = 0.10;      // seridin aciklik orani 0..1
+    double mDepthTone = 0.25;         // sea_level derinligine gore koyulasma 0..1 (0 = kapali)
+    double mDepthFullMeters = 200.0;  // bu derinlikte koyulasma tam olur
+};
+
+// [vfr]: sectional rakim bantlari. Bant sinirlari keskindir; piksel basina bikubik
+// rakimdan hesaplandigi icin her zoomda kivrimli kontur olarak gorunur, kenari
+// bir piksel genisliginde yumusatilir.
+const int kVfrBandCount = 8;
+struct TerrainVfrParams
+{
+    bool mBands = true;              // false: eski surekli rampa (ElevationColor)
+    bool mContourLines = false;      // bant sinirlarinda ince, soluk kontur cizgisi
+    double mContourStrength = 0.35;  // cizginin koyulugu 0..1
+    std::array<double, kVfrBandCount> mBandFeet;         // her bandin alt siniri (feet), artan
+    std::array<TerrainColor, kVfrBandCount> mBandColors;  // varsayilan: ElevationColor duraklari
+};
+
+// Sectional siniri: 0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft
+TerrainVfrParams DefaultVfrParams();
 
 class TerrainPalette
 {
@@ -121,6 +164,14 @@ public:
     // Load sonrasi: dosyadaki [palette] version guncel miydi (false: renkler varsayilandan, dosya yeniden yazilmali)
     bool LoadedCurrentVersion() const;
 
+    // [relief], [water], [vfr] (0.16); renk surumune bagli degil, her zaman okunur
+    const TerrainReliefParams& Relief() const;
+    void SetRelief(const TerrainReliefParams& pParams);
+    const TerrainWaterParams& Water() const;
+    void SetWater(const TerrainWaterParams& pParams);
+    const TerrainVfrParams& Vfr() const;
+    void SetVfr(const TerrainVfrParams& pParams);
+
 private:
     TerrainColor mColors[kTerrainClassCount];
     double mShadingStrength;
@@ -129,4 +180,7 @@ private:
     TerrainWarpParams mWarp;
     double mCloseupClassMix;
     bool mLoadedCurrentVersion = true;
+    TerrainReliefParams mRelief;
+    TerrainWaterParams mWater;
+    TerrainVfrParams mVfr;
 };

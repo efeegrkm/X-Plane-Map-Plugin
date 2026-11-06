@@ -5,6 +5,7 @@
 // koordinat araligi; overlay envanteri (nesne / poligon / ag tanimlari ve
 // sayilari, dislama alanlari) ve asama sureleri (7z acma, okuma, ucgen gecisi,
 // DEM). 7z ile sikistirilmis dosyalari kendisi acar.
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -216,6 +217,21 @@ int main(int pArgc, char** pArgv)
         std::printf("  chains definition %d subtype %3d : %8lld chains %10lld points\n", tEntry.first.first,
                     tEntry.first.second, tEntry.second.mChains, tEntry.second.mPoints);
     }
+
+    // Butun raster katmanlari: boyut ve deger araligi
+    for (const std::string& tName : tReader.RasterNames())
+    {
+        DsfRaster tLayer;
+        if (!tReader.ReadRaster(tName, &tLayer) || tLayer.mValues.empty())
+        {
+            std::printf("raster %s: unreadable\n", tName.c_str());
+            continue;
+        }
+        const auto tRange = std::minmax_element(tLayer.mValues.begin(), tLayer.mValues.end());
+        std::printf("raster %-12s %dx%d post_centric=%d values %.1f..%.1f\n", tName.c_str(), tLayer.mWidth,
+                    tLayer.mHeight, tLayer.mPostCentric ? 1 : 0, *tRange.first, *tRange.second);
+    }
+    ElapsedMs(&tClock);
 
     // DEM okuma suresi (zemin iscisi her karoda bunu yapar)
     DsfRaster tElevation;

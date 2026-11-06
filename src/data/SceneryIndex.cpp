@@ -93,6 +93,20 @@ void SceneryIndex::Build(const std::string& pXPlaneDirectory)
     }
     std::sort(tGlobalPacks.begin(), tGlobalPacks.end());
     BuildFromPacks(ReadSceneryPacks(pXPlaneDirectory), tGlobalPacks);
+
+    // Dunya tablosu: deniz / veri yok ayrimi (yoksa yedek kural)
+    WorldTileMap tMap;
+    const std::string tMapPath = (Fs::path(pXPlaneDirectory) / "Resources" / "dsf_files").string();
+    if (tMap.Load(tMapPath))
+    {
+        SetWorldMap(tMap);
+    }
+    else
+    {
+        SetWorldMap(WorldTileMap());
+        mWorldMapReport = "world tile map not used (missing or unexpected size): " + tMapPath +
+                          "; sea / no data from 10-degree folders";
+    }
 }
 
 void SceneryIndex::BuildFromPacks(const std::vector<std::string>& pCustomPacks,
@@ -100,6 +114,9 @@ void SceneryIndex::BuildFromPacks(const std::vector<std::string>& pCustomPacks,
 {
     mTiles.clear();
     mInstalledFolders.clear();
+    mGlobalTiles.clear();
+    mWorldMap.Clear();
+    mWorldMapReport.clear();
     mFileCount = 0;
     mPackCount = 0;
     for (const std::string& tPack : pCustomPacks)
@@ -143,6 +160,10 @@ void SceneryIndex::ScanPack(const std::string& pPackDirectory, bool pGlobal)
             tCandidate.mSize = static_cast<uint64_t>(tFile.file_size(tError));
             tCandidate.mModified = static_cast<int64_t>(tFile.last_write_time(tError).time_since_epoch().count());
             mTiles[TileKey(tWest, tSouth)].push_back(tCandidate);
+            if (pGlobal)
+            {
+                mGlobalTiles.insert(TileKey(tWest, tSouth));
+            }
             ++mFileCount;
             tAny = true;
         }
@@ -165,7 +186,58 @@ TileCoverage SceneryIndex::CoverageOf(int pWest, int pSouth) const
     {
         return TileCoverage::HasDsf;
     }
+    return NoBaseCoverage(pWest, pSouth);
+}
+
+TileCoverage SceneryIndex::NoBaseCoverage(int pWest, int pSouth) const
+{
+    if (mWorldMap.IsLoaded())
+    {
+        // Global sahnede DSF'i olan karo kara / kiyidir: burada kurulu degilse veri yok
+        return mWorldMap.HasDsf(pWest, pSouth) ? TileCoverage::NoData : TileCoverage::Ocean;
+    }
     return IsRegionInstalled(pWest, pSouth) ? TileCoverage::Ocean : TileCoverage::NoData;
+}
+
+void SceneryIndex::SetWorldMap(const WorldTileMap& pMap)
+{
+    mWorldMap.Clear();
+    if (!pMap.IsLoaded())
+    {
+        mWorldMapReport = "world tile map not used";
+        return;
+    }
+    // Dogrulama: Global Scenery'de DSF'i olan her karo tabloda "var" olmali (indeks yonu dogru mu)
+    int tMismatches = 0;
+    for (const int tKey : mGlobalTiles)
+    {
+        const int tWest = tKey % 360 - 180;
+        const int tSouth = tKey / 360 - 90;
+        tMismatches += pMap.HasDsf(tWest, tSouth) ? 0 : 1;
+    }
+    const int tChecked = static_cast<int>(mGlobalTiles.size());
+    const int tAllowed = std::max(1, tChecked / 50);  // %2 (ozel bolge paketleri icin pay)
+    if (tChecked > 0 && tMismatches > tAllowed)
+    {
+        mWorldMapReport = std::format("world tile map REJECTED: {} of {} installed global tiles are not in it; "
+                                      "sea / no data from 10-degree folders",
+                                      tMismatches, tChecked);
+        return;
+    }
+    mWorldMap = pMap;
+    mWorldMapReport = std::format("world tile map: {} land tiles, checked against {} installed global tiles "
+                                  "({} mismatches)",
+                                  pMap.LandTileCount(), tChecked, tMismatches);
+}
+
+bool SceneryIndex::UsesWorldMap() const
+{
+    return mWorldMap.IsLoaded();
+}
+
+const std::string& SceneryIndex::WorldMapReport() const
+{
+    return mWorldMapReport;
 }
 
 bool SceneryIndex::IsRegionInstalled(int pWest, int pSouth) const

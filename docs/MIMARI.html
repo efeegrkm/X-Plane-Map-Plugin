@@ -51,7 +51,7 @@
 <body>
 
 <h1>Map Plugin — Mimari</h1>
-<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.15 · kodun nasıl çalıştığı, hangi parçanın
+<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.16 · kodun nasıl çalıştığı, hangi parçanın
 ne yaptığı ve parçaların birbirine nasıl bağlandığı</div>
 
 <p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de;
@@ -489,9 +489,9 @@ sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka p
     <!-- two branches -->
     <rect x="40" y="110" width="320" height="86" rx="5" fill="#e6eef8" stroke="#1f5fa8"/>
     <text x="200" y="130" text-anchor="middle" font-weight="600">TerrainRaster (karo başına, disk önbellekli)</text>
-    <text x="54" y="148">sınıf raster'ı 4096² · gölge 1024² · rakım 512²</text>
+    <text x="54" y="148">sınıf raster'ı 4096² · rakım ayrı: ElevationGrid (9.5)</text>
     <text x="54" y="164" fill="#5b6575">→ seviye 0–3: 64 / 256 / 1024 px karo, 4096'nın parçaları</text>
-    <text x="54" y="180" fill="#5b6575">cache/terrain/*.terrain (RLE, sürüm 2)</text>
+    <text x="54" y="180" fill="#5b6575">*.terrain (RLE, sürüm 3) + *.elevation (fark + LZMA)</text>
     <rect x="400" y="110" width="350" height="86" rx="5" fill="#e6eef8" stroke="#1f5fa8"/>
     <text x="575" y="130" text-anchor="middle" font-weight="600">TerrainTriangles (yakın zoom, bellekte en çok 2 karo)</text>
     <text x="414" y="148">temel arazi üçgenleri, parçalara göre dizinli</text>
@@ -505,7 +505,7 @@ sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka p
     <text x="395" y="246" text-anchor="middle" font-weight="600">Görüntü üretimi (BuildImage / BuildDetailImage) — istenen karo + seviye + biçim için RGBA</text>
     <text x="54" y="264">renk: TerrainPalette (terrain_colors.ini) · biçim: Classes (Scenery) / Elevation (VFR) / LandWater (IFR)</text>
     <text x="54" y="280" fill="#5b6575">Scenery yakın zoom: TerrainNoise (sınırları kıvırır) · LandColorField (kara sınıfları arası yumuşak geçiş)</text>
-    <text x="54" y="295" fill="#5b6575">gölge en son eklenir · BleedTransparent (kenarda koyu saçak olmasın)</text>
+    <text x="54" y="295" fill="#5b6575">ComposeImage: her pikselde DEM'den kabartma / VFR bandı, su tonu, kıyı çizgisi (9.6) · BleedTransparent</text>
     <line x1="200" y1="196" x2="200" y2="224" stroke="#5b6575" stroke-width="1.3" marker-end="url(#ar5)"/>
     <line x1="575" y1="196" x2="575" y2="224" stroke="#5b6575" stroke-width="1.3" marker-end="url(#ar5)"/>
 
@@ -538,9 +538,13 @@ sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka p
 <ul>
   <li>Her karonun önbellek dosyası, üretildiği <b>bütün aday DSF'lerin</b> yol + boyut + değişiklik zamanı listesiyle
       etiketlidir. Sahne eklenir, çıkarılır, sırası değişir veya güncellenirse etiket tutmaz, karo yeniden üretilir.</li>
-  <li>DSF'i olmayan karo: 10°'lik klasörü bir Global paketinde varsa <b>deniz</b>, yoksa <b>veri yok</b>. Sadece
-      overlay DSF'i olan karo için <code>.nobase</code> işareti yazılır (deniz sayılır).</li>
-  <li>Biçim değişirse <code>TerrainRaster.cpp</code>'deki <code>kFileVersion</code> artırılır; eski dosyalar kendiliğinden
+  <li>Temel mesh'i olmayan karo (DSF yok ya da sadece overlay): <b>deniz</b> mi <b>veri yok</b> mu, X-Plane'in dünya
+      tablosu <code>dsf_files</code>'tan (bölüm 9.7). Sadece overlay DSF'i olan karo için <code>.nobase</code> işareti
+      yazılır (her açılışta yeniden açılmasın).</li>
+  <li>Rakım ayrı dosyada (<code>&lt;karo&gt;.elevation</code>), aynı anahtarla: raster ile birlikte üretilir, birlikte
+      geçersiz olur. DEM'i olmayan karo için boş rakım dosyası yazılır (kabartmasız karo, yeniden üretilmez).</li>
+  <li>Biçim değişirse <code>TerrainRaster.cpp</code>'deki <code>kFileVersion</code> (şu an 3) ya da
+      <code>TerrainElevation.cpp</code>'deki <code>kFileVersion</code> (şu an 1) artırılır; eski dosyalar kendiliğinden
       yeniden üretilir. Palet varsayılanları değişirse <code>TerrainPalette::kPaletteVersion</code> artırılır.</li>
 </ul>
 <h3>9.3 Yakın zoom görüntüsü neden ayrı?</h3>
@@ -565,9 +569,21 @@ başındaki açıklamada listelidir (dosyayı <code>Plugin::LoadTerrainColors</c
       <td>Seviye 4 (1/32°) ve 5 (1/128°, ~0,85 m/piksel) parçaları raster'dan büyütülmez, DSF üçgenlerinden yüksek
       çözünürlükte boyanır: yakında piksel blokları görünmez. Üçgenler parçalara göre dizinlidir, bir parça için sadece
       ona değen üçgenler gezilir; bellekte en çok 2 karonun üçgenleri tutulur.</td></tr>
-  <tr><td>Bikubik gölge</td><td><code>ShadeAtSmooth</code> (Catmull-Rom)</td>
-      <td>Gölge raster'ı yakında çift doğrusal okununca elmas deseni yapıyordu; bikubik okuma yumuşak kabartma verir.
-      Rakım çift doğrusal okunur.</td></tr>
+  <tr><td>Piksel başına kabartma (0.16)</td><td><code>ElevationSampler</code>, <code>ReliefFactor</code></td>
+      <td>Gölge ara bir raster'dan değil, her doku pikselinde DEM'in bikubik (Catmull-Rom) türevinden hesaplanır;
+      piksel boyuna uygun piramit seviyesi kullanılır (bölüm 9.5). Eski 1024² gölge ve 512² rakım raster'ları kaldırıldı.</td></tr>
+  <tr><td>Çok yönlü ışık (0.16)</td><td><code>ReliefFactor</code>; <code>[relief]</code></td>
+      <td>225/270/315/360° ışık, ağırlık 315°'te (ters kabartma yanılsaması olmasın); dik yamaç ışıktan bağımsız biraz
+      koyulaşır (<code>slope_tone</code>); kaba seviyede abartma hafif artar (<code>coarse_boost</code>).</td></tr>
+  <tr><td>VFR yükseklik bantları (0.16)</td><td><code>VfrBandColor</code>; <code>[vfr]</code></td>
+      <td>Sectional sınırları (0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft). Sınır piksel başına bikubik
+      rakımdan bulunur: her zoomda keskin, kıvrımlı kontur; kenar bir piksel genişliğinde yumuşatılır. İsteğe bağlı ince
+      kontur çizgisi.</td></tr>
+  <tr><td>Kıyı çizgisi, kıyı şeridi, derinlik tonu (0.16)</td><td><code>CoastlineStrength</code>,
+      <code>DistanceToLand</code>, <code>DepthDarkening</code>; <code>[water]</code></td>
+      <td>Suyun tarafında tek piksel kıyı çizgisi (IFR dahil; kaba seviyede kara oranı ondalıklı olduğu için kenarı
+      kendiliğinden yumuşak); kıyıdan açığa ~200 m açık şerit (piksel tavanlı, payla üretilir); açıkta DSF
+      <code>sea_level</code> derinliğine göre koyu maviye doğru koyulaşma. Kıyının şekli değişmez.</td></tr>
   <tr><td>Saydam piksel doldurma</td><td><code>BleedTransparent</code></td>
       <td>Saydam piksellerin rengi en yakın opak komşudan doldurulur (alfa 0 kalır). Doğrusal süzme ve mipmap saydam
       pikselin siyahını kenara karıştırıp koyu saçak yapmasın diye.</td></tr>
@@ -590,6 +606,115 @@ başındaki açıklamada listelidir (dosyayı <code>Plugin::LoadTerrainColors</c
       <td>Varsayılan renkler değişince dosyadaki eski renkler atılır, dosya yeni varsayılanlarla yeniden yazılır
       (shading / blend korunur).</td></tr>
 </table>
+
+
+<h3 class="page-break">9.5 Rakım: tam çözünürlük, piramit, komşu karolar (0.16)</h3>
+<p>0.15'e kadar rakım 512² (~200 m), gölge 1024²'lik ara raster'dan okunuyordu: yakında bulanık, uzakta seyrek örnekleme
+yüzünden parazitli (aliasing). 0.16'da DSF'in DEM'i <b>tam çözünürlükte</b> (1201 × 1201 nokta, ~92 m) saklanır ve her
+doku pikseli onu kendi boyuna uygun bir <b>piramit seviyesinden</b> okur.</p>
+<figure>
+<svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">
+  <g font-size="10.5">
+    <!-- piramit -->
+    <text x="150" y="18" text-anchor="middle" font-weight="600">ElevationGrid: piramit (karo başına bir kez)</text>
+    <rect x="20" y="30" width="110" height="110" fill="#e6eef8" stroke="#1f5fa8"/>
+    <text x="75" y="80" text-anchor="middle">seviye 0</text>
+    <text x="75" y="95" text-anchor="middle" fill="#5b6575">1201² · ~92 m</text>
+    <rect x="145" y="58" width="56" height="56" fill="#e6eef8" stroke="#1f5fa8"/>
+    <text x="173" y="83" text-anchor="middle">601²</text>
+    <text x="173" y="97" text-anchor="middle" fill="#5b6575">185 m</text>
+    <rect x="215" y="72" width="30" height="30" fill="#e6eef8" stroke="#1f5fa8"/>
+    <text x="230" y="91" text-anchor="middle" font-size="9">301²</text>
+    <rect x="255" y="79" width="16" height="16" fill="#e6eef8" stroke="#1f5fa8"/>
+    <rect x="281" y="83" width="9" height="9" fill="#e6eef8" stroke="#1f5fa8"/>
+    <text x="150" y="160" text-anchor="middle" fill="#5b6575">süzgeç: [1 2 1] × [1 2 1] / 16 (noktalar yerinde kalır)</text>
+    <text x="150" y="175" text-anchor="middle" fill="#5b6575">kenar noktası sadece kenar boyunca süzülür</text>
+    <text x="150" y="190" text-anchor="middle" fill="#5b6575">seviye = nokta aralığı piksel boyunu geçmeyen en kaba</text>
+    <!-- 3x3 komsuluk -->
+    <text x="560" y="18" text-anchor="middle" font-weight="600">ElevationSampler: 3 × 3 karo</text>
+    <g>
+      <rect x="440" y="30" width="80" height="60" fill="#f3f5f8" stroke="#5b6575"/>
+      <rect x="520" y="30" width="80" height="60" fill="#f3f5f8" stroke="#5b6575"/>
+      <rect x="600" y="30" width="80" height="60" fill="#f3f5f8" stroke="#5b6575" stroke-dasharray="4 3"/>
+      <rect x="440" y="90" width="80" height="60" fill="#f3f5f8" stroke="#5b6575"/>
+      <rect x="520" y="90" width="80" height="60" fill="#e5f3ea" stroke="#2e7d4f" stroke-width="2"/>
+      <rect x="600" y="90" width="80" height="60" fill="#f3f5f8" stroke="#5b6575"/>
+      <rect x="440" y="150" width="80" height="60" fill="#f3f5f8" stroke="#5b6575"/>
+      <rect x="520" y="150" width="80" height="60" fill="#f3f5f8" stroke="#5b6575"/>
+      <rect x="600" y="150" width="80" height="60" fill="#f3f5f8" stroke="#5b6575" stroke-dasharray="4 3"/>
+      <text x="560" y="118" text-anchor="middle" font-weight="600">merkez</text>
+      <text x="560" y="133" text-anchor="middle" fill="#5b6575">[1][1]</text>
+      <text x="640" y="56" text-anchor="middle" fill="#b5651d">yüklü değil</text>
+      <text x="640" y="70" text-anchor="middle" fill="#b5651d">→ uzatma</text>
+      <line x1="600" y1="90" x2="600" y2="150" stroke="#b5651d" stroke-width="3"/>
+      <text x="560" y="228" text-anchor="middle" fill="#5b6575">ortak kenar (turuncu): iki karonun ortalaması</text>
+    </g>
+    <text x="380" y="262" text-anchor="middle" fill="#5b6575">Bikubik okuma 4×4 nokta ister; kenarda bir kısmı komşu karodadır. Komşu yüklüyse onun noktaları,</text>
+    <text x="380" y="278" text-anchor="middle" fill="#5b6575">değilse merkezden aynalı doğrusal uzatma (kenarda tek taraflı fark). Komşu sonradan gelirse doku yenilenir.</text>
+  </g>
+</svg>
+<figcaption>Şekil 5b — Rakım piramidi ve komşu karolu örnekleme.</figcaption>
+</figure>
+<ul>
+  <li><b>Saklama:</b> <code>ElevationCodec</code> — satır içi fark (<i>delta</i>), bayt düzlemlerine ayırma, LZMA (seviye 4,
+      tek thread; <code>third_party/lzma</code>'ya aynı SDK'nın sıkıştırıcısı eklendi). Gerçek DEM'de 2,9 MB → ~0,75 MB;
+      sıkıştırma ~0,25–0,3 s (karo üretilirken bir kez), açma ~50 ms. Seviye 5 normal moda geçer: %10 daha küçük, 5 kat
+      yavaş (ölçüldü).</li>
+  <li><b>Komşu kuralı:</b> komşu karonun rakımı sadece bellekten ya da önbellekten alınır, komşu için DSF açılmaz. Komşusu
+      henüz üretilmemiş bir doku <code>TerrainImage::mMissingNeighbors</code> listesiyle işaretlenir; komşu hazır olunca
+      (<code>TerrainStore::HasElevation</code>) katman o dokuyu yeniden ister, yenisi gelince eskisinin yerine koyar.</li>
+  <li><b>GERÇEK VERİ:</b> komşu karoların ortak kenar noktaları <b>aynı değil</b> (demo DSF'lerinde ortalama 1–2 m, en çok
+      ~30 m fark). Bu yüzden ortak kenar ve köşede var olan bütün karoların ortalaması alınır; iki taraf sınırda aynı
+      yüksekliği görür, gölge ve VFR bant sınırında basamak olmaz.</li>
+  <li><b>Beklenti:</b> DEM ~92 m aralıklıdır. z15+ zoomda (piksel ~3 m) kabartma yumuşak görünür; bikübik okuma bloğu
+      yok eder ama yeni ayrıntı yaratamaz. Simülatörün kendi zemini de aynı veriden oluşur: bu, X-Plane verisinin sınırı.</li>
+</ul>
+
+<h3>9.6 Görüntünün son adımı: ComposeImage (0.16)</h3>
+<p>İki üretici (kaba seviyeler: <code>BuildImage</code>, yakın zoom: <code>BuildDetailImage</code>) önce aynı ara sonucu
+doldurur: payla genişletilmiş alanda her pikselin <b>kara oranı</b> (0..1, veri yoksa −1), <b>kaplama</b> (alfa) ve çıktı
+piksellerinde Scenery kara rengi. Sonra tek bir fonksiyon her seviyede aynı formülle bitirir; bu yüzden ton seviyeden
+seviyeye tutarlıdır.</p>
+<pre>
+payli alan (kara orani)  -> CoastlineStrength (4 komsu)   -> kiyi cizgisi (suyun tarafinda 1 piksel)
+                         -> DistanceToLand (3-4 chamfer)  -> kiyiya uzaklik (serit)
+her cikti pikseli:
+   rakim + egim (ElevationSampler, uygun seviye)
+   kara : Classes = sinif rengi | Elevation = VFR bandi (VfrBandColor) | LandWater = duz renk
+          x ReliefFactor (Scenery ve VFR)
+   su   : su rengi x (1 - DepthDarkening(sea_level)) + kiyi seridi aciklik   (IFR'da duz su)
+   renk = kara * oran + su * (1 - oran);  kiyi cizgisi ustune;  alfa = kaplama
+</pre>
+<table>
+  <tr><th>Ayar (<code>terrain_colors.ini</code>)</th><th>Varsayılan</th><th>Ne</th></tr>
+  <tr><td><code>[relief] multi_directional</code></td><td>1</td><td>4 yönlü ışık (0: tek ışık 315°)</td></tr>
+  <tr><td><code>[relief] exaggeration / coarse_boost / slope_tone</code></td><td>2,5 / 0,35 / 0,12</td><td>Eğim abartması; kaba seviyede artış üssü; dik yamaç koyuluğu</td></tr>
+  <tr><td><code>[relief] flat_slope</code></td><td>0,02</td><td>Bu eğimin altı yumuşakça bastırılır: <code>s·s²/(s²+s₀²)</code>. DEM tam metre saklandığı için düz ovada 1 m'lik basamaklar (~%1 eğim) dalga gibi görünüyordu; %2'de basamak etkisi %23'e iner, %5 yamaç %86'sını, %15+ tamamını korur (ölçüldü)</td></tr>
+  <tr><td><code>[water] coastline / coastline_strength</code></td><td>1 / 0,5</td><td>Kıyı çizgisi</td></tr>
+  <tr><td><code>[water] band_meters / band_max_pixels / band_strength</code></td><td>200 / 24 / 0,10</td><td>Kıyıdan açığa açık şerit, kıyı çizgisinin bir piksel arkasından başlar (0 = kapalı)</td></tr>
+  <tr><td><code>[water] depth_tone / depth_full_meters</code></td><td>0,25 / 200</td><td>Derinliğe göre koyulaşma; kanal ağırlıkları R 1,0 · G 0,8 · B 0,5 (eşit koyulaşma suyu griye çeviriyordu)</td></tr>
+  <tr><td><code>[vfr] bands / contour_lines / contour_strength</code></td><td>1 / 0 / 0,35</td><td>Bantlar (0: eski rampa); ince kontur</td></tr>
+  <tr><td><code>[vfr] band_1 .. band_8</code></td><td>sectional</td><td><code>&lt;alt sınır feet&gt; R G B</code>; sınırlar artan olmalı</td></tr>
+</table>
+<p><b>GERÇEK VERİ (<code>sea_level</code>, 256² hücre merkezli, satır 0 = güney):</b> denizde deniz tabanı yüksekliği gibi
+davranır (Puget Sound en derin −242 m). Verisi olmayan deniz hücresi −10 (Juneau kanallarının çoğu), göllerde ≥ 0,
+karadaki değerlerin anlamı yok. DSF'teki <code>bathymetry</code> katmanının adı var ama verisi yok. Biçim belgelenmemiş;
+anlam ölçümden çıkarıldı, bu yüzden derinlik tonu sadece −10'dan derin hücrelerde uygulanır ve kapatılabilir.</p>
+
+<h3>9.7 Deniz mi, veri yok mu: dsf_files (0.16)</h3>
+<ul>
+  <li><code>Resources/dsf_files</code> (<code>WorldTileMap</code>): 5 bayt başlık (anlamı bilinmiyor) + 360 × 180 bayt,
+      boylam öncelikli, <code>indeks = (boylam + 180) × 180 + (enlem + 90)</code>; 255 = X-Plane'in tam global sahnesinde
+      bu karonun DSF'i var, 0 = yok (açık deniz). Kurulu 35 demo karosu ve bilinen kara/deniz noktalarıyla doğrulandı.</li>
+  <li>Temel mesh'i olmayan karo: tabloda 0 ise <b>deniz</b>, 255 ise <b>veri yok</b> (kara ama sahnesi bu bilgisayarda
+      kurulu değil). "Veri yok" karosu deniz gibi boyanmaz; temanın nötr <code>mNoData</code> rengiyle doldurulur.</li>
+  <li>Güvenlik: tablo açılışta Global Scenery'de kurulu karolarla doğrulanır (hepsi 255 olmalı, %2 pay). Dosya yoksa,
+      boyutu farklıysa ya da doğrulama tutmazsa eski kural çalışır (karonun 10°'lik klasörü kuruluysa deniz). Sonuç
+      Log.txt'ye yazılır: <code>world tile map: ... (N mismatches)</code>.</li>
+  <li><code>Resources/map data/water/*.shp</code> (X-Plane'in kendi haritasının suyu) incelendi: DSF kıyısının
+      sadeleştirilmiş hâli, sadece büyük su kütleleri. Simülatördeki su DSF olduğu için esas DSF; shapefile ileride sadece
+      kurulu olmayan karolar ve hızlı ilk görüntü için düşünülebilir (Aşama 4).</li>
+</ul>
 
 <!-- ================================================================== -->
 <h2>10. Nav verisi, hava yolları, uçak</h2>
@@ -717,8 +842,8 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>64/win.xpl</code></td><td>Eklentinin kendisi</td></tr>
   <tr><td><code>map_settings.ini</code></td><td><code>[window]</code> yer/boyut/görünür · <code>[view]</code> merkez, zoom, takip, kontroller, <code>mode</code> · <code>[tools]</code> palet · <code>[layers.scenery]</code>, <code>[layers.vfr]</code>, <code>[layers.ifr_low]</code>, <code>[layers.ifr_high]</code> (katman ve <code>katman.alt</code> anahtarları); eski <code>[layers]</code> Scenery'ye okunur</td></tr>
   <tr><td><code>map_drawings.txt</code></td><td>Kullanıcı çizimleri (metin)</td></tr>
-  <tr><td><code>terrain_colors.ini</code></td><td><code>[colors]</code>, <code>[shading]</code>, <code>[blend]</code>, <code>[warp]</code>, <code>[closeup]</code>, <code>[palette] version</code></td></tr>
-  <tr><td><code>cache/terrain/</code></td><td>Zemin raster önbelleği (silinebilir)</td></tr>
+  <tr><td><code>terrain_colors.ini</code></td><td><code>[colors]</code>, <code>[shading]</code>, <code>[blend]</code>, <code>[warp]</code>, <code>[closeup]</code>, <code>[relief]</code>, <code>[water]</code>, <code>[vfr]</code>, <code>[palette] version</code> (bölüm 9.6)</td></tr>
+  <tr><td><code>cache/terrain/</code></td><td>Zemin önbelleği (silinebilir): <code>*.terrain</code> sınıf raster'ı, <code>*.elevation</code> tam çözünürlüklü DEM + sea_level, <code>*.nobase</code></td></tr>
   <tr><td><code>cache/airports/airport_index.bin</code></td><td>apt.dat özet indeksi (silinebilir)</td></tr>
 </table>
 
@@ -754,11 +879,15 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>AircraftData.*</code></td><td>Uçak konumu/yönü</td></tr>
   <tr><td><code>SceneryPacks.*</code>, <code>SceneryIndex.*</code></td><td>Sahne sırası; karo → aday DSF'ler</td></tr>
   <tr><td><code>SevenZip.*</code>, <code>DsfReader.*</code></td><td>7z açma; DSF okuma (arazi adları, üçgenler — yama bayrağı ve düzlem sayısı dahil, DEM)</td></tr>
-  <tr><td><code>TerrainClasses.*</code></td><td>Arazi türü → sınıf, palet (sürüm 2), rakım rampası (<code>ElevationColor</code>), blend / warp / closeup ayarları</td></tr>
-  <tr><td><code>TerrainRaster.*</code></td><td>Sınıf/gölge/rakım raster'ları, görüntü üretimi (kaba ve yakın), önbellek dosyası</td></tr>
+  <tr><td><code>TerrainClasses.*</code></td><td>Arazi türü → sınıf, palet (sürüm 2), rakım rampası (<code>ElevationColor</code>), blend / warp / closeup / relief / water / vfr ayarları</td></tr>
+  <tr><td><code>TerrainRaster.*</code></td><td>Sınıf raster'ı, görüntü üretimi (kaba ve yakın) ve son adım <code>ComposeImage</code>, önbellek dosyası</td></tr>
+  <tr><td><code>TerrainElevation.*</code></td><td>Tam çözünürlüklü DEM, piramit, sea_level, rakım dosyası; 3 × 3 komşulu bikubik örnekleyici</td></tr>
+  <tr><td><code>ElevationCodec.*</code></td><td>16 bitlik ızgara için satır farkı + LZMA (kayıpsız)</td></tr>
+  <tr><td><code>TerrainRelief.*</code></td><td>Piksel formülleri: kabartma, VFR bandı, derinlik tonu, kıyı şeridi, kıyı mesafesi ve çizgisi</td></tr>
+  <tr><td><code>WorldTileMap.*</code></td><td><code>dsf_files</code>: dünyada hangi karonun DSF'i var (deniz / veri yok ayrımı)</td></tr>
   <tr><td><code>TerrainTriangles.*</code></td><td>Yakın zoom için hafif üçgen deposu (parça dizinli)</td></tr>
   <tr><td><code>TerrainNoise.*</code>, <code>LandColorField.*</code></td><td>Sınır kıvırma gürültüsü; kara renklerinin yumuşak geçişi</td></tr>
-  <tr><td><code>TerrainStore.*</code></td><td>Zemin işçi thread'i, istek/sonuç kuyrukları, üçgen LRU</td></tr>
+  <tr><td><code>TerrainStore.*</code></td><td>Zemin işçi thread'i, istek/sonuç kuyrukları, raster / üçgen / rakım LRU, eksik komşu takibi, süre özeti</td></tr>
 </table>
 <h3>src/layers/, src/gfx/, src/ui/</h3>
 <p>Bölüm 7.2 (katmanlar), 11 (gfx) ve 12 (ui) tablolarına bak. Her dosyanın başında Türkçe bir açıklama bloğu vardır
@@ -769,7 +898,7 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>tests/tests.cpp</code></td><td>X-Plane'siz testler (bölüm 16)</td></tr>
   <tr><td><code>tools/preview/</code></td><td><code>map_preview</code>: aynı katman kodunu XPLM taklitleriyle resme çizer</td></tr>
   <tr><td><code>tools/dsfinfo/</code></td><td><code>dsf_info</code>: bir DSF dosyasının içeriğini döker</td></tr>
-  <tr><td><code>third_party/</code></td><td>XPSDK (XPLM200..301 açık), LZMA SDK 23.01, mapbox earcut 2.2.4 (tek belgelenmiş yama: <code>README.txt</code>). Dış kod sadece burada.</td></tr>
+  <tr><td><code>third_party/</code></td><td>XPSDK (XPLM200..301 açık), LZMA SDK 23.01 (7z açıcı + 0.16'dan beri LZMA sıkıştırıcı, tek thread; <code>lzma/README.txt</code>), mapbox earcut 2.2.4 (tek belgelenmiş yama: <code>README.txt</code>). Dış kod sadece burada.</td></tr>
   <tr><td><code>CMakeLists.txt</code></td><td>Hedefler: <code>MapPlugin</code> (win.xpl), <code>map_tests</code>, <code>map_preview</code>, <code>dsf_info</code>, <code>lzma_sdk</code></td></tr>
 </table>
 
@@ -778,16 +907,18 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
 <ul>
   <li><b><code>map_tests</code></b> (<code>-DMAP_TESTS=ON</code>): çekirdeği X-Plane'siz dener — Mesh geometrisi,
       MapView gidiş-dönüş ve zoom, LabelPlacer, ayarlar, Drawings, Geo, apt.dat ayrıştırma ve Bezier, AirportShapes,
-      AirwayDatabase satırları, DSF okuma, zemin raster'ı, gürültü ve renk karışımı, temalar, mod başına görünürlük.
-      Hepsi geçmeli.</li>
+      AirwayDatabase satırları, DSF okuma ve overlay sayımı, zemin raster'ı, gürültü ve renk karışımı, temalar, mod başına
+      görünürlük; 0.16: rakım kodlayıcısı, piramit, komşulu örnekleme (karo sınırında dikiş yok), kabartma / VFR bandı /
+      su formülleri, <code>dsf_files</code> ve doğrulaması, rakım önbelleği. Hepsi geçmeli.</li>
   <li><b><code>map_preview</code></b> (<code>-DMAP_PREVIEW=ON</code>): eklentinin kendi katman ve arayüz kodunu
       gerçek X-Plane verisiyle görünmez bir OpenGL penceresinde çizip PPM resim yazar. Örnek:
       <code>map_preview --lat 47.45 --lon -122.30 --zoom 12 --mode vfr --out ksea.ppm</code>
-      (ayrıca <code>--size --show --hide --panel --describe x,y --demo-drawings --no-ui</code>). Görsel kontrol için
-      hızlıdır ama gerçek X-Plane denemesinin yerine geçmez.</li>
-  <li><b><code>dsf_info</code></b>: DSF'in özellikleri, arazi türleri, üçgen sayıları, yama bayrağı × düzlem sayısı;
-      <code>--raw</code> ile açılmış hâlini yazar. DSF biçimiyle ilgili bir şey değiştirmeden önce gerçek dosyaya
-      bununla bak.</li>
+      (ayrıca <code>--size --show --hide --panel --describe x,y --demo-drawings --no-ui --terrain-colors ini</code>).
+      Görsel kontrol için hızlıdır ama gerçek X-Plane denemesinin yerine geçmez.</li>
+  <li><b><code>dsf_info</code></b>: DSF'in özellikleri, dışlama alanları, arazi türleri, üçgen sayıları, yama bayrağı ×
+      düzlem sayısı, nesne / poligon / yol ağı envanteri, raster katmanları, aşama süreleri; <code>--raw</code> ile açılmış
+      hâlini, <code>--dump-terrain</code> ile bir arazi türünün üçgenlerini yazar. DSF biçimiyle ilgili bir şey
+      değiştirmeden önce gerçek dosyaya bununla bak.</li>
 </ul>
 
 <!-- ================================================================== -->
@@ -823,6 +954,19 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
       çok delikli apronlarda çok daha hızlı. Ayrıntı <code>third_party/earcut/README.txt</code>.</td></tr>
   <tr><td>Tek çizim kapısı, toplu çizim</td><td><code>Canvas</code>, <code>Mesh</code></td>
       <td>Bir katmanın bütün sembolleri tek Mesh'te toplanıp tek çağrıda çizilir.</td></tr>
+  <tr><td>Rakım piramidi (0.16)</td><td><code>ElevationGrid</code></td>
+      <td>Uzak seviyeler seyrek nokta okumaz, önceden ortalanmış kaba seviyeyi okur: hem hızlı hem parazitsiz.</td></tr>
+  <tr><td>Sıkıştırılmış rakım (0.16)</td><td><code>ElevationCodec</code>, <code>*.elevation</code></td>
+      <td>Karo başına 2,9 MB yerine ~0,75 MB; açma ~50 ms. Rakım raster'dan ayrı dosyada: komşu karo için sadece rakım okunur.</td></tr>
+  <tr><td>Aynı işi iki kez yapmama (0.16)</td><td><code>TerrainStore::Request</code></td>
+      <td>Üretilmekte olan ya da sonucu kuyrukta bekleyen doku tekrar istenirse yok sayılır.</td></tr>
+  <tr><td>İki katmanlı rakım belleği (0.16)</td><td><code>TerrainStore::ElevationFor</code></td>
+      <td>Tam ızgara (~5 MB) en çok 12 karo; uzak zoom için sadece seviye 2+ (~0,5 MB) en çok 64 karo. Tam listeden atılan
+      ızgara silinmez, küçültülüp kaba listeye geçer. İlk sürümde z8.5'te 15 karo × 3×3 komşuluk 12'lik listeyi sürekli
+      boşaltıyor, aynı rakım görünüm başına ~30 kez diskten okunuyordu (ölçüldü).</td></tr>
+  <tr><td>Hedefli yenileme (0.16)</td><td><code>mMissingNeighbors</code></td>
+      <td>Sadece komşusu eksik üretilmiş ve o komşusu artık hazır olan doku yeniden üretilir; eski doku yenisi gelene kadar
+      çizilir. Bir kez hazır olup artık bulunamayan komşu beklenmez (sonsuz yenileme olmaz).</td></tr>
 </table>
 
 </body>

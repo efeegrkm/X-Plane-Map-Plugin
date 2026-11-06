@@ -47,6 +47,10 @@ set(CORE_SOURCES
     src/data/SceneryPacks.cpp
     src/data/SceneryIndex.cpp
     src/data/TerrainClasses.cpp
+    src/data/WorldTileMap.cpp
+    src/data/ElevationCodec.cpp
+    src/data/TerrainElevation.cpp
+    src/data/TerrainRelief.cpp
     src/data/LandColorField.cpp
     src/data/TerrainNoise.cpp
     src/data/TerrainRaster.cpp
@@ -102,6 +106,9 @@ find_package(Threads REQUIRED)
 file(GLOB LZMA_SOURCES ${CMAKE_SOURCE_DIR}/third_party/lzma/*.c)
 add_library(lzma_sdk STATIC ${LZMA_SOURCES})
 target_include_directories(lzma_sdk SYSTEM PUBLIC ${CMAKE_SOURCE_DIR}/third_party/lzma)
+# Z7_ST: LZMA sikistiricisi tek thread'li derlenir (cok thread'li eslestirici LzFindMt eklenmedi;
+# third_party/lzma/README.txt). Sikistirma zaten zemin iscisinin kendi thread'inde calisir.
+target_compile_definitions(lzma_sdk PUBLIC Z7_ST)
 set_property(TARGET lzma_sdk PROPERTY POSITION_INDEPENDENT_CODE ON)
 if(MSVC)
     target_compile_options(lzma_sdk PRIVATE /W0)

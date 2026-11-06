@@ -77,6 +77,10 @@ struct MapTheme
     Rgba mRunwayLabel;
 
     std::array<LayerDefault, 12> mLayerDefaults;  // mId == nullptr: bos satir
+
+    // 0.16: "veri yok" karosu (kara ama sahnesi bu bilgisayarda kurulu degil; dsf_files).
+    // Deniz gibi boyanmasin diye notr, sudan ve arka plandan farkli bir renk.
+    Rgba mNoData;
 };
 
 const MapTheme& ThemeFor(MapMode pMode);

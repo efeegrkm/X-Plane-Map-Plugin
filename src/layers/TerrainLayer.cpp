@@ -104,14 +104,22 @@ void TerrainLayer::UploadReadyImages()
     TerrainImage tImage;
     for (int tUpload = 0; tUpload < kUploadsPerFrame && mStore.PopImage(&tImage); ++tUpload)
     {
-        if (mTextures.count(tImage.mKey))
+        const auto tExisting = mTextures.find(tImage.mKey);
+        if (tExisting != mTextures.end())
         {
-            continue;  // ayni goruntu iki kez istenmis olabilir
+            if (tExisting->second.mMissingNeighbors.empty())
+            {
+                continue;  // ayni goruntu iki kez istenmis olabilir
+            }
+            // Komsusu eksik uretilmis eski doku: yenisi yerine gecer
+            mTextureBytes -= tExisting->second.mBytes;
+            mTextures.erase(tExisting);
         }
         CachedTexture tCached;
         tCached.mTexture = Gfx::Texture::FromRgba(tImage.mSize, tImage.mRgba.data(), true);
         tCached.mBytes = tImage.mRgba.size() * 4 / 3;  // mipmap seviyeleri dahil
         tCached.mLastFrame = mFrame;
+        tCached.mMissingNeighbors = std::move(tImage.mMissingNeighbors);
         mTextureBytes += tCached.mBytes;
         mTextures.emplace(tImage.mKey, std::move(tCached));
     }
@@ -125,6 +133,15 @@ const Gfx::Texture* TerrainLayer::UseTexture(const TerrainImageKey& pKey)
         return nullptr;
     }
     tFound->second.mLastFrame = mFrame;
+    for (const int tNeighbor : tFound->second.mMissingNeighbors)
+    {
+        // TileKey -> karo (SceneryIndex::TileKey'in tersi)
+        if (mStore.HasElevation(tNeighbor % 360 - 180, tNeighbor / 360 - 90))
+        {
+            mStore.Request(pKey);  // ayni anahtar uretilirken / kuyruktayken tekrar alinmaz
+            break;
+        }
+    }
     return &tFound->second.mTexture;
 }
 
@@ -216,6 +233,7 @@ void TerrainLayer::Draw(const DrawContext& pContext)
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     Gfx::Mesh tOcean;
+    Gfx::Mesh tNoData;
     std::vector<Gfx::TexturedVertex> tStrips;
     for (int tLat = tSouth; tLat <= tNorth; ++tLat)
     {
@@ -224,18 +242,21 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             const int tLon = WrapLon(tColumn);
             const TileCoverage tCoverage = mStore.CoverageOf(tLon, tLat);
             const TerrainTileState tState = mStore.StateOf(tLon, tLat);
-            if (tCoverage == TileCoverage::NoData || tState == TerrainTileState::NoData ||
-                tState == TerrainTileState::Failed)
-            {
-                continue;  // bu bolge kurulu degil: harita zemini (koyu) gorunur
-            }
             // Ekrandaki konumu, boylam sarilmasina gore (tColumn) hesapla
             const double tTileWest = tColumn;
             const double tTileEast = tColumn + 1.0;
+            const PointF tSouthWest = tView.ToScreen({static_cast<double>(tLat), tTileWest});
+            const PointF tNorthEast = tView.ToScreen({tLat + 1.0, tTileEast});
+            if (tCoverage == TileCoverage::NoData || tState == TerrainTileState::NoData ||
+                tState == TerrainTileState::Failed)
+            {
+                // Kara ama sahnesi kurulu degil (ya da okunamadi): notr "veri yok" rengi, deniz degil
+                tNoData.AddQuad(tSouthWest, {tNorthEast.mX, tSouthWest.mY}, tNorthEast,
+                                {tSouthWest.mX, tNorthEast.mY}, tTheme.mNoData);
+                continue;
+            }
             if (tCoverage == TileCoverage::Ocean || tState == TerrainTileState::Ocean)
             {
-                const PointF tSouthWest = tView.ToScreen({static_cast<double>(tLat), tTileWest});
-                const PointF tNorthEast = tView.ToScreen({tLat + 1.0, tTileEast});
                 tOcean.AddQuad(tSouthWest, {tNorthEast.mX, tSouthWest.mY}, tNorthEast, {tSouthWest.mX, tNorthEast.mY},
                                tWater);
                 continue;
@@ -304,5 +325,6 @@ void TerrainLayer::Draw(const DrawContext& pContext)
         }
     }
     tCanvas.Draw(tOcean);
+    tCanvas.Draw(tNoData);
     EvictUnused();
 }

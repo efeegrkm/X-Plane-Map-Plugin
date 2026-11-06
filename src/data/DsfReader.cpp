@@ -404,6 +404,11 @@ bool DsfReader::ReadRaster(const std::string& pName, DsfRaster* pOut) const
     return true;
 }
 
+const std::vector<std::string>& DsfReader::RasterNames() const
+{
+    return mRasterNames;
+}
+
 int DsfReader::PoolCount() const
 {
     return static_cast<int>(mPools.size());

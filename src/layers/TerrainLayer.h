@@ -12,7 +12,10 @@
 //                                 daha cok -> seviye 4 (DSF ucgenlerinden 1/32
 //                                             derecelik parcalar, ~32768 px/derece)
 // Ince seviye hazir olana kadar elde olan en iyi kaba seviye gosterilir.
-// Deniz karolari (DSF yok, bolge kurulu) su rengiyle doldurulur.
+// Deniz karolari su rengiyle, "veri yok" karolari (kara ama sahnesi kurulu degil)
+// temanin notr mNoData rengiyle doldurulur (0.16; SceneryIndex, dsf_files).
+// Komsu karonun rakimi henuz yokken uretilmis doku, komsu hazir olunca yeniden
+// istenir ve gelince eskisinin yerine konur (karo sinirinda golge dikisi kalmaz).
 #pragma once
 
 #include <cstdint>
@@ -41,10 +44,12 @@ private:
         Gfx::Texture mTexture;
         size_t mBytes = 0;
         uint64_t mLastFrame = 0;
+        std::vector<int> mMissingNeighbors;  // uretilirken rakimi olmayan komsular (TerrainImage)
     };
 
     void UploadReadyImages();
-    // Varsa dokuyu verir ve bu karede kullanildi diye isaretler; yoksa nullptr
+    // Varsa dokuyu verir ve bu karede kullanildi diye isaretler; yoksa nullptr.
+    // Eksik komsularindan biri artik hazirsa dokuyu yeniden ister (eskisi o gelene kadar kullanilir).
     const Gfx::Texture* UseTexture(const TerrainImageKey& pKey);
     void EvictUnused();
     static int DesiredLevel(double pPixelsPerDegree);

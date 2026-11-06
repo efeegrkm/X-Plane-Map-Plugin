@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -30,15 +31,19 @@
 #include "data/AptLine.h"
 #include "data/LocalizerMatch.h"
 #include "data/DsfReader.h"
+#include "data/ElevationCodec.h"
 #include "data/LandColorField.h"
 #include "data/NavDatabase.h"
 #include "data/SceneryIndex.h"
 #include "data/SevenZip.h"
 #include "data/TerrainClasses.h"
+#include "data/TerrainElevation.h"
 #include "data/TerrainNoise.h"
 #include "data/TerrainRaster.h"
+#include "data/TerrainRelief.h"
 #include "data/TerrainStore.h"
 #include "data/TerrainTriangles.h"
+#include "data/WorldTileMap.h"
 #include "gfx/Mesh.h"
 
 #include <chrono>
@@ -1609,8 +1614,29 @@ void Append(std::vector<uint8_t>& pOut, const std::vector<uint8_t>& pMore)
     pOut.insert(pOut.end(), pMore.begin(), pMore.end());
 }
 
-// 1x1 derece karo (+41+029): sol yari su, sag yari orman (4 nokta, 2 ucgen)
-std::vector<uint8_t> MakeTestDsf(bool pOverlay)
+// DSF raster katmani: DEMI (surum 1, 2 bayt, bayraklar, boyut, olcek 1, kaydirma 0) + DEMD (int16, satir 0 = guney)
+void AppendTestRaster(std::vector<uint8_t>& pDems, int pFlags, int pSize, const std::vector<int>& pValues)
+{
+    std::vector<uint8_t> tInfo;
+    PutU8(tInfo, 1);
+    PutU8(tInfo, 2);
+    PutU16(tInfo, pFlags);
+    PutU32(tInfo, static_cast<uint32_t>(pSize));
+    PutU32(tInfo, static_cast<uint32_t>(pSize));
+    PutF32(tInfo, 1.0f);
+    PutF32(tInfo, 0.0f);
+    std::vector<uint8_t> tData;
+    for (const int tValue : pValues)
+    {
+        PutU16(tData, tValue & 0xFFFF);
+    }
+    Append(pDems, Atom("DEMI", tInfo));
+    Append(pDems, Atom("DEMD", tData));
+}
+
+// 1x1 derece karo (+41+029): sol yari su, sag yari orman (4 nokta, 2 ucgen).
+// pWithDem: 5 x 5 "elevation" (post-centric, yukseklik = 10 * sutun + satir) ve 4 x 4 "sea_level" (-50)
+std::vector<uint8_t> MakeTestDsf(bool pOverlay, bool pWithDem = false)
 {
     std::vector<uint8_t> tProperties = Strings({"sim/west", "29", "sim/east", "30", "sim/south", "41", "sim/north",
                                                 "42", "sim/overlay", pOverlay ? "1" : "0"});
@@ -1701,12 +1727,31 @@ std::vector<uint8_t> MakeTestDsf(bool pOverlay)
     std::vector<uint8_t> tDefinitions = Atom("TERT", tTerrains);
     std::vector<uint8_t> tGeometry = Atom("POOL", tPool);
     Append(tGeometry, Atom("SCAL", tScale));
+    std::vector<uint8_t> tDems;
+    if (pWithDem)
+    {
+        Append(tDefinitions, Atom("DEMN", Strings({"elevation", "sea_level"})));
+        std::vector<int> tHeights;
+        for (int tRow = 0; tRow < 5; ++tRow)
+        {
+            for (int tColumn = 0; tColumn < 5; ++tColumn)
+            {
+                tHeights.push_back(10 * tColumn + tRow);
+            }
+        }
+        AppendTestRaster(tDems, 1 | 4, 5, tHeights);  // isaretli tamsayi + post-centric
+        AppendTestRaster(tDems, 1, 4, std::vector<int>(16, -50));
+    }
 
     std::vector<uint8_t> tFile = {'X', 'P', 'L', 'N', 'E', 'D', 'S', 'F'};
     PutU32(tFile, 1);
     Append(tFile, Atom("HEAD", Atom("PROP", tProperties)));
     Append(tFile, Atom("DEFN", tDefinitions));
     Append(tFile, Atom("GEOD", tGeometry));
+    if (pWithDem)
+    {
+        Append(tFile, Atom("DEMS", tDems));
+    }
     Append(tFile, Atom("CMDS", tCommands));
     tFile.resize(tFile.size() + 16, 0);  // MD5 yeri (okuyucu dogrulamaz)
     return tFile;
@@ -1994,10 +2039,15 @@ void TestTerrain()
             break;
         }
     }
+    // 0.16: orman parcasinin 0. sutunu tam kiyida (kiyi cizgisi bilerek koyulastirir): kiyidan uzak sutun 10
     CHECK(tAllOpaque && tWaterChunk.size() == static_cast<size_t>(tSize) * tSize * 4 &&
               tWaterChunk[0] == tPalette.ColorOf(TerrainClass::Water).mR &&
-              tForestChunk[0] == tPalette.ColorOf(TerrainClass::ForestConifer).mR,
+              tForestChunk[10 * 4] == tPalette.ColorOf(TerrainClass::ForestConifer).mR,
           "seviye 4 olculeri");
+    // Kiyi cizgisi suyun tarafinda: su parcasinin son sutunu (orman parcasina komsu) su renginden koyu
+    CHECK(tWaterChunk[63 * 4 + 2] < tPalette.ColorOf(TerrainClass::Water).mB - 5 &&
+              tForestChunk[0] == tForestChunk[10 * 4],
+          "kiyi cizgisi suyun son pikselinde, kara pikseli etkilenmez");
     TerrainImageKeyHash tHash;
     CHECK(tHash({29, 41, 4, 17, 0}) != tHash({29, 41, 3, 33, 0}) &&
               tHash({29, 41, 4, 1023, 3}) != tHash({29, 41, 4, 1023, 2}) &&
@@ -2186,6 +2236,12 @@ void TestLandBlend()
     // (bukme acikken sinir pikselleri sinif degistirebilir; TestTerrainWarp bukmeyi ayri dogrular)
     tBlendPalette.SetWarp({0.0, 250.0, 3});
     tBlendPalette.SetCloseupClassMix(0.0);
+    // 0.16: kiyi cizgisi ve kiyi seridi kiyidaki pikseli bilerek degistirir; bu testler sadece
+    // yumusatmanin su rengini karaya tasimadigini olcer (kiyi stili TestTerrainRelief'te)
+    TerrainWaterParams tNoCoastStyle = tBlendPalette.Water();
+    tNoCoastStyle.mCoastline = false;
+    tNoCoastStyle.mBandMeters = 0.0;
+    tBlendPalette.SetWater(tNoCoastStyle);
     const int tSize = 64;
     const int tChunks = TerrainTriangles::kChunksPerSide;
 
@@ -2607,6 +2663,666 @@ void TestMapViewBounds()
 
 }  // namespace
 
+// --- 0.16 (Asama 1): rakim, kabartma, su, dunya tablosu ---------------------
+
+// Sentetik DEM, DSF duzeninde (satir 0 = GUNEY, post-centric). pHeight(sutun, guneyden satir) metre.
+DsfRaster MakeDem(int pSize, const std::function<double(int, int)>& pHeight)
+{
+    DsfRaster tRaster;
+    tRaster.mWidth = pSize;
+    tRaster.mHeight = pSize;
+    tRaster.mPostCentric = true;
+    tRaster.mValues.resize(static_cast<size_t>(pSize) * pSize);
+    for (int tRow = 0; tRow < pSize; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < pSize; ++tColumn)
+        {
+            tRaster.mValues[static_cast<size_t>(tRow) * pSize + tColumn] =
+                static_cast<float>(pHeight(tColumn, tRow));
+        }
+    }
+    return tRaster;
+}
+
+void TestElevationCodec()
+{
+    // Kayipsiz: rampa, eksi degerler, uc degerler, sozde rastgele gurultu
+    const int tWidth = 37;
+    const int tHeight = 23;
+    std::vector<int16_t> tValues(static_cast<size_t>(tWidth) * tHeight);
+    uint32_t tSeed = 12345;
+    for (size_t tIndex = 0; tIndex < tValues.size(); ++tIndex)
+    {
+        tSeed = tSeed * 1664525u + 1013904223u;
+        tValues[tIndex] = static_cast<int16_t>(static_cast<int>(tIndex % 50) * 7 - 200 + static_cast<int>(tSeed >> 28));
+    }
+    tValues[0] = -32000;
+    tValues[1] = 32000;
+    std::vector<uint8_t> tPacked;
+    std::vector<int16_t> tBack;
+    CHECK(ElevationCodec::Compress(tValues, tWidth, tHeight, &tPacked) &&
+              ElevationCodec::Decompress(tPacked.data(), tPacked.size(), tWidth, tHeight, &tBack) && tBack == tValues,
+          "rakim kodlayici kayipsiz (eksi ve uc degerler dahil)");
+    CHECK(!ElevationCodec::Decompress(tPacked.data(), tPacked.size(), tWidth + 1, tHeight, &tBack),
+          "boyut tutmazsa reddedilir");
+    CHECK(!ElevationCodec::Decompress(tPacked.data(), 4, tWidth, tHeight, &tBack), "kisa veri reddedilir");
+
+    // Puruzsuz arazi iyi sikisir (satir farki + LZMA)
+    const int tSize = 257;
+    std::vector<int16_t> tSmooth(static_cast<size_t>(tSize) * tSize);
+    for (int tRow = 0; tRow < tSize; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < tSize; ++tColumn)
+        {
+            tSmooth[static_cast<size_t>(tRow) * tSize + tColumn] =
+                static_cast<int16_t>(500.0 + 300.0 * std::sin(tColumn * 0.05) * std::cos(tRow * 0.04));
+        }
+    }
+    CHECK(ElevationCodec::Compress(tSmooth, tSize, tSize, &tPacked) && tPacked.size() < tSmooth.size() * 2 / 4,
+          "puruzsuz DEM ham boyutun dortte birinden kucuk: %d / %d", static_cast<int>(tPacked.size()),
+          static_cast<int>(tSmooth.size() * 2));
+}
+
+void TestElevationGrid()
+{
+    // Duzlem: yukseklik = 100 + 4 * sutun + 2 * (guneyden satir). Tam sayi: int16 saklamada kayip yok.
+    const int tSize = 33;
+    auto tPlane = [](int pColumn, int pRowFromSouth)
+    {
+        return 100.0 + 4.0 * pColumn + 2.0 * pRowFromSouth;
+    };
+    ElevationGrid tGrid;
+    CHECK(tGrid.Build(MakeDem(tSize, tPlane), nullptr) && !tGrid.IsEmpty(), "DEM'den izgara kurulur");
+    CHECK(Near(tGrid.Post(0, 0, 0), tPlane(0, tSize - 1), 1e-6) &&
+              Near(tGrid.Post(0, 5, tSize - 1), tPlane(5, 0), 1e-6),
+          "satir 0 = kuzey (DSF satir 0 = guney cevrildi)");
+    CHECK(tGrid.Size(1) == 17 && tGrid.Size(2) == 9, "piramit boyutlari 33 -> 17 -> 9");
+    // [1 2 1] suzgec dogrusal yuzeyi korur: seviye 1 noktasi (i, j) = taban (2i, 2j); kenarlar dahil
+    bool tPyramidOk = true;
+    for (int tRow = 0; tRow < 17; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < 17; ++tColumn)
+        {
+            tPyramidOk = tPyramidOk && Near(tGrid.Post(1, tColumn, tRow), tGrid.Post(0, 2 * tColumn, 2 * tRow), 1e-4);
+        }
+    }
+    CHECK(tPyramidOk, "seviye 1 dogrusal yuzeyi korur (kenar noktalari dahil)");
+    CHECK(Near(tGrid.CellMeters(0), 110574.0 / 32.0, 1e-6) && tGrid.LevelFor(1.0) == 0 &&
+              tGrid.LevelFor(tGrid.CellMeters(1) + 1.0) == 1 && tGrid.LevelFor(1e9) == 2,
+          "seviye secimi: nokta araligi piksel boyunu gecmeyen en kaba seviye");
+
+    // Kaba seviye gurultuyu ortalar (ortusme yok): satranc tahtasi (+-50 m) seviye 1'de duzlesir
+    ElevationGrid tChecker;
+    tChecker.Build(MakeDem(tSize,
+                           [](int pColumn, int pRow)
+                           {
+                               return 1000.0 + (((pColumn + pRow) % 2 == 0) ? 50.0 : -50.0);
+                           }),
+                   nullptr);
+    CHECK(std::fabs(tChecker.Post(1, 8, 8) - 1000.0) < 1.0, "seviye 1 ic noktasi satranc deseni ortalamasi: %.1f",
+          tChecker.Post(1, 8, 8));
+
+    // sea_level: hucre merkezli, satir 0 = kuzey
+    DsfRaster tSea;
+    tSea.mWidth = 4;
+    tSea.mHeight = 4;
+    tSea.mValues = {-10, -10, -10, -10, -20, -20, -20, -20, -30, -30, -30, -30, -40, -40, -40, -40};
+    ElevationGrid tWithSea;
+    tWithSea.Build(MakeDem(tSize, tPlane), &tSea);
+    CHECK(tWithSea.HasSeaLevel() && tWithSea.SeaLevelSize() == 4 && Near(tWithSea.SeaLevelCell(0, 0), -40, 1e-6) &&
+              Near(tWithSea.SeaLevelCell(3, 3), -10, 1e-6),
+          "sea_level satir 0 = kuzey");
+
+    // Onbellek dosyasi: gidis-donus, yanlis anahtar reddedilir
+    namespace Fs = std::filesystem;
+    const Fs::path tPath = Fs::temp_directory_path() / "map_plugin_elevation_test.elevation";
+    CHECK(tWithSea.Save(tPath.string(), "key-a"), "rakim dosyasi yazilir");
+    ElevationGrid tLoaded;
+    CHECK(tLoaded.Load(tPath.string(), "key-a") && tLoaded.Size(0) == tSize &&
+              Near(tLoaded.Post(0, 7, 9), tWithSea.Post(0, 7, 9), 1e-6) &&
+              Near(tLoaded.Post(2, 4, 4), tWithSea.Post(2, 4, 4), 1e-4) && tLoaded.HasSeaLevel() &&
+              Near(tLoaded.SeaLevelCell(2, 1), tWithSea.SeaLevelCell(2, 1), 1e-6),
+          "rakim dosyasi gidis-donus (piramit yeniden kurulur)");
+    ElevationGrid tWrongKey;
+    CHECK(!tWrongKey.Load(tPath.string(), "key-b"), "kaynak DSF degismis: dosya gecersiz");
+    ElevationGrid tEmpty;
+    CHECK(tEmpty.Save(tPath.string(), "key-c"), "bos izgara yazilir (DEM'siz karo)");
+    CHECK(tEmpty.Load(tPath.string(), "key-c") && tEmpty.IsEmpty(), "bos izgara bos okunur (yeniden uretilmez)");
+    std::error_code tIgnore;
+    Fs::remove(tPath, tIgnore);
+
+    // Ince seviyeleri birakma (kaba rakim bellegi): seviye 2+ okunur, ince seviyeler yok, yazilamaz
+    ElevationGrid tCoarse;
+    tCoarse.Build(MakeDem(tSize, tPlane), nullptr);
+    const float tLevel2 = tCoarse.Post(2, 3, 3);
+    tCoarse.DropFineLevels(2);
+    CHECK(tCoarse.FinestLevel() == 2 && !tCoarse.HasLevel(0) && !tCoarse.HasLevel(1) && tCoarse.HasLevel(2) &&
+              Near(tCoarse.Post(2, 3, 3), tLevel2, 1e-6) && tCoarse.LevelFor(1.0) == 2 && !tCoarse.IsEmpty() &&
+              !tCoarse.Save(tPath.string(), "key-d") && tCoarse.MemoryBytes() < tGrid.MemoryBytes() / 4,
+          "ince seviyeleri birakilmis izgara: seviye 2 ayni, bellek kucuk");
+    CHECK(ElevationGrid::NominalLevelFor(30.0) == 0 && ElevationGrid::NominalLevelFor(190.0) == 1 &&
+              ElevationGrid::NominalLevelFor(1700.0) == 4 && ElevationGrid::NominalLevelFor(1e6) == 4,
+          "1201 noktali izgara icin seviye tahmini");
+
+    // Hucre merkezli DEM de kabul edilir (post izgarasina orneklenir)
+    DsfRaster tPixelCentric = MakeDem(tSize, tPlane);
+    tPixelCentric.mPostCentric = false;
+    ElevationGrid tFromPixels;
+    CHECK(tFromPixels.Build(tPixelCentric, nullptr) && tFromPixels.Size(0) == tSize, "hucre merkezli DEM");
+}
+
+void TestElevationSampler()
+{
+    // Karolar arasi surekli bir yuzey: X dogu, Y kuzey (karo birimi; merkez karonun guney-bati kosesi 0,0)
+    const int tSize = 33;
+    const int tSpan = tSize - 1;
+    auto tGridFor = [&](int pTileX, int pTileY, const std::function<double(double, double)>& pSurface,
+                        double pOffset)
+    {
+        ElevationGrid tGrid;
+        tGrid.Build(MakeDem(tSize,
+                            [&](int pColumn, int pRow)
+                            {
+                                return std::round(pSurface(pTileX + static_cast<double>(pColumn) / tSpan,
+                                                           pTileY + static_cast<double>(pRow) / tSpan)) +
+                                       pOffset;
+                            }),
+                    nullptr);
+        return tGrid;
+    };
+    auto tPlane = [](double pX, double pY)
+    {
+        return 1000.0 + 320.0 * pX - 160.0 * pY;
+    };
+
+    // 1) Duzlem: ic ve kenar (komsulu / komsusuz) her yerde tam deger ve egim
+    const ElevationGrid tCenter = tGridFor(0, 0, tPlane, 0.0);
+    const ElevationGrid tEast = tGridFor(1, 0, tPlane, 0.0);
+    ElevationTiles tAlone;
+    tAlone.mTiles[1][1] = &tCenter;
+    ElevationTiles tWithEast = tAlone;
+    tWithEast.mTiles[1][2] = &tEast;
+    double tHeight = 0.0;
+    double tDhDu = 0.0;
+    double tDhDv = 0.0;
+    const ElevationSampler tPlaneAlone(tAlone.mTiles, 0);
+    tPlaneAlone.Sample(0.37, 0.61, &tHeight, &tDhDu, &tDhDv);
+    CHECK(Near(tHeight, tPlane(0.37, 1.0 - 0.61), 0.6) && Near(tDhDu, 320.0, 1.0) && Near(tDhDv, 160.0, 1.0),
+          "duzlem: ic noktada yukseklik ve egim (v guneye: dh/dv = +160)");
+    tPlaneAlone.Sample(0.995, 0.5, &tHeight, &tDhDu, &tDhDv);
+    CHECK(Near(tDhDu, 320.0, 1.0), "duzlem: komsu yokken kenarda egim (aynali dogrusal uzatma) %.2f", tDhDu);
+
+    // 2) Egri yuzey: kenarda komsulu egim, komsusuzdan dogru
+    auto tCurve = [](double pX, double pY)
+    {
+        return 800.0 + 900.0 * pX * pX + 50.0 * pY;
+    };
+    const ElevationGrid tCurveCenter = tGridFor(0, 0, tCurve, 0.0);
+    const ElevationGrid tCurveEast = tGridFor(1, 0, tCurve, 0.0);
+    ElevationTiles tCurveAlone;
+    tCurveAlone.mTiles[1][1] = &tCurveCenter;
+    ElevationTiles tCurveBoth = tCurveAlone;
+    tCurveBoth.mTiles[1][2] = &tCurveEast;
+    const double tU = 1.0 - 0.3 / tSpan;  // kenara 0.3 nokta mesafe
+    const double tTrue = 1800.0 * tU;     // d/dx (900 x^2)
+    ElevationSampler(tCurveAlone.mTiles, 0).Sample(tU, 0.5, &tHeight, &tDhDu, &tDhDv);
+    const double tAloneError = std::fabs(tDhDu - tTrue);
+    ElevationSampler(tCurveBoth.mTiles, 0).Sample(tU, 0.5, &tHeight, &tDhDu, &tDhDv);
+    const double tBothError = std::fabs(tDhDu - tTrue);
+    // Esik 20 (~%1,1): Catmull-Rom'un ikinci derece yuzeyde kendi turev hatasi ~%0,9 (komsudan bagimsiz)
+    CHECK(tBothError < tAloneError && tBothError < 20.0,
+          "egri yuzey: komsulu kenar egimi daha dogru (%.1f < %.1f)", tBothError, tAloneError);
+
+    // 3) Ortak kenar ayni degil (GERCEK VERI: ~1-30 m): iki taraf sinirda ortalamayi gorur -> dikis yok
+    const ElevationGrid tShifted = tGridFor(1, 0, tPlane, 10.0);  // dogu karo 10 m yukarida
+    ElevationTiles tWestView;
+    tWestView.mTiles[1][1] = &tCenter;
+    tWestView.mTiles[1][2] = &tShifted;
+    ElevationTiles tEastView;
+    tEastView.mTiles[1][1] = &tShifted;
+    tEastView.mTiles[1][0] = &tCenter;
+    double tWestEdge = 0.0;
+    double tEastEdge = 0.0;
+    ElevationSampler(tWestView.mTiles, 0).Sample(1.0, 0.5, &tWestEdge, &tDhDu, &tDhDv);
+    ElevationSampler(tEastView.mTiles, 0).Sample(0.0, 0.5, &tEastEdge, &tDhDu, &tDhDv);
+    CHECK(Near(tWestEdge, tEastEdge, 1e-6) && Near(tWestEdge, tPlane(1.0, 0.5) + 5.0, 0.6),
+          "ortak kenar: iki karo ayni ortalamayi gorur (%.2f / %.2f)", tWestEdge, tEastEdge);
+    ElevationSampler(tAlone.mTiles, 0).Sample(1.0, 0.5, &tWestEdge, &tDhDu, &tDhDv);
+    CHECK(Near(tWestEdge, tPlane(1.0, 0.5), 0.6), "komsu yokken kenar kendi degeri");
+
+    // 4) Kaba seviye de ayni yuzeyi verir
+    const ElevationSampler tCoarse(tWithEast.mTiles, 2);
+    tCoarse.Sample(0.4, 0.4, &tHeight, &tDhDu, &tDhDv);
+    CHECK(tCoarse.Level() == 2 && Near(tHeight, tPlane(0.4, 0.6), 1.0) && Near(tDhDu, 320.0, 2.0),
+          "seviye 2: duzlem korunur");
+
+    // 5) sea_level: komsu karo hucresiyle cift dogrusal (karo sinirinda dikis yok)
+    auto tSeaFloor = [](int /*pColumn*/, int /*pRow*/)
+    {
+        return 0.0;  // duz kara: sadece sea_level olculuyor
+    };
+    DsfRaster tSeaWest;
+    tSeaWest.mWidth = 4;
+    tSeaWest.mHeight = 4;
+    tSeaWest.mValues.assign(16, -100.0f);
+    DsfRaster tSeaEast = tSeaWest;
+    tSeaEast.mValues.assign(16, -300.0f);
+    ElevationGrid tWaterWest;
+    ElevationGrid tWaterEast;
+    tWaterWest.Build(MakeDem(tSize, tSeaFloor), &tSeaWest);
+    tWaterEast.Build(MakeDem(tSize, tSeaFloor), &tSeaEast);
+    ElevationTiles tSeaTiles;
+    tSeaTiles.mTiles[1][1] = &tWaterWest;
+    tSeaTiles.mTiles[1][2] = &tWaterEast;
+    double tSeaLevel = 0.0;
+    CHECK(ElevationSampler(tSeaTiles.mTiles, 0).SeaLevelAt(1.0, 0.5, &tSeaLevel) && Near(tSeaLevel, -200.0, 1e-6),
+          "sea_level karo sinirinda iki karonun ortasi: %.1f", tSeaLevel);
+}
+
+void TestTerrainRelief()
+{
+    const TerrainReliefParams tRelief;
+    // 1) Kabartma: duz arazi 1; kuzeybatiya bakan yamac aydinlik, guneydoguya bakan karanlik
+    CHECK(Near(ReliefFactor(0.0, 0.0, 0.45, 2.5, tRelief), 1.0, 1e-9), "duz arazi: carpan 1");
+    const double tNorthWestFacing = ReliefFactor(0.2, -0.2, 0.45, 2.5, tRelief);  // dogu yukari, kuzey asagi
+    const double tSouthEastFacing = ReliefFactor(-0.2, 0.2, 0.45, 2.5, tRelief);
+    CHECK(tNorthWestFacing > 1.05 && tSouthEastFacing < 0.95,
+          "kuzeybati yamaci aydinlik (%.2f), guneydogu karanlik (%.2f)", tNorthWestFacing, tSouthEastFacing);
+    TerrainReliefParams tSingle = tRelief;
+    tSingle.mMultiDirectional = false;
+    tSingle.mSlopeTone = 0.0;
+    TerrainReliefParams tMulti = tRelief;
+    tMulti.mSlopeTone = 0.0;
+    // Kuzeydogu yamaci tek isikta (315) isiga dik: duz; cok yonlu isikta kuzey isigi da var
+    CHECK(Near(ReliefFactor(-0.2, -0.2, 0.45, 2.5, tSingle), ReliefFactor(0.0, 0.0, 0.45, 2.5, tSingle), 0.15) &&
+              std::fabs(ReliefFactor(0.2, -0.2, 0.45, 2.5, tMulti) - 1.0) <
+                  std::fabs(ReliefFactor(0.2, -0.2, 0.45, 2.5, tSingle) - 1.0),
+          "cok yonlu isik tek yonluden yumusak");
+    TerrainReliefParams tSteep = tMulti;
+    tSteep.mSlopeTone = 0.5;
+    CHECK(ReliefFactor(0.0, 1.0, 0.45, 2.5, tSteep) < ReliefFactor(0.0, 1.0, 0.45, 2.5, tMulti),
+          "egim tonu dik yamaci koyulastirir");
+    // Duz arazi esigi: 1 m / 92 m (~%1) basamak neredeyse etkisiz; gercek yamac (%15) hemen hemen ayni
+    TerrainReliefParams tNoFlat = tRelief;
+    tNoFlat.mFlatSlope = 0.0;
+    CHECK(std::fabs(ReliefFactor(0.0, 0.011, 0.45, 2.5, tRelief) - 1.0) <
+                  0.3 * std::fabs(ReliefFactor(0.0, 0.011, 0.45, 2.5, tNoFlat) - 1.0) &&
+              Near(ReliefFactor(0.0, 0.15, 0.45, 2.5, tRelief), ReliefFactor(0.0, 0.15, 0.45, 2.5, tNoFlat), 0.02),
+          "duz arazi esigi: 1 m basamaklari bastirir, yamaclari korur");
+    CHECK(ReliefFactor(-50.0, 50.0, 1.0, 20.0, tRelief) >= 0.45 &&
+              ReliefFactor(50.0, -50.0, 1.0, 20.0, tRelief) <= 1.55,
+          "carpan sinirli");
+    CHECK(Near(ReliefExaggeration(tRelief, 92.0, 92.0), 2.5, 1e-9) &&
+              ReliefExaggeration(tRelief, 1472.0, 92.0) > 2.5 * 2.0,
+          "kaba seviyede abartma artar");
+
+    // 2) VFR bantlari: bant icinde tam renk, sinirda iki bandin ortasi, kontur istege bagli
+    const TerrainVfrParams tVfr = DefaultVfrParams();
+    double tRgb[3];
+    VfrBandColor(500.0 / 3.28084, 10.0, tVfr, tRgb);
+    CHECK(Near(tRgb[0], tVfr.mBandColors[0].mR, 1e-9) && Near(tRgb[1], tVfr.mBandColors[0].mG, 1e-9),
+          "500 ft: ilk bant tam renk");
+    VfrBandColor(1000.0 / 3.28084, 10.0, tVfr, tRgb);
+    CHECK(Near(tRgb[0], (tVfr.mBandColors[0].mR + tVfr.mBandColors[1].mR) * 0.5, 1e-6),
+          "1000 ft siniri: iki bandin ortasi (kenar yumusatma)");
+    VfrBandColor(1004.0 / 3.28084, 10.0, tVfr, tRgb);
+    CHECK(tRgb[0] > (tVfr.mBandColors[0].mR + tVfr.mBandColors[1].mR) * 0.5 && tRgb[0] < tVfr.mBandColors[1].mR,
+          "sinira 0.4 piksel: ust banda yakin karisim");
+    VfrBandColor(1050.0 / 3.28084, 10.0, tVfr, tRgb);
+    CHECK(Near(tRgb[0], tVfr.mBandColors[1].mR, 1e-9), "sinirdan 5 piksel: keskin bant rengi");
+    VfrBandColor(-30.0, 10.0, tVfr, tRgb);
+    CHECK(Near(tRgb[0], tVfr.mBandColors[0].mR, 1e-9), "deniz seviyesi alti: ilk bant");
+    VfrBandColor(14000.0 / 3.28084, 10.0, tVfr, tRgb);
+    CHECK(Near(tRgb[0], tVfr.mBandColors[7].mR, 1e-9), "12000+ ft: son bant");
+    TerrainVfrParams tContour = tVfr;
+    tContour.mContourLines = true;
+    double tPlain[3];
+    VfrBandColor(3000.0 / 3.28084, 10.0, tVfr, tPlain);
+    VfrBandColor(3000.0 / 3.28084, 10.0, tContour, tRgb);
+    CHECK(tRgb[1] < tPlain[1] - 5.0, "kontur cizgisi sinirda koyulastirir");
+    VfrBandColor(3200.0 / 3.28084, 10.0, tContour, tRgb);
+    VfrBandColor(3200.0 / 3.28084, 10.0, tVfr, tPlain);
+    CHECK(Near(tRgb[1], tPlain[1], 1e-9), "kontur sinirdan uzakta yok");
+
+    // 3) Su: derinlik tonu ve kiyi seridi
+    const TerrainWaterParams tWater;
+    CHECK(DepthDarkening(-10.0, tWater) == 0.0 && DepthDarkening(-5.0, tWater) == 0.0 &&
+              DepthDarkening(450.0, tWater) == 0.0,
+          "-10 (veri yok), kiyi ve gol (>= 0): derinlik tonu yok");
+    CHECK(Near(DepthDarkening(-200.0, tWater), tWater.mDepthTone, 1e-9) &&
+              Near(DepthDarkening(-105.0, tWater), tWater.mDepthTone * 0.5, 1e-9) &&
+              Near(DepthDarkening(-900.0, tWater), tWater.mDepthTone, 1e-9),
+          "derinlik tonu dogrusal, 200 m'de tam");
+    CHECK(Near(CoastBandLightening(1.0, 10.0, tWater), tWater.mBandStrength, 1e-9) &&
+              CoastBandLightening(6.0, 10.0, tWater) < tWater.mBandStrength &&
+              CoastBandLightening(11.0, 10.0, tWater) == 0.0 && CoastBandLightening(1.0, 0.3, tWater) == 0.0,
+          "kiyi seridi kiyi cizgisinin (1 piksel) arkasinda en guclu, genislik sonunda 0");
+
+    // 4) Kiyiya uzaklik (3-4 chamfer) ve kiyi cizgisi
+    const int tSize = 9;
+    std::vector<uint8_t> tLand(static_cast<size_t>(tSize) * tSize, 0);
+    for (int tRow = 0; tRow < tSize; ++tRow)
+    {
+        tLand[static_cast<size_t>(tRow) * tSize] = 1;  // sol sutun kara
+    }
+    std::vector<float> tDistance;
+    DistanceToLand(tLand, tSize, 100.0f, &tDistance);
+    CHECK(Near(tDistance[4 * tSize + 4], 4.0, 1e-6) && tDistance[4 * tSize] == 0.0f, "eksen boyunca uzaklik tam");
+    std::vector<uint8_t> tCorner(static_cast<size_t>(tSize) * tSize, 0);
+    tCorner[0] = 1;
+    DistanceToLand(tCorner, tSize, 3.0f, &tDistance);
+    CHECK(Near(tDistance[3 * tSize + 3], 3.0, 1e-6), "en buyuk uzaklikta kesilir (4.24 -> 3)");
+    std::vector<float> tFraction(static_cast<size_t>(8) * 8, 0.0f);
+    for (int tRow = 0; tRow < 8; ++tRow)
+    {
+        for (int tColumn = 0; tColumn < 4; ++tColumn)
+        {
+            tFraction[static_cast<size_t>(tRow) * 8 + tColumn] = 1.0f;
+        }
+    }
+    tFraction[0] = -1.0f;  // veri yok
+    std::vector<float> tLine;
+    CoastlineStrength(tFraction, 8, &tLine);
+    CHECK(tLine[4 * 8 + 4] == 1.0f && tLine[4 * 8 + 3] == 0.0f && tLine[4 * 8 + 5] == 0.0f &&
+              tLine[4 * 8 + 0] == 0.0f && tLine[4 * 8 + 7] == 0.0f && tLine[0] == 0.0f,
+          "kiyi cizgisi suyun tarafinda tek piksel; karada, uzakta ve veri yok pikselinde yok");
+    std::vector<float> tMixed = {1.0f, 0.5f, 0.0f};  // kaba seviye: karisik piksel
+    CoastlineStrength(tMixed, 1, &tLine);
+    CHECK(tLine[0] == 0.0f, "tek tam kara pikseli: cizgi yok");
+    std::vector<float> tHalf(9, 0.0f);
+    tHalf[4] = 0.5f;
+    CoastlineStrength(tHalf, 3, &tLine);
+    CHECK(Near(tLine[4], 1.0, 1e-6) && Near(tLine[1], 0.5, 1e-6), "yari kara piksel tam cizgi, komsu su piksel yari");
+}
+
+void TestTerrainPaletteSettings()
+{
+    // [relief] [water] [vfr] yaz -> oku ayni; bozuk bant sirasi varsayilana doner
+    TerrainPalette tPalette;
+    TerrainReliefParams tRelief;
+    tRelief.mMultiDirectional = false;
+    tRelief.mExaggeration = 3.5;
+    tPalette.SetRelief(tRelief);
+    TerrainWaterParams tWater;
+    tWater.mCoastline = false;
+    tWater.mBandMeters = 450.0;
+    tPalette.SetWater(tWater);
+    TerrainVfrParams tVfr = DefaultVfrParams();
+    tVfr.mContourLines = true;
+    tVfr.mBandColors[2] = {1, 2, 3};
+    tPalette.SetVfr(tVfr);
+    Settings tSettings;
+    tPalette.Save(tSettings);
+    TerrainPalette tLoaded;
+    tLoaded.Load(tSettings);
+    CHECK(!tLoaded.Relief().mMultiDirectional && Near(tLoaded.Relief().mExaggeration, 3.5, 1e-9) &&
+              !tLoaded.Water().mCoastline && Near(tLoaded.Water().mBandMeters, 450.0, 1e-9) &&
+              tLoaded.Vfr().mContourLines && tLoaded.Vfr().mBandColors[2].mB == 3 &&
+              Near(tLoaded.Vfr().mBandFeet[4], 5000.0, 1e-9),
+          "yeni ayarlar yazilip okunur");
+    tSettings.SetString("vfr", "band_3", "500 10 20 30");  // 2. bant 1000 ft'ten kucuk: sira bozuk
+    TerrainPalette tBroken;
+    tBroken.Load(tSettings);
+    CHECK(Near(tBroken.Vfr().mBandFeet[2], 2000.0, 1e-9) &&
+              tBroken.Vfr().mBandColors[2].mR == DefaultVfrParams().mBandColors[2].mR,
+          "bozuk bant sirasi: varsayilan bantlar");
+    tSettings.SetDouble("relief", "exaggeration", 999.0);
+    tBroken.Load(tSettings);
+    CHECK(tBroken.Relief().mExaggeration <= 20.0, "aralik disi deger sinirlanir");
+}
+
+void TestTerrainImageRelief()
+{
+    // Tum karo cimen; DEM batidan doguya 0 -> 3000 m rampa (0 -> ~9800 ft)
+    const int tSize = 33;
+    auto tRamp = [](int pColumn, int /*pRow*/)
+    {
+        return 3000.0 * pColumn / 32.0;
+    };
+    TerrainRaster tRaster;
+    tRaster.Reset(10, 50);
+    const double tLonA[3] = {10.0, 11.0, 10.0};
+    const double tLatA[3] = {50.0, 50.0, 51.0};
+    const double tLonB[3] = {11.0, 11.0, 10.0};
+    const double tLatB[3] = {50.0, 51.0, 51.0};
+    tRaster.FillTriangle(tLonA, tLatA, TerrainClass::Grass);
+    tRaster.FillTriangle(tLonB, tLatB, TerrainClass::Grass);
+    ElevationGrid tGrid;
+    tGrid.Build(MakeDem(tSize, tRamp), nullptr);
+    ElevationTiles tTiles;
+    tTiles.mTiles[1][1] = &tGrid;
+
+    // 1) VFR bantlari: golge kapali, her piksel ya bir bant rengi ya da sinirda iki bandin karisimi
+    Settings tFlat;
+    tFlat.SetDouble("shading", "strength", 0.0);
+    TerrainPalette tPalette;
+    tPalette.Load(tFlat);
+    TerrainImageStyle tVfrStyle;
+    tVfrStyle.mStyle = TerrainStyle::Elevation;
+    tVfrStyle.mWater = {160, 200, 230};
+    std::vector<uint8_t> tImage;
+    const int tOut = 128;
+    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, tOut, tPalette, tVfrStyle, &tImage, &tTiles);
+    const TerrainVfrParams& tVfr = tPalette.Vfr();
+    int tPureBand = 0;
+    int tMixed = 0;
+    int tOther = 0;
+    for (int tColumn = 0; tColumn < tOut; ++tColumn)
+    {
+        const uint8_t* tPixel = tImage.data() + (static_cast<size_t>(64) * tOut + tColumn) * 4;
+        bool tIsBand = false;
+        for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
+        {
+            tIsBand = tIsBand || (tPixel[0] == tVfr.mBandColors[tBand].mR && tPixel[1] == tVfr.mBandColors[tBand].mG);
+        }
+        if (tIsBand)
+        {
+            ++tPureBand;
+            continue;
+        }
+        bool tIsMix = false;
+        for (int tBand = 0; tBand + 1 < kVfrBandCount; ++tBand)
+        {
+            const int tLowR = std::min(tVfr.mBandColors[tBand].mR, tVfr.mBandColors[tBand + 1].mR);
+            const int tHighR = std::max(tVfr.mBandColors[tBand].mR, tVfr.mBandColors[tBand + 1].mR);
+            tIsMix = tIsMix || (tPixel[0] >= tLowR && tPixel[0] <= tHighR);
+        }
+        (tIsMix ? tMixed : tOther) += 1;
+    }
+    CHECK(tPureBand > tOut - 16 && tOther == 0 && tMixed <= 14,
+          "VFR satiri: bant renkleri + sinirlarda en fazla birkac karisik piksel (%d saf, %d karisik, %d diger)",
+          tPureBand, tMixed, tOther);
+
+    // 2) Kabartma: dogu yukari egimli rampa batiya bakar -> golgeli goruntu duz goruntuden farkli
+    TerrainPalette tShaded;
+    std::vector<uint8_t> tWithRelief;
+    std::vector<uint8_t> tWithoutRelief;
+    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tShaded, TerrainImageStyle(),
+                       &tWithRelief, &tTiles);
+    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tShaded, TerrainImageStyle(),
+                       &tWithoutRelief);
+    const size_t tMiddle = (static_cast<size_t>(32) * 64 + 32) * 4;
+    CHECK(tWithoutRelief[tMiddle + 1] == tShaded.ColorOf(TerrainClass::Grass).mG &&
+              tWithRelief[tMiddle + 1] != tWithoutRelief[tMiddle + 1],
+          "rakim verilince kabartma uygulanir, verilmezse sinif rengi");
+
+    // 3) Karo siniri: ayni surekli yuzeyin iki komsu karosu; komsular verilince sinirdaki iki piksel neredeyse ayni
+    auto tHill = [](double pX, double pY)
+    {
+        return 600.0 + 500.0 * std::sin(pX * 2.7 + 0.4) * std::cos(pY * 1.9);
+    };
+    auto tTileGrid = [&](int pTileX)
+    {
+        ElevationGrid tTile;
+        tTile.Build(MakeDem(tSize,
+                            [&](int pColumn, int pRow)
+                            {
+                                return std::round(tHill(pTileX + pColumn / 32.0, pRow / 32.0));
+                            }),
+                    nullptr);
+        return tTile;
+    };
+    const ElevationGrid tWestGrid = tTileGrid(0);
+    const ElevationGrid tEastGrid = tTileGrid(1);
+    TerrainRaster tEastRaster;
+    tEastRaster.Reset(11, 50);
+    const double tLonC[3] = {11.0, 12.0, 11.0};
+    const double tLonD[3] = {12.0, 12.0, 11.0};
+    tEastRaster.FillTriangle(tLonC, tLatA, TerrainClass::Grass);
+    tEastRaster.FillTriangle(tLonD, tLatB, TerrainClass::Grass);
+    ElevationTiles tWestTiles;
+    tWestTiles.mTiles[1][1] = &tWestGrid;
+    tWestTiles.mTiles[1][2] = &tEastGrid;
+    ElevationTiles tEastTiles;
+    tEastTiles.mTiles[1][1] = &tEastGrid;
+    tEastTiles.mTiles[1][0] = &tWestGrid;
+    std::vector<uint8_t> tWestImage;
+    std::vector<uint8_t> tEastImage;
+    tRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 256, tShaded, TerrainImageStyle(),
+                       &tWestImage, &tWestTiles);
+    tEastRaster.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 256, tShaded, TerrainImageStyle(),
+                           &tEastImage, &tEastTiles);
+    int tWorst = 0;
+    for (int tRow = 0; tRow < 256; ++tRow)
+    {
+        const uint8_t* tLeft = tWestImage.data() + (static_cast<size_t>(tRow) * 256 + 255) * 4;
+        const uint8_t* tRight = tEastImage.data() + (static_cast<size_t>(tRow) * 256 + 0) * 4;
+        for (int tChannel = 0; tChannel < 3; ++tChannel)
+        {
+            tWorst = std::max(tWorst, std::abs(static_cast<int>(tLeft[tChannel]) - static_cast<int>(tRight[tChannel])));
+        }
+    }
+    CHECK(tWorst <= 3, "karo sinirinda golge dikisi yok (en buyuk kanal farki %d)", tWorst);
+
+    // 4) Su: derinlik tonu sadece Scenery / VFR'de; IFR'da duz su
+    auto tSeaLevelGround = [](int /*pColumn*/, int /*pRow*/)
+    {
+        return 0.0;
+    };
+    TerrainRaster tSea;
+    tSea.Reset(10, 50);
+    tSea.FillTriangle(tLonA, tLatA, TerrainClass::Water);
+    tSea.FillTriangle(tLonB, tLatB, TerrainClass::Water);
+    DsfRaster tDeep;
+    tDeep.mWidth = 4;
+    tDeep.mHeight = 4;
+    tDeep.mValues.assign(16, -400.0f);
+    ElevationGrid tSeaGrid;
+    tSeaGrid.Build(MakeDem(tSize, tSeaLevelGround), &tDeep);
+    ElevationTiles tSeaTiles;
+    tSeaTiles.mTiles[1][1] = &tSeaGrid;
+    std::vector<uint8_t> tDeepImage;
+    tSea.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tShaded, TerrainImageStyle(), &tDeepImage,
+                    &tSeaTiles);
+    TerrainImageStyle tIfr;
+    tIfr.mStyle = TerrainStyle::LandWater;
+    tIfr.mLand = {240, 240, 230};
+    tIfr.mWater = {200, 220, 230};
+    std::vector<uint8_t> tIfrImage;
+    tSea.BuildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, 64, tShaded, tIfr, &tIfrImage, &tSeaTiles);
+    const TerrainColor& tWaterColor = tShaded.ColorOf(TerrainClass::Water);
+    CHECK(tDeepImage[tMiddle + 2] < tWaterColor.mB - 5 && tIfrImage[tMiddle + 2] == tIfr.mWater.mB,
+          "derin deniz koyu (Scenery), IFR'da duz su rengi");
+}
+
+void TestWorldTileMap()
+{
+    std::vector<uint8_t> tBytes(WorldTileMap::kFileSize, 0);
+    tBytes[WorldTileMap::kHeaderSize + WorldTileMap::IndexOf(32, 39)] = 255;    // Ankara
+    tBytes[WorldTileMap::kHeaderSize + WorldTileMap::IndexOf(-123, 47)] = 255;  // Seattle
+    tBytes[WorldTileMap::kHeaderSize + WorldTileMap::IndexOf(-124, 46)] = 255;
+    WorldTileMap tMap;
+    CHECK(!tMap.LoadBytes(std::vector<uint8_t>(100, 255)) && !tMap.IsLoaded(), "yanlis boyut reddedilir");
+    CHECK(tMap.LoadBytes(tBytes) && tMap.HasDsf(32, 39) && !tMap.HasDsf(33, 39) && !tMap.HasDsf(32, 40) &&
+              tMap.LandTileCount() == 3,
+          "boylam oncelikli indeks");
+    CHECK(WorldTileMap::IndexOf(-180, -90) == 0 && WorldTileMap::IndexOf(179, 89) == 360 * 180 - 1 &&
+              WorldTileMap::IndexOf(-179, -90) == 180,
+          "indeks: (boylam + 180) * 180 + (enlem + 90)");
+    CHECK(!tMap.HasDsf(180, 0) && !tMap.HasDsf(0, 90), "aralik disi karo: yok");
+
+    // Gercek dosya (bu bilgisayarda varsa): bilinen kara ve deniz karolari
+    WorldTileMap tReal;
+    if (tReal.Load("C:/X-Plane 11/Resources/dsf_files"))
+    {
+        CHECK(tReal.HasDsf(32, 39) && tReal.HasDsf(28, 41) && tReal.HasDsf(-123, 47) && !tReal.HasDsf(34, 43) &&
+                  !tReal.HasDsf(-150, 30) && !tReal.HasDsf(-40, 30),
+              "gercek dsf_files: Ankara, Istanbul, Seattle kara; Karadeniz ortasi, Pasifik, Atlantik deniz");
+    }
+    else
+    {
+        std::printf("note: C:/X-Plane 11/Resources/dsf_files not found, real-file check skipped\n");
+    }
+
+    // SceneryIndex: tablo dogrulanir; kurulu olmayan kara = veri yok, tabloda olmayan = deniz
+    namespace Fs = std::filesystem;
+    const Fs::path tRoot = Fs::temp_directory_path() / "map_plugin_world_test";
+    std::error_code tIgnore;
+    Fs::remove_all(tRoot, tIgnore);
+    Fs::create_directories(tRoot / "Global" / "Earth nav data" / "+40-130");
+    std::ofstream(tRoot / "Global" / "Earth nav data" / "+40-130" / "+47-123.dsf") << "global";
+    std::ofstream(tRoot / "Global" / "Earth nav data" / "+40-130" / "+46-124.dsf") << "global";
+    SceneryIndex tIndex;
+    tIndex.BuildFromPacks({}, {(tRoot / "Global").string() + "/"});
+    tIndex.SetWorldMap(tMap);
+    CHECK(tIndex.UsesWorldMap() && tIndex.WorldMapReport().find("0 mismatches") != std::string::npos,
+          "tablo kurulu karolarla dogrulandi: %s", tIndex.WorldMapReport().c_str());
+    CHECK(tIndex.CoverageOf(32, 39) == TileCoverage::NoData, "Ankara: kara ama kurulu degil -> veri yok");
+    CHECK(tIndex.CoverageOf(-125, 48) == TileCoverage::Ocean && tIndex.CoverageOf(34, 43) == TileCoverage::Ocean,
+          "tabloda olmayan karo deniz (kurulu bolgede ve disinda)");
+    CHECK(tIndex.NoBaseCoverage(-123, 47) == TileCoverage::NoData, "sadece overlay'li kara karo: veri yok");
+
+    std::vector<uint8_t> tWrong(WorldTileMap::kFileSize, 0);  // kurulu karolar tabloda yok: yon yanlis
+    WorldTileMap tWrongMap;
+    tWrongMap.LoadBytes(tWrong);
+    tIndex.SetWorldMap(tWrongMap);
+    CHECK(!tIndex.UsesWorldMap() && tIndex.WorldMapReport().find("REJECTED") != std::string::npos &&
+              tIndex.CoverageOf(-125, 48) == TileCoverage::Ocean && tIndex.CoverageOf(32, 39) == TileCoverage::NoData,
+          "dogrulanamayan tablo reddedilir, 10 derece klasor kurali kalir");
+    Fs::remove_all(tRoot, tIgnore);
+}
+
+void TestElevationCache()
+{
+    // DEM'li test DSF'i gecici bir pakette: karo uretilince rakim dosyasi yazilir, sonra sadece onbellekten okunur
+    namespace Fs = std::filesystem;
+    const Fs::path tRoot = Fs::temp_directory_path() / "map_plugin_elevation_cache_test";
+    std::error_code tIgnore;
+    Fs::remove_all(tRoot, tIgnore);
+    Fs::create_directories(tRoot / "Global" / "Earth nav data" / "+40+020");
+    Fs::create_directories(tRoot / "cache");
+    const std::vector<uint8_t> tDsf = MakeTestDsf(false, true);
+    std::ofstream(tRoot / "Global" / "Earth nav data" / "+40+020" / "+41+029.dsf", std::ios::binary)
+        .write(reinterpret_cast<const char*>(tDsf.data()), static_cast<std::streamsize>(tDsf.size()));
+    SceneryIndex tIndex;
+    tIndex.BuildFromPacks({}, {(tRoot / "Global").string() + "/"});
+    const std::string tCache = (tRoot / "cache").string() + "/";
+
+    ElevationGrid tMissing;
+    CHECK(!TerrainStore::LoadElevation(tIndex, 29, 41, tCache, &tMissing), "uretilmeden once onbellekte rakim yok");
+    TerrainRaster tRaster;
+    ElevationGrid tBuilt;
+    std::string tLog;
+    TerrainTileState tState = TerrainTileState::Unknown;
+    CHECK(TerrainStore::BuildRaster(tIndex, 29, 41, tCache, &tRaster, &tLog, &tState, &tBuilt) &&
+              tState == TerrainTileState::Ready && tLog.find("built from") != std::string::npos,
+          "karo DSF'ten uretildi: %s", tLog.c_str());
+    // DEM: yukseklik = 10 * sutun + guneyden satir; kuzey-bati kosesi (sutun 0, guneyden satir 4) = 4
+    CHECK(tBuilt.Size(0) == 5 && Near(tBuilt.Post(0, 0, 0), 4.0, 1e-6) && Near(tBuilt.Post(0, 4, 4), 40.0, 1e-6) &&
+              tBuilt.HasSeaLevel() && Near(tBuilt.SeaLevelCell(1, 1), -50.0, 1e-6),
+          "DSF'in DEM'i ve sea_level'i okundu");
+    ElevationGrid tCached;
+    CHECK(TerrainStore::LoadElevation(tIndex, 29, 41, tCache, &tCached) &&
+              Near(tCached.Post(0, 3, 2), tBuilt.Post(0, 3, 2), 1e-6),
+          "rakim sadece onbellekten okunur (DSF acilmadan)");
+    std::string tSecondLog;
+    ElevationGrid tSecond;
+    CHECK(TerrainStore::BuildRaster(tIndex, 29, 41, tCache, &tRaster, &tSecondLog, &tState, &tSecond) &&
+              tSecondLog.find("built from") == std::string::npos && tSecond.Size(0) == 5,
+          "ikinci kez: raster ve rakim onbellekten");
+    Fs::remove_all(tRoot, tIgnore);
+}
+
 int main()
 {
     TestScreenMath();
@@ -2640,6 +3356,14 @@ int main()
     TestLandBlend();
     TestTerrainWarp();
     TestSceneryIndex();
+    TestElevationCodec();
+    TestElevationGrid();
+    TestElevationSampler();
+    TestTerrainRelief();
+    TestTerrainPaletteSettings();
+    TestTerrainImageRelief();
+    TestWorldTileMap();
+    TestElevationCache();
     std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

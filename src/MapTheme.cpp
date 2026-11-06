@@ -44,6 +44,7 @@ const MapTheme kScenery = {
     {0.90f, 0.92f, 0.95f, 0.90f},
     {0.92f, 0.94f, 0.97f, 1.0f},
     {},
+    {0.24f, 0.25f, 0.27f, 1.0f},  // veri yok: notr koyu gri (arka plandan ve sudan farkli)
 };
 
 // VFR: sectional benzeri. Kuleli mavi, kulesiz macenta; Victor yollari kalin acik mavi.
@@ -88,6 +89,7 @@ const MapTheme kVfr = {
       {"fix", false},
       {"airways_low", true},
       {"airways_high", false}}},
+    {0.86f, 0.86f, 0.84f, 1.0f},  // veri yok: notr acik gri (su ve karadan farkli)
 };
 
 // IFR Low: enroute low benzeri. IAP'li sayilan buyukler yesil, digerleri kahverengi.
@@ -132,6 +134,7 @@ const MapTheme kIfrLow = {
       {"fix", true},
       {"airways_low", true},
       {"airways_high", false}}},
+    {0.86f, 0.86f, 0.86f, 1.0f},  // veri yok: notr gri
 };
 
 // IFR High: yuksek hava yollari, sadece buyuk havalimanlari, NDB yok
@@ -168,6 +171,7 @@ const MapTheme kIfrHigh = {
       {"fix", true},
       {"airways_low", false},
       {"airways_high", true}}},
+    {0.86f, 0.86f, 0.86f, 1.0f},  // veri yok: notr gri
 };
 
 }  // namespace

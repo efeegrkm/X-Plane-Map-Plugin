@@ -55,7 +55,7 @@
 namespace
 {
 
-const char* kVersion = "0.15";
+const char* kVersion = "0.16";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
@@ -429,12 +429,26 @@ void MapPlugin::LoadTerrainColors()
     // Dosya yoksa varsayilan renklerle olustur: kullanici acip degistirebilsin
     const char* kComment = "Map Plugin terrain colors. Edit while X-Plane is closed.\n"
                            "[colors]: <class> = R G B (0..255). [shading] strength = 0 (flat) .. 1 (strong relief).\n"
-                           "[blend] meters = soft transition between land classes in Scenery mode (0 = off, default 150).\n"
-                           "[blend] max_pixels = cap of the blend radius in texture pixels at close zoom (default 5; 0 = no cap).\n"
-                           "[warp] meters / wavelength = natural (curved) borders between land classes; meters 0 = straight triangle edges (default 65 / 250).\n"
-                           "[closeup] class_mix = 0..0.8: at close zoom land class colors move this much toward one land tone (0 = off, default 0.3).\n"
+                           "[blend] meters = soft transition between land classes in Scenery mode "
+                           "(0 = off, default 150).\n"
+                           "[blend] max_pixels = cap of the blend radius in texture pixels at close zoom "
+                           "(default 5; 0 = no cap).\n"
+                           "[warp] meters / wavelength = natural (curved) borders between land classes; "
+                           "meters 0 = straight triangle edges (default 65 / 250).\n"
+                           "[closeup] class_mix = 0..0.8: at close zoom land class colors move this much toward one "
+                           "land tone (0 = off, default 0.3).\n"
+                           "[relief] multi_directional = 1 (light from 4 directions, mostly northwest) / 0 (one "
+                           "light); exaggeration (2.5); coarse_boost (0.35: stronger relief when zoomed out); "
+                           "slope_tone (0.12: darker steep slopes); flat_slope (0.02: slopes below this fade out, "
+                           "hides 1 m elevation steps on flat land; 0 = off).\n"
+                           "[water] coastline = 1/0, coastline_strength (0.5); band_meters (200: light band along the "
+                           "coast, 0 = off), band_max_pixels (24), band_strength (0.10); depth_tone (0.25: darker "
+                           "deep sea from the DSF sea_level data, 0 = off), depth_full_meters (200).\n"
+                           "[vfr] bands = 1 (sectional elevation bands) / 0 (smooth ramp); contour_lines = 0/1, "
+                           "contour_strength (0.35); band_1 .. band_8 = <lower limit feet> R G B.\n"
                            "[palette] version: do not edit; an older version resets the colors to the new defaults.\n"
-                           "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be deleted.\n"
+                           "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be "
+                           "deleted.\n"
                            "Delete this file to get the default colors back.";
     Settings tColors;
     const std::string tPath = mPluginDirectory + kTerrainColorsFileName;

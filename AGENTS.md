@@ -11,7 +11,7 @@ başlayabilmesi için yazıldı. Tamamını oku. Sonra:
 - Her kaynak dosyanın başında Türkçe bir açıklama bloğu var (ne yapar, neden,
   zoom eşikleri, küçük şemalar). Bir dosyayı değiştirmeden önce o bloğu oku.
 
-Durum tarihi: **2026-11-06**, sürüm **0.15**.
+Durum tarihi: **2026-11-07**, sürüm **0.16**.
 
 ---
 
@@ -135,14 +135,16 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 | CMake seçeneği | Ne |
 |---|---|
 | `MAP_DEPLOY` (ON) | Derlemeden sonra `win.xpl`'yi `C:\X-Plane 11\Resources\plugins\MapPlugin\64\`'e kopyalar. X-Plane açıkken dosya kilitlidir: önce `tasklist \| findstr X-Plane` |
-| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-06: 30.429 kontrol) |
+| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-07: 30.496 kontrol) |
 | `MAP_PREVIEW` | `map_preview.exe` ve `dsf_info.exe` |
 | `XPLANE_DIR`, `XPSDK` | Farklı X-Plane / SDK klasörü |
 
 - **Önizleme** (X-Plane'siz görsel kontrol): `map_preview --lat 47.45 --lon
   -122.30 --zoom 12 --mode vfr --out ksea.ppm` (ayrıca `--size --show <katman>
   --hide <katman> --panel <grup> --describe x,y --demo-drawings --no-ui
-  --cache --xplane`). PNG'ye: `magick ksea.ppm ksea.png`. Gerçek X-Plane
+  --cache --xplane --terrain-colors <ini>`). Önizlemenin kendi açılışı (nav
+  verisini dosyadan okuma) 10–35 s sürer; zemin süreleri için log'daki
+  `terrain ...` satırlarına bak, toplam süreye değil. PNG'ye: `magick ksea.ppm ksea.png`. Gerçek X-Plane
   denemesinin yerine geçmez.
 - **DSF inceleme:** `dsf_info <dosya.dsf> [--raw out.dsf] [--dump-terrain <indeks> out.txt]`
   (özellikler, dışlamalar, arazi/nesne/poligon/ağ envanteri, aşama süreleri).
@@ -226,9 +228,26 @@ işaretli. Değiştirmeden önce oku.
   `library.txt`'te `REGION_DEFINE/REGION_BITMAP/REGION` blokları: aynı sanal ad
   bölgeye göre farklı `.ter`'e gidebilir.
 
+**Rakım ve sea_level (Aşama 1, 2026-11-07)**
+- DSF raster katmanları (DEMN): `elevation` 1201², int16, post-centric,
+  ölçek 1; `sea_level` 256², int16, hücre merkezli, satır 0 = güney;
+  `bathymetry` adı var ama DEMI/DEMD atomu yok (boş).
+- **Komşu karoların ortak kenar noktaları aynı değil** (ortalama 1–2 m, en çok
+  ~30 m). Örnekleyici ortak kenarda var olan karoların ortalamasını alır.
+- `sea_level`: denizde deniz tabanı yüksekliği gibi (Puget Sound en derin
+  −242 m); verisi olmayan deniz −10 (Juneau kanallarının çoğu), göllerde ≥ 0,
+  karada anlamsız (kullanılmaz). Biçim belgelenmemiş; derinlik tonu sadece
+  −10'dan derinde.
+- LZMA (satır farkı + bayt düzlemi, gerçek DEM): seviye 0–4 hızlı mod,
+  ~0,75 MB, 240–310 ms; seviye 5 normal mod 0,68 MB ama 5 kat yavaş. Seçim 4.
+  Açma ~50 ms.
+
 **Süreler (önbelleksiz karo):** 7z açma 150–490 ms, DSF Open 8–16 ms, üçgen
 geçişi 17–21 ms, DEM 2 ms; karo üretimi toplam 0,4–0,5 s; yakın zoom üçgen
-deposu 0,2–0,6 s. Önbellek ~3 MB/karo.
+deposu 0,2–0,6 s. 0.16 ek maliyet: rakım sıkıştırma ~0,3–0,4 s/karo (bir kez).
+Görüntü: seviye 3 parçası (1024²) ~0,34 s, seviye 2 karo ~0,39 s, seviye 0
+1 ms; önbellekten raster + rakım ~60–75 ms (2026-11-07 ölçümü makinede başka
+yoğun bir uygulama açıkken yapıldı; gerçek değerler daha düşük olabilir).
 
 **earth_awy.dat (1100)**: satır = segment; uç koordinatı yok, kimlik + bölge +
 tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Önce
@@ -254,7 +273,8 @@ tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Ön
    0 döndürmek sorun değil. `XPLMCreateWindowEx`'e bütün callback'ler verilmeli.
 8. apt.dat sayıları yerel ayardan bağımsız okunmalı (`AptLine`); Türkçe
    Windows'ta `strtod` virgül bekleyebilir.
-9. Zemin önbellek biçimi değişirse `TerrainRaster.cpp` `kFileVersion`'ı,
+9. Zemin önbellek biçimi değişirse `TerrainRaster.cpp` `kFileVersion`'ı
+   (şu an 3) veya `TerrainElevation.cpp` `kFileVersion`'ı (şu an 1),
    varsayılan zemin renkleri değişirse `TerrainPalette::kPaletteVersion`'ı
    artır; eski dosyalar kendiliğinden yenilenir.
 10. `third_party/earcut`'ta tek bir belgelenmiş hız yaması var
@@ -262,6 +282,16 @@ tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Ön
     yeniden uygula (`third_party/earcut/README.txt`).
 11. `FindVisibleAirports(..., pNeedNodes)`: nesne katmanı `false` verir, çünkü
     sadece helipad'li heliport'ların düğümü yoktur.
+12. Rakım belleği iki katmanlı (`TerrainStore`): tam ızgara 12 karo, kaba
+    (seviye 2+) 64 karo; `ElevationFor(..., pLevel)` seviyeye göre arar.
+    `ElevationGrid::DropFineLevels` sonrası ince seviye okunamaz, `Save` yapılamaz.
+    Zemin dokusu komşu karonun rakımı olmadan üretilmişse
+    (`TerrainImage::mMissingNeighbors`), komşu hazır olunca katman onu yeniden
+    ister. Bir kez hazır olup artık bulunamayan komşu eksik sayılmaz; bu kuralı
+    bozarsan sonsuz yeniden üretim olur (`TerrainStore::BuildImageFor`).
+13. Bash heredoc (`<<'EOF'`) içindeki Python betiklerinde `\\n` gerçek satır
+    sonuna dönüşebiliyor (iki kez görüldü). Betiği önce Write ile dosyaya yaz,
+    `python -I betik.py` ile çalıştır.
 
 ## 9. Mimari özeti
 
@@ -296,8 +326,15 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
   grup kutusu sadece bu modda varsayılan açık katmanları açar (Taxi routes gibi
   varsayılan kapalılar tek tek açılır), hepsi açıksa gruptaki her şeyi kapatır.
   Varsayılan kapalı katmanlar eski `[layers]` bölümünden okunmaz.
-- **Tema:** `MapTheme` (mod başına renk, zemin biçimi, varsayılan katmanlar);
-  katmanlar renkleri `pContext.mTheme`'den okur.
+- **Tema:** `MapTheme` (mod başına renk, zemin biçimi, varsayılan katmanlar,
+  0.16'dan beri "veri yok" rengi `mNoData`); katmanlar renkleri
+  `pContext.mTheme`'den okur.
+- **Zemin (0.16):** `TerrainRaster` sadece sınıf raster'ı; rakım
+  `TerrainElevation` (1201² + piramit, `*.elevation`, `ElevationCodec`).
+  Görüntü üreticileri ortak ara sonuç doldurur, son adım `ComposeImage`
+  (kabartma, VFR bandı, su tonu, kıyı çizgisi; formüller `TerrainRelief`).
+  Deniz / veri yok: `WorldTileMap` (`dsf_files`) → `SceneryIndex::NoBaseCoverage`.
+  Ayrıntı MIMARI bölüm 9.5–9.7.
 - **Yeni katman:** `Layer`'dan türet → `CreateLayers()`'a ekle → CMake →
   `MapTheme.cpp` varsayılan görünürlük → `ui/LayerPanel.cpp` `kGroups`.
 
@@ -306,8 +343,9 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 `C:\X-Plane 11\Resources\plugins\MapPlugin\`: `map_settings.ini` (`[window]`,
 `[view]` + `mode`, `[tools]`, `[layers.scenery|vfr|ifr_low|ifr_high]`; eski
 `[layers]` Scenery'ye okunur), `map_drawings.txt`, `terrain_colors.ini`
-(`[colors] [shading] [blend] [warp] [closeup] [palette]`),
-`cache/terrain/`, `cache/airports/airport_index.bin` (önbellekler silinebilir).
+(`[colors] [shading] [blend] [warp] [closeup] [relief] [water] [vfr]
+[palette]`), `cache/terrain/` (`*.terrain`, `*.elevation`, `*.nobase`),
+`cache/airports/airport_index.bin` (önbellekler silinebilir).
 
 ## 11. Sürüm geçmişi ve durum
 
@@ -320,7 +358,8 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 | 0.10 | Kendi apt.dat okuyucusu, havalimanı yüzeyleri | denendi ("gayet güzel") |
 | 0.11–0.12 | Havalimanı nesneleri, tooltip, indeks önbelleği; ışıklar, taksi ağı, gruplu panel | denendi ("güzel") |
 | 0.13 | Harita modları, VOR pusula gülü, helipad'li heliport'lar | kullanıcı "güzel gözüküyor" dedi; ayrıntılı test listesi raporlanmadı |
-| 0.14–0.15 | (kullanıcının commit'i `4ee9d95`) Yakın zoom zemini (seviye 4–5, DSF üçgenlerinden), bikubik gölge, mipmap, sınır kıvırma, kara renk karışımı; alt katmanlar; yüzen çizim paleti; pop-out VAO düzeltmesi; zoom eşikleri bir kademe erken, en çok zoom 16.5 | kullanıcı geliştirdi; ayrıntılı X-Plane sonucunu kullanıcıya sor |
+| 0.14–0.15 | (kullanıcının commit'i `4ee9d95`) Yakın zoom zemini (seviye 4–5, DSF üçgenlerinden), bikubik gölge, mipmap, sınır kıvırma, kara renk karışımı; alt katmanlar; yüzen çizim paleti; pop-out VAO düzeltmesi; zoom eşikleri bir kademe erken, en çok zoom 16.5 | denendi (kullanıcı: zemin kalitesiz → zemin görevi) |
+| 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | **denenmedi**: README test listesi (0.16) |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.
 
@@ -331,6 +370,26 @@ Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme
 - IFR Low'da zoom 9'da fix'ler yoğun. MEF rakamları, hava sahası sınırları yok.
 - Zemin önbelleğinin disk sınırı yok. Eski `HaritaPlugin` eklenti klasörü
   (sadece eski README + ikon, etkisiz) silinebilir — kullanıcıya sor.
+
+### Zemin yol haritası (kullanıcı onayladı: 0 → 1 → 3 → 2, sonra 4)
+- **Aşama 0** (bitti) envanter; **Aşama 1** (bitti, X-Plane'de denenmedi)
+  kabartma ve su. Kararlar: su için DSF esas (`map data/water` sadeleştirilmiş,
+  sadece kurulu olmayan karo / hızlı ilk görüntü için); kıyıya sahte ayrıntı
+  yok; su tonu = kıyı şeridi + `sea_level` derinliği; VFR bantları sectional.
+- **Aşama 3** (sıradaki): paleti `.ter` dokularından çıkarmak. `BASE_TEX` DXT5
+  `.dds` (küçük mip seviyesi çözülecek); `library.txt` `REGION` blokları:
+  karonun konumuna göre doğru bölgenin `.ter`'i seçilmeli.
+- **Aşama 2:** DSF vektör katmanları (orman `.for`, yerleşim `.ags/.fac`
+  alan olarak, yollar alt türe göre, demiryolu; enerji hatları varsayılan
+  kapalı alt katman). Yollar `PO32`/`SC32` 32 bitlik havuzda (okuyucu henüz
+  okumuyor). Dışlama alanlarına uy. 280 bin yol zinciri: LOD + Douglas-Peucker
+  + zoom eşikleri şart. `beaches.bch` kıyı şeritleri burada değerlendirilecek.
+  `DsfReader::CountCommands` ile `ForEachTriangle` tek komut gezgininde
+  birleştirilecek.
+- **Aşama 4:** iki işçi, merkezden kenara öncelik, nesil sayacıyla iptal, rota
+  önyükleme, önceden önbellek komutu; hedefler Aşama 0 ölçümüne göre (önbellekte
+  < 0,1 s, kaba ilk görüntü < 0,1 s hızlı yoldan, karo başına tam görüntü
+  ≤ 0,6 s).
 
 ### Sıradaki işler (IOS için önerildi, kullanıcı henüz seçmedi)
 Genel bir X-Plane eklentisi yazıyoruz; X-Plane'in içinde, onunla aynı

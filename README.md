@@ -1,4 +1,4 @@
-# Map Plugin 0.15 — X-Plane 11
+# Map Plugin 0.16 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita. Dış harita servisi (Kaşif, OSM) yok: zemin, pistler,
@@ -81,8 +81,8 @@ ayarlanacak).
 | Mod | Zemin | Öne çıkanlar |
 |---|---|---|
 | Scenery | Arazi sınıfları + kabartma (koyu tema) | Genel görünüm |
-| VFR | Rakım renkleri (yeşil → sarı → kahverengi) + kabartma, su açık mavi | Kuleli havalimanı mavi, kulesiz macenta; VOR pusula gülü; Victor yolları kalın açık mavi; ILS ve fix kapalı |
-| IFR Low | Sadece kara / su (iki düz renk, kıyılar görünür) | Alçak hava yolları, VOR/NDB/ILS/fix; büyükler yeşil, diğerleri kahverengi |
+| VFR | Sectional yükseklik bantları (0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft) + kabartma, su açık mavi + kıyı çizgisi | Kuleli havalimanı mavi, kulesiz macenta; VOR pusula gülü; Victor yolları kalın açık mavi; ILS ve fix kapalı |
+| IFR Low | Sadece kara / su (iki düz renk) + ince kıyı çizgisi | Alçak hava yolları, VOR/NDB/ILS/fix; büyükler yeşil, diğerleri kahverengi |
 | IFR High | Aynı | Yüksek hava yolları, sadece büyük havalimanları; NDB, ILS, alçak yollar kapalı |
 
 VOR gülü manyetik kuzeye döner (sapma X-Plane'in VOR kaydından; Log'da
@@ -126,8 +126,23 @@ binmez, sığmayan etiket zoom yapınca görünür.
   yol + boyut + değişiklik zamanı listesiyle etiketlidir. Sahne eklenir,
   çıkarılır, sırası değişir veya güncellenirse karo yeniden üretilir. Önbelleği
   silmek hiçbir şeyi bozmaz.
-- DSF'i olmayan karo: bölgesi (10°×10° klasör) bir Global Scenery paketinde
-  kuruluysa **deniz**, değilse **veri yok** (koyu zemin).
+- **Kabartma (0.16):** DSF'in tam çözünürlüklü rakımı (1201×1201 nokta, ~92 m)
+  önbellekte sıkıştırılmış tutulur (`*.elevation`, ~0,75 MB/karo). Gölge her
+  pikselde, piksel boyuna uygun bir ön-ortalanmış seviyeden hesaplanır: uzakta
+  parazitsiz, yakında bloksuz. Işık dört yönden (ağırlık kuzeybatıda); dik
+  yamaçlar biraz koyu. Komşu karo hazır olunca karo sınırındaki dokular
+  kendiliğinden yenilenir (dikiş kalmaz). **Beklenti:** rakım verisi ~92 m
+  aralıklı olduğu için z15+ zoomda kabartma yumuşak görünür; bu X-Plane
+  verisinin sınırı (simülatörün zemini de aynı veriden).
+- **Su (0.16):** kara/su sınırında suyun tarafında tek piksel kıyı çizgisi (her
+  modda); Scenery ve VFR'da kıyıdan açığa ~200 m açık şerit ve açık denizde derinliğe
+  göre koyulaşma (DSF'in `sea_level` verisinden; verisi olmayan yerde düz). Kıyının
+  şekli değişmez, simülatördekiyle aynıdır.
+- **Deniz / veri yok (0.16):** sahnesi kurulu olmayan karo için X-Plane'in dünya
+  tablosuna (`Resources/dsf_files`) bakılır: orada DSF'i olmayan karo **deniz**,
+  olan karo **veri yok** (kara ama kurulu değil; nötr gri, deniz gibi boyanmaz).
+  Tablo yoksa veya doğrulanamazsa eski kural: 10°×10° klasörü bir Global Scenery
+  paketinde kuruluysa deniz, değilse veri yok.
 - **Renkler ve ayarlar:** `MapPlugin\terrain_colors.ini` (ilk açılışta
   varsayılanlarla oluşur, X-Plane kapalıyken düzenle):
 
@@ -138,6 +153,12 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | `[blend]` | `meters` (150), `max_pixels` (5) | Scenery'de kara sınıfları arası yumuşak geçiş (0 = kapalı); yakın zoom'da doku pikseli tavanı |
 | `[warp]` | `meters` (65), `wavelength` (250) | Sınıf sınırlarının kıvrılması (0 = düz üçgen kenarları) |
 | `[closeup]` | `class_mix` (0.3) | Yakın zoom'da sınıf renklerinin ortak kara tonuna yaklaşması (0 = kapalı) |
+| `[relief]` | `multi_directional` (1), `exaggeration` (2.5), `coarse_boost` (0.35), `slope_tone` (0.12), `flat_slope` (0.02) | Dört yönlü ışık (0 = tek ışık); eğim abartması; uzakta abartma artışı; dik yamaç koyuluğu; düz ovada 1 m'lik rakım basamaklarını gizleyen eşik (0 = kapalı) |
+| `[water]` | `coastline` (1), `coastline_strength` (0.5) | Kıyı çizgisi |
+| `[water]` | `band_meters` (200), `band_max_pixels` (24), `band_strength` (0.10) | Kıyıdan açığa açık şerit (0 = kapalı) |
+| `[water]` | `depth_tone` (0.25), `depth_full_meters` (200) | Derinliğe göre koyulaşma (0 = kapalı) |
+| `[vfr]` | `bands` (1), `contour_lines` (0), `contour_strength` (0.35) | Sectional bantları (0 = eski sürekli rampa); bant sınırında ince kontur |
+| `[vfr]` | `band_1` … `band_8` = `<alt sınır feet> R G B` | Bant sınırları ve renkleri (sınırlar artan olmalı, değilse varsayılan) |
 | `[palette]` | `version` | Elle değiştirme; eski sürüm renkleri yeni varsayılanlara sıfırlar |
 
   Dosyayı silersen varsayılan renkler geri gelir.
@@ -150,21 +171,22 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar |
 | `map_drawings.txt` | Kullanıcı çizimleri (metin; elle düzenlenebilir) |
 | `terrain_colors.ini` | Zemin renkleri ve ayarları (yukarıda) |
-| `cache/terrain/` | Zemin önbelleği (silinebilir) |
+| `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar, `*.elevation` rakım |
 | `cache/airports/` | apt.dat indeks önbelleği (silinebilir) |
 
-## Test listesi (0.14–0.15) — X-Plane'de denenecek
+## Test listesi (0.16) — X-Plane'de denenecek
 
 | # | Ne yap | Beklenen |
 |---|---|---|
-| 1 | X-Plane'i aç | Log'da `[MapPlugin] loaded (version 0.15)`; eski `terrain_colors.ini` varsa `terrain colors updated to palette version 2` |
-| 2 | Seattle'da zoom 12 → 16.5 | Zemin yaklaştıkça bloklaşmıyor, sınırlar kıvrımlı, kıyılar keskin; parçalar arasında dikiş yok |
-| 3 | Layers → bir grubu ve katmanı aç, alt katman kapat (ör. Runways → Runway numbers) | Sadece o parça kayboluyor; X-Plane yeniden açılınca hatırlanıyor (mod başına) |
-| 4 | Draw tools; paleti taşı, katla, Route çiz | Palet yeri ve katlı durumu kalıcı; çizim araçları eskisi gibi |
-| 5 | Pop out, haritayı kaydır / zoom yap | Çökme yok, harita çiziliyor |
-| 6 | Map: VFR / IFR Low / IFR High | Modlar eskisi gibi; yakın zoom'da zemin biçimi moda uygun |
-| 7 | Log'da `VOR sample:` satırları | Seattle civarı ~+19; gülün kuzey oku doğuya dönük |
-| 8 | Diagnostics mode | FPS'i not et (yakın zoom'da ve uzakta) |
+| 1 | X-Plane'i aç | Log'da `[MapPlugin] loaded (version 0.16)`; `world tile map: 17414 land tiles, checked against ... (0 mismatches)` |
+| 2 | Seattle'a git, zoom 8 → 12 (Scenery) | İlk açılışta karolar yeniden üretilir (`terrain +47-123: built ... elevation 1201 posts ... packed`); kabartma uzakta parazitsiz, yakında bloksuz |
+| 3 | Aynı yerde X-Plane'i yeniden aç | Karolar önbellekten gelir (log'da `built` yok), açılış hızlı |
+| 4 | Map: VFR, Juneau'da zoom 8.5 ve 14 | Yükseklik bantları keskin, kıvrımlı sınırlı; göller ve kıyılar karadan net ayrılıyor (kıyı çizgisi) |
+| 5 | Puget Sound'u Scenery ve VFR'da aç | Açık su derinliğe göre koyu, kıyıda açık şerit; IFR Low'da su düz, sadece kıyı çizgisi |
+| 6 | 1° karo sınırına git (ör. 47°N 122°W civarı, tepelik) | Sınırda gölge çizgisi / ton farkı yok (bir an görünürse komşu karo gelince düzelmeli) |
+| 7 | Türkiye'ye git (zoom 6) | Kara karoları nötr gri ("veri yok"), Karadeniz / Akdeniz su rengi |
+| 8 | `terrain_colors.ini`'de `[water] coastline = 0`, `[vfr] bands = 0` yap, X-Plane'i yeniden aç | Kıyı çizgisi yok, VFR eski sürekli rampa (ayarlar derlemeden çalışıyor) |
+| 9 | Diagnostics mode, yakın ve uzak zoom | FPS'i not et; Log'daki `terrain images (count x average)` satırlarını gönder |
 
 Sorun olursa: Diagnostics mode açıp aynı şeyi tekrarla ve Log.txt'yi gönder.
 
@@ -173,7 +195,8 @@ Sorun olursa: Diagnostics mode açıp aynı şeyi tekrarla ve Log.txt'yi gönder
 - `map_preview`: eklentinin kendi katman kodunu gerçek X-Plane verisiyle bir
   resme çizer. `map_preview --lat 47.45 --lon -122.30 --zoom 12 --out ksea.ppm
   [--mode vfr] [--show taxi_routes] [--hide grid] [--panel Airports]
-  [--describe x,y] [--demo-drawings]` (`magick ksea.ppm ksea.png` ile PNG).
+  [--describe x,y] [--demo-drawings] [--terrain-colors terrain_colors.ini]`
+  (`magick ksea.ppm ksea.png` ile PNG).
 - `dsf_info`: bir DSF'in özeti (özellikler, dışlama alanları, arazi türleri,
   üçgen sayıları, yama bayrağı × düzlem sayısı, nesne / poligon / yol ağı
   envanteri, aşama süreleri); `--raw out.dsf` ile açılmış hâlini,
