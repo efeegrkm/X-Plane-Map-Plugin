@@ -174,8 +174,10 @@ Sorun olursa: Diagnostics mode açıp aynı şeyi tekrarla ve Log.txt'yi gönder
   resme çizer. `map_preview --lat 47.45 --lon -122.30 --zoom 12 --out ksea.ppm
   [--mode vfr] [--show taxi_routes] [--hide grid] [--panel Airports]
   [--describe x,y] [--demo-drawings]` (`magick ksea.ppm ksea.png` ile PNG).
-- `dsf_info`: bir DSF'in özeti (özellikler, arazi türleri, üçgen sayıları, yama
-  bayrağı × düzlem sayısı); `--raw out.dsf` ile açılmış hâlini yazar.
+- `dsf_info`: bir DSF'in özeti (özellikler, dışlama alanları, arazi türleri,
+  üçgen sayıları, yama bayrağı × düzlem sayısı, nesne / poligon / yol ağı
+  envanteri, aşama süreleri); `--raw out.dsf` ile açılmış hâlini,
+  `--dump-terrain <indeks> out.txt` ile bir arazi türünün üçgenlerini yazar.
 
 ## Bilinen sınırlar
 

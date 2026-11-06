@@ -1768,6 +1768,143 @@ void TestDsfReader()
     CHECK(!tReader.Open(tNotDsf, &tError), "DSF olmayan reddedilir");
 }
 
+// Overlay envanteri: her komut turunden biri; arada atlanmasi gereken ucgen / yorum
+// komutlari var (bir komutun uzunlugu yanlis okunursa sonraki sayimlar kayar)
+void TestDsfCommandCount()
+{
+    std::vector<uint8_t> tDefinitions = Atom("TERT", Strings({"terrain_Water"}));
+    Append(tDefinitions, Atom("OBJT", Strings({"tower.obj", "house.obj"})));
+    Append(tDefinitions, Atom("POLY", Strings({"lib/g8/coni_tmp_wet.for", "lib/g10/autogen/natural.ags"})));
+    Append(tDefinitions, Atom("NETW", Strings({"lib/g10/roads.net"})));
+
+    std::vector<uint8_t> tCommands;
+    PutU8(tCommands, 3);  // tanim 1 (house.obj)
+    PutU8(tCommands, 1);
+    PutU8(tCommands, 7);  // nesne: 1 tane
+    PutU16(tCommands, 5);
+    PutU8(tCommands, 8);  // nesne araligi 10..14: 4 tane
+    PutU16(tCommands, 10);
+    PutU16(tCommands, 14);
+    PutU8(tCommands, 3);  // tanim 0: orman poligonu
+    PutU8(tCommands, 0);
+    PutU8(tCommands, 12);  // poligon: param, 3 kose
+    PutU16(tCommands, 255);
+    PutU8(tCommands, 3);
+    for (int tIndex : {0, 1, 2})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 13);  // poligon araligi: param, 0..5 (5 kose)
+    PutU16(tCommands, 255);
+    PutU16(tCommands, 0);
+    PutU16(tCommands, 5);
+    PutU8(tCommands, 23);  // ucgen (sayilmaz, atlanir): 3 indeks
+    PutU8(tCommands, 3);
+    for (int tIndex : {0, 1, 2})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 4);  // tanim 1 (16 bit): autogen
+    PutU16(tCommands, 1);
+    PutU8(tCommands, 14);  // ic ice poligon: 2 halka (4 + 3 kose)
+    PutU16(tCommands, 0);
+    PutU8(tCommands, 2);
+    PutU8(tCommands, 4);
+    for (int tIndex : {0, 1, 2, 3})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 3);
+    for (int tIndex : {4, 5, 6})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 15);  // ic ice poligon araligi: sayac 2 -> 3 indeks (0, 4, 7): 2 halka, 7 kose
+    PutU16(tCommands, 0);
+    PutU8(tCommands, 2);
+    for (int tIndex : {0, 4, 7})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 33);  // yorum 16: 2 bayt
+    PutU16(tCommands, 2);
+    PutU8(tCommands, 'x');
+    PutU8(tCommands, 'y');
+    PutU8(tCommands, 3);  // tanim 0: yol agi
+    PutU8(tCommands, 0);
+    PutU8(tCommands, 6);  // alt tur 50 (local)
+    PutU8(tCommands, 50);
+    PutU8(tCommands, 9);  // zincir: 3 nokta
+    PutU8(tCommands, 3);
+    for (int tIndex : {0, 1, 2})
+    {
+        PutU16(tCommands, tIndex);
+    }
+    PutU8(tCommands, 10);  // zincir araligi 2..6: 4 nokta
+    PutU16(tCommands, 2);
+    PutU16(tCommands, 6);
+    PutU8(tCommands, 6);  // alt tur 151 (demiryolu)
+    PutU8(tCommands, 151);
+    PutU8(tCommands, 11);  // 32 bitlik zincir: 2 nokta
+    PutU8(tCommands, 2);
+    PutU32(tCommands, 70000);
+    PutU32(tCommands, 70001);
+    PutU8(tCommands, 16);  // patch (sayilir)
+
+    std::vector<uint8_t> tFile = {'X', 'P', 'L', 'N', 'E', 'D', 'S', 'F'};
+    PutU32(tFile, 1);
+    Append(tFile, Atom("HEAD", Atom("PROP", Strings({"sim/west", "29", "sim/overlay", "1"}))));
+    Append(tFile, Atom("DEFN", tDefinitions));
+    Append(tFile, Atom("CMDS", tCommands));
+    tFile.resize(tFile.size() + 16, 0);
+
+    DsfReader tReader;
+    std::string tError;
+    CHECK(tReader.Open(tFile, &tError), "envanter DSF'i acilir: %s", tError.c_str());
+    const DsfInfo& tInfo = tReader.Info();
+    CHECK(tInfo.mObjectNames.size() == 2 && tInfo.mPolygonNames.size() == 2 && tInfo.mNetworkNames.size() == 1 &&
+              tInfo.mPolygonNames[1] == "lib/g10/autogen/natural.ags",
+          "OBJT / POLY / NETW tablolari okunur");
+
+    DsfCommandStatistics tStatistics;
+    CHECK(tReader.CountCommands(&tStatistics, &tError), "komutlar sayilir: %s", tError.c_str());
+    CHECK(tStatistics.mObjects.size() == 2 && tStatistics.mObjects[0] == 0 && tStatistics.mObjects[1] == 5,
+          "nesne: 1 + aralik 4 = 5");
+    if (tStatistics.mPolygons.size() == 2)
+    {
+        const DsfCommandStatistics::PolygonCount& tForest = tStatistics.mPolygons[0];
+        const DsfCommandStatistics::PolygonCount& tAutogen = tStatistics.mPolygons[1];
+        CHECK(tForest.mPolygons == 2 && tForest.mWindings == 2 && tForest.mPoints == 8,
+              "orman: 2 poligon, 3 + 5 kose (%lld %lld %lld)", tForest.mPolygons, tForest.mWindings,
+              tForest.mPoints);
+        CHECK(tAutogen.mPolygons == 2 && tAutogen.mWindings == 4 && tAutogen.mPoints == 14,
+              "ic ice: 2 + 2 halka, 7 + 7 kose (%lld %lld %lld)", tAutogen.mPolygons, tAutogen.mWindings,
+              tAutogen.mPoints);
+    }
+    else
+    {
+        CHECK(false, "iki poligon tanimi sayilmali");
+    }
+    long long tLocalChains = 0;
+    long long tLocalPoints = 0;
+    long long tRailPoints = 0;
+    for (const auto& tEntry : tStatistics.mChains)
+    {
+        if (tEntry.first == std::make_pair(0, 50))
+        {
+            tLocalChains = tEntry.second.mChains;
+            tLocalPoints = tEntry.second.mPoints;
+        }
+        if (tEntry.first == std::make_pair(0, 151))
+        {
+            tRailPoints = tEntry.second.mPoints;
+        }
+    }
+    CHECK(tLocalChains == 2 && tLocalPoints == 7, "yol: 2 zincir, 3 + 4 nokta");
+    CHECK(tRailPoints == 2, "demiryolu (alt tur 151): 32 bitlik zincir 2 nokta");
+    CHECK(tStatistics.mTerrainPatches == 1, "patch sayisi");
+}
+
 void TestTerrain()
 {
     // Siniflandirma (gercek XP11 adlari)
@@ -2006,7 +2143,8 @@ void TestLandBlend()
     tVersionPalette.SetWarp({-5.0, 3000.0, 3});
     tVersionPalette.SetCloseupClassMix(2.0);
     CHECK(tVersionPalette.BlendMaxPixels() == 0.0, "SetBlendMaxPixels negatif -> 0");
-    CHECK(tVersionPalette.Warp().mAmplitudeMeters == 0.0 && Near(tVersionPalette.Warp().mWavelengthMeters, 2000.0, 1e-9),
+    CHECK(tVersionPalette.Warp().mAmplitudeMeters == 0.0 &&
+              Near(tVersionPalette.Warp().mWavelengthMeters, 2000.0, 1e-9),
           "SetWarp sinirlar");
     CHECK(Near(tVersionPalette.CloseupClassMix(), 0.8, 1e-9), "SetCloseupClassMix sinirlar");
     const TerrainColor tReference = tVersionPalette.ReferenceLandColor();
@@ -2225,7 +2363,8 @@ void TestTerrainWarp()
     std::vector<uint8_t> tOnImage;
     tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 7, tSize, tPlainPalette, TerrainImageStyle(),
                              &tOffImage);
-    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 7, tSize, tWarpPalette, TerrainImageStyle(), &tOnImage);
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 7, tSize, tWarpPalette, TerrainImageStyle(),
+                             &tOnImage);
     int tWaterOff = 0;
     int tWaterOn = 0;
     bool tWaterSame = true;
@@ -2255,7 +2394,8 @@ void TestTerrainWarp()
     // 5b) Kara-kara siniri: parca 9'da orman/cimen siniri (10.3) bukmeyle kayar
     tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 9, tSize, tPlainPalette, TerrainImageStyle(),
                              &tOffImage);
-    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 9, tSize, tWarpPalette, TerrainImageStyle(), &tOnImage);
+    tRaster.BuildDetailImage(tTriangles, tChunks, 10 * tChunks + 9, tSize, tWarpPalette, TerrainImageStyle(),
+                             &tOnImage);
     int tLandChanged = 0;
     for (int tPixel = 0; tPixel < tSize * tSize; ++tPixel)
     {
@@ -2495,6 +2635,7 @@ int main()
     TestAirways();
     TestLabelPriority();
     TestDsfReader();
+    TestDsfCommandCount();
     TestTerrain();
     TestLandBlend();
     TestTerrainWarp();

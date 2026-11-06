@@ -49,8 +49,16 @@ trafik, debrief, büyük ekranda okunurluk).
 - Kullanıcıyla **Türkçe** konuş. Kullanıcı X-Plane eklenti geliştirmede yeni;
   kodu **anlayarak** ilerlemek istiyor: her adımın sonunda ne yaptığını ve
   **neden** yaptığını sade anlat.
+- **Kararlar birlikte alınır.** Proje klasöründe yazma/silme yetkin tam, ama
+  kullanıcı her kritik kararı, nedenini, çekinceleri ve planı bilmeli. Koda
+  başlamadan önce planı (seçenekler, artı/eksi, önerin) sun; gerçek tasarım
+  seçimlerinde onay bekle. Sessiz mimari karar verme.
 - Önemli kararlarda ve yeni araç/kütüphane kurmadan önce sor. Kullanıcının
   "sen nasıl rahatsan" dediği öneriler de yapılması beklenen işlerdir.
+- Kod **insan okuyucu için** yazılır: açık adlar, ne/neden anlatan Türkçe
+  yorumlar, sıkıştırılmış "zekice" kod yok.
+- Her kilometre taşında `docs/MIMARI.html` + `MIMARI.pdf`'e yeni kritik
+  bölümleri açıklamalarıyla ekle.
 - **X-Plane'de denenmemiş hiçbir şeyi "çalışıyor" diye raporlama.** "Derlendi",
   "testler geçti", "önizlemede görüldü" ve "X-Plane'de denendi" ayrı şeylerdir.
   X-Plane'de denenmesi gereken her işin sonunda kısa bir test listesi ver,
@@ -127,7 +135,7 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 | CMake seçeneği | Ne |
 |---|---|
 | `MAP_DEPLOY` (ON) | Derlemeden sonra `win.xpl`'yi `C:\X-Plane 11\Resources\plugins\MapPlugin\64\`'e kopyalar. X-Plane açıkken dosya kilitlidir: önce `tasklist \| findstr X-Plane` |
-| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-06: 30.418 kontrol) |
+| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-06: 30.429 kontrol) |
 | `MAP_PREVIEW` | `map_preview.exe` ve `dsf_info.exe` |
 | `XPLANE_DIR`, `XPSDK` | Farklı X-Plane / SDK klasörü |
 
@@ -136,7 +144,8 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
   --hide <katman> --panel <grup> --describe x,y --demo-drawings --no-ui
   --cache --xplane`). PNG'ye: `magick ksea.ppm ksea.png`. Gerçek X-Plane
   denemesinin yerine geçmez.
-- **DSF inceleme:** `dsf_info <dosya.dsf> [--raw out.dsf]`.
+- **DSF inceleme:** `dsf_info <dosya.dsf> [--raw out.dsf] [--dump-terrain <indeks> out.txt]`
+  (özellikler, dışlamalar, arazi/nesne/poligon/ağ envanteri, aşama süreleri).
 - **Mimari PDF'ini yeniden üretme** (proje kökünden):
   `"C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new
   --disable-gpu --no-pdf-header-footer --print-to-pdf="MIMARI.pdf"
@@ -187,6 +196,39 @@ işaretli. Değiştirmeden önce oku.
   sütun 0 = batı.
 - Karo önceliği: Custom Scenery (`scenery_packs.ini` sırası), sonra Global;
   overlay olmayan ilk DSF karonun zeminidir.
+
+**DSF overlay içeriği (Aşama 0 envanteri, 2026-11-06, `dsf_info`)**
+- Demo temel DSF'lerinde (+47-122, +47-123, +58-135) nesne (OBJT) yok; POLY:
+  `lib/g8/*.for` orman (+47-123: ~30 bin poligon, ~470 bin köşe),
+  `lib/g8/beaches.bch` kıyı şeritleri, `lib/g10/autogen/*.ags` (urban_*,
+  ind_*, park_*, natural), az sayıda `*.fac`. Tek NETW: `lib/g10/roads.net`.
+- Yol alt türleri (`roads.net` içindeki `#VROAD` yorumlarından): 100–131
+  otoyol, 10–28 primary, 30–48 secondary, 50–71 local, 151–154 demiryolu,
+  220 enerji hattı.
+- Ağ komutları 32 bitlik havuz kullanır (`PO32`/`SC32`; belgeye göre 4 düzlem:
+  lon, lat, yükseklik, kavşak kimliği, 0 = şekil noktası). Okuyucu bunları
+  henüz okumuyor.
+- Global Airports overlay'leri: nesne + dışlama (`sim/exclude_obj/fac/for/net/
+  pol/lin/str/bch`; +47-123'te for 148, net 188); üçgen ve DEM yok.
+- Nested polygon range (15): belge "N indeks" der, gerçek dosyada sayaç + 1
+  indeks (tüm akış böyle sonuna kadar hatasız okunuyor).
+
+**X-Plane'in kendi harita verisi**
+- `Resources/map data/` altında sadece `water/<10°>/<karo>.shp+.shx`: standart
+  ESRI Polygon (tip 5), karo başına. Demo'da sadece kurulu 35 karo. DSF kıyısının
+  sadeleştirilmiş hâli (shp→DSF medyan 10–15 m, %99 < 90 m) ve sadece büyük su
+  kütleleri (dağ karosu +47-122: DSF 2.450 km kıyı, shp 579 km). Su için esas
+  DSF'tir (kullanıcı kararı).
+- `Resources/dsf_files`: 5 bayt başlık (anlamı bilinmiyor) + 360×180 bayt,
+  boylam öncelikli: indeks `(lon + 180) * 180 + (lat + 90)`; 255 = global
+  sahnede DSF'i olan karo, 0 = yok (okyanus). Kurulu olup olmadığını söylemez.
+- `.ter`: `BASE_TEX` (.dds, DXT5, mipmap'li), `PROJECTED <m> <m>`, `BORDER_TEX`.
+  `library.txt`'te `REGION_DEFINE/REGION_BITMAP/REGION` blokları: aynı sanal ad
+  bölgeye göre farklı `.ter`'e gidebilir.
+
+**Süreler (önbelleksiz karo):** 7z açma 150–490 ms, DSF Open 8–16 ms, üçgen
+geçişi 17–21 ms, DEM 2 ms; karo üretimi toplam 0,4–0,5 s; yakın zoom üçgen
+deposu 0,2–0,6 s. Önbellek ~3 MB/karo.
 
 **earth_awy.dat (1100)**: satır = segment; uç koordinatı yok, kimlik + bölge +
 tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Önce
@@ -291,9 +333,9 @@ Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme
   (sadece eski README + ikon, etkisiz) silinebilir — kullanıcıya sor.
 
 ### Sıradaki işler (IOS için önerildi, kullanıcı henüz seçmedi)
-Önce sor: **IOS ekranı X-Plane ile aynı bilgisayarda mı, ayrı bilgisayarda mı?**
-Aynıysa bugünkü pop-out yeter; ayrıysa harita ağdan veri alan ayrı bir uygulama
-olmalı (mimari değişir).
+Genel bir X-Plane eklentisi yazıyoruz; X-Plane'in içinde, onunla aynı
+bilgisayarda çalışır. IOS ekranının aynı/ayrı bilgisayarda olması bizim
+konumuz değil, **sorma**; ağ üzerinden ayrı uygulama planlanmıyor.
 1. Uçak bilgi kutusu (irtifa, hız, yön, dikey hız, transponder) + 1/2/5 dk
    tahmin çizgisi + mesafe halkaları
 2. Ara / git (ICAO veya navaid kimliği)

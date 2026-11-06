@@ -30,7 +30,32 @@ struct DsfInfo
     double mNorth = 0.0;
     bool mOverlay = false;                   // "sim/overlay 1": temel mesh degil, ustune serilen katman
     std::vector<std::string> mTerrainNames;  // TERT
+    std::vector<std::string> mObjectNames;   // OBJT: .obj nesneleri
+    std::vector<std::string> mPolygonNames;  // POLY: .for orman, .fac cephe, .ags/.agb autogen, .pol serilen
+    std::vector<std::string> mNetworkNames;  // NETW: yol / demiryolu ag tanimi (.net)
     std::vector<std::pair<std::string, std::string>> mProperties;
+};
+
+// Komut akisinin sayimi (teshis / envanter icin; dsf_info kullanir).
+// Anahtar: tanim indeksi (ilgili ad tablosunda).
+struct DsfCommandStatistics
+{
+    struct PolygonCount
+    {
+        long long mPolygons = 0;  // poligon komutu sayisi
+        long long mWindings = 0;  // halka sayisi (dis + delikler)
+        long long mPoints = 0;    // toplam kose
+    };
+    struct ChainCount
+    {
+        long long mChains = 0;  // ag zinciri komutu sayisi
+        long long mPoints = 0;  // zincirlerdeki toplam nokta
+    };
+    std::vector<long long> mObjects;      // mObjectNames sirasiyla
+    std::vector<PolygonCount> mPolygons;  // mPolygonNames sirasiyla
+    // Ag: (tanim indeksi, yol alt turu) -> sayim
+    std::vector<std::pair<std::pair<int, int>, ChainCount>> mChains;
+    long long mTerrainPatches = 0;
 };
 
 // DSF icindeki bir raster katmani (DEMS). Satir 0 = GUNEY kenari, sutun 0 = BATI
@@ -75,6 +100,12 @@ public:
 
     // Teshis icin: nokta havuzu sayisi
     int PoolCount() const;
+
+    // Teshis / envanter: komut akisindaki nesne, poligon ve ag komutlarini
+    // tanim basina sayar (koordinat okumaz). Bicim hatasinda false.
+    // NOT: atlama mantigi ForEachTriangle ile ayni; Asama 2'de (overlay okuyucu)
+    // iki dongu tek bir komut gezgininde birlestirilecek.
+    bool CountCommands(DsfCommandStatistics* pOut, std::string* pError) const;
 
 private:
     struct Pool

@@ -17,6 +17,9 @@ const uint32_t kAtomHead = AtomId('H', 'E', 'A', 'D');
 const uint32_t kAtomProp = AtomId('P', 'R', 'O', 'P');
 const uint32_t kAtomDefn = AtomId('D', 'E', 'F', 'N');
 const uint32_t kAtomTert = AtomId('T', 'E', 'R', 'T');
+const uint32_t kAtomObjt = AtomId('O', 'B', 'J', 'T');
+const uint32_t kAtomPoly = AtomId('P', 'O', 'L', 'Y');
+const uint32_t kAtomNetw = AtomId('N', 'E', 'T', 'W');
 const uint32_t kAtomGeod = AtomId('G', 'E', 'O', 'D');
 const uint32_t kAtomPool = AtomId('P', 'O', 'O', 'L');
 const uint32_t kAtomScal = AtomId('S', 'C', 'A', 'L');
@@ -264,6 +267,18 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
                                         if (pSubId == kAtomTert)
                                         {
                                             mInfo.mTerrainNames = ReadStringTable(pSub, pSubSize);
+                                        }
+                                        else if (pSubId == kAtomObjt)
+                                        {
+                                            mInfo.mObjectNames = ReadStringTable(pSub, pSubSize);
+                                        }
+                                        else if (pSubId == kAtomPoly)
+                                        {
+                                            mInfo.mPolygonNames = ReadStringTable(pSub, pSubSize);
+                                        }
+                                        else if (pSubId == kAtomNetw)
+                                        {
+                                            mInfo.mNetworkNames = ReadStringTable(pSub, pSubSize);
                                         }
                                         else if (pSubId == kAtomDemn)
                                         {
@@ -738,6 +753,204 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
     if (tCursor.mFailed || tBadIndex)
     {
         *pError = tBadIndex ? "DSF command refers to a missing point" : "DSF command stream is truncated";
+        return false;
+    }
+    return true;
+}
+
+bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) const
+{
+    *pOut = DsfCommandStatistics();
+    pOut->mObjects.assign(mInfo.mObjectNames.size(), 0);
+    pOut->mPolygons.assign(mInfo.mPolygonNames.size(), {});
+    if (!mData || mCommandsSize == 0)
+    {
+        return true;
+    }
+    Cursor tCursor{mData->data() + mCommandsOffset, mCommandsSize};
+    int tDefinition = 0;
+    int tRoadSubtype = 0;
+
+    // Tanim indeksi tablonun disindaysa sayilmaz (bozuk dosyada cokme olmasin)
+    auto tCountObjects = [&](long long pCount)
+    {
+        if (tDefinition >= 0 && tDefinition < static_cast<int>(pOut->mObjects.size()))
+        {
+            pOut->mObjects[static_cast<size_t>(tDefinition)] += pCount;
+        }
+    };
+    auto tCountPolygon = [&](long long pWindings, long long pPoints)
+    {
+        if (tDefinition >= 0 && tDefinition < static_cast<int>(pOut->mPolygons.size()))
+        {
+            DsfCommandStatistics::PolygonCount& tCount = pOut->mPolygons[static_cast<size_t>(tDefinition)];
+            tCount.mPolygons += 1;
+            tCount.mWindings += pWindings;
+            tCount.mPoints += pPoints;
+        }
+    };
+    auto tCountChain = [&](long long pPoints)
+    {
+        const std::pair<int, int> tKey(tDefinition, tRoadSubtype);
+        for (auto& tEntry : pOut->mChains)
+        {
+            if (tEntry.first == tKey)
+            {
+                tEntry.second.mChains += 1;
+                tEntry.second.mPoints += pPoints;
+                return;
+            }
+        }
+        DsfCommandStatistics::ChainCount tCount;
+        tCount.mChains = 1;
+        tCount.mPoints = pPoints;
+        pOut->mChains.emplace_back(tKey, tCount);
+    };
+
+    while (tCursor.mPosition < tCursor.mSize && !tCursor.mFailed)
+    {
+        const uint8_t tCommand = tCursor.U8();
+        switch (tCommand)
+        {
+            case kPoolSelect:
+                tCursor.Skip(2);
+                break;
+            case kJunctionOffset:
+                tCursor.Skip(4);
+                break;
+            case kSetDefinition8:
+                tDefinition = tCursor.U8();
+                break;
+            case kSetDefinition16:
+                tDefinition = tCursor.U16();
+                break;
+            case kSetDefinition32:
+                tDefinition = static_cast<int>(tCursor.U32());
+                break;
+            case kRoadSubtype8:
+                tRoadSubtype = tCursor.U8();
+                break;
+            case kObject:
+                tCursor.Skip(2);
+                tCountObjects(1);
+                break;
+            case kObjectRange:
+            {
+                const int tFirst = tCursor.U16();
+                const int tLast = tCursor.U16();
+                tCountObjects(tLast - tFirst);
+                break;
+            }
+            case kNetworkChain:
+            {
+                const int tCount = tCursor.U8();
+                tCursor.Skip(static_cast<size_t>(tCount) * 2);
+                tCountChain(tCount);
+                break;
+            }
+            case kNetworkChainRange:
+            {
+                const int tFirst = tCursor.U16();
+                const int tLast = tCursor.U16();
+                tCountChain(tLast - tFirst);
+                break;
+            }
+            case kNetworkChain32:
+            {
+                const int tCount = tCursor.U8();
+                tCursor.Skip(static_cast<size_t>(tCount) * 4);
+                tCountChain(tCount);
+                break;
+            }
+            case kPolygon:
+            {
+                tCursor.Skip(2);  // parametre (orman yogunlugu, cephe yuksekligi ...)
+                const int tCount = tCursor.U8();
+                tCursor.Skip(static_cast<size_t>(tCount) * 2);
+                tCountPolygon(1, tCount);
+                break;
+            }
+            case kPolygonRange:
+            {
+                tCursor.Skip(2);
+                const int tFirst = tCursor.U16();
+                const int tLast = tCursor.U16();
+                tCountPolygon(1, tLast - tFirst);
+                break;
+            }
+            case kNestedPolygon:
+            {
+                tCursor.Skip(2);
+                const int tWindings = tCursor.U8();
+                long long tPoints = 0;
+                for (int tWinding = 0; tWinding < tWindings; ++tWinding)
+                {
+                    const int tCount = tCursor.U8();
+                    tCursor.Skip(static_cast<size_t>(tCount) * 2);
+                    tPoints += tCount;
+                }
+                tCountPolygon(tWindings, tPoints);
+                break;
+            }
+            case kNestedPolygonRange:
+            {
+                // GERCEK VERI: sayac N iken N + 1 indeks (bkz. ForEachTriangle)
+                tCursor.Skip(2);
+                const size_t tCount = tCursor.U8();
+                int tFirst = 0;
+                int tLast = 0;
+                for (size_t tIndex = 0; tIndex <= tCount; ++tIndex)
+                {
+                    const int tValue = tCursor.U16();
+                    tFirst = (tIndex == 0) ? tValue : tFirst;
+                    tLast = tValue;
+                }
+                tCountPolygon(static_cast<long long>(tCount), tLast - tFirst);
+                break;
+            }
+            case kTerrainPatch:
+                pOut->mTerrainPatches += 1;
+                break;
+            case kTerrainPatchFlags:
+                tCursor.Skip(1);
+                pOut->mTerrainPatches += 1;
+                break;
+            case kTerrainPatchFlagsLod:
+                tCursor.Skip(9);
+                pOut->mTerrainPatches += 1;
+                break;
+            case kTriangle:
+            case kTriangleStrip:
+            case kTriangleFan:
+                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                break;
+            case kTriangleCrossPool:
+            case kTriangleStripCrossPool:
+            case kTriangleFanCrossPool:
+                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 4);
+                break;
+            case kTriangleRange:
+            case kTriangleStripRange:
+            case kTriangleFanRange:
+                tCursor.Skip(4);
+                break;
+            case kComment8:
+                tCursor.Skip(tCursor.U8());
+                break;
+            case kComment16:
+                tCursor.Skip(tCursor.U16());
+                break;
+            case kComment32:
+                tCursor.Skip(tCursor.U32());
+                break;
+            default:
+                *pError = "unknown DSF command " + std::to_string(tCommand);
+                return false;
+        }
+    }
+    if (tCursor.mFailed)
+    {
+        *pError = "DSF command stream is truncated";
         return false;
     }
     return true;
