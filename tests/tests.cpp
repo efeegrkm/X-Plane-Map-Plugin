@@ -719,6 +719,11 @@ void TestLayerManager()
     CHECK(!tLayers.At(0)->IsVisible(), "eski [layers] bolumu Scenery'de okunur");
     tLayers.LoadVisibility(tLegacy, ThemeFor(MapMode::Vfr));
     CHECK(tLayers.At(0)->IsVisible(), "eski bolum diger modlari etkilemez");
+    tLegacy.SetBool("layers", "b", true);  // varsayilan kapali katman (Taxi routes gibi)
+    tLayers.LoadVisibility(tLegacy, tScenery);
+    CHECK(!tLayers.At(1)->IsVisible(), "varsayilan kapali katman eski bolumden acilmaz");
+    CHECK(!LayerManager::ThemeDefault(*tLayers.At(1), tScenery) && LayerManager::ThemeDefault(*tLayers.At(0), tScenery),
+          "katmanin mod varsayilani");
 
     // Mod varsayilani: VFR'de ILS kapali
     LayerManager tModeLayers;

@@ -46,7 +46,7 @@ public:
         bool mInside = false;          // panelin ustunde mi
         std::vector<int> mToggle;      // acilip kapanacak katmanlar (bos: hicbiri)
         bool mGroupOn = false;         // grup kutusu: true = hepsini ac, false = hepsini kapat
-        bool mIsGroupBox = false;      // tiklama bir grup kutusuna
+        bool mIsGroupBox = false;      // tiklama bir grup kutusuna (ac/kapa karari MapWindow'da)
         int mSubLayerOwner = -1;       // >= 0: bu katmanin mSubLayer. alt katmani ac/kapa
         int mSubLayer = -1;
         std::string mExpandKey;        // bos degilse bu satiri ac/kapa (ToggleExpanded)

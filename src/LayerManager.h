@@ -34,7 +34,12 @@ public:
     // Mod basina bolum ("layers.vfr" ...): anahtar = katman kimligi, deger = 1/0.
     // Dosyada yoksa: temanin varsayilani, o da yoksa katmanin kendi varsayilani.
     // Scenery icin eski [layers] bolumu de okunur (0.12 ve oncesinin ayari).
+    // Varsayilan kapali katmanlar (ornek Taxi routes) eski bolumden okunmaz: o surumlerde
+    // grup kutusu onlari da aciyordu, yeni kurulumda kapali gelsinler.
     void LoadVisibility(const Settings& pSettings, const MapTheme& pTheme);
+
+    // Katmanin bu moddaki varsayilan gorunurlugu (temanin ayari, yoksa katmanin kendisi)
+    static bool ThemeDefault(const Layer& pLayer, const MapTheme& pTheme);
     void SaveVisibility(Settings& pSettings, const MapTheme& pTheme) const;
 
     // Alt katmanin ayar anahtari: "<katman>.<alt katman>" (ornek "airport_surfaces.boundary")

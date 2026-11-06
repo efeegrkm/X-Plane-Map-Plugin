@@ -249,6 +249,11 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 - **Alt katmanlar:** `Layer::AddSubLayer` / `IsSubLayerVisible`; ayar anahtarı
   `<katman>.<alt>`. Kullananlar: AirportSurface, AirportObjects, Runway,
   Drawing.
+- **Panel kuralları** (`MapWindow::ApplyLayerPanelHit`): kapalı bir katmanın
+  alt katmanı açılınca sadece o alt katman açılır (katman "yarım" görünür);
+  grup kutusu sadece bu modda varsayılan açık katmanları açar (Taxi routes gibi
+  varsayılan kapalılar tek tek açılır), hepsi açıksa gruptaki her şeyi kapatır.
+  Varsayılan kapalı katmanlar eski `[layers]` bölümünden okunmaz.
 - **Tema:** `MapTheme` (mod başına renk, zemin biçimi, varsayılan katmanlar);
   katmanlar renkleri `pContext.mTheme`'den okur.
 - **Yeni katman:** `Layer`'dan türet → `CreateLayers()`'a ekle → CMake →

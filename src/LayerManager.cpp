@@ -91,15 +91,8 @@ void LayerManager::LoadVisibility(const Settings& pSettings, const MapTheme& pTh
     const std::string tSection(LayerSectionFor(pTheme.mMode));
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        bool tDefault = tLayer->DefaultVisible();
-        for (const LayerDefault& tOverride : pTheme.mLayerDefaults)
-        {
-            if (tOverride.mId && tLayer->Id() == tOverride.mId)
-            {
-                tDefault = tOverride.mVisible;
-            }
-        }
-        if (pTheme.mMode == MapMode::Scenery)
+        bool tDefault = ThemeDefault(*tLayer, pTheme);
+        if (pTheme.mMode == MapMode::Scenery && tDefault)
         {
             tDefault = pSettings.GetBool(kLegacySection, tLayer->Id(), tDefault);  // eski ayar
         }
@@ -120,6 +113,19 @@ void LayerManager::LoadVisibility(const Settings& pSettings, const MapTheme& pTh
             tLayer->SetSubLayerVisible(tSub, pSettings.GetBool(tSection, tKey, tSubDefault));
         }
     }
+}
+
+bool LayerManager::ThemeDefault(const Layer& pLayer, const MapTheme& pTheme)
+{
+    bool tDefault = pLayer.DefaultVisible();
+    for (const LayerDefault& tOverride : pTheme.mLayerDefaults)
+    {
+        if (tOverride.mId && pLayer.Id() == tOverride.mId)
+        {
+            tDefault = tOverride.mVisible;
+        }
+    }
+    return tDefault;
 }
 
 std::string LayerManager::SubLayerKey(const Layer& pLayer, int pSubLayer)

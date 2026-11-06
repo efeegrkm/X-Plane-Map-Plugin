@@ -714,6 +714,15 @@ void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
         // son alt katman kapanirsa katman da kapanir (kutu "bos" gorunsun)
         Layer* tLayer = mLayers.At(pHit.mSubLayerOwner);
         const bool tVisible = !(tLayer->IsVisible() && tLayer->IsSubLayerVisible(pHit.mSubLayer));
+        if (tVisible && !tLayer->IsVisible())
+        {
+            // Kapali katmanin bir alt katmani acildi: sadece o acilsin (katman "yarim"
+            // gorunur), digerleri kapali kalsin; eski alt katman ayarlari geri gelmesin
+            for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+            {
+                tLayer->SetSubLayerVisible(tSub, false);
+            }
+        }
         tLayer->SetSubLayerVisible(pHit.mSubLayer, tVisible);
         if (tVisible)
         {
@@ -726,11 +735,39 @@ void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
         Log("layer '{}': {}", LayerManager::SubLayerKey(*tLayer, pHit.mSubLayer), tVisible ? "on" : "off");
         tChanged = true;
     }
-    for (int tIndex : pHit.mToggle)
+    // Grup kutusu: bu modda varsayilan acik katmanlardan biri kapaliysa onlari ac
+    // (varsayilan kapali olanlar, ornek Taxi routes, grupla acilmaz; tek tek acilir);
+    // hepsi aciksa gruptaki her katmani kapat
+    bool tGroupOn = false;
+    std::vector<int> tToggle = pHit.mToggle;
+    if (pHit.mIsGroupBox)
+    {
+        std::vector<int> tDefaultOn;
+        for (int tIndex : pHit.mToggle)
+        {
+            if (LayerManager::ThemeDefault(*mLayers.At(tIndex), ThemeFor(mMapMode)))
+            {
+                tDefaultOn.push_back(tIndex);
+            }
+        }
+        if (tDefaultOn.empty())
+        {
+            tDefaultOn = pHit.mToggle;
+        }
+        for (int tIndex : tDefaultOn)
+        {
+            tGroupOn = tGroupOn || !mLayers.At(tIndex)->IsVisible();
+        }
+        if (tGroupOn)
+        {
+            tToggle = tDefaultOn;
+        }
+    }
+    for (int tIndex : tToggle)
     {
         Layer* tLayer = mLayers.At(tIndex);
         // Grup kutusu: hepsini ayni duruma getir; tek katman: tersine cevir
-        const bool tVisible = pHit.mIsGroupBox ? pHit.mGroupOn : !tLayer->IsVisible();
+        const bool tVisible = pHit.mIsGroupBox ? tGroupOn : !tLayer->IsVisible();
         if (tLayer->IsVisible() != tVisible)
         {
             tLayer->SetVisible(tVisible);
