@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_plugin VERSION 0.8 LANGUAGES C CXX)
+project(prime_map_plugin VERSION 0.15 LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
 # X-Plane SDK: projenin icinde third_party/XPSDK altinda geliyor

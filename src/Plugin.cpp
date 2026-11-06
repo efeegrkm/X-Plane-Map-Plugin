@@ -55,7 +55,7 @@
 namespace
 {
 
-const char* kVersion = "0.13";
+const char* kVersion = "0.15";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
@@ -184,7 +184,7 @@ void MapPlugin::Stop()
 
 void MapPlugin::CreateLayers()
 {
-    // Alttan uste cizim sirasi (GOREV.md Bolum 5). Etiketler de bu sirayla
+    // Alttan uste cizim sirasi (ayrinti: MIMARI.pdf bolum 7). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
     // kullanici cizimleri etiketlerinin yerini onceden ayirir).
     mLayers.Add(std::make_unique<TerrainLayer>(mTerrainStore, mTerrainPalette));  // en altta: zemin
