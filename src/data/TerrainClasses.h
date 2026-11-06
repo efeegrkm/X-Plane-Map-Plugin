@@ -69,6 +69,8 @@ struct TerrainImageStyle
     TerrainStyle mStyle = TerrainStyle::Classes;
     TerrainColor mLand = {0, 0, 0};   // LandWater: kara rengi
     TerrainColor mWater = {0, 0, 0};  // Elevation / LandWater: su rengi
+    bool mHasBuiltUp = false;            // Elevation / LandWater: yerlesim alanlari bu renge karisir (sectional sari)
+    TerrainColor mBuiltUp = {0, 0, 0};
 };
 
 // VFR rakim rampasi (sectional benzeri: alcak yesil, orta sari/ten, yuksek kahverengi).
@@ -120,7 +122,8 @@ TerrainVfrParams DefaultVfrParams();
 class TerrainPalette
 {
 public:
-    static const int kPaletteVersion = 2;  // varsayilan renkler degisince artar (dosyadaki eski renkler atilir)
+    // varsayilan renkler degisince artar (dosyadaki eski renkler atilir). 3: renkler X-Plane dokularindan (Asama 3)
+    static const int kPaletteVersion = 3;
 
     TerrainPalette();  // varsayilan renkler
 
@@ -164,6 +167,13 @@ public:
     // Load sonrasi: dosyadaki [palette] version guncel miydi (false: renkler varsayilandan, dosya yeniden yazilmali)
     bool LoadedCurrentVersion() const;
 
+    // [palette] source = xplane (varsayilan): sinif renkleri X-Plane'in arazi dokularindan
+    // (TerrainPaletteSource); ini: [colors] bolumundeki renkler. Su rengi her zaman [colors] / varsayilan.
+    bool UsesXPlaneColors() const;
+    // X-Plane dokularindan hesaplanan renkler (pCounts[i] > 0 olan siniflar; su haric) uygulanir
+    void ApplyDerivedColors(const std::array<TerrainColor, kTerrainClassCount>& pColors,
+                            const std::array<int, kTerrainClassCount>& pCounts);
+
     // [relief], [water], [vfr] (0.16); renk surumune bagli degil, her zaman okunur
     const TerrainReliefParams& Relief() const;
     void SetRelief(const TerrainReliefParams& pParams);
@@ -180,6 +190,7 @@ private:
     TerrainWarpParams mWarp;
     double mCloseupClassMix;
     bool mLoadedCurrentVersion = true;
+    bool mUseXPlaneColors = true;
     TerrainReliefParams mRelief;
     TerrainWaterParams mWater;
     TerrainVfrParams mVfr;

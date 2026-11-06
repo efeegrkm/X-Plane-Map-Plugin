@@ -38,11 +38,13 @@
 #include "data/SevenZip.h"
 #include "data/TerrainClasses.h"
 #include "data/TerrainElevation.h"
+#include "data/TerrainPaletteSource.h"
 #include "data/TerrainNoise.h"
 #include "data/TerrainRaster.h"
 #include "data/TerrainRelief.h"
 #include "data/TerrainStore.h"
 #include "data/TerrainTriangles.h"
+#include "data/TerrainVectors.h"
 #include "data/WorldTileMap.h"
 #include "gfx/Mesh.h"
 
@@ -1968,6 +1970,7 @@ void TestTerrain()
     TerrainPalette tPalette;
     Settings tColors;
     tPalette.Save(tColors);
+    tColors.SetString("palette", "source", "ini");  // Asama 3: varsayilan kaynak X-Plane dokulari
     tColors.SetString("colors", "water", "10 20 30");
     tColors.SetDouble("shading", "strength", 2.0);  // sinira kirpilmali
     TerrainPalette tLoaded;
@@ -2168,7 +2171,8 @@ void TestLandBlend()
               tVersionPalette.ColorOf(TerrainClass::ForestConifer).mR == 52 &&
               tVersionPalette.ColorOf(TerrainClass::ForestConifer).mB == 58,
           "eski surum: dosyadaki renk atilir, yeni varsayilan kalir");
-    tVersionSettings.SetInt("palette", "version", 2);
+    tVersionSettings.SetInt("palette", "version", TerrainPalette::kPaletteVersion);
+    tVersionSettings.SetString("palette", "source", "ini");
     tVersionPalette.Load(tVersionSettings);
     CHECK(tVersionPalette.LoadedCurrentVersion() &&
               tVersionPalette.ColorOf(TerrainClass::ForestConifer).mR == 1 &&
@@ -3323,6 +3327,204 @@ void TestElevationCache()
     Fs::remove_all(tRoot, tIgnore);
 }
 
+// --- Asama 2 / 3: DSF vektorleri, alan taramasi, X-Plane doku rengi -------------
+
+// Duzlem: ham kodlama (0) ile degerler (16 veya 32 bit)
+void PutRawPlane16(std::vector<uint8_t>& pOut, const std::vector<int>& pValues)
+{
+    PutU8(pOut, 0);
+    for (const int tValue : pValues)
+    {
+        PutU16(pOut, tValue);
+    }
+}
+
+void TestDsfVectors()
+{
+    // Karo +41+029. POOL: kare poligon (29.25..29.75 x 41.25..41.75); PO32: 3 noktali yol
+    std::vector<uint8_t> tPool;
+    PutU32(tPool, 4);
+    PutU8(tPool, 2);
+    PutRawPlane16(tPool, {16384, 49151, 49151, 16384});  // ~0.25 / ~0.75
+    PutRawPlane16(tPool, {16384, 16384, 49151, 49151});
+    std::vector<uint8_t> tScale;
+    for (const float tOffset : {29.0f, 41.0f})
+    {
+        PutF32(tScale, 1.0f);
+        PutF32(tScale, tOffset);
+    }
+    std::vector<uint8_t> tPool32;
+    PutU32(tPool32, 3);
+    PutU8(tPool32, 2);
+    PutU8(tPool32, 0);  // ham, 32 bit
+    for (const uint32_t tValue : {0u, 2147483647u, 4294967295u})
+    {
+        PutU32(tPool32, tValue);
+    }
+    PutU8(tPool32, 0);
+    for (const uint32_t tValue : {2147483647u, 2147483647u, 2147483647u})
+    {
+        PutU32(tPool32, tValue);
+    }
+    std::vector<uint8_t> tScale32;
+    for (const float tOffset : {29.0f, 41.0f})
+    {
+        PutF32(tScale32, 1.0f);
+        PutF32(tScale32, tOffset);
+    }
+
+    std::vector<uint8_t> tCommands;
+    PutU8(tCommands, 1);  // havuz 0
+    PutU16(tCommands, 0);
+    PutU8(tCommands, 3);  // poligon tanimi 0 (orman)
+    PutU8(tCommands, 0);
+    PutU8(tCommands, 13);  // poligon araligi 0..4
+    PutU16(tCommands, 128);
+    PutU16(tCommands, 0);
+    PutU16(tCommands, 4);
+    PutU8(tCommands, 3);  // ag tanimi 0
+    PutU8(tCommands, 0);
+    PutU8(tCommands, 6);  // alt tur 10 (ana yol)
+    PutU8(tCommands, 10);
+    PutU8(tCommands, 2);  // junction offset 1 -> zincir indeksleri 0,1 -> 1,2
+    PutU32(tCommands, 1);
+    PutU8(tCommands, 9);
+    PutU8(tCommands, 2);
+    PutU16(tCommands, 0);
+    PutU16(tCommands, 1);
+
+    std::vector<uint8_t> tDefinitions = Atom("TERT", Strings({"terrain_Water"}));
+    Append(tDefinitions, Atom("POLY", Strings({"lib/g8/coni_tmp_wet.for"})));
+    Append(tDefinitions, Atom("NETW", Strings({"lib/g10/roads.net"})));
+    std::vector<uint8_t> tGeometry = Atom("POOL", tPool);
+    Append(tGeometry, Atom("SCAL", tScale));
+    Append(tGeometry, Atom("PO32", tPool32));
+    Append(tGeometry, Atom("SC32", tScale32));
+    std::vector<uint8_t> tFile = {'X', 'P', 'L', 'N', 'E', 'D', 'S', 'F'};
+    PutU32(tFile, 1);
+    Append(tFile, Atom("HEAD", Atom("PROP", Strings({"sim/west", "29", "sim/south", "41"}))));
+    Append(tFile, Atom("DEFN", tDefinitions));
+    Append(tFile, Atom("GEOD", tGeometry));
+    Append(tFile, Atom("CMDS", tCommands));
+    tFile.resize(tFile.size() + 16, 0);
+
+    DsfReader tReader;
+    std::string tError;
+    CHECK(tReader.Open(tFile, &tError), "vektor DSF'i acilir: %s", tError.c_str());
+    std::vector<DsfPolygon> tPolygons;
+    std::vector<DsfChain> tChains;
+    CHECK(tReader.ForEachVector(
+              [&](const DsfPolygon& pPolygon)
+              {
+                  tPolygons.push_back(pPolygon);
+              },
+              [&](const DsfChain& pChain)
+              {
+                  tChains.push_back(pChain);
+              },
+              &tError),
+          "vektorler okunur: %s", tError.c_str());
+    CHECK(tPolygons.size() == 1 && tPolygons[0].mParameter == 128 && tPolygons[0].mRingLon.size() == 1 &&
+              tPolygons[0].mRingLon[0].size() == 4 && Near(tPolygons[0].mRingLon[0][1], 29.75, 1e-4) &&
+              Near(tPolygons[0].mRingLat[0][2], 41.75, 1e-4),
+          "poligon 16 bitlik havuzdan, olcekli");
+    CHECK(tChains.size() == 1 && tChains[0].mSubtype == 10 && tChains[0].mLon.size() == 2 &&
+              Near(tChains[0].mLon[0], 29.5, 1e-6) && Near(tChains[0].mLon[1], 30.0, 1e-6) &&
+              Near(tChains[0].mLat[1], 41.5, 1e-6),
+          "zincir 32 bitlik havuzdan, junction offset eklenmis (%.6f %.6f)",
+          tChains.empty() ? 0.0 : tChains[0].mLon[0], tChains.empty() ? 0.0 : tChains[0].mLon[1]);
+
+    // TerrainVectors: siniflandirma, dislama, onbellek gidis-donus
+    TerrainVectors tVectors;
+    tVectors.Reset(29, 41);
+    CHECK(tVectors.AddFromDsf(tReader, &tError) && tVectors.Areas().size() == 1 && tVectors.Lines().size() == 1 &&
+              tVectors.Areas()[0].mClass == TerrainClass::ForestConifer &&
+              tVectors.Lines()[0].mKind == VectorLineKind::Primary,
+          "orman alani ve ana yol");
+    DsfInfo tOverlay;
+    tOverlay.mProperties = {{"sim/exclude_net", "29.4/41.4/29.9/41.6"}, {"sim/exclude_for", "29.2/41.2/29.4/41.4"}};
+    tVectors.AddExclusions(tOverlay);
+    tVectors.ApplyNetworkExclusions();
+    CHECK(tVectors.Lines().empty(), "dislama alanindaki yol kesildi");
+    CHECK(tVectors.IsAreaExcluded(TerrainClass::ForestConifer, 0.3, 0.3) &&
+              !tVectors.IsAreaExcluded(TerrainClass::Urban, 0.3, 0.3) &&
+              !tVectors.IsAreaExcluded(TerrainClass::ForestConifer, 0.6, 0.6),
+          "orman dislamasi sadece ormana ve sadece kendi alaninda");
+    CHECK(TerrainVectors::AreaClassFor("lib/g10/autogen/urban_low_broken_0.ags") == TerrainClass::Urban &&
+              TerrainVectors::AreaClassFor("lib/g10/autogen/park_2.ags") == TerrainClass::Grass &&
+              TerrainVectors::AreaClassFor("lib/g10/autogen/natural.ags") == TerrainClass::None &&
+              TerrainVectors::AreaClassFor("lib/g8/mixed_tmp_wet.for") == TerrainClass::ForestBroadleaf &&
+              TerrainVectors::LineKindFor(120) == static_cast<int>(VectorLineKind::Motorway) &&
+              TerrainVectors::LineKindFor(153) == static_cast<int>(VectorLineKind::Railway) &&
+              TerrainVectors::LineKindFor(220) == static_cast<int>(VectorLineKind::PowerLine) &&
+              TerrainVectors::LineKindFor(1) == -1,
+          "tanim adi ve alt tur siniflari");
+    namespace Fs = std::filesystem;
+    const Fs::path tPath = Fs::temp_directory_path() / "map_plugin_vectors_test.vectors";
+    TerrainVectors tLoaded;
+    CHECK(tVectors.Save(tPath.string(), "k") && tLoaded.Load(tPath.string(), "k") && tLoaded.West() == 29 &&
+              tLoaded.South() == 41 && tLoaded.Areas().size() == 1 &&
+              Near(tLoaded.Areas()[0].mX[1], tVectors.Areas()[0].mX[1], 2e-5) &&
+              tLoaded.IsAreaExcluded(TerrainClass::ForestConifer, 0.3, 0.3) && !tLoaded.Load(tPath.string(), "x"),
+          "vektor onbellegi gidis-donus");
+    std::error_code tIgnore;
+    Fs::remove(tPath, tIgnore);
+
+    // Alan taramasi: delikli kare (dis 0.25..0.75, delik 0.4..0.6), 20 x 20 izgara
+    VectorArea tArea;
+    tArea.mClass = TerrainClass::ForestConifer;
+    tArea.mRingStarts = {0, 4};
+    tArea.mX = {0.25f, 0.75f, 0.75f, 0.25f, 0.4f, 0.6f, 0.6f, 0.4f};
+    tArea.mY = {0.25f, 0.25f, 0.75f, 0.75f, 0.4f, 0.4f, 0.6f, 0.6f};
+    tArea.mBounds = {0.25f, 0.25f, 0.75f, 0.75f};
+    std::vector<int> tGrid(400, 0);
+    FillVectorArea(tArea, 0.0, 1.0, 20.0, 20.0, 20, 20,
+                   [&](int pColumn, int pRow)
+                   {
+                       tGrid[static_cast<size_t>(pRow) * 20 + pColumn] = 1;
+                   });
+    // Piksel merkezi (c + 0.5) / 20: dis kare sutun 5..14, delik sutun 8..11
+    CHECK(tGrid[6 * 20 + 5] == 1 && tGrid[6 * 20 + 14] == 1 && tGrid[6 * 20 + 4] == 0 && tGrid[6 * 20 + 15] == 0 &&
+              tGrid[10 * 20 + 9] == 0 && tGrid[10 * 20 + 6] == 1,
+          "alan taramasi: kenarlar ve delik (cift-tek)");
+}
+
+void TestDdsColor()
+{
+    // 8 x 8 DXT1, tek mip: butun bloklar c0 = saf kirmizi, c1 = saf mavi, indeks 0 ve 1 yari yari
+    std::vector<uint8_t> tFile = {'D', 'D', 'S', ' '};
+    std::vector<uint8_t> tHeader(124, 0);
+    auto tSet = [&](size_t pOffset, uint32_t pValue)
+    {
+        for (int tByte = 0; tByte < 4; ++tByte)
+        {
+            tHeader[pOffset - 4 + tByte] = static_cast<uint8_t>((pValue >> (8 * tByte)) & 0xFF);
+        }
+    };
+    tSet(12, 8);
+    tSet(16, 8);
+    tSet(28, 1);
+    tSet(80, 0x4);
+    tSet(84, 'D' | ('X' << 8) | ('T' << 16) | ('1' << 24));
+    Append(tFile, tHeader);
+    for (int tBlock = 0; tBlock < 4; ++tBlock)
+    {
+        PutU16(tFile, 0xF800);  // kirmizi (c0 > c1: 4 renk modu)
+        PutU16(tFile, 0x001F);  // mavi
+        PutU32(tFile, 0x44444444u);  // her pikselde indeks 0 ve 1 sirayla (0,1,0,1 ...)
+    }
+    namespace Fs = std::filesystem;
+    const Fs::path tPath = Fs::temp_directory_path() / "map_plugin_test.dds";
+    std::ofstream(tPath, std::ios::binary).write(reinterpret_cast<const char*>(tFile.data()),
+                                                 static_cast<std::streamsize>(tFile.size()));
+    TerrainColor tColor;
+    CHECK(AverageDdsColor(tPath.string(), &tColor) && std::abs(tColor.mR - 128) <= 1 && tColor.mG == 0 &&
+              std::abs(tColor.mB - 128) <= 1,
+          "DXT1 ortalama rengi (%d %d %d)", tColor.mR, tColor.mG, tColor.mB);
+    std::error_code tIgnore;
+    Fs::remove(tPath, tIgnore);
+}
+
 int main()
 {
     TestScreenMath();
@@ -3364,6 +3566,8 @@ int main()
     TestTerrainImageRelief();
     TestWorldTileMap();
     TestElevationCache();
+    TestDsfVectors();
+    TestDdsColor();
     std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

@@ -56,8 +56,11 @@ private:
     // Seviye 4: karonun ekrana giren 1/32 derecelik parcalarini ister ve cizer
     // pLevel: TerrainStore::kDetailLevel (1/32 derece) veya kFineLevel (1/128 derece)
     void DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, const GeoBounds& pBounds, int pLevel, int pLon,
-                          int pLat, double pTileWest, int pStyle, std::vector<Gfx::TexturedVertex>& pStrips);
+                          int pLat, double pTileWest, int pStyle, int pAreas,
+                          std::vector<Gfx::TexturedVertex>& pStrips);
 
+    int mForestPart = -1;   // alt katman: DSF orman poligonlari (Scenery)
+    int mBuiltUpPart = -1;  // alt katman: yerlesim alanlari (Scenery: sinif rengi, VFR: sari)
     TerrainStore& mStore;
     TerrainPalette mPalette;
     std::unordered_map<TerrainImageKey, CachedTexture, TerrainImageKeyHash> mTextures;

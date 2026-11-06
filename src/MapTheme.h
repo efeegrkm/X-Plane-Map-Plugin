@@ -81,6 +81,11 @@ struct MapTheme
     // 0.16: "veri yok" karosu (kara ama sahnesi bu bilgisayarda kurulu degil; dsf_files).
     // Deniz gibi boyanmasin diye notr, sudan ve arka plandan farkli bir renk.
     Rgba mNoData;
+
+    // Asama 2: DSF yol agi (sira VectorLineKind: otoyol, ana, tali, yerel, demiryolu, enerji hatti)
+    std::array<Rgba, 6> mRoads;
+    // Yerlesim alanlari VFR / IFR'da bu renge karisir (sectional sarisi); Scenery'de sinif rengi kullanilir
+    Rgba mBuiltUp;
 };
 
 const MapTheme& ThemeFor(MapMode pMode);

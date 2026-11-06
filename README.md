@@ -1,4 +1,4 @@
-# Map Plugin 0.16 — X-Plane 11
+# Map Plugin 0.17 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita. Dış harita servisi (Kaşif, OSM) yok: zemin, pistler,
@@ -96,7 +96,8 @@ binmez, sığmayan etiket zoom yapınca görünür.
 
 | Grup | Katman | Görünür | Alt katmanlar / not |
 |---|---|---|---|
-| Map | Terrain (scenery) | zoom 5+ | Kurulu DSF'lerden; biçim moda göre |
+| Map | Terrain (scenery) | zoom 5+ | Kurulu DSF'lerden; biçim moda göre. Alt katmanlar: Forests (DSF orman poligonları, Scenery), Built-up areas (yerleşim; VFR'da sarı) |
+| Map | Roads and railways | 7.5+ | DSF yol ağı: Motorways 7.5+, Primary 9+, Secondary 10.5+, Local 12+, Railways 9.5+, Power lines 11+ (varsayılan kapalı). IFR'da varsayılan kapalı |
 | Map | Lat / lon grid | her zoom | Aralık zoom'a göre |
 | Airports | Airport symbols | 4+ | Büyük 4+, küçük 8+, deniz üssü 9+, heliport 11+ (12.5+'da gerçek helipad), kapalı 11+ |
 | Airports | Runways | 9+ | Paved, Unpaved, Water runways, Blast pads / overruns (12+), Markings (13+), Runway numbers (11.5+) |
@@ -159,7 +160,7 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | `[water]` | `depth_tone` (0.25), `depth_full_meters` (200) | Derinliğe göre koyulaşma (0 = kapalı) |
 | `[vfr]` | `bands` (1), `contour_lines` (0), `contour_strength` (0.35) | Sectional bantları (0 = eski sürekli rampa); bant sınırında ince kontur |
 | `[vfr]` | `band_1` … `band_8` = `<alt sınır feet> R G B` | Bant sınırları ve renkleri (sınırlar artan olmalı, değilse varsayılan) |
-| `[palette]` | `version` | Elle değiştirme; eski sürüm renkleri yeni varsayılanlara sıfırlar |
+| `[palette]` | `source` (xplane), `version` | `xplane`: sınıf renkleri X-Plane'in kendi arazi dokularından (ilk açılışta hesaplanır, sonra önbellekten); `ini`: `[colors]` değerleri kullanılır. `version`'ı elle değiştirme |
 
   Dosyayı silersen varsayılan renkler geri gelir.
 
@@ -171,10 +172,22 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar |
 | `map_drawings.txt` | Kullanıcı çizimleri (metin; elle düzenlenebilir) |
 | `terrain_colors.ini` | Zemin renkleri ve ayarları (yukarıda) |
-| `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar, `*.elevation` rakım |
+| `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar ve alanlar, `*.elevation` rakım, `*.vectors` DSF vektörleri, `xplane_palette.txt` |
 | `cache/airports/` | apt.dat indeks önbelleği (silinebilir) |
 
-## Test listesi (0.16) — X-Plane'de denenecek
+## Test listesi (0.17) — X-Plane'de denenecek
+
+| # | Ne yap | Beklenen |
+|---|---|---|
+| 1 | X-Plane'i aç | Log'da `loaded (version 0.17)`, `terrain palette: averaged ... X-Plane terrain textures` (ikinci açılışta `from cache`), `terrain colors file updated (palette version 3)` |
+| 2 | Seattle zoom 11 (Scenery) | Karolar bir kez yeniden üretilir (`built ... vectors N areas M lines`); yollar görünür, renkler X-Plane tonlarında |
+| 3 | Zoom 13 doğu tepeleri | Orman sınırları ayrıntılı, yerel sokaklar görünür; havalimanında orman / yol yok (dışlama) |
+| 4 | Map: VFR | Yollar koyu gri, demiryolu siyah, yerleşim sarı; orman yok |
+| 5 | Layers → Map → Roads and railways / Terrain alt katmanları | Tek tek açılıp kapanıyor; Power lines açılınca enerji hatları |
+| 6 | Map: IFR Low | Yol ve yerleşim kapalı (panelden açılabilir) |
+| 7 | Diagnostics, zoom 12–14'te kaydır | FPS'i ve Log'daki `terrain images` satırlarını gönder |
+
+## Test listesi (0.16)
 
 | # | Ne yap | Beklenen |
 |---|---|---|

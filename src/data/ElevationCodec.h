@@ -29,4 +29,9 @@ bool Compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std:
 // Compress ciktisini acar; boyut tutmazsa veya veri bozuksa false.
 bool Decompress(const uint8_t* pData, size_t pSize, int pWidth, int pHeight, std::vector<int16_t>* pOut);
 
+// Genel bayt dizisi icin sadece LZMA (fark / duzlem yok); vektor onbellegi (TerrainVectors) kullanir.
+// Bicim ayni: [5 bayt ozellik][uint32 ham boyut][LZMA verisi]
+bool PackBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut);
+bool UnpackBytes(const uint8_t* pData, size_t pSize, std::vector<uint8_t>* pOut);
+
 }  // namespace ElevationCodec

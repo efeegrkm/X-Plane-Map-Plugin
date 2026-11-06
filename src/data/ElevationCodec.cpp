@@ -32,6 +32,56 @@ const ISzAlloc kAllocator = {LzmaAlloc, LzmaFree};
 namespace ElevationCodec
 {
 
+bool PackBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut)
+{
+    CLzmaEncProps tProps;
+    LzmaEncProps_Init(&tProps);
+    tProps.level = kLzmaLevel;
+    tProps.dictSize = kLzmaDictionary;
+    tProps.numThreads = 1;
+    SizeT tDestinationSize = pBytes.size() + pBytes.size() / 20 + (1 << 16);
+    pOut->assign(kHeaderSize + tDestinationSize, 0);
+    SizeT tPropsSize = kPropsSize;
+    const SRes tResult = LzmaEncode(pOut->data() + kHeaderSize, &tDestinationSize, pBytes.data(), pBytes.size(),
+                                    &tProps, pOut->data(), &tPropsSize, 0, nullptr, &kAllocator, &kAllocator);
+    if (tResult != SZ_OK || tPropsSize != kPropsSize)
+    {
+        pOut->clear();
+        return false;
+    }
+    const uint32_t tRawSize = static_cast<uint32_t>(pBytes.size());
+    for (int tByte = 0; tByte < 4; ++tByte)
+    {
+        (*pOut)[kPropsSize + tByte] = static_cast<uint8_t>((tRawSize >> (8 * tByte)) & 0xFF);
+    }
+    pOut->resize(kHeaderSize + tDestinationSize);
+    return true;
+}
+
+bool UnpackBytes(const uint8_t* pData, size_t pSize, std::vector<uint8_t>* pOut)
+{
+    if (pSize < kHeaderSize)
+    {
+        return false;
+    }
+    uint32_t tRawSize = 0;
+    for (int tByte = 0; tByte < 4; ++tByte)
+    {
+        tRawSize |= static_cast<uint32_t>(pData[kPropsSize + tByte]) << (8 * tByte);
+    }
+    if (tRawSize > (256u << 20))
+    {
+        return false;
+    }
+    pOut->resize(tRawSize);
+    SizeT tDestinationSize = tRawSize;
+    SizeT tSourceSize = pSize - kHeaderSize;
+    ELzmaStatus tStatus = LZMA_STATUS_NOT_SPECIFIED;
+    const SRes tResult = LzmaDecode(pOut->data(), &tDestinationSize, pData + kHeaderSize, &tSourceSize, pData,
+                                    static_cast<unsigned>(kPropsSize), LZMA_FINISH_END, &tStatus, &kAllocator);
+    return tResult == SZ_OK && tDestinationSize == tRawSize;
+}
+
 bool Compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std::vector<uint8_t>* pOut)
 {
     const size_t tCount = static_cast<size_t>(pWidth) * static_cast<size_t>(pHeight);

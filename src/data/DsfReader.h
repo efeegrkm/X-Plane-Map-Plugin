@@ -68,6 +68,25 @@ struct DsfRaster
     std::vector<float> mValues;  // mWidth * mHeight, ham * olcek + kaydirma (yukseklik: metre)
 };
 
+// Bir poligon (POLY tanimi: .for orman, .ags autogen, .fac cephe ...). Halka 0 dis sinir,
+// digerleri delik. Koordinatlar derece (boylam, enlem).
+struct DsfPolygon
+{
+    int mDefinition = 0;  // DsfInfo::mPolygonNames indeksi
+    int mParameter = 0;   // tanima gore: orman yogunlugu, cephe yuksekligi ...
+    std::vector<std::vector<double>> mRingLon;
+    std::vector<std::vector<double>> mRingLat;
+};
+
+// Bir ag zinciri (NETW: yol, demiryolu, enerji hatti). Noktalar sirayla bir cizgi.
+struct DsfChain
+{
+    int mDefinition = 0;  // DsfInfo::mNetworkNames indeksi
+    int mSubtype = 0;     // yol alt turu (roads.net: 10 primary, 50 local, 151 demiryolu ...)
+    std::vector<double> mLon;
+    std::vector<double> mLat;
+};
+
 // Bir arazi ucgeni
 struct DsfTriangle
 {
@@ -100,6 +119,12 @@ public:
     // Dosyadaki raster katmanlarinin adlari (DEMN sirasiyla)
     const std::vector<std::string>& RasterNames() const;
 
+    // Poligonlari ve ag zincirlerini koordinatlariyla gezer (Asama 2 vektor katmanlari).
+    // Poligonlar 16 bitlik havuzlardan (POOL), zincirler 32 bitlik havuzlardan (PO32) okunur.
+    // Ziyaretcilerden biri bos olabilir. Bicim hatasinda false.
+    bool ForEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
+                       const std::function<void(const DsfChain&)>& pChainVisitor, std::string* pError) const;
+
     // Teshis icin: nokta havuzu sayisi
     int PoolCount() const;
 
@@ -119,7 +144,18 @@ private:
         double mOffset[3] = {0.0, 0.0, 0.0};
     };
 
+    // 32 bitlik havuz (PO32 / SC32; ag zincirleri). Sadece boylam ve enlem saklanir.
+    struct Pool32
+    {
+        int mCount = 0;
+        int mPlaneCount = 0;
+        std::vector<uint32_t> mPlanes[2];
+        double mScale[2] = {0.0, 0.0};
+        double mOffset[2] = {0.0, 0.0};
+    };
+
     bool ReadPool(const uint8_t* pData, size_t pSize, Pool* pOut) const;
+    bool ReadPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) const;
     bool ReadScale(const uint8_t* pData, size_t pSize, Pool* pPool) const;
     void ReadProperties(const uint8_t* pData, size_t pSize);
     static std::vector<std::string> ReadStringTable(const uint8_t* pData, size_t pSize);
@@ -128,6 +164,7 @@ private:
     const std::vector<uint8_t>* mData = nullptr;
     DsfInfo mInfo;
     std::vector<Pool> mPools;
+    std::vector<Pool32> mPools32;
     size_t mCommandsOffset = 0;
     size_t mCommandsSize = 0;
 

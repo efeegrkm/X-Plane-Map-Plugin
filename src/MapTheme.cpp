@@ -45,6 +45,13 @@ const MapTheme kScenery = {
     {0.92f, 0.94f, 0.97f, 1.0f},
     {},
     {0.24f, 0.25f, 0.27f, 1.0f},  // veri yok: notr koyu gri (arka plandan ve sudan farkli)
+    {{{0.95f, 0.72f, 0.38f, 0.90f},  // otoyol
+      {0.92f, 0.88f, 0.74f, 0.85f},  // ana yol
+      {0.86f, 0.86f, 0.80f, 0.70f},  // tali
+      {0.80f, 0.80f, 0.78f, 0.45f},  // yerel
+      {0.62f, 0.56f, 0.66f, 0.90f},  // demiryolu
+      {0.70f, 0.72f, 0.78f, 0.55f}}},  // enerji hatti
+    {0.0f, 0.0f, 0.0f, 0.0f},  // yerlesim: Scenery'de sinif rengi
 };
 
 // VFR: sectional benzeri. Kuleli mavi, kulesiz macenta; Victor yollari kalin acik mavi.
@@ -88,8 +95,16 @@ const MapTheme kVfr = {
       {"ils", false},
       {"fix", false},
       {"airways_low", true},
-      {"airways_high", false}}},
+      {"airways_high", false},
+      {"terrain.forests", false}}},
     {0.86f, 0.86f, 0.84f, 1.0f},  // veri yok: notr acik gri (su ve karadan farkli)
+    {{{0.20f, 0.20f, 0.24f, 0.90f},  // sectional: yollar koyu gri, demiryolu siyah
+      {0.28f, 0.28f, 0.32f, 0.85f},
+      {0.36f, 0.36f, 0.40f, 0.70f},
+      {0.45f, 0.45f, 0.48f, 0.50f},
+      {0.10f, 0.10f, 0.12f, 0.90f},
+      {0.45f, 0.35f, 0.55f, 0.70f}}},
+    {0.98f, 0.86f, 0.42f, 1.0f},  // yerlesim: sectional sarisi
 };
 
 // IFR Low: enroute low benzeri. IAP'li sayilan buyukler yesil, digerleri kahverengi.
@@ -133,8 +148,18 @@ const MapTheme kIfrLow = {
       {"ils", true},
       {"fix", true},
       {"airways_low", true},
-      {"airways_high", false}}},
+      {"airways_high", false},
+      {"roads", false},
+      {"terrain.forests", false},
+      {"terrain.built_up", false}}},
     {0.86f, 0.86f, 0.86f, 1.0f},  // veri yok: notr gri
+    {{{0.55f, 0.55f, 0.58f, 0.80f},  // IFR: soluk gri (varsayilan kapali)
+      {0.62f, 0.62f, 0.65f, 0.70f},
+      {0.68f, 0.68f, 0.70f, 0.60f},
+      {0.74f, 0.74f, 0.76f, 0.45f},
+      {0.45f, 0.45f, 0.48f, 0.80f},
+      {0.60f, 0.55f, 0.70f, 0.60f}}},
+    {0.93f, 0.88f, 0.74f, 1.0f},  // yerlesim: soluk bej
 };
 
 // IFR High: yuksek hava yollari, sadece buyuk havalimanlari, NDB yok
@@ -170,8 +195,18 @@ const MapTheme kIfrHigh = {
       {"ndb", false},
       {"fix", true},
       {"airways_low", false},
-      {"airways_high", true}}},
+      {"airways_high", true},
+      {"roads", false},
+      {"terrain.forests", false},
+      {"terrain.built_up", false}}},
     {0.86f, 0.86f, 0.86f, 1.0f},  // veri yok: notr gri
+    {{{0.55f, 0.55f, 0.58f, 0.80f},  // IFR: soluk gri (varsayilan kapali)
+      {0.62f, 0.62f, 0.65f, 0.70f},
+      {0.68f, 0.68f, 0.70f, 0.60f},
+      {0.74f, 0.74f, 0.76f, 0.45f},
+      {0.45f, 0.45f, 0.48f, 0.80f},
+      {0.60f, 0.55f, 0.70f, 0.60f}}},
+    {0.93f, 0.88f, 0.74f, 1.0f},  // yerlesim: soluk bej
 };
 
 }  // namespace
@@ -202,6 +237,8 @@ TerrainImageStyle TerrainStyleFor(MapMode pMode)
     tStyle.mStyle = tTheme.mTerrainStyle;
     tStyle.mLand = {tToByte(tTheme.mBackground.mR), tToByte(tTheme.mBackground.mG), tToByte(tTheme.mBackground.mB)};
     tStyle.mWater = {tToByte(tTheme.mWater.mR), tToByte(tTheme.mWater.mG), tToByte(tTheme.mWater.mB)};
+    tStyle.mHasBuiltUp = tTheme.mBuiltUp.mA > 0.0f;
+    tStyle.mBuiltUp = {tToByte(tTheme.mBuiltUp.mR), tToByte(tTheme.mBuiltUp.mG), tToByte(tTheme.mBuiltUp.mB)};
     return tStyle;
 }
 

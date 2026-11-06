@@ -23,6 +23,8 @@ const uint32_t kAtomNetw = AtomId('N', 'E', 'T', 'W');
 const uint32_t kAtomGeod = AtomId('G', 'E', 'O', 'D');
 const uint32_t kAtomPool = AtomId('P', 'O', 'O', 'L');
 const uint32_t kAtomScal = AtomId('S', 'C', 'A', 'L');
+const uint32_t kAtomPool32 = AtomId('P', 'O', '3', '2');
+const uint32_t kAtomScal32 = AtomId('S', 'C', '3', '2');
 const uint32_t kAtomCmds = AtomId('C', 'M', 'D', 'S');
 const uint32_t kAtomDemn = AtomId('D', 'E', 'M', 'N');
 const uint32_t kAtomDems = AtomId('D', 'E', 'M', 'S');
@@ -157,7 +159,23 @@ void ForEachAtom(const uint8_t* pData, size_t pSize, tVisitor pVisitor)
 }
 
 // Duzlemsel sayi atomunun bir duzlemini cozer (16 bit). pOut bos ise atlanir.
-bool DecodePlane(Cursor& pCursor, int pCount, std::vector<uint16_t>* pOut)
+// Bir duzlemin degerlerini cozer: ham / fark / RLE / RLE + fark. TValue: uint16_t (POOL) veya uint32_t (PO32);
+// kurallar ikisinde ayni, sadece deger genisligi farkli.
+template <typename TValue>
+TValue ReadValue(Cursor& pCursor)
+{
+    if constexpr (sizeof(TValue) == 2)
+    {
+        return pCursor.U16();
+    }
+    else
+    {
+        return pCursor.U32();
+    }
+}
+
+template <typename TValue>
+bool DecodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
 {
     const uint8_t tEncoding = pCursor.U8();
     const bool tDifferenced = (tEncoding == 1 || tEncoding == 3);
@@ -166,13 +184,13 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<uint16_t>* pOut)
     {
         return false;
     }
-    std::vector<uint16_t> tValues;
+    std::vector<TValue> tValues;
     tValues.reserve(static_cast<size_t>(pCount));
     if (!tRunLength)
     {
         for (int tIndex = 0; tIndex < pCount; ++tIndex)
         {
-            tValues.push_back(pCursor.U16());
+            tValues.push_back(ReadValue<TValue>(pCursor));
         }
     }
     else
@@ -185,7 +203,7 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<uint16_t>* pOut)
             const int tRun = tControl & 0x7F;
             if (tControl & 0x80)
             {
-                const uint16_t tValue = pCursor.U16();
+                const TValue tValue = ReadValue<TValue>(pCursor);
                 for (int tRepeat = 0; tRepeat < tRun; ++tRepeat)
                 {
                     tValues.push_back(tValue);
@@ -195,7 +213,7 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<uint16_t>* pOut)
             {
                 for (int tLiteral = 0; tLiteral < tRun; ++tLiteral)
                 {
-                    tValues.push_back(pCursor.U16());
+                    tValues.push_back(ReadValue<TValue>(pCursor));
                 }
             }
         }
@@ -203,11 +221,11 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<uint16_t>* pOut)
     }
     if (tDifferenced)
     {
-        // Her deger bir oncekine gore fark: toplam al (16 bit tasma beklenen davranis)
-        uint16_t tSum = 0;
-        for (uint16_t& tValue : tValues)
+        // Her deger bir oncekine gore fark: toplam al (16 / 32 bit tasma beklenen davranis)
+        TValue tSum = 0;
+        for (TValue& tValue : tValues)
         {
-            tSum = static_cast<uint16_t>(tSum + tValue);
+            tSum = static_cast<TValue>(tSum + tValue);
             tValue = tSum;
         }
     }
@@ -225,6 +243,7 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
     mData = &pData;
     mInfo = DsfInfo();
     mPools.clear();
+    mPools32.clear();
     mCommandsOffset = 0;
     mCommandsSize = 0;
     mRasterNames.clear();
@@ -242,7 +261,8 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
         return false;
     }
 
-    int tScaleIndex = 0;  // k. SCAL, k. POOL'a aittir
+    int tScaleIndex = 0;    // k. SCAL, k. POOL'a aittir
+    int tScale32Index = 0;  // k. SC32, k. PO32'ye aittir
     bool tPoolFailed = false;
     const size_t tBodySize = pData.size() - kHeaderSize - kFooterSize;
     ForEachAtom(pData.data() + kHeaderSize, tBodySize,
@@ -301,6 +321,29 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
                                         {
                                             ReadScale(pSub, pSubSize, &mPools[tScaleIndex]);
                                             ++tScaleIndex;
+                                        }
+                                        else if (pSubId == kAtomPool32)
+                                        {
+                                            Pool32 tPool;
+                                            tPoolFailed = tPoolFailed || !ReadPool32(pSub, pSubSize, &tPool);
+                                            mPools32.push_back(std::move(tPool));
+                                        }
+                                        else if (pSubId == kAtomScal32 &&
+                                                 tScale32Index < static_cast<int>(mPools32.size()))
+                                        {
+                                            Pool32& tPool = mPools32[tScale32Index];
+                                            Cursor tCursor{pSub, pSubSize};
+                                            for (int tPlane = 0; tPlane < tPool.mPlaneCount && tCursor.Has(8); ++tPlane)
+                                            {
+                                                const double tScale = tCursor.F32();
+                                                const double tOffset = tCursor.F32();
+                                                if (tPlane < 2)
+                                                {
+                                                    tPool.mScale[tPlane] = tScale;
+                                                    tPool.mOffset[tPlane] = tOffset;
+                                                }
+                                            }
+                                            ++tScale32Index;
                                         }
                                     });
                     }
@@ -470,7 +513,23 @@ bool DsfReader::ReadPool(const uint8_t* pData, size_t pSize, Pool* pOut) const
     for (int tPlane = 0; tPlane < pOut->mPlaneCount; ++tPlane)
     {
         std::vector<uint16_t>* tTarget = (tPlane < 3) ? &pOut->mPlanes[tPlane] : nullptr;
-        if (!DecodePlane(tCursor, pOut->mCount, tTarget))
+        if (!DecodePlane<uint16_t>(tCursor, pOut->mCount, tTarget))
+        {
+            return false;
+        }
+    }
+    return !tCursor.mFailed;
+}
+
+bool DsfReader::ReadPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) const
+{
+    Cursor tCursor{pData, pSize};
+    pOut->mCount = static_cast<int>(tCursor.U32());
+    pOut->mPlaneCount = tCursor.U8();
+    for (int tPlane = 0; tPlane < pOut->mPlaneCount; ++tPlane)
+    {
+        std::vector<uint32_t>* tTarget = (tPlane < 2) ? &pOut->mPlanes[tPlane] : nullptr;
+        if (!DecodePlane<uint32_t>(tCursor, pOut->mCount, tTarget))
         {
             return false;
         }
@@ -956,6 +1015,278 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
     if (tCursor.mFailed)
     {
         *pError = "DSF command stream is truncated";
+        return false;
+    }
+    return true;
+}
+
+bool DsfReader::ForEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
+                              const std::function<void(const DsfChain&)>& pChainVisitor, std::string* pError) const
+{
+    if (!mData || mCommandsSize == 0)
+    {
+        return true;
+    }
+    Cursor tCursor{mData->data() + mCommandsOffset, mCommandsSize};
+    int tPool = 0;
+    uint32_t tJunctionOffset = 0;
+    int tDefinition = 0;
+    int tRoadSubtype = 0;
+    bool tBadIndex = false;
+
+    // 16 bitlik havuzdan (poligonlar) bir nokta
+    auto tPoint16 = [&](int pIndex, double* pLon, double* pLat)
+    {
+        if (tPool < 0 || tPool >= static_cast<int>(mPools.size()) || pIndex < 0 || pIndex >= mPools[tPool].mCount ||
+            mPools[tPool].mPlaneCount < 2)
+        {
+            tBadIndex = true;
+            return;
+        }
+        *pLon = PlaneValue(mPools[tPool], 0, pIndex);
+        *pLat = PlaneValue(mPools[tPool], 1, pIndex);
+    };
+    // 32 bitlik havuzdan (zincirler) bir nokta; olcek 16 bitlikle ayni kural: ham / (2^32 - 1) * olcek + kaydirma
+    auto tPoint32 = [&](uint32_t pIndex, double* pLon, double* pLat)
+    {
+        if (tPool < 0 || tPool >= static_cast<int>(mPools32.size()) ||
+            pIndex >= static_cast<uint32_t>(mPools32[tPool].mCount) || mPools32[tPool].mPlaneCount < 2)
+        {
+            tBadIndex = true;
+            return;
+        }
+        const Pool32& tSource = mPools32[tPool];
+        double tValue[2];
+        for (int tPlane = 0; tPlane < 2; ++tPlane)
+        {
+            const double tRaw = tSource.mPlanes[tPlane][pIndex];
+            tValue[tPlane] = tSource.mScale[tPlane] == 0.0
+                                 ? tRaw
+                                 : tRaw / 4294967295.0 * tSource.mScale[tPlane] + tSource.mOffset[tPlane];
+        }
+        *pLon = tValue[0];
+        *pLat = tValue[1];
+    };
+
+    DsfPolygon tPolygon;
+    auto tBeginPolygon = [&](int pParameter)
+    {
+        tPolygon.mDefinition = tDefinition;
+        tPolygon.mParameter = pParameter;
+        tPolygon.mRingLon.clear();
+        tPolygon.mRingLat.clear();
+    };
+    auto tAddRing = [&]()
+    {
+        tPolygon.mRingLon.emplace_back();
+        tPolygon.mRingLat.emplace_back();
+    };
+    auto tAddRingPoint = [&](int pIndex)
+    {
+        double tLon = 0.0;
+        double tLat = 0.0;
+        tPoint16(pIndex, &tLon, &tLat);
+        tPolygon.mRingLon.back().push_back(tLon);
+        tPolygon.mRingLat.back().push_back(tLat);
+    };
+    auto tEmitPolygon = [&]()
+    {
+        if (pPolygonVisitor && !tBadIndex)
+        {
+            pPolygonVisitor(tPolygon);
+        }
+    };
+
+    DsfChain tChain;
+    auto tBeginChain = [&]()
+    {
+        tChain.mDefinition = tDefinition;
+        tChain.mSubtype = tRoadSubtype;
+        tChain.mLon.clear();
+        tChain.mLat.clear();
+    };
+    auto tAddChainPoint = [&](uint32_t pIndex)
+    {
+        double tLon = 0.0;
+        double tLat = 0.0;
+        tPoint32(pIndex, &tLon, &tLat);
+        tChain.mLon.push_back(tLon);
+        tChain.mLat.push_back(tLat);
+    };
+    auto tEmitChain = [&]()
+    {
+        if (pChainVisitor && !tBadIndex && tChain.mLon.size() >= 2)
+        {
+            pChainVisitor(tChain);
+        }
+    };
+
+    while (tCursor.mPosition < tCursor.mSize && !tCursor.mFailed && !tBadIndex)
+    {
+        const uint8_t tCommand = tCursor.U8();
+        switch (tCommand)
+        {
+            case kPoolSelect:
+                tPool = tCursor.U16();
+                break;
+            case kJunctionOffset:
+                tJunctionOffset = tCursor.U32();
+                break;
+            case kSetDefinition8:
+                tDefinition = tCursor.U8();
+                break;
+            case kSetDefinition16:
+                tDefinition = tCursor.U16();
+                break;
+            case kSetDefinition32:
+                tDefinition = static_cast<int>(tCursor.U32());
+                break;
+            case kRoadSubtype8:
+                tRoadSubtype = tCursor.U8();
+                break;
+            case kObject:
+                tCursor.Skip(2);
+                break;
+            case kObjectRange:
+                tCursor.Skip(4);
+                break;
+            case kNetworkChain:
+            {
+                // Belge: 9 ve 10 indekslere junction offset'i ekler, 11 eklemez
+                const int tCount = tCursor.U8();
+                tBeginChain();
+                for (int tIndex = 0; tIndex < tCount; ++tIndex)
+                {
+                    tAddChainPoint(tJunctionOffset + tCursor.U16());
+                }
+                tEmitChain();
+                break;
+            }
+            case kNetworkChainRange:
+            {
+                const uint32_t tFirst = tCursor.U16();
+                const uint32_t tLast = tCursor.U16();
+                tBeginChain();
+                for (uint32_t tIndex = tFirst; tIndex < tLast; ++tIndex)
+                {
+                    tAddChainPoint(tJunctionOffset + tIndex);
+                }
+                tEmitChain();
+                break;
+            }
+            case kNetworkChain32:
+            {
+                const int tCount = tCursor.U8();
+                tBeginChain();
+                for (int tIndex = 0; tIndex < tCount; ++tIndex)
+                {
+                    tAddChainPoint(tCursor.U32());
+                }
+                tEmitChain();
+                break;
+            }
+            case kPolygon:
+            {
+                tBeginPolygon(tCursor.U16());
+                const int tCount = tCursor.U8();
+                tAddRing();
+                for (int tIndex = 0; tIndex < tCount; ++tIndex)
+                {
+                    tAddRingPoint(tCursor.U16());
+                }
+                tEmitPolygon();
+                break;
+            }
+            case kPolygonRange:
+            {
+                tBeginPolygon(tCursor.U16());
+                const int tFirst = tCursor.U16();
+                const int tLast = tCursor.U16();
+                tAddRing();
+                for (int tIndex = tFirst; tIndex < tLast; ++tIndex)
+                {
+                    tAddRingPoint(tIndex);
+                }
+                tEmitPolygon();
+                break;
+            }
+            case kNestedPolygon:
+            {
+                tBeginPolygon(tCursor.U16());
+                const int tWindings = tCursor.U8();
+                for (int tWinding = 0; tWinding < tWindings; ++tWinding)
+                {
+                    const int tCount = tCursor.U8();
+                    tAddRing();
+                    for (int tIndex = 0; tIndex < tCount; ++tIndex)
+                    {
+                        tAddRingPoint(tCursor.U16());
+                    }
+                }
+                tEmitPolygon();
+                break;
+            }
+            case kNestedPolygonRange:
+            {
+                // GERCEK VERI: sayac N iken N + 1 indeks; halka k = [indeks k, indeks k + 1)
+                tBeginPolygon(tCursor.U16());
+                const int tCount = tCursor.U8();
+                std::vector<int> tBounds;
+                for (int tIndex = 0; tIndex <= tCount; ++tIndex)
+                {
+                    tBounds.push_back(tCursor.U16());
+                }
+                for (int tWinding = 0; tWinding < tCount; ++tWinding)
+                {
+                    tAddRing();
+                    for (int tIndex = tBounds[tWinding]; tIndex < tBounds[tWinding + 1]; ++tIndex)
+                    {
+                        tAddRingPoint(tIndex);
+                    }
+                }
+                tEmitPolygon();
+                break;
+            }
+            case kTerrainPatch:
+                break;
+            case kTerrainPatchFlags:
+                tCursor.Skip(1);
+                break;
+            case kTerrainPatchFlagsLod:
+                tCursor.Skip(9);
+                break;
+            case kTriangle:
+            case kTriangleStrip:
+            case kTriangleFan:
+                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                break;
+            case kTriangleCrossPool:
+            case kTriangleStripCrossPool:
+            case kTriangleFanCrossPool:
+                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 4);
+                break;
+            case kTriangleRange:
+            case kTriangleStripRange:
+            case kTriangleFanRange:
+                tCursor.Skip(4);
+                break;
+            case kComment8:
+                tCursor.Skip(tCursor.U8());
+                break;
+            case kComment16:
+                tCursor.Skip(tCursor.U16());
+                break;
+            case kComment32:
+                tCursor.Skip(tCursor.U32());
+                break;
+            default:
+                *pError = "unknown DSF command " + std::to_string(tCommand);
+                return false;
+        }
+    }
+    if (tCursor.mFailed || tBadIndex)
+    {
+        *pError = tBadIndex ? "DSF vector command refers to a missing point" : "DSF command stream is truncated";
         return false;
     }
     return true;

@@ -11,7 +11,7 @@ başlayabilmesi için yazıldı. Tamamını oku. Sonra:
 - Her kaynak dosyanın başında Türkçe bir açıklama bloğu var (ne yapar, neden,
   zoom eşikleri, küçük şemalar). Bir dosyayı değiştirmeden önce o bloğu oku.
 
-Durum tarihi: **2026-11-07**, sürüm **0.16**.
+Durum tarihi: **2026-11-07**, sürüm **0.17**.
 
 ---
 
@@ -135,7 +135,7 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 | CMake seçeneği | Ne |
 |---|---|
 | `MAP_DEPLOY` (ON) | Derlemeden sonra `win.xpl`'yi `C:\X-Plane 11\Resources\plugins\MapPlugin\64\`'e kopyalar. X-Plane açıkken dosya kilitlidir: önce `tasklist \| findstr X-Plane` |
-| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-07: 30.496 kontrol) |
+| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-07: 30.512 kontrol) |
 | `MAP_PREVIEW` | `map_preview.exe` ve `dsf_info.exe` |
 | `XPLANE_DIR`, `XPSDK` | Farklı X-Plane / SDK klasörü |
 
@@ -241,6 +241,20 @@ işaretli. Değiştirmeden önce oku.
 - LZMA (satır farkı + bayt düzlemi, gerçek DEM): seviye 0–4 hızlı mod,
   ~0,75 MB, 240–310 ms; seviye 5 normal mod 0,68 MB ama 5 kat yavaş. Seçim 4.
   Açma ~50 ms.
+
+**DSF vektörleri (Aşama 2, 2026-11-07)**
+- Dışlama özelliği değeri: `"batı/güney/doğu/kuzey"` (derece), ör.
+  `sim/exclude_for = -122.477855/47.454691/-122.476225/47.461676`.
+- Yol zincirleri `PO32` havuzundan; ölçek 16 bitlikle aynı kural varsayıldı
+  (ham / (2³²−1) × ölçek + kaydırma). Önizlemede yollar kıyı ve havalimanlarıyla
+  hizalı çıktı: varsayım gerçek veriyle tutuyor. Komut 9/10 indekslere junction
+  offset ekler, 11 eklemez (belge).
+- KSEA karosunda (+47-123) kullanılan: 56.325 alan (orman + yerleşim + park),
+  274.078 yol/demiryolu/enerji hattı zinciri.
+- **Kaspersky**, taze derlenmiş `dsf_info.exe`'yi `VHO:Trojan.Win64.Loader.gen`
+  diye yakaladı (sezgisel yanlış alarm: imzasız, 7z açıcı içeren yeni exe).
+  Kullanıcıya derleme klasörlerini istisna yapması önerildi; exe karantinaya
+  alınırsa sadece yeniden derle.
 
 **Süreler (önbelleksiz karo):** 7z açma 150–490 ms, DSF Open 8–16 ms, üçgen
 geçişi 17–21 ms, DEM 2 ms; karo üretimi toplam 0,4–0,5 s; yakın zoom üçgen
@@ -359,7 +373,8 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 | 0.11–0.12 | Havalimanı nesneleri, tooltip, indeks önbelleği; ışıklar, taksi ağı, gruplu panel | denendi ("güzel") |
 | 0.13 | Harita modları, VOR pusula gülü, helipad'li heliport'lar | kullanıcı "güzel gözüküyor" dedi; ayrıntılı test listesi raporlanmadı |
 | 0.14–0.15 | (kullanıcının commit'i `4ee9d95`) Yakın zoom zemini (seviye 4–5, DSF üçgenlerinden), bikubik gölge, mipmap, sınır kıvırma, kara renk karışımı; alt katmanlar; yüzen çizim paleti; pop-out VAO düzeltmesi; zoom eşikleri bir kademe erken, en çok zoom 16.5 | denendi (kullanıcı: zemin kalitesiz → zemin görevi) |
-| 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | **denenmedi**: README test listesi (0.16) |
+| 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | denendi: sorunsuz; kullanıcı "gelişme var ama yeterince iyi değil" |
+| 0.17 | Aşama 3: sınıf renkleri X-Plane'in `.ter` dokularından (`TerrainPaletteSource`, `[palette] source`). Aşama 2: DSF vektörleri (`TerrainVectors`, `.vectors` önbelleği, dışlamalar): orman ve yerleşim zemine işlenir (Terrain alt katmanları Forests / Built-up areas; VFR'da yerleşim sarı), yollar / demiryolu / enerji hattı yeni `RoadLayer` (Roads and railways, 6 alt katman). Raster önbelleği v4, palet v3 | **denenmedi** |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.
 
@@ -368,24 +383,23 @@ Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme
 - Mod renkleri FAA geleneğinden; X-Plane'in kendi haritasıyla karşılaştırılıp
   ayarlanmadı (kullanıcıdan ekran görüntüsü istenebilir).
 - IFR Low'da zoom 9'da fix'ler yoğun. MEF rakamları, hava sahası sınırları yok.
-- Zemin önbelleğinin disk sınırı yok. Eski `HaritaPlugin` eklenti klasörü
-  (sadece eski README + ikon, etkisiz) silinebilir — kullanıcıya sor.
+- Zemin önbelleğinin disk sınırı yok (karo başına ~3-4 MB: raster, rakım, vektör).
+  Eski `HaritaPlugin` klasörü artık yok (2026-11-07 kontrol edildi).
 
 ### Zemin yol haritası (kullanıcı onayladı: 0 → 1 → 3 → 2, sonra 4)
 - **Aşama 0** (bitti) envanter; **Aşama 1** (bitti, X-Plane'de denenmedi)
   kabartma ve su. Kararlar: su için DSF esas (`map data/water` sadeleştirilmiş,
   sadece kurulu olmayan karo / hızlı ilk görüntü için); kıyıya sahte ayrıntı
   yok; su tonu = kıyı şeridi + `sea_level` derinliği; VFR bantları sectional.
-- **Aşama 3** (sıradaki): paleti `.ter` dokularından çıkarmak. `BASE_TEX` DXT5
-  `.dds` (küçük mip seviyesi çözülecek); `library.txt` `REGION` blokları:
-  karonun konumuna göre doğru bölgenin `.ter`'i seçilmeli.
-- **Aşama 2:** DSF vektör katmanları (orman `.for`, yerleşim `.ags/.fac`
-  alan olarak, yollar alt türe göre, demiryolu; enerji hatları varsayılan
-  kapalı alt katman). Yollar `PO32`/`SC32` 32 bitlik havuzda (okuyucu henüz
-  okumuyor). Dışlama alanlarına uy. 280 bin yol zinciri: LOD + Douglas-Peucker
-  + zoom eşikleri şart. `beaches.bch` kıyı şeritleri burada değerlendirilecek.
-  `DsfReader::CountCommands` ile `ForEachTriangle` tek komut gezgininde
-  birleştirilecek.
+- **Aşama 3** (bitti, 0.17): sınıf başına ortalama renk, global `terrain10`
+  setinden (bölgesel `REGION` kopyaları kullanılmadı; kullanıcı "sınıf başına
+  ortalama" seçti). Sonuç `cache/terrain/xplane_palette.txt`.
+- **Aşama 2** (bitti, 0.17): kararlar: orman zemine işlenir; varsayılan
+  Scenery hepsi açık, VFR yol + demiryolu + yerleşim, IFR kapalı; enerji hattı
+  her modda kapalı. Kalan: `beaches.bch` kullanılmadı; VFR yerleşim sarısı
+  autogen blokları yüzünden lekeli (birleştirme / yumuşatma düşünülebilir);
+  `DsfReader`'da üç komut döngüsü (`ForEachTriangle`, `CountCommands`,
+  `ForEachVector`) hâlâ ayrı (teknik borç).
 - **Aşama 4:** iki işçi, merkezden kenara öncelik, nesil sayacıyla iptal, rota
   önyükleme, önceden önbellek komutu; hedefler Aşama 0 ölçümüne göre (önbellekte
   < 0,1 s, kaba ilk görüntü < 0,1 s hızlı yoldan, karo başına tam görüntü

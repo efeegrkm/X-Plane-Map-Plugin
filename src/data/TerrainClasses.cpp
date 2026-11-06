@@ -149,7 +149,8 @@ void TerrainPalette::Load(const Settings& pSettings)
 {
     // Eski surum dosyadaki renkler eski varsayilanlardir: yenilerini ezmesin
     mLoadedCurrentVersion = pSettings.GetInt("palette", "version", 1) >= kPaletteVersion;
-    if (mLoadedCurrentVersion)
+    mUseXPlaneColors = !mLoadedCurrentVersion || pSettings.GetString("palette", "source", "xplane") != "ini";
+    if (mLoadedCurrentVersion && !mUseXPlaneColors)
     {
         for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
         {
@@ -231,6 +232,7 @@ void TerrainPalette::Load(const Settings& pSettings)
 void TerrainPalette::Save(Settings& pSettings) const
 {
     pSettings.SetInt("palette", "version", kPaletteVersion);
+    pSettings.SetString("palette", "source", mUseXPlaneColors ? "xplane" : "ini");
     for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
     {
         const TerrainColor& tColor = mColors[tIndex];
@@ -382,6 +384,23 @@ std::array<TerrainColor, kTerrainClassCount> TerrainPalette::MixedColors(double 
 bool TerrainPalette::LoadedCurrentVersion() const
 {
     return mLoadedCurrentVersion;
+}
+
+bool TerrainPalette::UsesXPlaneColors() const
+{
+    return mUseXPlaneColors;
+}
+
+void TerrainPalette::ApplyDerivedColors(const std::array<TerrainColor, kTerrainClassCount>& pColors,
+                                        const std::array<int, kTerrainClassCount>& pCounts)
+{
+    for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
+    {
+        if (pCounts[tIndex] > 0 && static_cast<TerrainClass>(tIndex) != TerrainClass::Water)
+        {
+            mColors[tIndex] = pColors[tIndex];
+        }
+    }
 }
 
 const TerrainReliefParams& TerrainPalette::Relief() const

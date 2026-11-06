@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "MapView.h"
+#include "data/TerrainRaster.h"
 #include "gfx/Canvas.h"
 
 namespace
@@ -67,6 +68,8 @@ TerrainLayer::TerrainLayer(TerrainStore& pStore, const TerrainPalette& pPalette)
     , mStore(pStore)
     , mPalette(pPalette)
 {
+    mForestPart = AddSubLayer("forests", "Forests");
+    mBuiltUpPart = AddSubLayer("built_up", "Built-up areas");
 }
 
 int TerrainLayer::TextureCount() const
@@ -169,7 +172,7 @@ void TerrainLayer::EvictUnused()
 }
 
 void TerrainLayer::DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, const GeoBounds& pBounds, int pLevel,
-                                    int pLon, int pLat, double pTileWest, int pStyle,
+                                    int pLon, int pLat, double pTileWest, int pStyle, int pAreas,
                                     std::vector<Gfx::TexturedVertex>& pStrips)
 {
     const int tCount = TerrainStore::ChunksPerSide(pLevel);
@@ -185,7 +188,7 @@ void TerrainLayer::DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, 
         for (int tColumn = tFirstColumn; tColumn <= tLastColumn; ++tColumn)
         {
             const int tChunk = tRow * tCount + tColumn;
-            const TerrainImageKey tKey = {pLon, pLat, pLevel, tChunk, pStyle};
+            const TerrainImageKey tKey = {pLon, pLat, pLevel, tChunk, pStyle, pAreas};
             const Gfx::Texture* tTexture = UseTexture(tKey);
             if (!tTexture)
             {
@@ -226,6 +229,16 @@ void TerrainLayer::Draw(const DrawContext& pContext)
     // Harita modu: goruntu bicimi (dokular moda gore ayri tutulur) ve deniz rengi
     const MapTheme& tTheme = *pContext.mTheme;
     const int tStyle = static_cast<int>(tTheme.mMode);
+    // Asama 2: DSF vektor alanlari zemine islenir (orman sadece Scenery'nin sinif renklerinde anlamli)
+    int tAreas = 0;
+    if (IsSubLayerVisible(mForestPart) && tTheme.mTerrainStyle == TerrainStyle::Classes)
+    {
+        tAreas |= TerrainRaster::kAreaForest;
+    }
+    if (IsSubLayerVisible(mBuiltUpPart))
+    {
+        tAreas |= TerrainRaster::kAreaBuiltUp;
+    }
     const TerrainColor& tWaterColor = mPalette.ColorOf(TerrainClass::Water);
     const Rgba tWater = tTheme.mTerrainStyle == TerrainStyle::Classes
                             ? Rgba{tWaterColor.mR / 255.0f, tWaterColor.mG / 255.0f, tWaterColor.mB / 255.0f, 1.0f}
@@ -267,15 +280,15 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             const Gfx::Texture* tTexture = nullptr;
             for (int tTry = tFullLevel; tTry >= 0 && !tTexture; --tTry)
             {
-                tTexture = UseTexture({tLon, tLat, tTry, 0, tStyle});
+                tTexture = UseTexture({tLon, tLat, tTry, 0, tStyle, tAreas});
             }
-            if (!UseTexture({tLon, tLat, tFullLevel, 0, tStyle}))
+            if (!UseTexture({tLon, tLat, tFullLevel, 0, tStyle, tAreas}))
             {
-                mStore.Request({tLon, tLat, tFullLevel, 0, tStyle});
+                mStore.Request({tLon, tLat, tFullLevel, 0, tStyle, tAreas});
             }
-            if (!UseTexture({tLon, tLat, 0, 0, tStyle}))
+            if (!UseTexture({tLon, tLat, 0, 0, tStyle, tAreas}))
             {
-                mStore.Request({tLon, tLat, 0, 0, tStyle});  // en kaba seviye hep olsun: hizli yedek
+                mStore.Request({tLon, tLat, 0, 0, tStyle, tAreas});  // en kaba seviye hep olsun: hizli yedek
             }
             if (tTexture)
             {
@@ -296,10 +309,10 @@ void TerrainLayer::Draw(const DrawContext& pContext)
                     {
                         continue;
                     }
-                    const Gfx::Texture* tChunkTexture = UseTexture({tLon, tLat, 3, tChunk, tStyle});
+                    const Gfx::Texture* tChunkTexture = UseTexture({tLon, tLat, 3, tChunk, tStyle, tAreas});
                     if (!tChunkTexture)
                     {
-                        mStore.Request({tLon, tLat, 3, tChunk, tStyle});
+                        mStore.Request({tLon, tLat, 3, tChunk, tStyle, tAreas});
                         continue;
                     }
                     tStrips.clear();
@@ -314,13 +327,13 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             if (tLevel >= TerrainStore::kDetailLevel)
             {
                 DrawDetailChunks(tCanvas, tView, tBounds, TerrainStore::kDetailLevel, tLon, tLat, tTileWest, tStyle,
-                                 tStrips);
+                                 tAreas, tStrips);
             }
             // Cok yakin zoom: 1/128 derecelik parcalar
             if (tLevel == TerrainStore::kFineLevel)
             {
                 DrawDetailChunks(tCanvas, tView, tBounds, TerrainStore::kFineLevel, tLon, tLat, tTileWest, tStyle,
-                                 tStrips);
+                                 tAreas, tStrips);
             }
         }
     }

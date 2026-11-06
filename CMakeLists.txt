@@ -47,6 +47,8 @@ set(CORE_SOURCES
     src/data/SceneryPacks.cpp
     src/data/SceneryIndex.cpp
     src/data/TerrainClasses.cpp
+    src/data/TerrainVectors.cpp
+    src/data/TerrainPaletteSource.cpp
     src/data/WorldTileMap.cpp
     src/data/ElevationCodec.cpp
     src/data/TerrainElevation.cpp
@@ -78,6 +80,7 @@ set(PLUGIN_SOURCES
     src/gfx/Texture.cpp
     src/layers/MapSymbols.cpp
     src/layers/TerrainLayer.cpp
+    src/layers/RoadLayer.cpp
     src/layers/AirportSurfaceLayer.cpp
     src/layers/AirportObjectsLayer.cpp
     src/layers/TaxiRouteLayer.cpp
@@ -219,6 +222,7 @@ if(MAP_PREVIEW AND WIN32)
         src/gfx/Texture.cpp
         src/layers/MapSymbols.cpp
         src/layers/TerrainLayer.cpp
+        src/layers/RoadLayer.cpp
         src/layers/AirportSurfaceLayer.cpp
         src/layers/AirportObjectsLayer.cpp
         src/layers/TaxiRouteLayer.cpp

@@ -44,6 +44,8 @@
 #include "layers/NavaidLayer.h"
 #include "layers/RunwayLayer.h"
 #include "layers/TerrainLayer.h"
+#include "layers/RoadLayer.h"
+#include "data/TerrainPaletteSource.h"
 #include "tools/preview/FileNavLoader.h"
 #include "tools/preview/XplmStubs.h"
 #include "ui/LayerPanel.h"
@@ -362,10 +364,22 @@ int main(int pArgc, char** pArgv)
             std::fprintf(stderr, "cannot read terrain colors: %s\n", tOptions.mTerrainColors.c_str());
         }
     }
+    if (tPalette.UsesXPlaneColors())
+    {
+        // Eklentiyle ayni: sinif renkleri X-Plane'in arazi dokularindan (Asama 3)
+        XPlaneClassColors tDerived;
+        std::string tReport;
+        if (LoadXPlaneClassColors(tOptions.mXPlane, tOptions.mCache + "xplane_palette.txt", &tDerived, &tReport))
+        {
+            tPalette.ApplyDerivedColors(tDerived.mColors, tDerived.mTextureCounts);
+        }
+        std::printf("%s\n", tReport.c_str());
+    }
     TerrainStore tTerrain;
     tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette, AllTerrainStyles());
     LayerManager tLayers;
     tLayers.Add(std::make_unique<TerrainLayer>(tTerrain, tPalette));
+    Layer* tRoadLayer = tLayers.Add(std::make_unique<RoadLayer>(tTerrain));
     AirportDetailStore tAirportDetails(tRunways);
     tAirportDetails.Start();
     Layer* tSurfaceLayer = tLayers.Add(std::make_unique<AirportSurfaceLayer>(tRunways, tAirportDetails));
@@ -430,6 +444,7 @@ int main(int pArgc, char** pArgv)
         tWarmup.mArea = ToRectD(tArea);
         tWarmup.mClearArea = tWarmup.mArea;
         tLayers.At(0)->Draw(tWarmup);
+        tRoadLayer->Draw(tWarmup);  // yol vektorlerini de iste
         tSurfaceLayer->Draw(tWarmup);  // havalimani ayrintilarini da iste
         tObjectsLayer->Draw(tWarmup);  // dugumsuz heliport'larinki de
         tAirportDetails.Update();

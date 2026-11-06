@@ -29,7 +29,7 @@ struct LayerGroup
 // Panel gruplari. Cizim sirasi Plugin.cpp'deki CreateLayers'tir; bu tablo
 // sadece paneldeki gorunumu belirler.
 const auto kGroups = std::to_array<LayerGroup>({
-    {"Map", {"terrain", "grid", nullptr, nullptr, nullptr, nullptr}},
+    {"Map", {"terrain", "roads", "grid", nullptr, nullptr, nullptr}},
     {"Airports", {"airports", "runways", "airport_surfaces", "airport_objects", "taxi_routes", nullptr}},
     {"Navaids", {"vor", "ndb", "ils", "fix", nullptr, nullptr}},
     {"Airways", {"airways_low", "airways_high", nullptr, nullptr, nullptr, nullptr}},

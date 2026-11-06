@@ -13,14 +13,17 @@
 #include "data/TerrainNoise.h"
 #include "data/TerrainRelief.h"
 #include "data/TerrainTriangles.h"
+#include "data/TerrainVectors.h"
 
 namespace
 {
 
 const char kMagic[4] = {'M', 'P', 'T', 'R'};
 // 2: rakim raster'i eklendi (VFR). 3 (0.16): golge ve rakim raster'lari cikti (rakim ayri
-// dosyada, TerrainElevation). Eski surum yeniden uretilir.
-const uint32_t kFileVersion = 3;
+// dosyada, TerrainElevation). 4 (Asama 2): vektor alan katmani (orman, yerlesim) eklendi.
+// Eski surum yeniden uretilir.
+const uint32_t kFileVersion = 4;
+const double kBuiltUpMix = 0.55;  // VFR / IFR: yerlesim alaninda kara rengi bu oranda yerlesim rengine karisir
 
 const double kPi = 3.14159265358979323846;
 const double kMetersPerDegreeLat = 110574.0;
@@ -185,6 +188,7 @@ void TerrainRaster::Reset(int pWest, int pSouth)
     mWest = pWest;
     mSouth = pSouth;
     mClasses.assign(static_cast<size_t>(kSize) * kSize, static_cast<uint8_t>(TerrainClass::None));
+    mAreas.clear();
 }
 
 int TerrainRaster::West() const
@@ -238,6 +242,54 @@ int TerrainRaster::CountOf(TerrainClass pClass) const
     return static_cast<int>(std::count(mClasses.begin(), mClasses.end(), static_cast<uint8_t>(pClass)));
 }
 
+void TerrainRaster::FillAreas(const TerrainVectors& pVectors)
+{
+    mAreas.assign(static_cast<size_t>(kSize) * kSize, static_cast<uint8_t>(TerrainClass::None));
+    const double tUnitsPerPixel = 1.0 / kSize;
+    for (const VectorArea& tArea : pVectors.Areas())
+    {
+        const uint8_t tValue = static_cast<uint8_t>(tArea.mClass);
+        FillVectorArea(tArea, 0.0, 1.0, kSize, kSize, kSize, kSize,
+                       [&](int pColumn, int pRow)
+                       {
+                           const size_t tIndex = static_cast<size_t>(pRow) * kSize + pColumn;
+                           const TerrainClass tOwn = static_cast<TerrainClass>(mClasses[tIndex]);
+                           if (tOwn == TerrainClass::None || tOwn == TerrainClass::Water ||
+                               pVectors.IsAreaExcluded(tArea.mClass, (pColumn + 0.5) * tUnitsPerPixel,
+                                                       1.0 - (pRow + 0.5) * tUnitsPerPixel))
+                           {
+                               return;
+                           }
+                           mAreas[tIndex] = tValue;
+                       });
+    }
+}
+
+bool TerrainRaster::IsAreaAllowed(TerrainClass pArea, int pAreaMask)
+{
+    if (pArea == TerrainClass::None)
+    {
+        return false;
+    }
+    return TerrainVectors::IsForestClass(pArea) ? (pAreaMask & kAreaForest) != 0 : (pAreaMask & kAreaBuiltUp) != 0;
+}
+
+TerrainClass TerrainRaster::AreaClassAt(int pX, int pY, TerrainClass pOwn, int pAreaMask, bool* pBuiltUp) const
+{
+    *pBuiltUp = false;
+    if (pAreaMask == 0 || mAreas.empty())
+    {
+        return pOwn;
+    }
+    const TerrainClass tArea = static_cast<TerrainClass>(mAreas[static_cast<size_t>(pY) * kSize + pX]);
+    if (!IsAreaAllowed(tArea, pAreaMask))
+    {
+        return pOwn;
+    }
+    *pBuiltUp = tArea == TerrainClass::Urban;
+    return tArea;
+}
+
 // --- 0.16: goruntunun son adimi (iki uretici de kullanir) ---
 
 namespace
@@ -252,6 +304,7 @@ struct ImageBuffers
     std::vector<float> mLandFraction;  // payli: kara orani 0..1, -1 = veri yok (None)
     std::vector<float> mCoverage;      // payli: kaplama orani 0..1 (alfa)
     std::vector<float> mLandRgb;       // cikti: Classes stilinde kara rengi (3 kanal, 0..255)
+    std::vector<float> mBuiltUp;       // cikti: kara orneklerinin yerlesim alani orani 0..1 (VFR / IFR sarisi)
     double mMetersPerPixelX = 1.0;
     double mMetersPerPixelY = 1.0;
     double mLatitude = 0.0;
@@ -270,6 +323,7 @@ struct ImageBuffers
         mLandFraction.assign(static_cast<size_t>(mPadded) * mPadded, -1.0f);
         mCoverage.assign(static_cast<size_t>(mPadded) * mPadded, 0.0f);
         mLandRgb.assign(static_cast<size_t>(pOutSize) * pOutSize * 3, 0.0f);
+        mBuiltUp.assign(static_cast<size_t>(pOutSize) * pOutSize, 0.0f);
     }
 
     size_t PaddedIndex(int pColumn, int pRow) const
@@ -403,6 +457,14 @@ void ComposeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
                     tLand[1] = tColor.mG;
                     tLand[2] = tColor.mB;
                 }
+                const float tBuiltUp = pBuffers.mBuiltUp[static_cast<size_t>(tRow) * tSize + tColumn];
+                if (pStyle.mStyle != TerrainStyle::Classes && pStyle.mHasBuiltUp && tBuiltUp > 0.0f)
+                {
+                    const double tMix = kBuiltUpMix * tBuiltUp;
+                    tLand[0] += (pStyle.mBuiltUp.mR - tLand[0]) * tMix;
+                    tLand[1] += (pStyle.mBuiltUp.mG - tLand[1]) * tMix;
+                    tLand[2] += (pStyle.mBuiltUp.mB - tLand[2]) * tMix;
+                }
                 if (tRelief)
                 {
                     const double tFactor = ReliefFactor(tSlopeEast, tSlopeNorth, pPalette.ShadingStrength(),
@@ -458,7 +520,7 @@ void ComposeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
 
 void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize, const TerrainPalette& pPalette,
                                const TerrainImageStyle& pStyle, std::vector<uint8_t>* pRgba,
-                               const ElevationTiles* pElevation) const
+                               const ElevationTiles* pElevation, int pAreaMask) const
 {
     const double tBlockX = static_cast<double>(pX1 - pX0) / pOutSize;
     const double tBlockY = static_cast<double>(pY1 - pY0) / pOutSize;
@@ -520,6 +582,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
     // 1) Payli alanin her pikseli: ornekleri say (karonun disi veri yok); kara renklerini topla.
     // Kara ornekleri yumusatma alanina da eklenir (su ve None eklenmez).
     std::vector<int> tLandCounts(static_cast<size_t>(pOutSize) * pOutSize, 0);
+    std::vector<int> tBuiltUpCounts(static_cast<size_t>(pOutSize) * pOutSize, 0);
     for (int tRow = -tPad; tRow < pOutSize + tPad; ++tRow)
     {
         for (int tColumn = -tPad; tColumn < pOutSize + tPad; ++tColumn)
@@ -528,6 +591,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
             const size_t tOut = tOutput ? static_cast<size_t>(tRow) * pOutSize + tColumn : 0;
             int tCovered = 0;
             int tLand = 0;
+            int tBuiltUp = 0;
             for (int tSampleY = 0; tSampleY < tSamplesY; ++tSampleY)
             {
                 const int tY = pY0 + static_cast<int>(std::floor((tRow + (tSampleY + 0.5) / tSamplesY) * tBlockY));
@@ -543,7 +607,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
                     {
                         continue;
                     }
-                    const TerrainClass tClass = tWarpedClass(tX, tY, tColumn, tRow);
+                    TerrainClass tClass = tWarpedClass(tX, tY, tColumn, tRow);
                     if (tClass == TerrainClass::None)
                     {
                         continue;
@@ -554,6 +618,9 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
                         continue;
                     }
                     ++tLand;
+                    bool tIsBuiltUp = false;
+                    tClass = AreaClassAt(tX, tY, tClass, pAreaMask, &tIsBuiltUp);  // vektor alani (orman, yerlesim)
+                    tBuiltUp += tIsBuiltUp ? 1 : 0;
                     const TerrainColor& tColor = tColors[static_cast<int>(tClass)];
                     if (tPlan.mPad > 0)
                     {
@@ -576,6 +643,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
             if (tOutput)
             {
                 tLandCounts[tOut] = tLand;
+                tBuiltUpCounts[tOut] = tBuiltUp;
             }
         }
     }
@@ -592,6 +660,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
         {
             continue;
         }
+        tBuffers.mBuiltUp[tOut] = static_cast<float>(tBuiltUpCounts[tOut]) / tLand;
         float* tRgb = &tBuffers.mLandRgb[tOut * 3];
         tRgb[0] /= tLand;
         tRgb[1] /= tLand;
@@ -613,7 +682,8 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
 
 void TerrainRaster::BuildDetailImage(const TerrainTriangles& pTriangles, int pChunksPerSide, int pChunk,
                                      int pOutSize, const TerrainPalette& pPalette, const TerrainImageStyle& pStyle,
-                                     std::vector<uint8_t>* pRgba, const ElevationTiles* pElevation) const
+                                     std::vector<uint8_t>* pRgba, const ElevationTiles* pElevation,
+                                     const TerrainVectors* pVectors, int pAreaMask) const
 {
     const int tChunks = pChunksPerSide;
     const int tChunkColumn = pChunk % tChunks;
@@ -669,6 +739,43 @@ void TerrainRaster::BuildDetailImage(const TerrainTriangles& pTriangles, int pCh
             tY[tCorner] = ((1.0 - tLat[tCorner]) * tChunks - tChunkRow) * pOutSize + tPad;
         }
         FillCells(tCells, tPadded, tX, tY, static_cast<uint8_t>(pTriangles.ClassOf(tIndex)));
+    }
+
+    // 2b) Vektor alanlari (orman, yerlesim): ucgenlerden cok daha ayrintili sinirlar. Sadece karaya, dislama
+    // alanlari disinda, maskenin izin verdigi siniflar. Piksel merkezinin karo birimi: x = x0 + (c + 0.5) / ppu.
+    std::vector<uint8_t> tBuiltUpCells;
+    if (pVectors && pAreaMask != 0)
+    {
+        const double tUnitsPerPixel = tDegreesPerPixel;
+        const double tX0 = static_cast<double>(tChunkColumn) / tChunks - tPad * tUnitsPerPixel;
+        const double tYTop = 1.0 - static_cast<double>(tChunkRow) / tChunks + tPad * tUnitsPerPixel;
+        const double tX1 = tX0 + tPadded * tUnitsPerPixel;
+        const double tYBottom = tYTop - tPadded * tUnitsPerPixel;
+        tBuiltUpCells.assign(static_cast<size_t>(tPadded) * tPadded, 0);
+        for (const VectorArea& tArea : pVectors->Areas())
+        {
+            if (!IsAreaAllowed(tArea.mClass, pAreaMask) || tArea.mBounds[2] < tX0 || tArea.mBounds[0] > tX1 ||
+                tArea.mBounds[3] < tYBottom || tArea.mBounds[1] > tYTop)
+            {
+                continue;
+            }
+            const uint8_t tValue = static_cast<uint8_t>(tArea.mClass);
+            const bool tIsBuiltUp = tArea.mClass == TerrainClass::Urban;
+            FillVectorArea(tArea, tX0, tYTop, 1.0 / tUnitsPerPixel, 1.0 / tUnitsPerPixel, tPadded, tPadded,
+                           [&](int pColumn, int pRow)
+                           {
+                               const size_t tIndex = static_cast<size_t>(pRow) * tPadded + pColumn;
+                               const TerrainClass tOwn = static_cast<TerrainClass>(tCells[tIndex]);
+                               if (tOwn == TerrainClass::None || tOwn == TerrainClass::Water ||
+                                   pVectors->IsAreaExcluded(tArea.mClass, tX0 + (pColumn + 0.5) * tUnitsPerPixel,
+                                                            tYTop - (pRow + 0.5) * tUnitsPerPixel))
+                               {
+                                   return;
+                               }
+                               tCells[tIndex] = tValue;
+                               tBuiltUpCells[tIndex] = tIsBuiltUp ? 1 : 0;
+                           });
+        }
     }
 
     // 3) Bukulmus sinif tamponu: kara-kara kurali (su ve None kayma ile yer degistirmez, kiyi aynen kalir).
@@ -768,6 +875,10 @@ void TerrainRaster::BuildDetailImage(const TerrainTriangles& pTriangles, int pCh
                 tOutRow >= pOutSize)
             {
                 continue;
+            }
+            if (!tBuiltUpCells.empty() && tBuiltUpCells[tIndex])
+            {
+                tBuffers.mBuiltUp[static_cast<size_t>(tOutRow) * pOutSize + tOutColumn] = 1.0f;
             }
             const TerrainColor& tOwnColor = tColors[static_cast<int>(tClass)];
             double tRgb[3] = {static_cast<double>(tOwnColor.mR), static_cast<double>(tOwnColor.mG),
@@ -910,6 +1021,25 @@ bool TerrainRaster::Save(const std::string& pPath, const std::string& pKey) cons
     }
     WriteU32(tFile, static_cast<uint32_t>(tRuns.size()));
     tFile.write(reinterpret_cast<const char*>(tRuns.data()), static_cast<std::streamsize>(tRuns.size()));
+
+    // Alan katmani (bossa 0 bayt): ayni RLE
+    tRuns.clear();
+    tIndex = 0;
+    while (tIndex < mAreas.size())
+    {
+        const uint8_t tValue = mAreas[tIndex];
+        size_t tRun = 1;
+        while (tIndex + tRun < mAreas.size() && mAreas[tIndex + tRun] == tValue && tRun < 65535)
+        {
+            ++tRun;
+        }
+        tRuns.push_back(static_cast<uint8_t>(tRun & 0xFF));
+        tRuns.push_back(static_cast<uint8_t>(tRun >> 8));
+        tRuns.push_back(tValue);
+        tIndex += tRun;
+    }
+    WriteU32(tFile, static_cast<uint32_t>(tRuns.size()));
+    tFile.write(reinterpret_cast<const char*>(tRuns.data()), static_cast<std::streamsize>(tRuns.size()));
     return static_cast<bool>(tFile);
 }
 
@@ -955,5 +1085,31 @@ bool TerrainRaster::Load(const std::string& pPath, const std::string& pKey)
         }
         mClasses.insert(mClasses.end(), tRun, tRuns[tIndex + 2]);
     }
-    return mClasses.size() == static_cast<size_t>(kSize) * kSize;
+    if (mClasses.size() != static_cast<size_t>(kSize) * kSize)
+    {
+        return false;
+    }
+    // Alan katmani
+    uint32_t tAreaBytes = 0;
+    if (!ReadU32(tFile, &tAreaBytes) || tAreaBytes % 3 != 0)
+    {
+        return false;
+    }
+    std::vector<uint8_t> tAreaRuns(tAreaBytes);
+    if (tAreaBytes > 0 &&
+        !tFile.read(reinterpret_cast<char*>(tAreaRuns.data()), static_cast<std::streamsize>(tAreaBytes)))
+    {
+        return false;
+    }
+    mAreas.clear();
+    for (size_t tIndex = 0; tIndex + 2 < tAreaRuns.size(); tIndex += 3)
+    {
+        const size_t tRun = tAreaRuns[tIndex] | (static_cast<size_t>(tAreaRuns[tIndex + 1]) << 8);
+        if (tAreaRuns[tIndex + 2] >= kTerrainClassCount || mAreas.size() + tRun > static_cast<size_t>(kSize) * kSize)
+        {
+            return false;
+        }
+        mAreas.insert(mAreas.end(), tRun, tAreaRuns[tIndex + 2]);
+    }
+    return mAreas.empty() || mAreas.size() == static_cast<size_t>(kSize) * kSize;
 }

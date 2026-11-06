@@ -218,6 +218,34 @@ int main(int pArgc, char** pArgv)
                     tEntry.first.second, tEntry.second.mChains, tEntry.second.mPoints);
     }
 
+    // Vektorler (poligon / zincir) koordinatlariyla: sayi ve nokta araligi (32 bitlik havuz olcegi kontrolu)
+    long long tPolygonPoints = 0;
+    long long tChainPoints = 0;
+    double tChainBox[4] = {1e9, 1e9, -1e9, -1e9};
+    const bool tVectorsOk = tReader.ForEachVector(
+        [&](const DsfPolygon& pPolygon)
+        {
+            for (const std::vector<double>& tRing : pPolygon.mRingLon)
+            {
+                tPolygonPoints += static_cast<long long>(tRing.size());
+            }
+        },
+        [&](const DsfChain& pChain)
+        {
+            tChainPoints += static_cast<long long>(pChain.mLon.size());
+            for (size_t tIndex = 0; tIndex < pChain.mLon.size(); ++tIndex)
+            {
+                tChainBox[0] = std::min(tChainBox[0], pChain.mLon[tIndex]);
+                tChainBox[1] = std::min(tChainBox[1], pChain.mLat[tIndex]);
+                tChainBox[2] = std::max(tChainBox[2], pChain.mLon[tIndex]);
+                tChainBox[3] = std::max(tChainBox[3], pChain.mLat[tIndex]);
+            }
+        },
+        &tError);
+    std::printf("vectors: %s; polygon points %lld, chain points %lld, chain lon %.4f..%.4f lat %.4f..%.4f\n",
+                tVectorsOk ? "ok" : tError.c_str(), tPolygonPoints, tChainPoints, tChainBox[0], tChainBox[2],
+                tChainBox[1], tChainBox[3]);
+
     // Butun raster katmanlari: boyut ve deger araligi
     for (const std::string& tName : tReader.RasterNames())
     {

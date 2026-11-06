@@ -51,7 +51,7 @@
 <body>
 
 <h1>Map Plugin — Mimari</h1>
-<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.16 · kodun nasıl çalıştığı, hangi parçanın
+<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.17 · kodun nasıl çalıştığı, hangi parçanın
 ne yaptığı ve parçaların birbirine nasıl bağlandığı</div>
 
 <p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de;
@@ -342,7 +342,8 @@ Panelde katmanın altında açılır liste olarak çıkar; ayar anahtarı <code>
 başındaki sabitlerdedir.</p>
 <table>
   <tr><th>#</th><th>Katman</th><th>Veri</th><th>Ne çizer / alt katmanlar</th></tr>
-  <tr><td>1</td><td><code>TerrainLayer</code></td><td>TerrainStore</td><td>Zemin dokuları (zoom 5+); seviye seçimi, doku LRU (512 MB)</td></tr>
+  <tr><td>1</td><td><code>TerrainLayer</code></td><td>TerrainStore</td><td>Zemin dokuları (zoom 5+); seviye seçimi, doku LRU (512 MB); alt katmanlar Forests, Built-up areas</td></tr>
+  <tr><td>1b</td><td><code>RoadLayer</code></td><td>TerrainStore (vektörler)</td><td>Yollar, demiryolu, enerji hattı (0.17; bölüm 9.8)</td></tr>
   <tr><td>2</td><td><code>AirportSurfaceLayer</code></td><td>AirportDetailStore</td><td>Apron/taksi yolu yüzeyi, kenarları, havalimanı sınırı, boya çizgileri</td></tr>
   <tr><td>3</td><td><code>GridLayer</code></td><td>—</td><td>Enlem/boylam ızgarası, aralık zoom'a göre</td></tr>
   <tr><td>4</td><td><code>NavaidLayer</code> (ILS)</td><td>NavDatabase + pistler</td><td>Localizer tüyü pist eşiğinden (pistlerin altında kalsın diye burada)</td></tr>
@@ -716,6 +717,27 @@ anlam ölçümden çıkarıldı, bu yüzden derinlik tonu sadece −10'dan derin
       kurulu olmayan karolar ve hızlı ilk görüntü için düşünülebilir (Aşama 4).</li>
 </ul>
 
+<h3>9.8 DSF vektörleri ve X-Plane paleti (0.17)</h3>
+<ul>
+  <li><b>Okuma:</b> <code>DsfReader::ForEachVector</code> poligonları 16 bitlik (<code>POOL</code>), ağ zincirlerini
+      32 bitlik (<code>PO32</code>/<code>SC32</code>) havuzlardan okur. <code>TerrainVectors</code> tanım adına göre
+      sınıflar: <code>.for</code> → orman / çalı / sulak / tarla, autogen <code>urban_ / ind_ / com_</code> → yerleşim,
+      <code>park_</code> → çimen; yollar alt türe göre otoyol / ana / tali / yerel / demiryolu / enerji hattı.
+      Noktalar Douglas-Peucker ile 2,5–4 m'ye sadeleştirilir.</li>
+  <li><b>Dışlama:</b> aynı karonun overlay DSF'lerinden (Global Airports) <code>sim/exclude_for|obj|fac|net</code>
+      (<code>batı/güney/doğu/kuzey</code>). Yollar dışlama alanında kesilir; alanlar boyanırken piksel piksel atlanır.</li>
+  <li><b>Alanlar zemine işlenir:</b> karo üretilirken 4096²'lik ayrı bir alan katmanına taranır (çift-tek kuralı,
+      sadece karada); yakın zoom parçalarında doğrudan poligonlardan. Görüntü anahtarındaki maske
+      (<code>TerrainImageKey::mAreas</code>, Terrain alt katmanları Forests / Built-up areas) uygulanıp uygulanmayacağını
+      seçer. Scenery'de sınıf rengi olarak, VFR/IFR'da yerleşim temanın <code>mBuiltUp</code> rengine karışarak.</li>
+  <li><b>Yollar:</b> <code>RoadLayer</code> vektörleri <code>TerrainStore::RequestVectors / PopVectors</code> ile alır,
+      karo başına tür başına bir <code>StaticMesh</code> (çizgi) yükler; renk temadan (<code>mRoads</code>), kalınlık
+      ekran pikseli. Önbellek <code>*.vectors</code> (16 bit nokta + LZMA).</li>
+  <li><b>Palet (Aşama 3):</b> <code>TerrainPaletteSource</code> <code>terrain10/*.ter</code> dosyalarının
+      <code>BASE_TEX</code> DDS dokularının küçük bir mip seviyesini çözer (DXT1/3/5, BGRA), sınıf başına ortalar
+      (~3.450 doku). <code>[palette] source = xplane</code> varsayılan; sonuç önbelleğe yazılır.</li>
+</ul>
+
 <!-- ================================================================== -->
 <h2>10. Nav verisi, hava yolları, uçak</h2>
 <ul>
@@ -885,6 +907,8 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>ElevationCodec.*</code></td><td>16 bitlik ızgara için satır farkı + LZMA (kayıpsız)</td></tr>
   <tr><td><code>TerrainRelief.*</code></td><td>Piksel formülleri: kabartma, VFR bandı, derinlik tonu, kıyı şeridi, kıyı mesafesi ve çizgisi</td></tr>
   <tr><td><code>WorldTileMap.*</code></td><td><code>dsf_files</code>: dünyada hangi karonun DSF'i var (deniz / veri yok ayrımı)</td></tr>
+  <tr><td><code>TerrainVectors.*</code></td><td>DSF orman / yerleşim alanları, yollar, dışlamalar; sadeleştirme, önbellek, alan taraması</td></tr>
+  <tr><td><code>TerrainPaletteSource.*</code></td><td>Sınıf renklerini X-Plane'in arazi dokularından (DDS) çıkarma</td></tr>
   <tr><td><code>TerrainTriangles.*</code></td><td>Yakın zoom için hafif üçgen deposu (parça dizinli)</td></tr>
   <tr><td><code>TerrainNoise.*</code>, <code>LandColorField.*</code></td><td>Sınır kıvırma gürültüsü; kara renklerinin yumuşak geçişi</td></tr>
   <tr><td><code>TerrainStore.*</code></td><td>Zemin işçi thread'i, istek/sonuç kuyrukları, raster / üçgen / rakım LRU, eksik komşu takibi, süre özeti</td></tr>

@@ -37,6 +37,7 @@
 #include "data/NavDatabase.h"
 #include "data/NavLoader.h"
 #include "data/TerrainClasses.h"
+#include "data/TerrainPaletteSource.h"
 #include "data/TerrainStore.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
@@ -48,6 +49,7 @@
 #include "layers/FmsLayer.h"
 #include "layers/GridLayer.h"
 #include "layers/NavaidLayer.h"
+#include "layers/RoadLayer.h"
 #include "layers/RunwayLayer.h"
 #include "layers/TerrainLayer.h"
 #include "layers/TrackLayer.h"
@@ -55,7 +57,7 @@
 namespace
 {
 
-const char* kVersion = "0.16";
+const char* kVersion = "0.17";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
@@ -188,6 +190,7 @@ void MapPlugin::CreateLayers()
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
     // kullanici cizimleri etiketlerinin yerini onceden ayirir).
     mLayers.Add(std::make_unique<TerrainLayer>(mTerrainStore, mTerrainPalette));  // en altta: zemin
+    mLayers.Add(std::make_unique<RoadLayer>(mTerrainStore));  // DSF yollari: zeminin ustu, havalimani yuzeylerinin alti
     mLayers.Add(std::make_unique<AirportSurfaceLayer>(mAirportGeometry, mAirportDetails));
     mLayers.Add(std::make_unique<GridLayer>());
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
@@ -446,31 +449,43 @@ void MapPlugin::LoadTerrainColors()
                            "deep sea from the DSF sea_level data, 0 = off), depth_full_meters (200).\n"
                            "[vfr] bands = 1 (sectional elevation bands) / 0 (smooth ramp); contour_lines = 0/1, "
                            "contour_strength (0.35); band_1 .. band_8 = <lower limit feet> R G B.\n"
-                           "[palette] version: do not edit; an older version resets the colors to the new defaults.\n"
+                           "[palette] source = xplane (land class colors averaged from X-Plane's own terrain "
+                           "textures) / ini (use the [colors] values below); version: do not edit.\n"
                            "Colors are applied when X-Plane starts; the cache/terrain folder does not need to be "
                            "deleted.\n"
                            "Delete this file to get the default colors back.";
     Settings tColors;
     const std::string tPath = mPluginDirectory + kTerrainColorsFileName;
-    if (tColors.Load(tPath))
+    const bool tExists = tColors.Load(tPath);
+    if (tExists)
     {
         mTerrainPalette.Load(tColors);
-        if (!mTerrainPalette.LoadedCurrentVersion())
+    }
+    // Asama 3: sinif renkleri X-Plane'in arazi dokularindan (source = xplane); ilk acilistan sonra onbellekten
+    if (mTerrainPalette.UsesXPlaneColors())
+    {
+        std::array<char, 2048> tSystemPath = {};
+        XPLMGetSystemPath(tSystemPath.data());
+        XPlaneClassColors tDerived;
+        std::string tReport;
+        if (LoadXPlaneClassColors(tSystemPath.data(), mPluginDirectory + kTerrainCacheFolder + "xplane_palette.txt",
+                                  &tDerived, &tReport))
         {
-            // Eski surum: renkler yeni varsayilanlara gecti; dosyayi da guncelle (shading/blend korunur)
-            mTerrainPalette.Save(tColors);
-            tColors.SetComment(kComment);
-            tColors.Save();
-            Log("terrain colors updated to palette version {}: {}", TerrainPalette::kPaletteVersion, tPath);
-            return;
+            mTerrainPalette.ApplyDerivedColors(tDerived.mColors, tDerived.mTextureCounts);
         }
-        Log("terrain colors loaded: {}", tPath);
+        Log("{}", tReport);
+    }
+    if (!tExists || !mTerrainPalette.LoadedCurrentVersion())
+    {
+        // Yeni dosya ya da eski surum: yaz ([colors] bilgi icin guncel renkler; shading / blend korunur)
+        mTerrainPalette.Save(tColors);
+        tColors.SetComment(kComment);
+        tColors.Save();
+        Log("terrain colors file {} (palette version {}): {}", tExists ? "updated" : "created",
+            TerrainPalette::kPaletteVersion, tPath);
         return;
     }
-    mTerrainPalette.Save(tColors);
-    tColors.SetComment(kComment);
-    tColors.Save();
-    Log("terrain colors file created with defaults: {}", tPath);
+    Log("terrain colors loaded: {}", tPath);
 }
 
 void MapPlugin::LogReport(const std::string& pReport)
