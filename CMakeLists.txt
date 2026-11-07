@@ -40,6 +40,7 @@ set(CORE_SOURCES
     src/data/NavDatabase.cpp
     src/data/AirportGeometry.cpp
     src/data/AirportGeometryStore.cpp
+    src/data/AirportSearch.cpp
     src/data/LocalizerMatch.cpp
     src/data/AirwayDatabase.cpp
     src/data/SevenZip.cpp
@@ -57,6 +58,7 @@ set(CORE_SOURCES
     src/data/TerrainNoise.cpp
     src/data/TerrainRaster.cpp
     src/data/TerrainTriangles.cpp
+    src/data/CacheTrim.cpp
     src/data/TerrainStore.cpp
     src/data/AptLine.cpp
     src/data/AptDatParser.cpp
@@ -99,6 +101,7 @@ set(PLUGIN_SOURCES
     src/ui/LayerPanel.cpp
     src/ui/ToolPalette.cpp
     src/ui/ModePanel.cpp
+    src/ui/AirportSearchPanel.cpp
     src/ui/StatusBar.cpp
 )
 

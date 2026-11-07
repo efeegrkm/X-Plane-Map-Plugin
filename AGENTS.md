@@ -11,7 +11,7 @@ başlayabilmesi için yazıldı. Tamamını oku. Sonra:
 - Her kaynak dosyanın başında Türkçe bir açıklama bloğu var (ne yapar, neden,
   zoom eşikleri, küçük şemalar). Bir dosyayı değiştirmeden önce o bloğu oku.
 
-Durum tarihi: **2026-11-07**, sürüm **0.17**.
+Durum tarihi: **2026-11-07**, sürüm **0.18**.
 
 ---
 
@@ -20,7 +20,7 @@ Durum tarihi: **2026-11-07**, sürüm **0.17**.
 X-Plane 11 için bir harita eklentisi (`win.xpl`, C++20, Windows x64). Harita
 X-Plane'in içinde **kendi penceresinde** çizilir; katmanlar gruplu ve tek tek
 (alt katmanlara kadar) açılıp kapanır; dört harita modu var: Scenery, VFR,
-IFR Low, IFR High.
+IFR Low, IFR High, Dark (0.18).
 
 **Veri sadece X-Plane'den gelir** (dış harita servisi, OSM, Kaşif, internet
 YOK):
@@ -42,7 +42,9 @@ trafik, debrief, büyük ekranda okunurluk).
 | Zemin, eklentinin içinde DSF'ten üretilir (çevrimdışı karo aracı yok) | Her bilgisayarda kurulu **her** sahneyle çalışmalı; özel sahne global'i ezmeli; sahne güncellenince harita kendiliğinden güncellenmeli |
 | Modern OpenGL 3.3 (VBO/VAO/GLSL), GL çağrısı sadece `src/gfx/` | X-Plane 11 uyumluluk profili veriyor ama glBegin/glEnd terk edildi |
 | Üçgen disk önbelleği yok (apt.dat yüzeyleri) | En kötü havalimanı ~0,6 s; gerek görülmedi |
-| Harita modları: Scenery + VFR + IFR Low + IFR High | Kullanıcı onayladı |
+| Harita modları: Scenery + VFR + IFR Low + IFR High + Dark | Kullanıcı onayladı (Dark 0.18: siyah minimal) |
+| Eklenti uçağın konumunu **değiştirmez**; "Go to airport" sadece haritayı taşır | Kullanıcı kararı (0.18): haritadan uçak konumlandırma istenmedi |
+| Uçuş planı / IOS özellikleri ayrı iş değil; ileride GNS 430 eklentisine **harita API'si** yazılacak | Kullanıcı kararı (0.18): genel harita eklentisi, API ayrı görev olarak verilecek |
 
 ## 2. Kullanıcıyla çalışma kuralları
 
@@ -135,7 +137,7 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 | CMake seçeneği | Ne |
 |---|---|
 | `MAP_DEPLOY` (ON) | Derlemeden sonra `win.xpl`'yi `C:\X-Plane 11\Resources\plugins\MapPlugin\64\`'e kopyalar. X-Plane açıkken dosya kilitlidir: önce `tasklist \| findstr X-Plane` |
-| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-07: 30.512 kontrol) |
+| `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-07: 30.513 kontrol) |
 | `MAP_PREVIEW` | `map_preview.exe` ve `dsf_info.exe` |
 | `XPLANE_DIR`, `XPSDK` | Farklı X-Plane / SDK klasörü |
 
@@ -342,7 +344,9 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
   Varsayılan kapalı katmanlar eski `[layers]` bölümünden okunmaz.
 - **Tema:** `MapTheme` (mod başına renk, zemin biçimi, varsayılan katmanlar,
   0.16'dan beri "veri yok" rengi `mNoData`); katmanlar renkleri
-  `pContext.mTheme`'den okur.
+  `pContext.mTheme`'den okur. Varsayılan katmanlar (0.18) `MapTheme.cpp`
+  başındaki tablolarda (`std::span`): kullanıcının kaydettiği ayarlar; yeni katman / alt
+  katman eklenirse beş tabloya da satır ekle (yoksa `Layer`'ın kendi varsayılanı).
 - **Zemin (0.16):** `TerrainRaster` sadece sınıf raster'ı; rakım
   `TerrainElevation` (1201² + piramit, `*.elevation`, `ElevationCodec`).
   Görüntü üreticileri ortak ara sonuç doldurur, son adım `ComposeImage`
@@ -355,10 +359,10 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 ## 10. Ayar dosyaları (eklenti klasörü)
 
 `C:\X-Plane 11\Resources\plugins\MapPlugin\`: `map_settings.ini` (`[window]`,
-`[view]` + `mode`, `[tools]`, `[layers.scenery|vfr|ifr_low|ifr_high]`; eski
-`[layers]` Scenery'ye okunur), `map_drawings.txt`, `terrain_colors.ini`
+`[view]` + `mode`, `[tools]`, `[layers.scenery|vfr|ifr_low|ifr_high|dark]`; eski
+`[layers]` Scenery'ye okunur; `[cache] terrain_mb` zemin önbelleği sınırı, varsayılan 1024), `map_drawings.txt`, `terrain_colors.ini`
 (`[colors] [shading] [blend] [warp] [closeup] [relief] [water] [vfr]
-[palette]`), `cache/terrain/` (`*.terrain`, `*.elevation`, `*.nobase`),
+[palette]`), `cache/terrain/` (`*.terrain`, `*.elevation`, `*.vectors`, `*.nobase`; `CacheTrim` en eski karoları siler),
 `cache/airports/airport_index.bin` (önbellekler silinebilir).
 
 ## 11. Sürüm geçmişi ve durum
@@ -374,7 +378,8 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 | 0.13 | Harita modları, VOR pusula gülü, helipad'li heliport'lar | kullanıcı "güzel gözüküyor" dedi; ayrıntılı test listesi raporlanmadı |
 | 0.14–0.15 | (kullanıcının commit'i `4ee9d95`) Yakın zoom zemini (seviye 4–5, DSF üçgenlerinden), bikubik gölge, mipmap, sınır kıvırma, kara renk karışımı; alt katmanlar; yüzen çizim paleti; pop-out VAO düzeltmesi; zoom eşikleri bir kademe erken, en çok zoom 16.5 | denendi (kullanıcı: zemin kalitesiz → zemin görevi) |
 | 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | denendi: sorunsuz; kullanıcı "gelişme var ama yeterince iyi değil" |
-| 0.17 | Aşama 3: sınıf renkleri X-Plane'in `.ter` dokularından (`TerrainPaletteSource`, `[palette] source`). Aşama 2: DSF vektörleri (`TerrainVectors`, `.vectors` önbelleği, dışlamalar): orman ve yerleşim zemine işlenir (Terrain alt katmanları Forests / Built-up areas; VFR'da yerleşim sarı), yollar / demiryolu / enerji hattı yeni `RoadLayer` (Roads and railways, 6 alt katman). Raster önbelleği v4, palet v3 | **denenmedi** |
+| 0.17 | Aşama 3: sınıf renkleri X-Plane'in `.ter` dokularından (`TerrainPaletteSource`, `[palette] source`). Aşama 2: DSF vektörleri (`TerrainVectors`, `.vectors` önbelleği, dışlamalar): orman ve yerleşim zemine işlenir (Terrain alt katmanları Forests / Built-up areas; VFR'da yerleşim sarı), yollar / demiryolu / enerji hattı yeni `RoadLayer` (Roads and railways, 6 alt katman). Raster önbelleği v4, palet v3 | denendi: yerleşim simülatör için önemsiz bulundu (varsayılan kapalı kalsın) |
+| 0.18 | Kullanıcının kaydettiği katman ayarları varsayılan oldu (`MapTheme.cpp` tabloları); yeni **Dark** modu (siyah kara, lacivert su, minimal); **Go to airport** paneli (`AirportSearchPanel`, `AirportSearch`; sadece harita gider, klavye odağı panel açıkken); alt şeritte `Loading terrain: N images` (kaba / boş zemin görünen her an); zemin önbelleğine disk sınırı (`CacheTrim`, `[cache] terrain_mb` = 1024) | **denenmedi** |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.
 
@@ -383,7 +388,8 @@ Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme
 - Mod renkleri FAA geleneğinden; X-Plane'in kendi haritasıyla karşılaştırılıp
   ayarlanmadı (kullanıcıdan ekran görüntüsü istenebilir).
 - IFR Low'da zoom 9'da fix'ler yoğun. MEF rakamları, hava sahası sınırları yok.
-- Zemin önbelleğinin disk sınırı yok (karo başına ~3-4 MB: raster, rakım, vektör).
+- Zemin önbelleği sınırı 0.18'de eklendi (`CacheTrim`, 1 GB). Önbellekteki karo okununca
+  `.terrain` dosyasının değiştirilme zamanı güncellenir (LRU sırası buna dayanır).
   Eski `HaritaPlugin` klasörü artık yok (2026-11-07 kontrol edildi).
 
 ### Zemin yol haritası (kullanıcı onayladı: 0 → 1 → 3 → 2, sonra 4)
@@ -405,7 +411,11 @@ Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme
   < 0,1 s, kaba ilk görüntü < 0,1 s hızlı yoldan, karo başına tam görüntü
   ≤ 0,6 s).
 
-### Sıradaki işler (IOS için önerildi, kullanıcı henüz seçmedi)
+### Sıradaki işler
+Kullanıcı (0.18): "IOS işi" diye ayrı bir başlık açılmayacak; genel harita
+eklentisi. İleride GNS 430 eklentisi için harita API'si yazılacak (ayrı görev).
+Uçak konumunu değiştiren özellik istenmiyor. Aşağıdaki liste eski öneri listesidir,
+kullanıcı seçmeden başlama:
 Genel bir X-Plane eklentisi yazıyoruz; X-Plane'in içinde, onunla aynı
 bilgisayarda çalışır. IOS ekranının aynı/ayrı bilgisayarda olması bizim
 konumuz değil, **sorma**; ağ üzerinden ayrı uygulama planlanmıyor.

@@ -38,6 +38,10 @@ public:
 
     int TextureCount() const;
 
+    // Son cizilen karede ekranda istenen kalitede olmayan (henuz uretilmekte olan) doku sayisi.
+    // Alt seritteki "Loading terrain" yazisi icin: kaba yedek ya da bos gorunen her an > 0.
+    int PendingTextureCount() const;
+
 private:
     struct CachedTexture
     {
@@ -66,4 +70,6 @@ private:
     std::unordered_map<TerrainImageKey, CachedTexture, TerrainImageKeyHash> mTextures;
     size_t mTextureBytes = 0;
     uint64_t mFrame = 0;
+    int mPendingThisFrame = 0;  // bu karede eksik bulunan (istenen) dokular
+    int mPendingLastFrame = 0;
 };

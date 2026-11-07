@@ -22,6 +22,7 @@
 #include "ScreenMath.h"
 #include "gfx/Canvas.h"
 #include "MapTheme.h"
+#include "ui/AirportSearchPanel.h"
 #include "ui/LayerPanel.h"
 #include "ui/ModePanel.h"
 #include "ui/StatusBar.h"
@@ -29,6 +30,7 @@
 #include "ui/Toolbar.h"
 
 class AircraftData;
+class AirportGeometryStore;
 class Drawings;
 class LayerManager;
 class Settings;
@@ -38,9 +40,9 @@ struct DrawContext;
 class MapWindow
 {
 public:
-    // pDrawingsPath: kullanici cizimlerinin kaydedilecegi dosya
+    // pDrawingsPath: kullanici cizimlerinin kaydedilecegi dosya; pAirports: "Go to airport" aramasi
     MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings, Drawings& pDrawings,
-              const std::string& pDrawingsPath);
+              const std::string& pDrawingsPath, const AirportGeometryStore& pAirports);
     ~MapWindow();
 
     MapWindow(const MapWindow&) = delete;
@@ -91,6 +93,7 @@ private:
     int OnRightClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnWheel(int pX, int pY, int pWheel, int pClicks);
     void RememberMouse(int pX, int pY);
+    void OnKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey, bool pLosingFocus);
 
     void DrawControls(int pMouseX, int pMouseY, bool pMouseInside);
     bool HandleControlClick(int pX, int pY);  // kontrollere tiklandiysa true
@@ -100,6 +103,11 @@ private:
     RectI PaletteBounds() const;  // cizim paletinin kalabilecegi alan (seritlerin arasi)
     void TogglePopOut();
     void CenterOnAircraft();
+    // "Go to airport": paneli acar/kapatir; panel acikken klavye odagi bizde (tuslar X-Plane'e gitmez)
+    void SetSearchOpen(bool pOpen);
+    void SetKeyboardFocus(bool pFocus);
+    bool HasKeyboardFocus() const;
+    void GoToAirport(int pAirport);  // haritayi havalimanina tasir (ucaga dokunmaz), takibi kapatir
     ToolbarState CurrentToolbarState() const;
     RectI ShowControlsButtonRect() const;
     bool MouseInside(int* pX, int* pY) const;
@@ -129,6 +137,8 @@ private:
     Toolbar mToolbar;
     LayerPanel mLayerPanel;
     ModePanel mModePanel;
+    const AirportGeometryStore& mAirports;
+    AirportSearchPanel mSearchPanel;
     ToolPalette mToolPalette;          // yuzen cizim araclari paneli
     MapMode mMapMode = MapMode::Scenery;
     StatusBar mStatusBar;

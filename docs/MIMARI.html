@@ -51,7 +51,7 @@
 <body>
 
 <h1>Map Plugin — Mimari</h1>
-<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.17 · kodun nasıl çalıştığı, hangi parçanın
+<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.18 · kodun nasıl çalıştığı, hangi parçanın
 ne yaptığı ve parçaların birbirine nasıl bağlandığı</div>
 
 <p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de;
@@ -547,6 +547,7 @@ sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka p
   <li>Biçim değişirse <code>TerrainRaster.cpp</code>'deki <code>kFileVersion</code> (şu an 3) ya da
       <code>TerrainElevation.cpp</code>'deki <code>kFileVersion</code> (şu an 1) artırılır; eski dosyalar kendiliğinden
       yeniden üretilir. Palet varsayılanları değişirse <code>TerrainPalette::kPaletteVersion</code> artırılır.</li>
+  <li><b>Disk sınırı (0.18, <code>data/CacheTrim</code>):</b> <code>[cache] terrain_mb</code> (varsayılan 1024 MB). Karonun dosyaları (<code>.terrain .elevation .vectors .nobase</code>) bir grup sayılır ve birlikte silinir. "Son kullanım" = dosyanın değiştirilme zamanı: önbellekten okunan <code>.terrain</code> okununca şimdiye çekilir (Windows'un son erişim zamanı çoğu makinede kapalı). İşçi açılışta bir kez ve yeni karo ürettikten sonra boşta kalınca klasörü tarar; sınır aşıldıysa en eski karoları toplam sınırın %90'ına inene kadar siler. Silme işçi thread'inde yapılır: dosyaları zaten sadece işçi okuyup yazıyor, yarış yok. Silinen karo gerekirse yeniden üretilir.</li>
 </ul>
 <h3>9.3 Yakın zoom görüntüsü neden ayrı?</h3>
 <p>Sınıf raster'ı derece başına 4096 pikseldir (enlem 47'de piksel başına ~27 × 18 m); yaklaşınca her piksel ekranda
@@ -820,11 +821,12 @@ yok).</div>
 verir. Ortak palet ve çizim yardımcıları <code>ui/UiDraw</code>'dadır (<code>Ui::k...</code> renkleri).</p>
 <table>
   <tr><th>Parça</th><th>Ne</th></tr>
-  <tr><td><code>Toolbar</code></td><td>Üst şerit: Layers · Map: &lt;mod&gt; | Follow / Center on aircraft | Draw tools … Pop out · Hide. Gruplar arasında ayırıcı; dar pencerede pencere düğmeleri ikinci satıra iner.</td></tr>
+  <tr><td><code>Toolbar</code></td><td>Üst şerit: Layers · Map: &lt;mod&gt; | Follow / Center on aircraft · Go to airport | Draw tools … Pop out · Hide. Gruplar arasında ayırıcı; dar pencerede pencere düğmeleri ikinci satıra iner.</td></tr>
   <tr><td><code>ToolPalette</code></td><td>Yüzen çizim paleti: Pan / Point / Route / Region + Finish / Undo / Clear. Başlıktan sürüklenir, seçili araca katlanır; yeri sağ üst köşeye göre <code>[tools]</code>'a kaydedilir.</td></tr>
   <tr><td><code>LayerPanel</code></td><td>Grup › katman › alt katman listesi; üç durumlu kutu (hepsi / hiçbiri / karışık), ok ile aç/kapa, tekerlekle kaydırma. Gruplar <code>kGroups</code> tablosunda.</td></tr>
   <tr><td><code>ModePanel</code></td><td>Harita modu seçimi (tek seçim).</td></tr>
-  <tr><td><code>StatusBar</code></td><td>İmleç koordinatı, zoom, durum mesajı, ölçek çubuğu (NM).</td></tr>
+  <tr><td><code>AirportSearchPanel</code></td><td>(0.18) "Go to airport": yazı kutusu + en iyi 8 sonuç (<code>data/AirportSearch</code>: kimlik / ICAO tam → önek → ad kelime başı → ad içinde; eşitlikte uzun pistli önce). Seçilince <code>MapWindow::GoToAirport</code> haritayı ortalar ve havalimanını sığdıran zoom'u seçer (<code>ZoomToFitAirport</code>); <b>uçağa dokunmaz</b> (kullanıcı kararı), takibi kapatır. Panel açıkken pencere klavye odağını alır (<code>XPLMTakeKeyboardFocus</code>); haritaya tıklama, Esc, panelin kapanması veya pencerenin gizlenmesi odağı X-Plane'e geri verir.</td></tr>
+  <tr><td><code>StatusBar</code></td><td>İmleç koordinatı, zoom, durum mesajı, ölçek çubuğu (NM). 0.18: <code>TerrainLayer::PendingTextureCount</code> &gt; 0 (son karede istenen seviyede olmayan doku) ve zemin işçisi boşta değilken <code>Loading terrain: N images</code> yazar; işçi boştaysa yazmaz (üretilemeyen parça yazıyı takılı bırakmasın).</td></tr>
 </table>
 <h3>Fare akışı (MapWindow)</h3>
 <pre>basildi  -> once kontroller: HandleControlClick (toolbar, paneller, palet basligi)
@@ -841,7 +843,7 @@ cursor callback'ten okunur.</p>
 
 <!-- ================================================================== -->
 <h2>13. Harita modları (tema)</h2>
-<p><code>src/MapTheme.*</code> dört modu tanımlar. Her mod bir <code>MapTheme</code>: arka plan ve su rengi, zemin biçimi,
+<p><code>src/MapTheme.*</code> beş modu tanımlar. Her mod bir <code>MapTheme</code>: arka plan ve su rengi, zemin biçimi,
 hale rengi, açık/koyu tema bayrağı, ızgara, havalimanı/navaid/hava yolu/pist renkleri ve mod başına varsayılan katman
 görünürlüğü. <code>DrawContext::mTheme</code> her zaman doludur; katmanlar renkleri buradan okur.</p>
 <table>
@@ -850,7 +852,9 @@ görünürlüğü. <code>DrawContext::mTheme</code> her zaman doludur; katmanlar
   <tr><td>VFR</td><td>Elevation — rakım rampası + kabartma</td><td>Kuleli havalimanı mavi, kulesiz macenta; VOR pusula gülü</td></tr>
   <tr><td>IFR Low</td><td>LandWater — iki düz renk</td><td>Açık tema; alçak hava yolları, VOR/NDB/ILS/fix</td></tr>
   <tr><td>IFR High</td><td>LandWater</td><td>Sadece büyük havalimanları, yüksek hava yolları</td></tr>
+  <tr><td>Dark (0.18)</td><td>LandWater — siyah kara, koyu lacivert su</td><td>Uçuş kontrol ekranı tarzı minimal: havalimanı, pist, navaid, ILS, hava yolları; ızgara / yol / nesne yok</td></tr>
 </table>
+<p><b>Varsayılan katmanlar (0.18):</b> <code>MapTheme::mLayerDefaults</code> bir <code>std::span</code>; <code>MapTheme.cpp</code> başındaki tablolar her katman ve alt katman (<code>katman.alt</code>) için mod başına değer verir. Scenery / VFR / IFR tabloları kullanıcının X-Plane'de kaydettiği ayarlardan üretildi. Tabloda olmayan katman <code>Layer</code>'ın kendi varsayılanını alır; <code>map_settings.ini</code>'deki değer her zaman önceliklidir.</p>
 <p>Mod değişince (<code>MapWindow::SetMapMode</code>) eski modun katman görünürlüğü kaydedilir, yenisininki yüklenir.
 Zemin görüntü anahtarı biçimi de içerir (<code>TerrainImageKey::mStyle</code>), böylece her modun dokusu ayrı üretilip
 önbelleklenir.</p>
@@ -862,10 +866,10 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
 <table>
   <tr><th>Dosya</th><th>İçerik</th></tr>
   <tr><td><code>64/win.xpl</code></td><td>Eklentinin kendisi</td></tr>
-  <tr><td><code>map_settings.ini</code></td><td><code>[window]</code> yer/boyut/görünür · <code>[view]</code> merkez, zoom, takip, kontroller, <code>mode</code> · <code>[tools]</code> palet · <code>[layers.scenery]</code>, <code>[layers.vfr]</code>, <code>[layers.ifr_low]</code>, <code>[layers.ifr_high]</code> (katman ve <code>katman.alt</code> anahtarları); eski <code>[layers]</code> Scenery'ye okunur</td></tr>
+  <tr><td><code>map_settings.ini</code></td><td><code>[window]</code> yer/boyut/görünür · <code>[view]</code> merkez, zoom, takip, kontroller, <code>mode</code> · <code>[tools]</code> palet · <code>[layers.scenery]</code>, <code>[layers.vfr]</code>, <code>[layers.ifr_low]</code>, <code>[layers.ifr_high]</code>, <code>[layers.dark]</code> (katman ve <code>katman.alt</code> anahtarları); eski <code>[layers]</code> Scenery'ye okunur · <code>[cache] terrain_mb</code> zemin önbelleği sınırı</td></tr>
   <tr><td><code>map_drawings.txt</code></td><td>Kullanıcı çizimleri (metin)</td></tr>
   <tr><td><code>terrain_colors.ini</code></td><td><code>[colors]</code>, <code>[shading]</code>, <code>[blend]</code>, <code>[warp]</code>, <code>[closeup]</code>, <code>[relief]</code>, <code>[water]</code>, <code>[vfr]</code>, <code>[palette] version</code> (bölüm 9.6)</td></tr>
-  <tr><td><code>cache/terrain/</code></td><td>Zemin önbelleği (silinebilir): <code>*.terrain</code> sınıf raster'ı, <code>*.elevation</code> tam çözünürlüklü DEM + sea_level, <code>*.nobase</code></td></tr>
+  <tr><td><code>cache/terrain/</code></td><td>Zemin önbelleği (silinebilir): <code>*.terrain</code> sınıf raster'ı, <code>*.elevation</code> tam çözünürlüklü DEM + sea_level, <code>*.vectors</code>, <code>*.nobase</code>, <code>xplane_palette.txt</code>; en çok <code>terrain_mb</code> (9.2)</td></tr>
   <tr><td><code>cache/airports/airport_index.bin</code></td><td>apt.dat özet indeksi (silinebilir)</td></tr>
 </table>
 
@@ -893,6 +897,7 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>AptDatIndexer.*</code></td><td>Özet indeksi + disk önbelleği</td></tr>
   <tr><td><code>AptDatParser.*</code></td><td>Tek havalimanı metni → <code>AirportDetail</code></td></tr>
   <tr><td><code>AirportGeometry.*</code>, <code>AirportGeometryStore.*</code></td><td>Özet yapısı; özet deposu + ızgara</td></tr>
+  <tr><td><code>AirportSearch.*</code></td><td>(0.18) Havalimanı arama ve sığdırma zoom'u (Go to airport)</td></tr>
   <tr><td><code>AirportDetail.h</code>, <code>AirportDetailStore.*</code></td><td>Ayrıntı yapısı; istekle okuyan işçi + LRU</td></tr>
   <tr><td><code>AirportShapes.*</code></td><td>Bezier, earcut üçgenleme, çizgi/ışık dizileri</td></tr>
   <tr><td><code>LocalizerMatch.*</code></td><td>ILS → pist eşiği</td></tr>
@@ -911,6 +916,7 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>TerrainPaletteSource.*</code></td><td>Sınıf renklerini X-Plane'in arazi dokularından (DDS) çıkarma</td></tr>
   <tr><td><code>TerrainTriangles.*</code></td><td>Yakın zoom için hafif üçgen deposu (parça dizinli)</td></tr>
   <tr><td><code>TerrainNoise.*</code>, <code>LandColorField.*</code></td><td>Sınır kıvırma gürültüsü; kara renklerinin yumuşak geçişi</td></tr>
+  <tr><td><code>CacheTrim.*</code></td><td>(0.18) Zemin disk önbelleği sınırı: karo gruplarını en eski kullanılandan siler</td></tr>
   <tr><td><code>TerrainStore.*</code></td><td>Zemin işçi thread'i, istek/sonuç kuyrukları, raster / üçgen / rakım LRU, eksik komşu takibi, süre özeti</td></tr>
 </table>
 <h3>src/layers/, src/gfx/, src/ui/</h3>

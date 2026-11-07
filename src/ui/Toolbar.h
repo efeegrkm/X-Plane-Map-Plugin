@@ -1,7 +1,8 @@
 // Toolbar.h
 // Haritanin ust kenarindaki ince, yari saydam arac seridi.
 //
-//   [Layers] [Map: VFR] | [Follow aircraft] [Center on aircraft] | [Draw tools]   ...   [Pop out] [Hide]
+//   [Layers] [Map: VFR] | [Follow aircraft] [Center on aircraft] [Go to airport] | [Draw tools]
+//                                                                ...   [Pop out] [Hide]
 //
 // Cizim araclari (Pan/Point/Route/Region, Finish/Undo/Clear) artik seritte
 // degil, yuzen ToolPalette panelinde; "Draw tools" o paneli gosterir/gizler.
@@ -27,6 +28,7 @@ enum class ToolbarAction
     MapMode,         // harita modu listesini ac/kapat ("Map: VFR")
     FollowAircraft,  // ucagi takip et (ac/kapat)
     CenterAircraft,  // haritayi bir kez ucaga ortala
+    GoToAirport,     // havalimani arama panelini ac/kapat (0.18; sadece harita gider, ucak degil)
     DrawTools,       // cizim araclari paletini goster/gizle
     ModePan,         // cizim araclari (ToolPalette): gezin
     ModePoint,       //                  nokta
@@ -44,6 +46,7 @@ struct ToolbarState
 {
     bool mLayersOpen = false;
     bool mModesOpen = false;
+    bool mSearchOpen = false;  // "Go to airport" paneli acik
     const char* mModeLabel = "Map: Scenery";  // MapWindow doldurur (statik metin)
     bool mFollowing = false;
     bool mHasAircraft = false;

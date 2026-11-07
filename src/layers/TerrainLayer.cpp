@@ -77,6 +77,11 @@ int TerrainLayer::TextureCount() const
     return static_cast<int>(mTextures.size());
 }
 
+int TerrainLayer::PendingTextureCount() const
+{
+    return mPendingLastFrame;
+}
+
 int TerrainLayer::DesiredLevel(double pPixelsPerDegree)
 {
     if (pPixelsPerDegree < 100.0)
@@ -193,6 +198,7 @@ void TerrainLayer::DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, 
             if (!tTexture)
             {
                 mStore.Request(tKey);
+                ++mPendingThisFrame;
                 continue;
             }
             const double tWest = pTileWest + tColumn * tStep;
@@ -207,6 +213,8 @@ void TerrainLayer::DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, 
 void TerrainLayer::Draw(const DrawContext& pContext)
 {
     ++mFrame;
+    mPendingLastFrame = mPendingThisFrame;
+    mPendingThisFrame = 0;
     mStore.BeginFrame();
     UploadReadyImages();
 
@@ -285,6 +293,7 @@ void TerrainLayer::Draw(const DrawContext& pContext)
             if (!UseTexture({tLon, tLat, tFullLevel, 0, tStyle, tAreas}))
             {
                 mStore.Request({tLon, tLat, tFullLevel, 0, tStyle, tAreas});
+                ++mPendingThisFrame;
             }
             if (!UseTexture({tLon, tLat, 0, 0, tStyle, tAreas}))
             {
@@ -313,6 +322,7 @@ void TerrainLayer::Draw(const DrawContext& pContext)
                     if (!tChunkTexture)
                     {
                         mStore.Request({tLon, tLat, 3, tChunk, tStyle, tAreas});
+                        ++mPendingThisFrame;
                         continue;
                     }
                     tStrips.clear();

@@ -8,6 +8,7 @@
 #include <iterator>
 #include <system_error>
 
+#include "data/CacheTrim.h"
 #include "data/DsfReader.h"
 #include "data/SevenZip.h"
 #include "data/TerrainElevation.h"
@@ -127,6 +128,29 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
         {
             WorkerLoop();
         });
+}
+
+void TerrainStore::SetCacheLimit(uint64_t pBytes)
+{
+    mCacheLimit = pBytes;
+}
+
+void TerrainStore::TrimCache()
+{
+    // ISCI thread'i: dosyalari sadece isci okur/yazar, silmek guvenli
+    mCacheGrew = false;
+    if (mCacheDirectory.empty() || mCacheLimit == 0)
+    {
+        return;
+    }
+    const CacheTrimResult tResult = TrimTileCache(mCacheDirectory, mCacheLimit);
+    if (tResult.mRemovedTiles > 0)
+    {
+        AddLog(std::format("terrain cache: {:.0f} MB over the {:.0f} MB limit, removed {} least recently used tiles "
+                           "({:.0f} MB)",
+                           tResult.mTotalBytes / 1048576.0, mCacheLimit / 1048576.0, tResult.mRemovedTiles,
+                           tResult.mRemovedBytes / 1048576.0));
+    }
 }
 
 void TerrainStore::Stop()
@@ -324,6 +348,7 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
         (!pElevation || pElevation->Load(tElevationPath, tKey)) && (!pVectors || pVectors->Load(tVectorsPath, tKey)))
     {
         *pState = TerrainTileState::Ready;
+        TouchCacheFile(tCachePath);  // en son kullanilan (disk siniri: CacheTrim)
         return true;  // onbellek guncel: DSF'e hic dokunulmadi
     }
     if (!pCacheDirectory.empty() && HasNoBaseMarker(tNoBasePath, tKey))
@@ -617,6 +642,7 @@ TerrainRaster* TerrainStore::RasterFor(int pWest, int pSouth)
     {
         return nullptr;
     }
+    mCacheGrew = true;  // (onbellekten okunduysa da zarari yok: kirpma ucuz)
     KeepElevation(pWest, pSouth, std::move(tElevation));
     mVectors.emplace_front(tKey, std::move(tVectors));
     if (mVectors.size() > kMaxVectorTiles)
@@ -925,6 +951,7 @@ void TerrainStore::WorkerLoop()
                        mIndex.PackCount(), mIndex.TileCount(),
                        std::chrono::duration<double>(Clock::now() - tStart).count()));
     AddLog(mIndex.WorldMapReport());
+    mCacheGrew = true;  // acilista bir kez: onceki oturumlardan sinir asilmis olabilir
 
     while (true)
     {
@@ -942,6 +969,10 @@ void TerrainStore::WorkerLoop()
         if (tIdle)
         {
             LogImageTimes();  // bekleme oncesi: bu turun ozeti
+            if (mCacheGrew)
+            {
+                TrimCache();
+            }
         }
         {
             std::unique_lock<std::mutex> tLock(mMutex);

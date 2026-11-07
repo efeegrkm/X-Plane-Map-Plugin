@@ -1,4 +1,4 @@
-# Map Plugin 0.17 — X-Plane 11
+# Map Plugin 0.18 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita. Dış harita servisi (Kaşif, OSM) yok: zemin, pistler,
@@ -40,7 +40,7 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[MapPlugin]` ile başlayan satırlar.
 |---|---|
 | Show / hide map | `ozdev/map/toggle` |
 | Show / hide controls | `ozdev/map/controls` |
-| Next map mode | `ozdev/map/next_mode` (Scenery → VFR → IFR Low → IFR High → ...) |
+| Next map mode | `ozdev/map/next_mode` (Scenery → VFR → IFR Low → IFR High → Dark → ...) |
 | Show / hide X-Plane map (compare) | X-Plane'in `sim/map/show_current` komutu: yan yana karşılaştırmak için |
 | Diagnostics mode | `ozdev/map/diagnostics` |
 | Clear flight track | — |
@@ -60,6 +60,7 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[MapPlugin]` ile başlayan satırlar.
 | Layers | Katman paneli: grup › katman › alt katman. Kutu altındakilerin hepsini açar/kapatır (karışıksa çizgi), ok listeyi açar (varsayılan kapalı) |
 | Map: ... | Harita modu listesi (aşağıda) |
 | Follow aircraft / Center on aircraft | Uçağı takip et / bir kez uçağa ortala |
+| Go to airport | Arama paneli: ICAO, kimlik veya ad yaz (ör. `KSEA`, `tacoma`), en iyi 8 sonuçtan birine tıkla ya da ↑/↓ + Enter. Harita oraya gider ve havalimanı ekrana sığar; **uçağın konumu değişmez**, uçak takibi kapanır. Panel açıkken klavye haritadadır (tuşlar X-Plane'e gitmez); haritaya tıklayınca ya da Esc ile klavye X-Plane'e döner |
 | Draw tools | Çizim paletini göster / gizle |
 | Pop out / Pop in | Pencereyi ayrı işletim sistemi penceresine al (ör. ikinci monitör) / geri koy |
 | Hide | Kontrolleri gizle (imleç haritaya gelince sol üstte **Controls** düğmesi çıkar) |
@@ -69,12 +70,14 @@ Finish / Undo / Clear. Başlığından (`:: DRAW`) tutup taşınır, ok ile seç
 araca katlanır; yeri ve durumu kaydedilir.
 
 **Alt şerit:** imlecin enlem/boylamı, zoom, ölçek çubuğu (NM) ve durum yazısı
-(yükleme, çizim ipucu, teşhis modunda FPS).
+(yükleme, çizim ipucu, teşhis modunda FPS). Ekranda istenen kalitede olmayan
+(kaba ya da henüz boş) zemin olduğu sürece `Loading terrain: N images` yazar.
 
 ## Harita modları
 
 **Map: ...** düğmesi veya `ozdev/map/next_mode`. Her modun katman ve alt katman
-açık/kapalı durumu ayrı saklanır. Renkler `src/MapTheme.cpp`'de (ilk sürüm FAA
+açık/kapalı durumu ayrı saklanır. Varsayılanlar (0.18) kullanıcının X-Plane'de kaydettiği ayarlardır
+(`src/MapTheme.cpp` başındaki tablolar); `map_settings.ini`'deki değer her zaman önceliklidir. Renkler `src/MapTheme.cpp`'de (ilk sürüm FAA
 harita geleneklerinden; X-Plane'in kendi haritasıyla karşılaştırılıp
 ayarlanacak).
 
@@ -84,6 +87,7 @@ ayarlanacak).
 | VFR | Sectional yükseklik bantları (0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft) + kabartma, su açık mavi + kıyı çizgisi | Kuleli havalimanı mavi, kulesiz macenta; VOR pusula gülü; Victor yolları kalın açık mavi; ILS ve fix kapalı |
 | IFR Low | Sadece kara / su (iki düz renk) + ince kıyı çizgisi | Alçak hava yolları, VOR/NDB/ILS/fix; büyükler yeşil, diğerleri kahverengi |
 | IFR High | Aynı | Yüksek hava yolları, sadece büyük havalimanları; NDB, ILS, alçak yollar kapalı |
+| Dark | Tam siyah kara, koyu lacivert su (kabartma, sınıf, yol yok) | Uçuş kontrol ekranı tarzı minimal: havalimanları, pistler, VOR / NDB / ILS / fix, hava yolları, uçak ve rota |
 
 VOR gülü manyetik kuzeye döner (sapma X-Plane'in VOR kaydından; Log'da
 `VOR sample:` satırları).
@@ -169,13 +173,25 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | Dosya | Ne |
 |---|---|
 | `64/win.xpl` | Eklenti |
-| `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar |
+| `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar, `[cache] terrain_mb` (zemin önbelleği sınırı, varsayılan 1024; 0 = sınırsız) |
 | `map_drawings.txt` | Kullanıcı çizimleri (metin; elle düzenlenebilir) |
 | `terrain_colors.ini` | Zemin renkleri ve ayarları (yukarıda) |
-| `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar ve alanlar, `*.elevation` rakım, `*.vectors` DSF vektörleri, `xplane_palette.txt` |
+| `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar ve alanlar, `*.elevation` rakım, `*.vectors` DSF vektörleri, `xplane_palette.txt`. Karo başına ~3–4 MB; `terrain_mb` aşılınca en uzun süredir kullanılmayan karolar (tüm dosyalarıyla) silinir, toplam sınırın %90'ına iner |
 | `cache/airports/` | apt.dat indeks önbelleği (silinebilir) |
 
-## Test listesi (0.17) — X-Plane'de denenecek
+## Test listesi (0.18) — X-Plane'de denenecek
+
+| # | Ne yap | Beklenen |
+|---|---|---|
+| 1 | `map_settings.ini`'yi yedekleyip sil, X-Plane'i aç | Log'da `loaded (version 0.18)`; her modda katmanlar senin kaydettiğin gibi açılıyor; dosyada `[cache] terrain_mb=1024` |
+| 2 | Map: Dark | Kara siyah, su lacivert; havalimanları, pistler, navaid'ler, ILS, hava yolları var; ızgara, yol, havalimanı nesneleri yok |
+| 3 | Go to airport → `KBFI` yaz, Enter | Harita Boeing Field'a gider, havalimanı ekrana sığar, uçak yerinde kalır; klavye X-Plane'e döner |
+| 4 | Paneli aç, `tacoma` yaz, ↑/↓ ve tıklama | Ad ile arama; satır seçimi ve tıklayınca gitme |
+| 5 | Panel açıkken haritaya tıkla, sonra bir X-Plane tuşuna bas | Tuş X-Plane'de çalışır (panel açık kalır) |
+| 6 | Hızlı zoom yap (8 → 13) | Kaba / boş zemin göründüğü sürece altta `Loading terrain: N images`; ince doku gelince kaybolur |
+| 7 | `terrain_mb=50` yap, X-Plane'i aç | Log'da `terrain cache: ... removed N least recently used tiles`; sonra değeri geri al |
+
+## Test listesi (0.17)
 
 | # | Ne yap | Beklenen |
 |---|---|---|
@@ -186,20 +202,6 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | 5 | Layers → Map → Roads and railways / Terrain alt katmanları | Tek tek açılıp kapanıyor; Power lines açılınca enerji hatları |
 | 6 | Map: IFR Low | Yol ve yerleşim kapalı (panelden açılabilir) |
 | 7 | Diagnostics, zoom 12–14'te kaydır | FPS'i ve Log'daki `terrain images` satırlarını gönder |
-
-## Test listesi (0.16)
-
-| # | Ne yap | Beklenen |
-|---|---|---|
-| 1 | X-Plane'i aç | Log'da `[MapPlugin] loaded (version 0.16)`; `world tile map: 17414 land tiles, checked against ... (0 mismatches)` |
-| 2 | Seattle'a git, zoom 8 → 12 (Scenery) | İlk açılışta karolar yeniden üretilir (`terrain +47-123: built ... elevation 1201 posts ... packed`); kabartma uzakta parazitsiz, yakında bloksuz |
-| 3 | Aynı yerde X-Plane'i yeniden aç | Karolar önbellekten gelir (log'da `built` yok), açılış hızlı |
-| 4 | Map: VFR, Juneau'da zoom 8.5 ve 14 | Yükseklik bantları keskin, kıvrımlı sınırlı; göller ve kıyılar karadan net ayrılıyor (kıyı çizgisi) |
-| 5 | Puget Sound'u Scenery ve VFR'da aç | Açık su derinliğe göre koyu, kıyıda açık şerit; IFR Low'da su düz, sadece kıyı çizgisi |
-| 6 | 1° karo sınırına git (ör. 47°N 122°W civarı, tepelik) | Sınırda gölge çizgisi / ton farkı yok (bir an görünürse komşu karo gelince düzelmeli) |
-| 7 | Türkiye'ye git (zoom 6) | Kara karoları nötr gri ("veri yok"), Karadeniz / Akdeniz su rengi |
-| 8 | `terrain_colors.ini`'de `[water] coastline = 0`, `[vfr] bands = 0` yap, X-Plane'i yeniden aç | Kıyı çizgisi yok, VFR eski sürekli rampa (ayarlar derlemeden çalışıyor) |
-| 9 | Diagnostics mode, yakın ve uzak zoom | FPS'i not et; Log'daki `terrain images (count x average)` satırlarını gönder |
 
 Sorun olursa: Diagnostics mode açıp aynı şeyi tekrarla ve Log.txt'yi gönder.
 

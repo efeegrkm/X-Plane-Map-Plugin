@@ -127,6 +127,10 @@ public:
                const std::vector<TerrainImageStyle>& pStyles = {});
     void Stop();
 
+    // Disk onbelleginin siniri (bayt, 0 = sinirsiz); Start'tan once. Isci acilista ve
+    // yeni karo urettikten sonra bosta kalinca en uzun suredir kullanilmayan karolari siler (CacheTrim).
+    void SetCacheLimit(uint64_t pBytes);
+
     bool IsIndexReady() const;
     TileCoverage CoverageOf(int pWest, int pSouth) const;  // dizin hazir degilse NoData
     TerrainTileState StateOf(int pWest, int pSouth) const;
@@ -180,6 +184,7 @@ private:
     // (ince seviyeleri birakilmis) izgara yeter.
     const ElevationGrid* ElevationFor(int pWest, int pSouth, int pLevel);
     void KeepElevation(int pWest, int pSouth, std::unique_ptr<ElevationGrid> pGrid);
+    void TrimCache();  // isci: disk onbellegini mCacheLimit'e indirir
     void KeepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> pGrid);
     void BuildImageFor(const TerrainImageKey& pKey, const TerrainRaster& pRaster, TerrainImage* pOut);
     // Vektorler: bellekte yoksa karonun raster'iyla birlikte yuklenir / uretilir (RasterFor)
@@ -198,6 +203,8 @@ private:
 
     std::string mXPlaneDirectory;
     std::string mCacheDirectory;
+    uint64_t mCacheLimit = 0;
+    bool mCacheGrew = false;  // sadece isci: son kirpmadan beri yeni karo uretildi
     TerrainPalette mPalette;
     std::vector<TerrainImageStyle> mStyles;
     SceneryIndex mIndex;

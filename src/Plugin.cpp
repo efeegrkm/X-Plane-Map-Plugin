@@ -9,6 +9,7 @@
 //
 // Katman sirasi (alttan uste) CreateLayers() icinde belirlenir.
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <format>
@@ -57,12 +58,14 @@
 namespace
 {
 
-const char* kVersion = "0.17";
+const char* kVersion = "0.18";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
 const char* kTerrainCacheFolder = "cache/terrain/";
 const char* kAirportCacheFolder = "cache/airports/";
+const char* kCacheSection = "cache";
+const int kDefaultTerrainCacheMb = 1024;  // zemin onbellegi siniri (kullanici karari, 0 = sinirsiz)
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
 // Havalimani ozetlerinin kaynagi: apt.dat dosyalarini tarayan indeksleyici
@@ -116,6 +119,7 @@ private:
     Drawings mDrawings;
     LayerManager mLayers;  // katmanlar yukaridaki verilere bagli: onlardan SONRA tanimli olmali
     TrackLayer* mTrackLayer = nullptr;  // sahibi mLayers; menuden temizlemek icin
+    TerrainLayer* mTerrainLayer = nullptr;  // sahibi mLayers; "Loading terrain" durum yazisi icin
     std::unique_ptr<MapWindow> mWindow;
 
     XPLMMenuID mMenu = nullptr;
@@ -150,7 +154,7 @@ void MapPlugin::Start()
     CreateLayers();
 
     mWindow = std::make_unique<MapWindow>(mLayers, mAircraft, mSettings, mDrawings,
-                                          tPluginDirectory + kDrawingsFileName);
+                                          tPluginDirectory + kDrawingsFileName, mAirportGeometry);
     mWindow->Create();
 
     CreateCommands();
@@ -189,7 +193,9 @@ void MapPlugin::CreateLayers()
     // Alttan uste cizim sirasi (ayrinti: MIMARI.pdf bolum 7). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
     // kullanici cizimleri etiketlerinin yerini onceden ayirir).
-    mLayers.Add(std::make_unique<TerrainLayer>(mTerrainStore, mTerrainPalette));  // en altta: zemin
+    std::unique_ptr<TerrainLayer> tTerrain = std::make_unique<TerrainLayer>(mTerrainStore, mTerrainPalette);
+    mTerrainLayer = tTerrain.get();
+    mLayers.Add(std::move(tTerrain));  // en altta: zemin
     mLayers.Add(std::make_unique<RoadLayer>(mTerrainStore));  // DSF yollari: zeminin ustu, havalimani yuzeylerinin alti
     mLayers.Add(std::make_unique<AirportSurfaceLayer>(mAirportGeometry, mAirportDetails));
     mLayers.Add(std::make_unique<GridLayer>());
@@ -362,6 +368,10 @@ void MapPlugin::StepLoading()
         mXPlaneDirectory = tSystemPath.data();
         Log("indexing airports in the background: {}", mAirportGeometry.SourceName());
         mAirportGeometry.StartLoading(mXPlaneDirectory, mPluginDirectory + kAirportCacheFolder);
+        // Zemin disk onbellegi siniri (MB); dosyada gorunsun diye geri yazilir
+        const int tCacheMegabytes = std::max(0, mSettings.GetInt(kCacheSection, "terrain_mb", kDefaultTerrainCacheMb));
+        mSettings.SetInt(kCacheSection, "terrain_mb", tCacheMegabytes);
+        mTerrainStore.SetCacheLimit(static_cast<uint64_t>(tCacheMegabytes) << 20);
         mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette,
                             AllTerrainStyles());
     }
@@ -418,7 +428,17 @@ void MapPlugin::StepLoading()
         tMessage += tMessage.empty() ? "" : "   ";
         tMessage += "Reading airways...";
     }
-    const std::string tTerrainStatus = mTerrainStore.StatusText();
+    // Zemin: ekranda istenen kalitede olmayan (kaba yedek / bos) doku oldugu surece yaz.
+    // Isci bosta ise bekleyen bir sey yoktur (uretilemeyen parca): yazma, takili kalmasin.
+    std::string tTerrainStatus = mTerrainStore.StatusText();
+    const int tPending = (mTerrainLayer && mTerrainLayer->IsVisible() && mWindow->IsVisible())
+                             ? mTerrainLayer->PendingTextureCount()
+                             : 0;
+    if (tPending > 0 && !mTerrainStore.IsIdle())
+    {
+        const std::string tLoading = std::format("Loading terrain: {} image{}", tPending, tPending == 1 ? "" : "s");
+        tTerrainStatus = tTerrainStatus.empty() ? tLoading : tLoading + " (" + tTerrainStatus + ")";
+    }
     if (!tTerrainStatus.empty())
     {
         tMessage += tMessage.empty() ? "" : "   ";

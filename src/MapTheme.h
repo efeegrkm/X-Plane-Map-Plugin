@@ -7,6 +7,8 @@
 //              macenta, VOR pusula gulu, acik mavi Victor hava yollari
 //   IFR Low  : zemin sadece kara / su (iki duz renk); alcak hava yollari, VOR/NDB/fix
 //   IFR High : ayni zemin; yuksek hava yollari, sadece buyuk havalimanlari
+//   Dark     : (0.18) tam siyah, minimal (ucus kontrol ekrani tarzi): kara siyah, su koyu lacivert,
+//              havalimanlari, pistler, navaid'ler, ILS, hava yollari; arazi ayrintisi yok
 //
 // Katmanlar renkleri DrawContext::mTheme'den okur. Scenery temasi eski
 // sabitlerin birebir aynisidir (gorunum degismesin).
@@ -16,6 +18,7 @@
 #pragma once
 
 #include <array>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -28,9 +31,10 @@ enum class MapMode
     Vfr,
     IfrLow,
     IfrHigh,
+    Dark,
 };
 
-const int kMapModeCount = 4;
+const int kMapModeCount = 5;
 
 // Bir katmanin bu moddaki varsayilan gorunurlugu (ayar dosyasinda yoksa)
 struct LayerDefault
@@ -42,7 +46,7 @@ struct LayerDefault
 struct MapTheme
 {
     MapMode mMode;
-    const char* mId;    // ayar degeri: "scenery", "vfr", "ifr_low", "ifr_high"
+    const char* mId;    // ayar degeri: "scenery", "vfr", "ifr_low", "ifr_high", "dark"
     const char* mName;  // arayuz: "Scenery", "VFR" ...
 
     Rgba mBackground;  // zemin verisi olmayan / zeminsiz modda arka plan
@@ -76,7 +80,8 @@ struct MapTheme
     Rgba mRunwayEdge;
     Rgba mRunwayLabel;
 
-    std::array<LayerDefault, 12> mLayerDefaults;  // mId == nullptr: bos satir
+    // Katman ve alt katman ("<katman>.<alt>") varsayilanlari; listede olmayan: Layer'in kendi varsayilani
+    std::span<const LayerDefault> mLayerDefaults;
 
     // 0.16: "veri yok" karosu (kara ama sahnesi bu bilgisayarda kurulu degil; dsf_files).
     // Deniz gibi boyanmasin diye notr, sudan ve arka plandan farkli bir renk.

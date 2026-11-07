@@ -18,6 +18,8 @@
 #include "Log.h"
 #include "Settings.h"
 #include "data/AircraftData.h"
+#include "data/AirportGeometryStore.h"
+#include "data/AirportSearch.h"
 #include "gfx/GlScreen.h"
 #include "ui/UiDraw.h"
 
@@ -44,12 +46,14 @@ const double kDefaultZoom = 6.0;
 }  // namespace
 
 MapWindow::MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings, Drawings& pDrawings,
-                     const std::string& pDrawingsPath)
+                     const std::string& pDrawingsPath, const AirportGeometryStore& pAirports)
     : mLayers(pLayers)
     , mAircraft(pAircraft)
     , mSettings(pSettings)
     , mDrawings(pDrawings)
     , mDrawingsPath(pDrawingsPath)
+    , mAirports(pAirports)
+    , mSearchPanel(pAirports)
 {
 }
 
@@ -147,6 +151,10 @@ void MapWindow::ToggleVisible()
 void MapWindow::ToggleControls()
 {
     mShowControls = !mShowControls;
+    if (!mShowControls)
+    {
+        SetSearchOpen(false);  // gizli panel klavyeyi tutmasin
+    }
     SaveSettings();
 }
 
@@ -171,6 +179,11 @@ void MapWindow::Update(float /*pNow*/)
         SaveSettings();
     }
     mWasVisible = tVisible;
+    if (!tVisible && mSearchPanel.IsOpen())
+    {
+        SetSearchOpen(false);  // kapali pencere klavyeyi tutmasin
+    }
+    mSearchPanel.Refresh();  // havalimanlari arama sirasinda hazir olduysa
 }
 
 // ============================================================================
@@ -193,10 +206,11 @@ int MapWindow::RightClickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLM
     return static_cast<MapWindow*>(pRefcon)->OnRightClick(pX, pY, pStatus);
 }
 
-void MapWindow::KeyCallback(XPLMWindowID /*pWindow*/, char /*pKey*/, XPLMKeyFlags /*pFlags*/,
-                            char /*pVirtualKey*/, void* /*pRefcon*/, int /*pLosingFocus*/)
+void MapWindow::KeyCallback(XPLMWindowID /*pWindow*/, char pKey, XPLMKeyFlags pFlags, char pVirtualKey,
+                            void* pRefcon, int pLosingFocus)
 {
-    // Klavye odagi almiyoruz; tuslar X-Plane komutlariyla atanir.
+    // Klavye odagini sadece "Go to airport" paneli acikken aliriz; diger tuslar X-Plane komutlariyla
+    static_cast<MapWindow*>(pRefcon)->OnKey(pKey, pFlags, pVirtualKey, pLosingFocus != 0);
 }
 
 XPLMCursorStatus MapWindow::CursorCallback(XPLMWindowID /*pWindow*/, int pX, int pY, void* pRefcon)
@@ -408,6 +422,7 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
     mLayerPanel.Layout(mToolbar.ButtonRect(ToolbarAction::Layers), mArea.mBottom + StatusBar::kHeight + 4, mLayers);
     mToolPalette.Layout(PaletteBounds(), tState);
     mModePanel.Layout(mToolbar.ButtonRect(ToolbarAction::MapMode));
+    mSearchPanel.Layout(mToolbar.ButtonRect(ToolbarAction::GoToAirport));
 
     // Imlecin altindaki nokta: kontrollerin ustundeyse gosterme
     std::optional<LatLon> tCursor;
@@ -432,6 +447,7 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
     mToolPalette.Draw(mCanvas, pMouseX, pMouseY, tState);
     mLayerPanel.Draw(mCanvas, pMouseX, pMouseY, mLayers);  // en ustte: acilir paneller
     mModePanel.Draw(mCanvas, pMouseX, pMouseY, mMapMode);
+    mSearchPanel.Draw(mCanvas, pMouseX, pMouseY, HasKeyboardFocus(), XPLMGetElapsedTime());
 }
 
 RectD MapWindow::ClearArea() const
@@ -470,8 +486,9 @@ ToolbarState MapWindow::CurrentToolbarState() const
     ToolbarState tState;
     tState.mLayersOpen = mLayerPanel.IsOpen();
     tState.mModesOpen = mModePanel.IsOpen();
+    tState.mSearchOpen = mSearchPanel.IsOpen();
     static const char* const kModeLabels[kMapModeCount] = {"Map: Scenery", "Map: VFR", "Map: IFR Low",
-                                                           "Map: IFR High"};
+                                                           "Map: IFR High", "Map: Dark"};
     tState.mModeLabel = kModeLabels[static_cast<int>(mMapMode)];
     tState.mFollowing = mFollowAircraft;
     tState.mHasAircraft = mAircraft.State().mValid;
@@ -505,7 +522,8 @@ bool MapWindow::IsOverControls(int pX, int pY) const
     }
     std::optional<MapMode> tMode;
     return mToolbar.Contains(pX, pY) || mStatusBar.Contains(pX, pY) || mLayerPanel.HitTest(pX, pY, mLayers).mInside ||
-           mModePanel.HitTest(pX, pY, &tMode) || mToolPalette.Contains(pX, pY);
+           mModePanel.HitTest(pX, pY, &tMode) || mToolPalette.Contains(pX, pY) ||
+           mSearchPanel.HitTest(pX, pY).mInside;
 }
 
 void MapWindow::LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor)
@@ -546,6 +564,10 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
         XPLMBringWindowToFront(mWindow);
         mPaletteDrag = false;
         mPressOnMap = !HandleControlClick(pX, pY);
+        if (mPressOnMap)
+        {
+            SetKeyboardFocus(false);  // haritaya tiklandi: tuslar yine X-Plane'e (panel acik kalir)
+        }
         mPressMoved = false;
         mPressX = pX;
         mPressY = pY;
@@ -627,6 +649,10 @@ int MapWindow::OnWheel(int pX, int pY, int pWheel, int pClicks)
     {
         return 1;  // yatay tekerlek: kullanmiyoruz
     }
+    if (mShowControls && mSearchPanel.HitTest(pX, pY).mInside)
+    {
+        return 1;  // arama panelinin ustunde zoom yok
+    }
     if (mShowControls && mLayerPanel.Scroll(pX, pY, pClicks))
     {
         return 1;  // uzun katman listesini kaydir (harita zoom yapmasin)
@@ -657,7 +683,20 @@ bool MapWindow::HandleControlClick(int pX, int pY)
         return false;
     }
 
-    // Acik panel en ustte: once ona bak
+    // Acik paneller en ustte: once onlara bak
+    const AirportSearchPanel::Hit tSearchHit = mSearchPanel.HitTest(pX, pY);
+    if (tSearchHit.mInside)
+    {
+        if (tSearchHit.mAirport >= 0)
+        {
+            GoToAirport(tSearchHit.mAirport);
+        }
+        else
+        {
+            SetKeyboardFocus(true);  // panelin herhangi bir yerine tiklama: yazmaya devam
+        }
+        return true;
+    }
     std::optional<MapMode> tModeHit;
     if (mModePanel.HitTest(pX, pY, &tModeHit))
     {
@@ -819,10 +858,17 @@ void MapWindow::PerformToolbarAction(ToolbarAction pAction)
         case ToolbarAction::Layers:
             mLayerPanel.Toggle();
             mModePanel.SetOpen(false);
+            SetSearchOpen(false);
             break;
         case ToolbarAction::MapMode:
             mModePanel.Toggle();
             mLayerPanel.SetOpen(false);
+            SetSearchOpen(false);
+            break;
+        case ToolbarAction::GoToAirport:
+            SetSearchOpen(!mSearchPanel.IsOpen());
+            mLayerPanel.SetOpen(false);
+            mModePanel.SetOpen(false);
             break;
         case ToolbarAction::FollowAircraft:
             mFollowAircraft = !mFollowAircraft;
@@ -901,6 +947,81 @@ void MapWindow::TogglePopOut()
         Log("window popped out into its own OS window");
     }
     mPressOnMap = false;
+}
+
+void MapWindow::SetSearchOpen(bool pOpen)
+{
+    mSearchPanel.SetOpen(pOpen);
+    SetKeyboardFocus(pOpen);
+}
+
+void MapWindow::SetKeyboardFocus(bool pFocus)
+{
+    if (!mWindow)
+    {
+        return;
+    }
+    if (pFocus)
+    {
+        XPLMTakeKeyboardFocus(mWindow);
+    }
+    else if (HasKeyboardFocus())
+    {
+        XPLMTakeKeyboardFocus(nullptr);  // klavye X-Plane'e geri doner
+    }
+}
+
+bool MapWindow::HasKeyboardFocus() const
+{
+    return mWindow && XPLMHasKeyboardFocus(mWindow) != 0;
+}
+
+void MapWindow::OnKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey, bool pLosingFocus)
+{
+    if (pLosingFocus || !mSearchPanel.IsOpen() || (pFlags & xplm_DownFlag) == 0)
+    {
+        return;  // odak gidiyor / panel kapali / tus birakildi
+    }
+    switch (static_cast<unsigned char>(pVirtualKey))
+    {
+        case XPLM_VK_ESCAPE:
+            SetSearchOpen(false);
+            return;
+        case XPLM_VK_RETURN:
+        case XPLM_VK_ENTER:
+        case XPLM_VK_NUMPAD_ENT:
+            if (mSearchPanel.SelectedAirport() >= 0)
+            {
+                GoToAirport(mSearchPanel.SelectedAirport());
+            }
+            return;
+        case XPLM_VK_BACK:
+            mSearchPanel.Backspace();
+            return;
+        case XPLM_VK_UP:
+            mSearchPanel.MoveSelection(-1);
+            return;
+        case XPLM_VK_DOWN:
+            mSearchPanel.MoveSelection(1);
+            return;
+        default:
+            break;
+    }
+    if ((pFlags & (xplm_ControlFlag | xplm_OptionAltFlag)) == 0)
+    {
+        mSearchPanel.TypeCharacter(pKey);
+    }
+}
+
+void MapWindow::GoToAirport(int pAirport)
+{
+    const AirportGeometry& tAirport = mAirports.At(pAirport);
+    mFollowAircraft = false;  // takip acik kalirsa harita hemen ucaga geri doner
+    mView.SetCenter(AirportCenter(tAirport));
+    mView.SetZoom(ZoomToFitAirport(tAirport, mArea.Width(), mArea.Height()));
+    Log("go to airport {} ({})", tAirport.mId, tAirport.mName);
+    SetSearchOpen(false);
+    SaveSettings();
 }
 
 void MapWindow::CenterOnAircraft()

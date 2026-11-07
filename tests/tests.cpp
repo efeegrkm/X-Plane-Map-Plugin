@@ -737,8 +737,8 @@ void TestLayerManager()
     tModeLayers.Add(std::make_unique<CountingLayer>("ils", true, &tTrace));
     tModeLayers.LoadVisibility(tEmpty, ThemeFor(MapMode::Vfr));
     CHECK(!tModeLayers.At(0)->IsVisible(), "VFR temasi ILS'i varsayilan kapatir");
-    tModeLayers.LoadVisibility(tEmpty, ThemeFor(MapMode::IfrLow));
-    CHECK(tModeLayers.At(0)->IsVisible(), "IFR Low'da ILS acik");
+    tModeLayers.LoadVisibility(tEmpty, ThemeFor(MapMode::Dark));
+    CHECK(tModeLayers.At(0)->IsVisible(), "Dark'ta ILS acik");
 }
 
 void TestMapTheme()
@@ -746,7 +746,8 @@ void TestMapTheme()
     CHECK(ModeFromId("vfr", MapMode::Scenery) == MapMode::Vfr && ModeFromId("ifr_high", MapMode::Scenery) ==
               MapMode::IfrHigh && ModeFromId("xyz", MapMode::IfrLow) == MapMode::IfrLow,
           "mod kimligi okuma");
-    CHECK(NextMode(MapMode::IfrHigh) == MapMode::Scenery && NextMode(MapMode::Scenery) == MapMode::Vfr,
+    CHECK(NextMode(MapMode::IfrHigh) == MapMode::Dark && NextMode(MapMode::Dark) == MapMode::Scenery &&
+              NextMode(MapMode::Scenery) == MapMode::Vfr,
           "siradaki mod donguseldir");
     CHECK(LayerSectionFor(MapMode::IfrLow) == "layers.ifr_low", "mod bolumu adi");
     for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
