@@ -51,7 +51,7 @@
 <body>
 
 <h1>Prime Map Plugin — Mimari</h1>
-<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.18 · kodun nasıl çalıştığı, hangi parçanın
+<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.19 · kodun nasıl çalıştığı, hangi parçanın
 ne yaptığı ve parçaların birbirine nasıl bağlandığı</div>
 
 <p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de;
@@ -739,6 +739,15 @@ anlam ölçümden çıkarıldı, bu yüzden derinlik tonu sadece −10'dan derin
       (~3.450 doku). <code>[palette] source = xplane</code> varsayılan; sonuç önbelleğe yazılır.</li>
 </ul>
 
+<h3>9.9 Aşama 4: öncelik, önceden yükleme, bölge önbelleği (0.19)</h3>
+<ul>
+  <li><b>Merkezden kenara:</b> <code>TerrainLayer</code> her çizimde <code>TerrainStore::SetFocus</code>'a harita merkezini verir. <code>PickRequest</code> sırası: en son istenen kare → kaba seviye → merkeze yakın parça.</li>
+  <li><b>Arka plan kuyruğu:</b> ekranın isteği yokken işçi <code>ServeBackgroundTile</code> ile bir karonun disk önbelleğini (raster, rakım, vektör) hazırlar; geçici nesnelere çalışır, bellek LRU'sunu ve <code>IsIdle</code>'ı etkilemez (harita resmi boşuna yenilenmez). Önce bölge listesi, sonra önceden yükleme listesi.</li>
+  <li><b>Önceden yükleme:</b> eklenti 5 s'de bir uçağın gidiş yönünde 120 NM'ye kadar ve FMS rotasının kalan kısmında (<code>FmsLayer::RouteAhead</code>, 10 NM örnekleme) en çok <code>[cache] prefetch_tiles</code> (20) karoyu verir.</li>
+  <li><b>Görünen alanı önbellekle:</b> komut / menü. Kurulu karolar × ~3,5 MB önbellek sınırının %80'ini aşarsa başlamaz (yoksa <code>CacheTrim</code> yeni karoları silerdi). İlerleme ve iptal alt şeritte / menüde.</li>
+  <li><b>İkinci işçi yok (karar):</b> raster / rakım / vektör LRU'ları kilitsiz ve tek işçinin; bölmek bunları paylaşılan ve kilitli yapmayı gerektirirdi, ölçülmüş bir ihtiyaç yok. İşçi düşük thread önceliğinde.</li>
+</ul>
+
 <!-- ================================================================== -->
 <h2>10. Nav verisi, hava yolları, uçak</h2>
 <ul>
@@ -815,6 +824,29 @@ bırakabilir; bu yüzden her geometri çiziminden önce <code>XPLMSetGraphicsSta
 yok).</div>
 
 <!-- ================================================================== -->
+<h3>11.1 Harita resmi önbelleği (0.19, <code>MapImageCache</code>)</h3>
+<p>Harita her karede baştan çizilmez. Katmanlar bir FBO dokusuna (<code>gfx/RenderTarget</code>) çizilir; her karede bu doku tek bir dörtgen olarak (saydamlıksız) ekrana basılır.</p>
+<pre>OnDraw:  PrepareAll (hazir dokular / vektorler)  -> yeni veri?
+         SceneSignature (mod, katmanlar, cizim)    -> degisti mi?
+         MapImageCache::Draw
+             gerekirse: BeginOffscreen -> arka plan + LayerPass::Cached -> EndOffscreen
+             eski resmi kaydir (tam piksel) / olcekle -> bas
+         LayerPass::Overlay (ucak, iz, yarim cizim) -> tooltip -> kontroller -> FlushText</pre>
+<ul>
+  <li><b>Pay:</b> doku pencereden her yanda %25 büyük; kaydırırken ve takipte kenar boş kalmaz. Gösterim: resmin noktası p → <code>M + (c0 − c)·W + (p − M0)·W/W0</code>; sadece kaydırmada tam piksele yuvarlanır (bulanıklık yok).</li>
+  <li><b>Ne zaman çizilir:</b> hemen (ilk kez, boyut / UI ölçeği, imza değişti, resim pencereyi kaplamıyor); hız sınırında <code>[render] max_fps</code> (görünüm değişti, yeni veri, veri yükleniyor); güvenlik için en geç 1 s.</li>
+  <li><b>Görünüm:</b> resmin <code>MapView</code>'ı aynı zoom, geniş viewport; merkezi, içerik pencereyle birebir aynı yere düşecek şekilde kaydırılır. Etiketler pencerenin boş alanına yerleşir (payda etiket yok).</li>
+  <li><b>X-Plane ile yaşamak:</b> <code>BeginOffscreen</code> X-Plane'in draw/read framebuffer'ını, viewport'u, scissor'ı ve temizleme rengini kaydedip geri koyar. FBO nesnesi bağlamlar arası paylaşılmaz: pop-out'ta <code>RenderTarget</code> o bağlam için yenisini aynı dokuya bağlar.</li>
+  <li><b>Yedek:</b> FBO kurulamazsa ya da <code>[render] cache = 0</code> / <code>[text] renderer = xplane</code> ise harita eskisi gibi her karede doğrudan çizilir.</li>
+  <li><b>Katman kuralları:</b> her karede gereken iş <code>Layer::PrepareFrame</code>'de; her karede değişen çizim <code>Layer::IsOverlay</code> ile üstte. Havalimanı yükleniyor çerçevesinin yanıp sönmesi bu yüzden kaldırıldı.</li>
+</ul>
+<h3>11.2 Yazı çizici (0.19)</h3>
+<ul>
+  <li><code>gfx/FontAtlas</code>: X-Plane'in <code>Resources/fonts/DejaVuSans.ttf</code>'i (dağıtmıyoruz) stb_truetype ile (<code>third_party/stb</code>, kamu malı) bir RGBA atlasa basılır: ASCII, Latin-1, Türkçe harfler. Boyut büyük harf yüksekliğiyle verilir = X-Plane yazısının yüksekliği (<code>XPLMGetFontDimensions</code>), yerleşim değişmez.</li>
+  <li><code>ui/AtlasTextRenderer</code> (<code>TextRenderer</code> arayüzü; <code>Ui::SetTextRenderer</code>): harfleri tam piksele oturtur, UI ölçeği değişince atlası yeniden basar, köşeleri <code>Canvas::QueueText</code>'e verir. Canvas bir sonraki şekilden önce ya da <code>FlushText</code>'te hepsini tek çağrıyla çizer.</li>
+  <li>Yedek: <code>XPLMDrawString</code> (<code>[text] renderer = xplane</code> ya da font okunamazsa).</li>
+</ul>
+
 <h2>12. Arayüz ve fare</h2>
 <p>Pencerenin tamamı haritadır; kontroller haritanın üstünde ince ve yarı saydamdır. Arayüz parçaları <b>sadece
 çizer ve tıklamanın neye denk geldiğini söyler</b> (<code>HitTest</code>); ne yapılacağına <code>MapWindow</code> karar
@@ -971,6 +1003,10 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
       <td>Bellek dolaşılan alanla sınırsız büyümez; en uzun süredir kullanılmayan atılır.</td></tr>
   <tr><td>GPU'da kalıcı şekil</td><td><code>StaticMesh</code> + <code>DrawStatic</code></td>
       <td>Büyük havalimanı yüzeyleri (yüz binlerce nokta) bir kez yüklenir; her karede sadece ölçek + kaydırma gönderilir.</td></tr>
+  <tr><td>Harita resmi önbelleği</td><td><code>MapImageCache</code></td>
+      <td>Dururken harita saniyede ~1 kez, kayarken en çok 15 kez çizilir; aradaki karelerde tek dokulu dörtgen.</td></tr>
+  <tr><td>Yazı toplu çizimi</td><td><code>AtlasTextRenderer</code>, <code>Canvas::QueueText</code></td>
+      <td>Yüzlerce etiket tek çizim çağrısında; X-Plane'in durum değişikliği etiket başına değil.</td></tr>
   <tr><td>Doku yükleme sınırı</td><td><code>TerrainLayer</code></td>
       <td>Karede en çok 3 doku yüklenir (takılma olmasın); ince seviye gelene kadar elde olan kaba seviye gösterilir.</td></tr>
   <tr><td>Merkezden dışa öncelik</td><td><code>AirportVisibility</code></td>

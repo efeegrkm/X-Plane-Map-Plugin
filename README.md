@@ -1,4 +1,4 @@
-# Prime Map Plugin (prime-map-plugin) 0.18 — X-Plane 11
+# Prime Map Plugin (prime-map-plugin) 0.19 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita. Dış harita servisi (Kaşif, OSM) yok: zemin, pistler,
@@ -44,6 +44,8 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[prime-map-plugin]` ile başlayan satırla
 | Show / hide X-Plane map (compare) | X-Plane'in `sim/map/show_current` komutu: yan yana karşılaştırmak için |
 | Diagnostics mode | `ozdev/map/diagnostics` |
 | Clear flight track | — |
+| Pre-cache terrain of visible area | `ozdev/map/precache_view`: haritada görünen alandaki kurulu karoların zemin önbelleğini (raster, rakım, vektör) arka planda hazırlar; ilerleme alt şeritte. Önbellek sınırının %80'ini aşacaksa başlamaz |
+| Cancel terrain pre-cache | `ozdev/map/precache_cancel` |
 
 **Fare**
 - Sürükle: haritayı kaydırır (her modda; uçak takibini kapatır).
@@ -173,13 +175,29 @@ binmez, sığmayan etiket zoom yapınca görünür.
 | Dosya | Ne |
 |---|---|
 | `64/win.xpl` | Eklenti |
-| `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar, `[cache] terrain_mb` (zemin önbelleği sınırı, varsayılan 1024; 0 = sınırsız) |
+| `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar; `[cache] terrain_mb` (zemin önbelleği sınırı, varsayılan 1024; 0 = sınırsız), `[cache] prefetch_tiles` (önceden yükleme: uçağın önü + FMS rotası, en çok 20 karo; 0 = kapalı); `[render] cache` (1: harita resmi önbelleği / FBO, 0: her karede doğrudan çizim), `[render] max_fps` (resmin en çok yeniden çizilme hızı, 15); `[text] renderer` (`atlas`: kendi yazı çizicimiz, `xplane`: X-Plane'in yazısı) |
 | `map_drawings.txt` | Kullanıcı çizimleri (metin; elle düzenlenebilir) |
 | `terrain_colors.ini` | Zemin renkleri ve ayarları (yukarıda) |
 | `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar ve alanlar, `*.elevation` rakım, `*.vectors` DSF vektörleri, `xplane_palette.txt`. Karo başına ~3–4 MB; `terrain_mb` aşılınca en uzun süredir kullanılmayan karolar (tüm dosyalarıyla) silinir, toplam sınırın %90'ına iner |
 | `cache/airports/` | apt.dat indeks önbelleği (silinebilir) |
 
-## Test listesi (0.18) — X-Plane'de denenecek
+## Test listesi (0.19) — X-Plane'de denenecek
+
+Önce 0.18'de (şu anki kurulu sürüm değilse atla) Diagnostics mode açıp aynı yerde FPS ve `draw ... ms` değerini not et; sonra 0.19 ile karşılaştır.
+
+| # | Ne yap | Beklenen |
+|---|---|---|
+| 1 | X-Plane'i aç | Log'da `loaded (version 0.19)`, `text: font atlas from ...DejaVuSans.ttf`; hata satırı yok (`map image cache (FBO) not available` çıkarsa bildir) |
+| 2 | Yazılara bak (etiketler, düğmeler, paneller) | Okunur, boyutlar eskisine yakın; bulanık değil. Sorun varsa `[text] renderer = xplane` ile eskisine dön ve ekran görüntüsü gönder |
+| 3 | Haritayı sürükle, tekerlekle zoom yap | Akıcı; kenarlarda boşluk yok. Zoom anında bir an hafif bulanık, hemen keskinleşir |
+| 4 | Follow aircraft, uçarken | Harita akıcı kayar, uçak sembolü ve iz her karede güncel |
+| 5 | Pop out, sonra Pop in | Harita iki durumda da çiziliyor, çökme yok |
+| 6 | Diagnostics mode | Alt şeritte `map renders N/s`: dururken ~1, kaydırırken ≤ 15. FPS'i 0.18 ile karşılaştır |
+| 7 | Katman aç/kapat, mod değiştir, çizim yap | Değişiklik anında görünüyor; rota çizerken imlece giden kesikli çizgi akıcı |
+| 8 | Seattle'da zoom 11, Plugins → Prime Map Plugin → Pre-cache terrain of visible area | Altta `Pre-caching terrain: n/N`; bitince `Terrain pre-cache finished`. Cancel menüsü çalışıyor |
+| 9 | Zoom 6'da (Seattle bölgesi) pre-cache dene | `area too large` uyarısı (tam sürümde) ya da kurulu karolar kadar iş |
+
+## Test listesi (0.18)
 
 | # | Ne yap | Beklenen |
 |---|---|---|

@@ -11,7 +11,7 @@ başlayabilmesi için yazıldı. Tamamını oku. Sonra:
 - Her kaynak dosyanın başında Türkçe bir açıklama bloğu var (ne yapar, neden,
   zoom eşikleri, küçük şemalar). Bir dosyayı değiştirmeden önce o bloğu oku.
 
-Durum tarihi: **2026-11-07**, sürüm **0.18**.
+Durum tarihi: **2026-11-07**, sürüm **0.19**.
 
 ---
 
@@ -306,8 +306,23 @@ tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Ön
     ister. Bir kez hazır olup artık bulunamayan komşu eksik sayılmaz; bu kuralı
     bozarsan sonsuz yeniden üretim olur (`TerrainStore::BuildImageFor`).
 13. Bash heredoc (`<<'EOF'`) içindeki Python betiklerinde `\\n` gerçek satır
-    sonuna dönüşebiliyor (iki kez görüldü). Betiği önce Write ile dosyaya yaz,
-    `python -I betik.py` ile çalıştır.
+    sonuna dönüşebiliyor (üç kez görüldü). Betiği önce Write ile dosyaya yaz,
+    `python -I betik.py` ile çalıştır. `sed` ile `/` içeren yolları değiştirirken
+    ayırıcıyı `|` yap (bir kez Plugin.cpp include'larını bozdu).
+14. **Harita resmi önbellekte (0.19, `MapImageCache`).** Katmanın `Draw`'ı her
+    karede çağrılmaz (dururken ~1/s, kayarken ≤ 15/s). Her karede gereken iş
+    (`Pop...` ile hazır veri almak) `Layer::PrepareFrame`'e; her karede değişen
+    çizim (`mNow` animasyonu, imleç) ya `Layer::IsOverlay` ile üst geçişe ya da
+    hiç. Yeni bir görünürlük durumu eklersen `LayerManager::VisibilitySignature` /
+    `MapWindow::SceneSignature`'a kat; yoksa değişiklik ≤ 1 s gecikir.
+15. **Yazılar `Canvas`'ta biriktirilir** (`AtlasTextRenderer` → `QueueText`);
+    şekil çizimleri önce `FlushText` yapar. Canvas dışında bir şey çizen kod
+    (olmamalı) ya da kare sonu `FlushText` çağırmalı. FBO'ya çizim sadece atlas
+    yazısıyla yapılır: `[text] renderer = xplane` iken önbellek kapalıdır.
+16. Zemin işçisi düşük öncelikte (`THREAD_PRIORITY_BELOW_NORMAL`), tek thread.
+    İkinci işçi bilerek yapılmadı (kullanıcıyla konuşuldu): raster / rakım /
+    vektör LRU'ları kilitsiz ve sadece işçinin. Arka plan karoları
+    (`ServeBackgroundTile`) bellek LRU'suna girmez; `IsIdle` onları saymaz.
 
 ## 9. Mimari özeti
 
@@ -334,6 +349,10 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 - **Katman sırası:** `Plugin.cpp::CreateLayers()`. Etiket önceliği
   `LabelPriority` (havalimanı 10, pist 15, VOR 20, NDB 30, ILS 40, fix 60,
   hava yolu 70); `LabelPlacer` çakışanı reddeder.
+- **Çizim (0.19):** `MapWindow::OnDraw` → `LayerManager::PrepareAll` →
+  `MapImageCache::Draw` (gerekirse `LayerPass::Cached` katmanları FBO'ya, pencereden
+  her yanda %25 büyük; sonra resmi kaydırıp/ölçekleyip basar) → `LayerPass::Overlay`
+  (uçak, iz, yarım çizim) → tooltip → kontroller → `Canvas::FlushText`.
 - **Alt katmanlar:** `Layer::AddSubLayer` / `IsSubLayerVisible`; ayar anahtarı
   `<katman>.<alt>`. Kullananlar: AirportSurface, AirportObjects, Runway,
   Drawing.
@@ -360,7 +379,8 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 
 `C:\X-Plane 11\Resources\plugins\prime-map-plugin\`: `map_settings.ini` (`[window]`,
 `[view]` + `mode`, `[tools]`, `[layers.scenery|vfr|ifr_low|ifr_high|dark]`; eski
-`[layers]` Scenery'ye okunur; `[cache] terrain_mb` zemin önbelleği sınırı, varsayılan 1024), `map_drawings.txt`, `terrain_colors.ini`
+`[layers]` Scenery'ye okunur; `[cache] terrain_mb` zemin önbelleği sınırı, varsayılan 1024,
+`prefetch_tiles` 20; `[render] cache` 1, `max_fps` 15; `[text] renderer` atlas | xplane), `map_drawings.txt`, `terrain_colors.ini`
 (`[colors] [shading] [blend] [warp] [closeup] [relief] [water] [vfr]
 [palette]`), `cache/terrain/` (`*.terrain`, `*.elevation`, `*.vectors`, `*.nobase`; `CacheTrim` en eski karoları siler),
 `cache/airports/airport_index.bin` (önbellekler silinebilir).
@@ -379,6 +399,7 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 | 0.14–0.15 | (kullanıcının commit'i `4ee9d95`) Yakın zoom zemini (seviye 4–5, DSF üçgenlerinden), bikubik gölge, mipmap, sınır kıvırma, kara renk karışımı; alt katmanlar; yüzen çizim paleti; pop-out VAO düzeltmesi; zoom eşikleri bir kademe erken, en çok zoom 16.5 | denendi (kullanıcı: zemin kalitesiz → zemin görevi) |
 | 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | denendi: sorunsuz; kullanıcı "gelişme var ama yeterince iyi değil" |
 | 0.17 | Aşama 3: sınıf renkleri X-Plane'in `.ter` dokularından (`TerrainPaletteSource`, `[palette] source`). Aşama 2: DSF vektörleri (`TerrainVectors`, `.vectors` önbelleği, dışlamalar): orman ve yerleşim zemine işlenir (Terrain alt katmanları Forests / Built-up areas; VFR'da yerleşim sarı), yollar / demiryolu / enerji hattı yeni `RoadLayer` (Roads and railways, 6 alt katman). Raster önbelleği v4, palet v3 | denendi: yerleşim simülatör için önemsiz bulundu (varsayılan kapalı kalsın) |
+| 0.19 | **Kendi yazı çizicimiz** (`FontAtlas` + stb_truetype, X-Plane'in `Resources/fonts/DejaVuSans.ttf`'i; `AtlasTextRenderer`, tek çizim çağrısı; `[text] renderer`). **Harita resmi önbelleği** (`MapImageCache`, `RenderTarget`, `Canvas::BeginOffscreen`; `[render] cache / max_fps`; önizlemede doğrudan çizimle 540 bin pikselde 11 piksel fark). **Zemin Aşama 4**: merkezden kenara öncelik, önceden yükleme (`[cache] prefetch_tiles`), görünen alanı önbellekleme komutu; işçi düşük öncelikli. İkinci işçi yapılmadı (kullanıcıyla: risk > kazanç) | **denenmedi** |
 | 0.18 | Kullanıcının kaydettiği katman ayarları varsayılan oldu (`MapTheme.cpp` tabloları); yeni **Dark** modu (siyah kara, lacivert su, minimal); **Go to airport** paneli (`AirportSearchPanel`, `AirportSearch`; sadece harita gider, klavye odağı panel açıkken); alt şeritte `Loading terrain: N images` (kaba / boş zemin görünen her an); zemin önbelleğine disk sınırı (`CacheTrim`, `[cache] terrain_mb` = 1024); ad **prime-map-plugin** (klasör `plugins/prime-map-plugin`, log `[prime-map-plugin]`, menü "Prime Map Plugin", imza `ozdev.prime_map_plugin`; komutlar `ozdev/map/...` aynı kaldı) | **denenmedi** |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.
@@ -406,10 +427,9 @@ Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme
   autogen blokları yüzünden lekeli (birleştirme / yumuşatma düşünülebilir);
   `DsfReader`'da üç komut döngüsü (`ForEachTriangle`, `CountCommands`,
   `ForEachVector`) hâlâ ayrı (teknik borç).
-- **Aşama 4:** iki işçi, merkezden kenara öncelik, nesil sayacıyla iptal, rota
-  önyükleme, önceden önbellek komutu; hedefler Aşama 0 ölçümüne göre (önbellekte
-  < 0,1 s, kaba ilk görüntü < 0,1 s hızlı yoldan, karo başına tam görüntü
-  ≤ 0,6 s).
+- **Aşama 4** (bitti, 0.19): merkezden kenara öncelik, önceden yükleme (uçağın
+  önü 120 NM + FMS rotası, en çok 20 karo, sadece disk önbelleği), görünen alanı
+  önbellekleme komutu (sınırın %80'ini aşarsa başlamaz). İkinci işçi bilerek yok.
 
 ### Sıradaki işler
 Kullanıcı (0.18): "IOS işi" diye ayrı bir başlık açılmayacak; genel harita
