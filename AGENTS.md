@@ -118,7 +118,7 @@ void Example(const std::vector<int>& pValues)
 | Derleyici | MSVC 2022 x64; CMake + Ninja Qt Creator'ın araçlarından (kit "Desktop Qt 6.10.1 MSVC2022 64bit"). **Qt kütüphanesi kullanılmıyor**, Qt Creator sadece IDE |
 | SDK | `third_party/XPSDK` (sadece XPLM200, 210, 300, 301 tanımlı; XP12 API'si kullanılırsa derleme hata verir — istenen davranış) |
 | Ekran kartı | RTX 5070 Laptop, Log: "OpenGL ready: 4.6.0 NVIDIA" |
-| Log | `C:\X-Plane 11\Log.txt`, bizim satırlar `[MapPlugin]` ile başlar |
+| Log | `C:\X-Plane 11\Log.txt`, bizim satırlar `[prime-map-plugin]` ile başlar |
 
 ## 5. Derleme, test, kurulum
 
@@ -136,7 +136,7 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 
 | CMake seçeneği | Ne |
 |---|---|
-| `MAP_DEPLOY` (ON) | Derlemeden sonra `win.xpl`'yi `C:\X-Plane 11\Resources\plugins\MapPlugin\64\`'e kopyalar. X-Plane açıkken dosya kilitlidir: önce `tasklist \| findstr X-Plane` |
+| `MAP_DEPLOY` (ON) | Derlemeden sonra `win.xpl`'yi `C:\X-Plane 11\Resources\plugins\prime-map-plugin\64\`'e kopyalar. X-Plane açıkken dosya kilitlidir: önce `tasklist \| findstr X-Plane` |
 | `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (2026-11-07: 30.513 kontrol) |
 | `MAP_PREVIEW` | `map_preview.exe` ve `dsf_info.exe` |
 | `XPLANE_DIR`, `XPSDK` | Farklı X-Plane / SDK klasörü |
@@ -163,7 +163,7 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 ## 6. Yasaklar
 
 - Depoda dokunma: `build/` (kullanıcının derlemesi), `.qtcreator/`.
-- X-Plane klasöründe **sadece** `Resources\plugins\MapPlugin\` altına yaz.
+- X-Plane klasöründe **sadece** `Resources\plugins\prime-map-plugin\` altına yaz.
 - `Custom Scenery\scenery_packs.ini`'ye **asla** yazma (sadece okunur; X-Plane
   her açılışta kendisi yeniden yazar).
 - Dış harita/karo servisi, internetten harita verisi, `XPLMMap` API'si,
@@ -358,7 +358,7 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 
 ## 10. Ayar dosyaları (eklenti klasörü)
 
-`C:\X-Plane 11\Resources\plugins\MapPlugin\`: `map_settings.ini` (`[window]`,
+`C:\X-Plane 11\Resources\plugins\prime-map-plugin\`: `map_settings.ini` (`[window]`,
 `[view]` + `mode`, `[tools]`, `[layers.scenery|vfr|ifr_low|ifr_high|dark]`; eski
 `[layers]` Scenery'ye okunur; `[cache] terrain_mb` zemin önbelleği sınırı, varsayılan 1024), `map_drawings.txt`, `terrain_colors.ini`
 (`[colors] [shading] [blend] [warp] [closeup] [relief] [water] [vfr]
@@ -379,7 +379,7 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 | 0.14–0.15 | (kullanıcının commit'i `4ee9d95`) Yakın zoom zemini (seviye 4–5, DSF üçgenlerinden), bikubik gölge, mipmap, sınır kıvırma, kara renk karışımı; alt katmanlar; yüzen çizim paleti; pop-out VAO düzeltmesi; zoom eşikleri bir kademe erken, en çok zoom 16.5 | denendi (kullanıcı: zemin kalitesiz → zemin görevi) |
 | 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | denendi: sorunsuz; kullanıcı "gelişme var ama yeterince iyi değil" |
 | 0.17 | Aşama 3: sınıf renkleri X-Plane'in `.ter` dokularından (`TerrainPaletteSource`, `[palette] source`). Aşama 2: DSF vektörleri (`TerrainVectors`, `.vectors` önbelleği, dışlamalar): orman ve yerleşim zemine işlenir (Terrain alt katmanları Forests / Built-up areas; VFR'da yerleşim sarı), yollar / demiryolu / enerji hattı yeni `RoadLayer` (Roads and railways, 6 alt katman). Raster önbelleği v4, palet v3 | denendi: yerleşim simülatör için önemsiz bulundu (varsayılan kapalı kalsın) |
-| 0.18 | Kullanıcının kaydettiği katman ayarları varsayılan oldu (`MapTheme.cpp` tabloları); yeni **Dark** modu (siyah kara, lacivert su, minimal); **Go to airport** paneli (`AirportSearchPanel`, `AirportSearch`; sadece harita gider, klavye odağı panel açıkken); alt şeritte `Loading terrain: N images` (kaba / boş zemin görünen her an); zemin önbelleğine disk sınırı (`CacheTrim`, `[cache] terrain_mb` = 1024) | **denenmedi** |
+| 0.18 | Kullanıcının kaydettiği katman ayarları varsayılan oldu (`MapTheme.cpp` tabloları); yeni **Dark** modu (siyah kara, lacivert su, minimal); **Go to airport** paneli (`AirportSearchPanel`, `AirportSearch`; sadece harita gider, klavye odağı panel açıkken); alt şeritte `Loading terrain: N images` (kaba / boş zemin görünen her an); zemin önbelleğine disk sınırı (`CacheTrim`, `[cache] terrain_mb` = 1024); ad **prime-map-plugin** (klasör `plugins/prime-map-plugin`, log `[prime-map-plugin]`, menü "Prime Map Plugin", imza `ozdev.prime_map_plugin`; komutlar `ozdev/map/...` aynı kaldı) | **denenmedi** |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.
 

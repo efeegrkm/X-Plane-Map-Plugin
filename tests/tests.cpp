@@ -2531,7 +2531,7 @@ void TestSceneryIndex()
 
     // Gecici klasorlerde iki paket: ozel (overlay olabilir) + global
     namespace Fs = std::filesystem;
-    const Fs::path tRoot = Fs::temp_directory_path() / "map_plugin_index_test";
+    const Fs::path tRoot = Fs::temp_directory_path() / "prime_map_plugin_index_test";
     std::error_code tIgnore;
     Fs::remove_all(tRoot, tIgnore);
     Fs::create_directories(tRoot / "Custom" / "Earth nav data" / "+40-130");
@@ -2780,7 +2780,7 @@ void TestElevationGrid()
 
     // Onbellek dosyasi: gidis-donus, yanlis anahtar reddedilir
     namespace Fs = std::filesystem;
-    const Fs::path tPath = Fs::temp_directory_path() / "map_plugin_elevation_test.elevation";
+    const Fs::path tPath = Fs::temp_directory_path() / "prime_map_plugin_elevation_test.elevation";
     CHECK(tWithSea.Save(tPath.string(), "key-a"), "rakim dosyasi yazilir");
     ElevationGrid tLoaded;
     CHECK(tLoaded.Load(tPath.string(), "key-a") && tLoaded.Size(0) == tSize &&
@@ -3261,7 +3261,7 @@ void TestWorldTileMap()
 
     // SceneryIndex: tablo dogrulanir; kurulu olmayan kara = veri yok, tabloda olmayan = deniz
     namespace Fs = std::filesystem;
-    const Fs::path tRoot = Fs::temp_directory_path() / "map_plugin_world_test";
+    const Fs::path tRoot = Fs::temp_directory_path() / "prime_map_plugin_world_test";
     std::error_code tIgnore;
     Fs::remove_all(tRoot, tIgnore);
     Fs::create_directories(tRoot / "Global" / "Earth nav data" / "+40-130");
@@ -3291,7 +3291,7 @@ void TestElevationCache()
 {
     // DEM'li test DSF'i gecici bir pakette: karo uretilince rakim dosyasi yazilir, sonra sadece onbellekten okunur
     namespace Fs = std::filesystem;
-    const Fs::path tRoot = Fs::temp_directory_path() / "map_plugin_elevation_cache_test";
+    const Fs::path tRoot = Fs::temp_directory_path() / "prime_map_plugin_elevation_cache_test";
     std::error_code tIgnore;
     Fs::remove_all(tRoot, tIgnore);
     Fs::create_directories(tRoot / "Global" / "Earth nav data" / "+40+020");
@@ -3461,7 +3461,7 @@ void TestDsfVectors()
               TerrainVectors::LineKindFor(1) == -1,
           "tanim adi ve alt tur siniflari");
     namespace Fs = std::filesystem;
-    const Fs::path tPath = Fs::temp_directory_path() / "map_plugin_vectors_test.vectors";
+    const Fs::path tPath = Fs::temp_directory_path() / "prime_map_plugin_vectors_test.vectors";
     TerrainVectors tLoaded;
     CHECK(tVectors.Save(tPath.string(), "k") && tLoaded.Load(tPath.string(), "k") && tLoaded.West() == 29 &&
               tLoaded.South() == 41 && tLoaded.Areas().size() == 1 &&
@@ -3515,7 +3515,7 @@ void TestDdsColor()
         PutU32(tFile, 0x44444444u);  // her pikselde indeks 0 ve 1 sirayla (0,1,0,1 ...)
     }
     namespace Fs = std::filesystem;
-    const Fs::path tPath = Fs::temp_directory_path() / "map_plugin_test.dds";
+    const Fs::path tPath = Fs::temp_directory_path() / "prime_map_plugin_test.dds";
     std::ofstream(tPath, std::ios::binary).write(reinterpret_cast<const char*>(tFile.data()),
                                                  static_cast<std::streamsize>(tFile.size()));
     TerrainColor tColor;

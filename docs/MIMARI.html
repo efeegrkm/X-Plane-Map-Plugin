@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Map Plugin Mimarisi</title>
+<title>Prime Map Plugin Mimarisi</title>
 <!--
   MIMARI.pdf'in kaynagi. PDF'i yeniden uretmek icin (proje kokunden):
   "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu
@@ -50,7 +50,7 @@
 </head>
 <body>
 
-<h1>Map Plugin — Mimari</h1>
+<h1>Prime Map Plugin — Mimari</h1>
 <div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.18 · kodun nasıl çalıştığı, hangi parçanın
 ne yaptığı ve parçaların birbirine nasıl bağlandığı</div>
 
@@ -109,7 +109,7 @@ penceremizde bu sınırların hiçbiri yok.</p>
   <text x="380" y="49" text-anchor="middle" font-size="11" fill="#5b6575">pencere · fare · komut · menü · flight loop · dataref · nav veritabanı · FMS · dosya sistemi</text>
   <!-- Plugin -->
   <rect x="20" y="82" width="340" height="62" rx="6" fill="#e6eef8" stroke="#1f5fa8"/>
-  <text x="190" y="104" text-anchor="middle" font-size="13" font-weight="600">Plugin.cpp  (MapPlugin)</text>
+  <text x="190" y="104" text-anchor="middle" font-size="13" font-weight="600">Plugin.cpp  (PrimeMapPlugin)</text>
   <text x="190" y="121" text-anchor="middle" font-size="10.5" fill="#5b6575">giriş noktaları, menü, komutlar, katman sırası</text>
   <text x="190" y="136" text-anchor="middle" font-size="10.5" fill="#5b6575">flight loop: depoları her karede ilerletir</text>
   <!-- MapWindow -->
@@ -861,7 +861,7 @@ Zemin görüntü anahtarı biçimi de içerir (<code>TerrainImageKey::mStyle</co
 
 <!-- ================================================================== -->
 <h2>14. Ayar ve önbellek dosyaları</h2>
-<p>Hepsi <code>C:\X-Plane 11\Resources\plugins\MapPlugin\</code> altında (eklenti X-Plane klasöründe başka hiçbir yere
+<p>Hepsi <code>C:\X-Plane 11\Resources\plugins\prime-map-plugin\</code> altında (eklenti X-Plane klasöründe başka hiçbir yere
 yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
 <table>
   <tr><th>Dosya</th><th>İçerik</th></tr>
@@ -878,7 +878,7 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
 <h3>src/ — giriş, pencere, çekirdek</h3>
 <table>
   <tr><th>Dosya</th><th>Görev</th></tr>
-  <tr><td><code>Plugin.cpp</code></td><td>XPluginStart/Stop/Enable/Disable; menü "Map Plugin"; komutlar <code>ozdev/map/toggle</code>, <code>controls</code>, <code>diagnostics</code>, <code>next_mode</code>; flight loop; <code>CreateLayers()</code>; terrain_colors.ini</td></tr>
+  <tr><td><code>Plugin.cpp</code></td><td>XPluginStart/Stop/Enable/Disable; menü "Prime Map Plugin"; komutlar <code>ozdev/map/toggle</code>, <code>controls</code>, <code>diagnostics</code>, <code>next_mode</code>; flight loop; <code>CreateLayers()</code>; terrain_colors.ini</td></tr>
   <tr><td><code>MapWindow.*</code></td><td>Pencere (pop-out), fare/tekerlek, arayüz olayları, mod değişimi, ayar kaydı, tooltip</td></tr>
   <tr><td><code>MapView.*</code></td><td>Web Mercator kamera, lat/lon ↔ boxel, imleç etrafında zoom</td></tr>
   <tr><td><code>ScreenMath.*</code></td><td>Ekran koordinatı yardımcıları (dikdörtgen, nokta)</td></tr>
@@ -929,7 +929,7 @@ yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
   <tr><td><code>tools/preview/</code></td><td><code>map_preview</code>: aynı katman kodunu XPLM taklitleriyle resme çizer</td></tr>
   <tr><td><code>tools/dsfinfo/</code></td><td><code>dsf_info</code>: bir DSF dosyasının içeriğini döker</td></tr>
   <tr><td><code>third_party/</code></td><td>XPSDK (XPLM200..301 açık), LZMA SDK 23.01 (7z açıcı + 0.16'dan beri LZMA sıkıştırıcı, tek thread; <code>lzma/README.txt</code>), mapbox earcut 2.2.4 (tek belgelenmiş yama: <code>README.txt</code>). Dış kod sadece burada.</td></tr>
-  <tr><td><code>CMakeLists.txt</code></td><td>Hedefler: <code>MapPlugin</code> (win.xpl), <code>map_tests</code>, <code>map_preview</code>, <code>dsf_info</code>, <code>lzma_sdk</code></td></tr>
+  <tr><td><code>CMakeLists.txt</code></td><td>Hedefler: <code>prime-map-plugin</code> (win.xpl), <code>map_tests</code>, <code>map_preview</code>, <code>dsf_info</code>, <code>lzma_sdk</code></td></tr>
 </table>
 
 <!-- ================================================================== -->

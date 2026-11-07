@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_plugin VERSION 0.15 LANGUAGES C CXX)
+project(prime_map_plugin VERSION 0.18 LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
 # X-Plane SDK: projenin icinde third_party/XPSDK altinda geliyor
@@ -137,39 +137,39 @@ function(map_compile_options target)
 endfunction()
 
 # Plugin aslinda bir DLL'dir (uzantisi .xpl)
-add_library(MapPlugin SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
-map_compile_options(MapPlugin)
+add_library(prime-map-plugin SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
+map_compile_options(prime-map-plugin)
 
 # SDK basliklari "sistem" basligi: onlarin uyarilari bizi ilgilendirmiyor
-target_include_directories(MapPlugin SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
+target_include_directories(prime-map-plugin SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
 
 # X-Plane 11 icin SDK 3.0 (XPLM300/301) ozellikleri; daha yenileri kapali.
 # XP12'ye ozel bir API kullanilirsa derleme hata verir (istenen davranis).
-target_compile_definitions(MapPlugin PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
+target_compile_definitions(prime-map-plugin PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
 
 if(WIN32)
-    target_compile_definitions(MapPlugin PRIVATE IBM=1 APL=0 LIN=0)
-    target_link_libraries(MapPlugin PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
+    target_compile_definitions(prime-map-plugin PRIVATE IBM=1 APL=0 LIN=0)
+    target_link_libraries(prime-map-plugin PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
     set(XPL_NAME win)
     # MSVC: calisma kutuphanesi CMAKE_MSVC_RUNTIME_LIBRARY ile gomulu (yukarida)
     if(NOT MSVC)
         # MinGW: libstdc++/libgcc'yi gom
-        target_link_options(MapPlugin PRIVATE -static -static-libgcc -static-libstdc++)
+        target_link_options(prime-map-plugin PRIVATE -static -static-libgcc -static-libstdc++)
     endif()
 elseif(APPLE)
-    target_compile_definitions(MapPlugin PRIVATE IBM=0 APL=1 LIN=0)
-    target_link_libraries(MapPlugin PRIVATE "-F${XPSDK}/Libraries/Mac" "-framework XPLM" "-framework OpenGL")
+    target_compile_definitions(prime-map-plugin PRIVATE IBM=0 APL=1 LIN=0)
+    target_link_libraries(prime-map-plugin PRIVATE "-F${XPSDK}/Libraries/Mac" "-framework XPLM" "-framework OpenGL")
     set(XPL_NAME mac)
 else()
-    target_compile_definitions(MapPlugin PRIVATE IBM=0 APL=0 LIN=1)
+    target_compile_definitions(prime-map-plugin PRIVATE IBM=0 APL=0 LIN=1)
     find_package(OpenGL REQUIRED)
-    target_link_libraries(MapPlugin PRIVATE OpenGL::GL)
+    target_link_libraries(prime-map-plugin PRIVATE OpenGL::GL)
     set(XPL_NAME lin)
 endif()
 
-# Cikti: build/MapPlugin/64/win.xpl
-set(OUT_DIR ${CMAKE_BINARY_DIR}/MapPlugin)
-set_target_properties(MapPlugin PROPERTIES
+# Cikti: build/prime-map-plugin/64/win.xpl
+set(OUT_DIR ${CMAKE_BINARY_DIR}/prime-map-plugin)
+set_target_properties(prime-map-plugin PROPERTIES
     PREFIX ""
     OUTPUT_NAME ${XPL_NAME}
     SUFFIX ".xpl"
@@ -177,20 +177,20 @@ set_target_properties(MapPlugin PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${OUT_DIR}/64)
 foreach(cfg Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER ${cfg} CFG)
-    set_target_properties(MapPlugin PROPERTIES
+    set_target_properties(prime-map-plugin PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY_${CFG} ${OUT_DIR}/64
         LIBRARY_OUTPUT_DIRECTORY_${CFG} ${OUT_DIR}/64)
 endforeach()
 
 # Derleme bitince X-Plane'e kur:
-#   <XPLANE_DIR>/Resources/plugins/MapPlugin/64/win.xpl
+#   <XPLANE_DIR>/Resources/plugins/prime-map-plugin/64/win.xpl
 # Not: X-Plane aciksa win.xpl kilitli olur ve kopyalama basarisiz olur;
 # once X-Plane'i kapat (veya Plugin Admin'den plugini devre disi birak).
 if(MAP_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
-    set(DEPLOY_DIR "${XPLANE_DIR}/Resources/plugins/MapPlugin")
-    add_custom_command(TARGET MapPlugin POST_BUILD
+    set(DEPLOY_DIR "${XPLANE_DIR}/Resources/plugins/prime-map-plugin")
+    add_custom_command(TARGET prime-map-plugin POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}/64"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:MapPlugin> "${DEPLOY_DIR}/64/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime-map-plugin> "${DEPLOY_DIR}/64/"
         COMMENT "Plugin X-Plane'e kuruluyor: ${DEPLOY_DIR}")
 endif()
 

@@ -2,7 +2,7 @@
 // X-Plane'in cagirdigi 5 giris fonksiyonu + menu, komutlar ve her karede
 // calisan "flight loop".
 //
-// Plugin'in tum parcalari MapPlugin sinifinin icinde yasar; X-Plane'in
+// Plugin'in tum parcalari PrimeMapPlugin sinifinin icinde yasar; X-Plane'in
 // giris fonksiyonlari sadece bu sinifi olusturup yok eder. XPLM callback'lerine
 // "refcon" olarak nesnenin adresi verilir, boylece global degisken gerekmez
 // (tek istisna: giris fonksiyonlarinin eristigi gPlugin).
@@ -74,7 +74,7 @@ std::unique_ptr<IAirportGeometrySource> CreateAirportGeometrySource()
     return std::make_unique<AptDatIndexer>();
 }
 
-class MapPlugin
+class PrimeMapPlugin
 {
 public:
     void Start();
@@ -132,7 +132,7 @@ private:
     XPLMCommandRef mNextModeCommand = nullptr;
 };
 
-void MapPlugin::Start()
+void PrimeMapPlugin::Start()
 {
     // Dosya yollarini isletim sisteminin kendi bicimiyle al (C:\...)
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
@@ -164,7 +164,7 @@ void MapPlugin::Start()
     Log("loaded (version {})", kVersion);
 }
 
-void MapPlugin::Stop()
+void PrimeMapPlugin::Stop()
 {
     XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);
     mTerrainStore.Stop();  // zemin iscisi: o an uretilen karoyu bitirip durur
@@ -188,7 +188,7 @@ void MapPlugin::Stop()
     Log("stopped");
 }
 
-void MapPlugin::CreateLayers()
+void PrimeMapPlugin::CreateLayers()
 {
     // Alttan uste cizim sirasi (ayrinti: MIMARI.pdf bolum 7). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
@@ -219,7 +219,7 @@ void MapPlugin::CreateLayers()
     mLayers.Add(std::make_unique<DrawingLayer>(mDrawings));
 }
 
-void MapPlugin::CreateCommands()
+void PrimeMapPlugin::CreateCommands()
 {
     // Kullanici bu komutlari Settings -> Keyboard'da "ozdev/map" ile arayip tusa atayabilir
     mToggleCommand = XPLMCreateCommand("ozdev/map/toggle", "Map: show / hide the map window");
@@ -232,12 +232,12 @@ void MapPlugin::CreateCommands()
     XPLMRegisterCommandHandler(mNextModeCommand, CommandCallback, 1, this);
 }
 
-void MapPlugin::CreateMenu()
+void PrimeMapPlugin::CreateMenu()
 {
-    // Plugins > Map Plugin
+    // Plugins > Prime Map Plugin
     XPLMMenuID tPluginsMenu = XPLMFindPluginsMenu();
-    const int tSlot = XPLMAppendMenuItem(tPluginsMenu, "Map Plugin", nullptr, 0);
-    mMenu = XPLMCreateMenu("Map Plugin", tPluginsMenu, tSlot, MenuCallback, this);
+    const int tSlot = XPLMAppendMenuItem(tPluginsMenu, "Prime Map Plugin", nullptr, 0);
+    mMenu = XPLMCreateMenu("Prime Map Plugin", tPluginsMenu, tSlot, MenuCallback, this);
 
     // Komuta bagli menu ogeleri: kullanici tus atarsa menude de gorunur
     XPLMAppendMenuItemWithCommand(mMenu, "Show / hide map", mToggleCommand);
@@ -257,7 +257,7 @@ void MapPlugin::CreateMenu()
     XPLMAppendMenuItem(mMenu, "Clear flight track", reinterpret_cast<void*>(intptr_t(kMenuClearTrack)), 0);
 }
 
-void MapPlugin::ToggleDiagnostics()
+void PrimeMapPlugin::ToggleDiagnostics()
 {
     mDiagnostics = !mDiagnostics;
     if (mWindow)
@@ -271,9 +271,9 @@ void MapPlugin::ToggleDiagnostics()
     Log("diagnostics mode: {} (DIAG lines in Log.txt)", mDiagnostics ? "on" : "off");
 }
 
-std::string MapPlugin::FindPluginDirectory()
+std::string PrimeMapPlugin::FindPluginDirectory()
 {
-    // .../Resources/plugins/MapPlugin/64/win.xpl -> .../Resources/plugins/MapPlugin/
+    // .../Resources/plugins/prime-map-plugin/64/win.xpl -> .../Resources/plugins/prime-map-plugin/
     std::array<char, 2048> tXplPath = {};  // SDK: en az 256 bayt
     XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath.data(), nullptr, nullptr);
     std::string tPath = tXplPath.data();
@@ -290,23 +290,23 @@ std::string MapPlugin::FindPluginDirectory()
 
 // --- Callback'ler ------------------------------------------------------------
 
-void MapPlugin::MenuCallback(void* pMenuRef, void* pItemRef)
+void PrimeMapPlugin::MenuCallback(void* pMenuRef, void* pItemRef)
 {
-    static_cast<MapPlugin*>(pMenuRef)->OnMenu(static_cast<int>(reinterpret_cast<intptr_t>(pItemRef)));
+    static_cast<PrimeMapPlugin*>(pMenuRef)->OnMenu(static_cast<int>(reinterpret_cast<intptr_t>(pItemRef)));
 }
 
-int MapPlugin::CommandCallback(XPLMCommandRef pCommand, XPLMCommandPhase pPhase, void* pRefcon)
+int PrimeMapPlugin::CommandCallback(XPLMCommandRef pCommand, XPLMCommandPhase pPhase, void* pRefcon)
 {
-    return static_cast<MapPlugin*>(pRefcon)->OnCommand(pCommand, pPhase);
+    return static_cast<PrimeMapPlugin*>(pRefcon)->OnCommand(pCommand, pPhase);
 }
 
-float MapPlugin::FlightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
+float PrimeMapPlugin::FlightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
                                        void* pRefcon)
 {
-    return static_cast<MapPlugin*>(pRefcon)->OnFlightLoop();
+    return static_cast<PrimeMapPlugin*>(pRefcon)->OnFlightLoop();
 }
 
-void MapPlugin::OnMenu(int pItem)
+void PrimeMapPlugin::OnMenu(int pItem)
 {
     if (pItem == kMenuDiagnostics)
     {
@@ -319,7 +319,7 @@ void MapPlugin::OnMenu(int pItem)
     }
 }
 
-int MapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
+int PrimeMapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
 {
     if (pPhase != xplm_CommandBegin || !mWindow)
     {
@@ -344,7 +344,7 @@ int MapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     return 0;  // komut bizim; baska kimse islemesin
 }
 
-float MapPlugin::OnFlightLoop()
+float PrimeMapPlugin::OnFlightLoop()
 {
     const float tNow = XPLMGetElapsedTime();
     StepLoading();
@@ -357,7 +357,7 @@ float MapPlugin::OnFlightLoop()
     return -1.0f;  // her karede tekrar cagir
 }
 
-void MapPlugin::StepLoading()
+void PrimeMapPlugin::StepLoading()
 {
     // Pist verisi: ilk flight loop'ta (X-Plane hazir) arka planda okumaya basla
     if (!mAirportLoadStarted)
@@ -447,10 +447,10 @@ void MapPlugin::StepLoading()
     mWindow->SetStatusMessage(tMessage);
 }
 
-void MapPlugin::LoadTerrainColors()
+void PrimeMapPlugin::LoadTerrainColors()
 {
     // Dosya yoksa varsayilan renklerle olustur: kullanici acip degistirebilsin
-    const char* kComment = "Map Plugin terrain colors. Edit while X-Plane is closed.\n"
+    const char* kComment = "Prime Map Plugin terrain colors. Edit while X-Plane is closed.\n"
                            "[colors]: <class> = R G B (0..255). [shading] strength = 0 (flat) .. 1 (strong relief).\n"
                            "[blend] meters = soft transition between land classes in Scenery mode "
                            "(0 = off, default 150).\n"
@@ -508,7 +508,7 @@ void MapPlugin::LoadTerrainColors()
     Log("terrain colors loaded: {}", tPath);
 }
 
-void MapPlugin::LogReport(const std::string& pReport)
+void PrimeMapPlugin::LogReport(const std::string& pReport)
 {
     // Rapor birden cok satir olabilir: her satiri ayri log satiri yap
     size_t tStart = 0;
@@ -527,7 +527,7 @@ void MapPlugin::LogReport(const std::string& pReport)
     }
 }
 
-std::unique_ptr<MapPlugin> gPlugin;
+std::unique_ptr<PrimeMapPlugin> gPlugin;
 
 }  // namespace
 
@@ -537,11 +537,11 @@ std::unique_ptr<MapPlugin> gPlugin;
 
 PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescription)
 {
-    std::strcpy(pOutName, "Map Plugin");
-    std::strcpy(pOutSignature, "ozdev.map.plugin");
+    std::strcpy(pOutName, "Prime Map Plugin");
+    std::strcpy(pOutSignature, "ozdev.prime_map_plugin");
     std::strcpy(pOutDescription, "Layered moving map in its own window (R&D)");
 
-    gPlugin = std::make_unique<MapPlugin>();
+    gPlugin = std::make_unique<PrimeMapPlugin>();
     gPlugin->Start();
     return 1;
 }

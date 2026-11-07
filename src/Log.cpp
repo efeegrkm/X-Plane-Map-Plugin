@@ -7,7 +7,7 @@
 
 void LogLine(std::string_view pText)
 {
-    std::string tLine = "[MapPlugin] ";
+    std::string tLine = "[prime-map-plugin] ";
     tLine += pText;
     tLine += '\n';
     XPLMDebugString(tLine.c_str());  // Log.txt'ye yazar

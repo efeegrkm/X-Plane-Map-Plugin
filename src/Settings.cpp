@@ -76,7 +76,7 @@ bool Settings::Save() const
     }
     if (mComment.empty())
     {
-        tFile << "# Map Plugin settings. Can be edited by hand while X-Plane is closed.\n";
+        tFile << "# Prime Map Plugin settings. Can be edited by hand while X-Plane is closed.\n";
     }
     else
     {

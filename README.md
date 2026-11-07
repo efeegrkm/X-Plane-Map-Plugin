@@ -1,4 +1,4 @@
-# Map Plugin 0.18 — X-Plane 11
+# Prime Map Plugin (prime-map-plugin) 0.18 — X-Plane 11
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen harita. Dış harita servisi (Kaşif, OSM) yok: zemin, pistler,
@@ -20,7 +20,7 @@ kütüphanesi kullanılmıyor, sadece MSVC + CMake + Ninja). Derleme bitince CMa
 eklentiyi kendiliğinden kurar:
 
 ```
-C:\X-Plane 11\Resources\plugins\MapPlugin\64\win.xpl
+C:\X-Plane 11\Resources\plugins\prime-map-plugin\64\win.xpl
 ```
 
 - X-Plane açıkken `win.xpl` kilitlidir, kopyalama başarısız olur. Önce X-Plane'i
@@ -30,11 +30,11 @@ C:\X-Plane 11\Resources\plugins\MapPlugin\64\win.xpl
   `map_tests.exe`), `-DMAP_PREVIEW=ON` (araçlar, aşağıda).
 - Komut satırından derleme: `AGENTS.md` bölüm 5.
 
-Log: `C:\X-Plane 11\Log.txt` içinde `[MapPlugin]` ile başlayan satırlar.
+Log: `C:\X-Plane 11\Log.txt` içinde `[prime-map-plugin]` ile başlayan satırlar.
 
 ## Kullanım
 
-**Menü: Plugins → Map Plugin**
+**Menü: Plugins → Prime Map Plugin**
 
 | Öğe | Komut (Settings → Keyboard'da tuşa atanabilir) |
 |---|---|
@@ -121,7 +121,7 @@ binmez, sığmayan etiket zoom yapınca görünür.
   (Ortho4XP gibi özel bir mesh kurarsan onun zemini görünür).
 - DSF'ler 7z ile sıkıştırılmıştır; eklenti kendisi açar, arazi üçgenlerini
   4096×4096'lık bir sınıf haritasına boyar ve DEM'den kabartma hesaplar. Bu iş
-  arka planda yapılır, sonuç `MapPlugin\cache\terrain\` altına yazılır
+  arka planda yapılır, sonuç `prime-map-plugin\cache\terrain\` altına yazılır
   (~2 MB/karo).
 - **Yakın zoom:** yaklaşınca zemin raster'dan büyütülmez, ekrandaki küçük
   parçalar (1/32° ve 1/128°) doğrudan DSF üçgenlerinden boyanır; Scenery
@@ -148,7 +148,7 @@ binmez, sığmayan etiket zoom yapınca görünür.
   olan karo **veri yok** (kara ama kurulu değil; nötr gri, deniz gibi boyanmaz).
   Tablo yoksa veya doğrulanamazsa eski kural: 10°×10° klasörü bir Global Scenery
   paketinde kuruluysa deniz, değilse veri yok.
-- **Renkler ve ayarlar:** `MapPlugin\terrain_colors.ini` (ilk açılışta
+- **Renkler ve ayarlar:** `prime-map-plugin\terrain_colors.ini` (ilk açılışta
   varsayılanlarla oluşur, X-Plane kapalıyken düzenle):
 
 | Bölüm | Anahtar | Ne |

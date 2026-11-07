@@ -1,5 +1,5 @@
 // Log.h
-// X-Plane'in Log.txt dosyasina "[MapPlugin] ..." on ekiyle satir yazar.
+// X-Plane'in Log.txt dosyasina "[prime-map-plugin] ..." on ekiyle satir yazar.
 // Bicim C++20 std::format ile: {} yer tutucu, {:.4f} ondalik hane.
 // Kullanim: Log("point added: {:.4f} {:.4f}", tLat, tLon);
 //
