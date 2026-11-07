@@ -243,8 +243,9 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     const double tScale = tView.WorldSize();  // Mercator birimi -> boxel
     Gfx::Mesh tLoading;
-    // Yukleniyor isareti yaklasik saniyede bir yanip soner
-    const float tPulse = 0.35f + 0.35f * std::sin(pContext.mNow * 6.0f);
+    // Yukleniyor isareti: sabit yari saydam (0.18: yanip sonme kaldirildi, harita resmi
+    // onbellekte; animasyon icin her karede yeniden cizmek gerekirdi)
+    const float tPulse = 0.55f;
     std::vector<GpuAirport*> tReady;
     mDrawn.clear();
 

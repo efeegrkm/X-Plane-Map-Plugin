@@ -107,6 +107,21 @@ public:
     {
     }
 
+    // 0.18: her karede, pencere cizilirken (OpenGL baglami etkin), cizimden ONCE; sadece
+    // gorunurken. Hazir gelen veriyi alir (doku yukleme gibi). Harita goruntusunu degistiren
+    // yeni bir sey geldiyse true: onbellekteki harita resmi (MapImageCache) yeniden cizilir.
+    virtual bool PrepareFrame()
+    {
+        return false;
+    }
+
+    // 0.18: true ise katman onbellekteki harita resmine girmez, her karede onun USTUNE
+    // ayrica cizilir (ucak, ucus izi, cizim sirasinda imlece giden kesikli cizgi).
+    virtual bool IsOverlay() const
+    {
+        return false;
+    }
+
     // Geometri cizimi (cizgi, dolgu). Sadece gorunurken cagrilir.
     virtual void Draw(const DrawContext& pContext) = 0;
 

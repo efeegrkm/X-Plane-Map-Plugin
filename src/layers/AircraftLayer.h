@@ -14,6 +14,10 @@ public:
     explicit AircraftLayer(const AircraftData& pAircraft);
 
     void Draw(const DrawContext& pContext) override;
+    bool IsOverlay() const override
+    {
+        return true;  // her karede hareket eder: harita resminin ustune
+    }
 
 private:
     const AircraftData& mAircraft;

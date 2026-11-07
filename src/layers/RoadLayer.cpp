@@ -41,8 +41,14 @@ RoadLayer::RoadLayer(TerrainStore& pStore)
     mParts[static_cast<int>(VectorLineKind::PowerLine)] = AddSubLayer("power_lines", "Power lines", false);
 }
 
-void RoadLayer::TakeReadyVectors()
+bool RoadLayer::PrepareFrame()
 {
+    return TakeReadyVectors();
+}
+
+bool RoadLayer::TakeReadyVectors()
+{
+    bool tTaken = false;
     std::shared_ptr<const TerrainVectors> tVectors;
     while (mStore.PopVectors(&tVectors))
     {
@@ -52,7 +58,9 @@ void RoadLayer::TakeReadyVectors()
         tTile.mVectors = tVectors;
         tTile.mUploadedTheme = nullptr;  // (yeniden) yuklenecek
         tTile.mLastFrame = mFrame;
+        tTaken = true;
     }
+    return tTaken;
 }
 
 void RoadLayer::Upload(GpuTile& pTile, const MapTheme& pTheme)

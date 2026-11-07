@@ -107,8 +107,14 @@ int TerrainLayer::DesiredLevel(double pPixelsPerDegree)
     return TerrainStore::kFineLevel;
 }
 
-void TerrainLayer::UploadReadyImages()
+bool TerrainLayer::PrepareFrame()
 {
+    return UploadReadyImages();
+}
+
+bool TerrainLayer::UploadReadyImages()
+{
+    bool tUploaded = false;
     TerrainImage tImage;
     for (int tUpload = 0; tUpload < kUploadsPerFrame && mStore.PopImage(&tImage); ++tUpload)
     {
@@ -130,7 +136,9 @@ void TerrainLayer::UploadReadyImages()
         tCached.mMissingNeighbors = std::move(tImage.mMissingNeighbors);
         mTextureBytes += tCached.mBytes;
         mTextures.emplace(tImage.mKey, std::move(tCached));
+        tUploaded = true;
     }
+    return tUploaded;
 }
 
 const Gfx::Texture* TerrainLayer::UseTexture(const TerrainImageKey& pKey)

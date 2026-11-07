@@ -259,6 +259,11 @@ void DrawingLayer::Draw(const DrawContext& pContext)
     tCanvas.Draw(tMarkers);
 }
 
+bool DrawingLayer::IsOverlay() const
+{
+    return mDrawings.Current() != nullptr;
+}
+
 void DrawingLayer::DrawLabels(const DrawContext& /*pContext*/)
 {
     for (const PendingLabel& tLabel : mLabels)

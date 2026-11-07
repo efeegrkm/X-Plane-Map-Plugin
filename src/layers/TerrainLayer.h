@@ -35,6 +35,7 @@ public:
     TerrainLayer(TerrainStore& pStore, const TerrainPalette& pPalette);
 
     void Draw(const DrawContext& pContext) override;
+    bool PrepareFrame() override;  // hazir dokulari yukler; yuklediyse true
 
     int TextureCount() const;
 
@@ -51,7 +52,7 @@ private:
         std::vector<int> mMissingNeighbors;  // uretilirken rakimi olmayan komsular (TerrainImage)
     };
 
-    void UploadReadyImages();
+    bool UploadReadyImages();  // en az bir doku yuklendiyse true
     // Varsa dokuyu verir ve bu karede kullanildi diye isaretler; yoksa nullptr.
     // Eksik komsularindan biri artik hazirsa dokuyu yeniden ister (eskisi o gelene kadar kullanilir).
     const Gfx::Texture* UseTexture(const TerrainImageKey& pKey);

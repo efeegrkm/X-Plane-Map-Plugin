@@ -6,6 +6,7 @@
 #include "XPLMGraphics.h"
 
 #include "gfx/GlApi.h"
+#include "gfx/RenderTarget.h"
 #include "gfx/StaticMesh.h"
 #include "gfx/Texture.h"
 
@@ -345,6 +346,77 @@ void Canvas::BindTextureArray()
         });
 }
 
+bool Canvas::BeginOffscreen(RenderTarget& pTarget, const RectD& pBoxels)
+{
+    if (!CanDraw() || mOffscreen || pBoxels.Width() <= 0.0 || pBoxels.Height() <= 0.0)
+    {
+        return false;
+    }
+    FlushText();  // ekrana ait bekleyen yazilar dokuya karismasin
+    GLint tDraw = 0;
+    GLint tRead = 0;
+    glGetIntegerv(Gl::kDrawFramebufferBinding, &tDraw);
+    glGetIntegerv(Gl::kReadFramebufferBinding, &tRead);
+    const unsigned int tFramebuffer = pTarget.Prepare(pTarget.Width(), pTarget.Height());
+    if (tFramebuffer == 0)
+    {
+        return false;
+    }
+    mSavedDrawFramebuffer = tDraw;
+    mSavedReadFramebuffer = tRead;
+    glGetIntegerv(GL_VIEWPORT, mSavedViewport);
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, mSavedClearColor);
+    mSavedScissor = glIsEnabled(GL_SCISSOR_TEST) == GL_TRUE;
+    for (int tIndex = 0; tIndex < 16; ++tIndex)
+    {
+        mSavedMvp[tIndex] = mMvp[tIndex];
+    }
+
+    Gl::BindFramebuffer(Gl::kFramebuffer, tFramebuffer);
+    glViewport(0, 0, pTarget.Width(), pTarget.Height());
+    glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Ortografik: pBoxels -> [-1, 1] (sutun oncelikli)
+    const float tLeft = static_cast<float>(pBoxels.mLeft);
+    const float tRight = static_cast<float>(pBoxels.mRight);
+    const float tBottom = static_cast<float>(pBoxels.mBottom);
+    const float tTop = static_cast<float>(pBoxels.mTop);
+    const float tOrtho[16] = {2.0f / (tRight - tLeft), 0.0f, 0.0f, 0.0f,
+                              0.0f, 2.0f / (tTop - tBottom), 0.0f, 0.0f,
+                              0.0f, 0.0f, -1.0f, 0.0f,
+                              -(tRight + tLeft) / (tRight - tLeft), -(tTop + tBottom) / (tTop - tBottom), 0.0f, 1.0f};
+    for (int tIndex = 0; tIndex < 16; ++tIndex)
+    {
+        mMvp[tIndex] = tOrtho[tIndex];
+    }
+    mOffscreen = true;
+    return true;
+}
+
+void Canvas::EndOffscreen()
+{
+    if (!mOffscreen)
+    {
+        return;
+    }
+    FlushText();  // dokuya ait yazilar dokuya
+    Gl::BindFramebuffer(Gl::kDrawFramebuffer, static_cast<GLuint>(mSavedDrawFramebuffer));
+    Gl::BindFramebuffer(Gl::kReadFramebuffer, static_cast<GLuint>(mSavedReadFramebuffer));
+    glViewport(mSavedViewport[0], mSavedViewport[1], mSavedViewport[2], mSavedViewport[3]);
+    glClearColor(mSavedClearColor[0], mSavedClearColor[1], mSavedClearColor[2], mSavedClearColor[3]);
+    if (mSavedScissor)
+    {
+        glEnable(GL_SCISSOR_TEST);
+    }
+    for (int tIndex = 0; tIndex < 16; ++tIndex)
+    {
+        mMvp[tIndex] = mSavedMvp[tIndex];
+    }
+    mOffscreen = false;
+}
+
 void Canvas::BindTextArray()
 {
     mTextArray.Get(
@@ -463,14 +535,14 @@ void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double p
     }
 }
 
-void Canvas::DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices)
+void Canvas::DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices, bool pBlend)
 {
     FlushText();
     if (!CanDraw() || pVertices.empty() || !pTexture.IsValid())
     {
         return;
     }
-    XPLMSetGraphicsState(0, 1, 0, 0, 1, 0, 0);  // 1 doku birimi, saydamlik var
+    XPLMSetGraphicsState(0, 1, 0, 0, pBlend ? 1 : 0, 0, 0);  // 1 doku birimi, saydamlik istege bagli
     XPLMBindTexture2d(pTexture.Id(), 0);
 
     BindingGuard tGuard;

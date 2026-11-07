@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -21,6 +22,8 @@
 #include "Drawings.h"
 #include "gfx/Canvas.h"
 #include "ui/AtlasTextRenderer.h"
+#include "MapImageCache.h"
+#include "gfx/GlScreen.h"
 #include "XPLMGraphics.h"
 #include "gfx/GlInclude.h"
 #include "LabelPlacer.h"
@@ -85,6 +88,7 @@ struct Options
     std::string mOut = "preview.ppm";
     std::string mXPlane = "C:/X-Plane 11/";
     bool mAtlasText = true;  // --xplm-text: kendi yazi atlasimiz yerine XPLMDrawString
+    bool mImageCache = false;  // --fbo: eklentideki gibi FBO resmi + ustune overlay katmanlari
     bool mUi = true;
     bool mDemoDrawings = false;
     bool mFixes = false;
@@ -132,6 +136,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--xplane" && tHasValue)
         {
             pOut->mXPlane = pArgv[++tIndex];
+        }
+        else if (tArg == "--fbo")
+        {
+            pOut->mImageCache = true;  // harita resmi onbellegi (MapImageCache) uzerinden ciz
         }
         else if (tArg == "--xplm-text")
         {
@@ -529,7 +537,36 @@ int main(int pArgc, char** pArgv)
     tContext.mCursorY = tHeight * 0.30;
     tLabels.Reset(tContext.mClearArea);
     tContext.mLabels = &tLabels;
-    tLayers.DrawAll(tContext);
+    bool tCachedDraw = false;
+    const std::optional<Affine2D> tBoxelToPixel = ReadBoxelToPixel();
+    if (tOptions.mImageCache && tBoxelToPixel)
+    {
+        MapImageCache tImageCache;
+        tLayers.PrepareAll();
+        tCachedDraw = tImageCache.Draw(tCanvas, tView, *tBoxelToPixel, 0.0f, true, false, false,
+                                       [&](const MapView& pView, const RectD& pArea)
+                                       {
+                                           DrawContext tImage = tContext;
+                                           tImage.mView = &pView;
+                                           tImage.mArea = pArea;
+                                           tImage.mHasCursor = false;
+                                           Gfx::Mesh tBackground;
+                                           tBackground.AddRect(pArea, tTheme.mBackground);
+                                           tCanvas.Draw(tBackground);
+                                           tLabels.Reset(tImage.mClearArea);
+                                           tLayers.DrawAll(tImage, LayerPass::Cached);
+                                       });
+        std::printf("image cache: %s\n", tCachedDraw ? "used" : "NOT available");
+        if (tCachedDraw)
+        {
+            tLabels.Reset(tContext.mClearArea);
+            tLayers.DrawAll(tContext, LayerPass::Overlay);
+        }
+    }
+    if (!tCachedDraw)
+    {
+        tLayers.DrawAll(tContext);
+    }
     for (const auto& tPoint : tOptions.mDescribe)
     {
         // Resim pikseli (ust = 0) -> boxel (alt = 0)

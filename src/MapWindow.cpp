@@ -32,6 +32,8 @@ const char* kWindowSection = "window";
 const char* kViewSection = "view";
 const char* kToolsSection = "tools";
 const char* kTextSection = "text";
+const char* kRenderSection = "render";
+const int kDefaultMaxRenderRate = 15;  // harita resmi en cok saniyede bu kadar yeniden cizilir
 const char* kFontFile = "Resources/fonts/DejaVuSans.ttf";  // X-Plane kurulumunda var (lisans: Bitstream Vera)
 
 const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
@@ -171,6 +173,27 @@ void MapWindow::SetDiagnostics(bool pOn)
 {
     mDiagnostics = pOn;
     mLastDiagnosticsTime = -10.0f;
+}
+
+void MapWindow::SetDataBusy(bool pBusy)
+{
+    mDataBusy = pBusy;
+}
+
+uint64_t MapWindow::SceneSignature() const
+{
+    uint64_t tHash = mLayers.VisibilitySignature();
+    auto tMix = [&tHash](uint64_t pValue)
+    {
+        tHash = (tHash ^ pValue) * 1099511628211ull;
+    };
+    tMix(static_cast<uint64_t>(mMapMode));
+    tMix(static_cast<uint64_t>(mDrawings.ShapeCount()));
+    tMix(mDrawings.Current() ? mDrawings.Current()->mPoints.size() + 1 : 0);
+    const RectD tClear = ClearArea();  // kontroller gizlenince / serit iki satir olunca etiket alani degisir
+    tMix(static_cast<uint64_t>(tClear.mTop * 16.0));
+    tMix(static_cast<uint64_t>(tClear.mBottom * 16.0));
+    return tHash;
 }
 
 void MapWindow::SetStatusMessage(const std::string& pMessage)
@@ -325,7 +348,45 @@ void MapWindow::OnDraw()
     tContext.mCursorY = tMouseY;
     mLabelPlacer.Reset(tContext.mClearArea);  // etiketler seritlerin altina girmesin
     tContext.mLabels = &mLabelPlacer;
-    mLayers.DrawAll(tContext);
+    // 0.18: harita resmi onbellekte (MapImageCache). Atlas yazisi gerekli: XPLMDrawString X-Plane'in
+    // kendi matrisleriyle cizer, FBO'ya dogru cizecegi belli degil.
+    const bool tNewData = mLayers.PrepareAll();  // hazir dokular, vektorler
+    bool tCached = false;
+    if (mUseImageCache && mText && tBoxelToPixel)
+    {
+        const uint64_t tSignature = SceneSignature();
+        const bool tUrgent = tSignature != mLastSignature;
+        mLastSignature = tSignature;
+        const bool tBusyEnded = mWasBusy && !mDataBusy;  // son gelen veri de resme girsin
+        mWasBusy = mDataBusy;
+        tCached = mImageCache.Draw(mCanvas, mView, *tBoxelToPixel, tNow, tUrgent, tNewData || tBusyEnded, mDataBusy,
+                                   [this, &tContext, &tTheme](const MapView& pView, const RectD& pArea)
+                                   {
+                                       DrawContext tImage = tContext;
+                                       tImage.mView = &pView;
+                                       tImage.mArea = pArea;
+                                       tImage.mHasCursor = false;  // imlece bagli cizim resme girmez
+                                       Gfx::Mesh tBackground;
+                                       tBackground.AddRect(pArea, tTheme.mBackground);
+                                       mCanvas.Draw(tBackground);
+                                       mLabelPlacer.Reset(tImage.mClearArea);
+                                       mLayers.DrawAll(tImage, LayerPass::Cached);
+                                   });
+        if (!tCached && !mImageCacheWarned)
+        {
+            Log("map image cache (FBO) not available, drawing the map directly every frame");
+            mImageCacheWarned = true;
+        }
+    }
+    if (tCached)
+    {
+        mLabelPlacer.Reset(tContext.mClearArea);
+        mLayers.DrawAll(tContext, LayerPass::Overlay);  // ucak, iz, yarim cizim: her karede ustte
+    }
+    else
+    {
+        mLayers.DrawAll(tContext);
+    }
     if (tContext.mHasCursor)
     {
         DrawTooltip(tContext, mLayers.DescribeAt(tContext, tMouseX, tMouseY));
@@ -428,7 +489,8 @@ bool MapWindow::PrepareCanvas()
 std::string MapWindow::PerformanceText() const
 {
     const float tPeriod = mFramePeriodRef ? XPLMGetDataf(mFramePeriodRef) : 0.0f;
-    return std::format("FPS {:.0f}  draw {:.2f} ms", tPeriod > 0.0f ? 1.0f / tPeriod : 0.0f, mDrawMs);
+    return std::format("FPS {:.0f}  draw {:.2f} ms  map renders {}/s", tPeriod > 0.0f ? 1.0f / tPeriod : 0.0f,
+                       mDrawMs, mImageCache.RendersPerSecond());
 }
 
 std::string MapWindow::HintText() const
@@ -1112,6 +1174,13 @@ void MapWindow::LoadSettings()
                            mSettings.GetInt(kToolsSection, "offset_top", 8));
 
     mLayers.LoadVisibility(mSettings, ThemeFor(mMapMode));
+
+    // Harita resmi onbellegi (dosyada gorunsun diye geri yazilir)
+    mUseImageCache = mSettings.GetBool(kRenderSection, "cache", true);
+    const int tMaxRate = mSettings.GetInt(kRenderSection, "max_fps", kDefaultMaxRenderRate);
+    mSettings.SetBool(kRenderSection, "cache", mUseImageCache);
+    mSettings.SetInt(kRenderSection, "max_fps", tMaxRate);
+    mImageCache.SetMaxRate(tMaxRate);
 }
 
 void MapWindow::SaveSettings()

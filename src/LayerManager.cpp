@@ -41,6 +41,39 @@ void LayerManager::UpdateAll(float pNow)
     }
 }
 
+bool LayerManager::PrepareAll()
+{
+    bool tChanged = false;
+    for (const std::unique_ptr<Layer>& tLayer : mLayers)
+    {
+        if (tLayer->IsVisible() && tLayer->PrepareFrame())
+        {
+            tChanged = true;
+        }
+    }
+    return tChanged;
+}
+
+uint64_t LayerManager::VisibilitySignature() const
+{
+    // FNV-1a benzeri karisim: her katman icin gorunur, overlay ve alt katman bitleri
+    uint64_t tHash = 1469598103934665603ull;
+    auto tMix = [&tHash](uint64_t pValue)
+    {
+        tHash = (tHash ^ pValue) * 1099511628211ull;
+    };
+    for (const std::unique_ptr<Layer>& tLayer : mLayers)
+    {
+        tMix(tLayer->IsVisible() ? 1 : 0);
+        tMix(tLayer->IsOverlay() ? 1 : 0);
+        for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+        {
+            tMix(tLayer->IsSubLayerVisible(tSub) ? 1 : 0);
+        }
+    }
+    return tHash;
+}
+
 std::string LayerManager::DescribeAt(const DrawContext& pContext, double pX, double pY) const
 {
     for (auto tIterator = mLayers.rbegin(); tIterator != mLayers.rend(); ++tIterator)
@@ -57,11 +90,23 @@ std::string LayerManager::DescribeAt(const DrawContext& pContext, double pX, dou
     return "";
 }
 
-void LayerManager::DrawAll(const DrawContext& pContext)
+void LayerManager::DrawAll(const DrawContext& pContext, LayerPass pPass)
 {
+    auto tInPass = [pPass](const Layer& pLayer)
+    {
+        if (!pLayer.IsVisible())
+        {
+            return false;
+        }
+        if (pPass == LayerPass::All)
+        {
+            return true;
+        }
+        return pLayer.IsOverlay() == (pPass == LayerPass::Overlay);
+    };
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        if (tLayer->IsVisible())
+        if (tInPass(*tLayer))
         {
             tLayer->Draw(pContext);
         }
@@ -70,7 +115,7 @@ void LayerManager::DrawAll(const DrawContext& pContext)
     std::vector<Layer*> tByPriority;
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        if (tLayer->IsVisible())
+        if (tInPass(*tLayer))
         {
             tByPriority.push_back(tLayer.get());
         }

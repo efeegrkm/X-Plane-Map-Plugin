@@ -19,6 +19,7 @@
 
 #include "Geo.h"
 #include "LabelPlacer.h"
+#include "MapImageCache.h"
 #include "MapView.h"
 #include "ScreenMath.h"
 #include "gfx/Canvas.h"
@@ -71,6 +72,10 @@ public:
     // Ornek: "Loading nav data: 120000"
     void SetStatusMessage(const std::string& pMessage);
 
+    // Veri yukleniyor mu (zemin, havalimani ayrintisi, nav ...): harita resmi bu surece
+    // hiz sinirinda (max_fps) surekli yeniden cizilir, bitince bir kez daha
+    void SetDataBusy(bool pBusy);
+
     // Flight loop'tan her karede: pencerenin X dugmesiyle kapatildigini fark eder
     void Update(float pNow);
 
@@ -119,6 +124,7 @@ private:
     std::string HintText() const;
     void LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor);
     std::string PerformanceText() const;
+    uint64_t SceneSignature() const;  // degisince harita resmi hemen yeniden cizilir (mod, katman, cizim)
 
     void LoadSettings();
     void LoadDrawings();
@@ -147,6 +153,12 @@ private:
     MapMode mMapMode = MapMode::Scenery;
     StatusBar mStatusBar;
     LabelPlacer mLabelPlacer;          // tum katmanlarin ortak etiket seyreltmesi
+    MapImageCache mImageCache;         // 0.18: harita resmi (FBO); [render] cache = 0 ile kapatilir
+    bool mUseImageCache = true;
+    bool mImageCacheWarned = false;
+    uint64_t mLastSignature = 0;
+    bool mDataBusy = false;
+    bool mWasBusy = false;
     std::string mStatusMessage;
 
     // Teshis: X-Plane'in kare suresi ve bizim cizim suremiz

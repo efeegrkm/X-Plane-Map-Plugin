@@ -19,6 +19,10 @@ public:
 
     void Update(float pNow) override;
     void Draw(const DrawContext& pContext) override;
+    bool IsOverlay() const override
+    {
+        return true;  // ucu ucakla birlikte ilerler
+    }
 
     void Clear();
     int PointCount() const;

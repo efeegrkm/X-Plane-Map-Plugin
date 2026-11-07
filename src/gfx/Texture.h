@@ -29,6 +29,9 @@ public:
     // titreme olmaz; bellek 4/3 kat). Zemin dokulari bunu kullanir.
     static Texture FromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps = false);
 
+    // Bos pWidth x pHeight RGBA doku (FBO'nun cizdigi yuzey). Dogrusal suzgec, mipmap yok.
+    static Texture CreateEmpty(int pWidth, int pHeight);
+
     bool IsValid() const;
     int Id() const;  // XPLMBindTexture2d'ye verilen numara
 

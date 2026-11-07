@@ -81,6 +81,8 @@ set(PLUGIN_SOURCES
     src/gfx/ContextVertexArray.cpp
     src/gfx/StaticMesh.cpp
     src/gfx/Texture.cpp
+    src/gfx/RenderTarget.cpp
+    src/MapImageCache.cpp
     src/layers/MapSymbols.cpp
     src/layers/TerrainLayer.cpp
     src/layers/RoadLayer.cpp
@@ -227,6 +229,8 @@ if(MAP_PREVIEW AND WIN32)
         src/gfx/ContextVertexArray.cpp
         src/gfx/StaticMesh.cpp
         src/gfx/Texture.cpp
+        src/gfx/RenderTarget.cpp
+        src/MapImageCache.cpp
         src/layers/MapSymbols.cpp
         src/layers/TerrainLayer.cpp
         src/layers/RoadLayer.cpp

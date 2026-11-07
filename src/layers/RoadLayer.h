@@ -27,6 +27,7 @@ public:
     explicit RoadLayer(TerrainStore& pStore);
 
     void Draw(const DrawContext& pContext) override;
+    bool PrepareFrame() override;  // hazir vektorleri alir; aldiysa true
 
 private:
     struct GpuTile
@@ -41,7 +42,7 @@ private:
         uint64_t mLastFrame = 0;
     };
 
-    void TakeReadyVectors();
+    bool TakeReadyVectors();  // en az bir karo geldiyse true
     void Upload(GpuTile& pTile, const MapTheme& pTheme);
     void EvictUnused();
 

@@ -39,6 +39,14 @@ const GLenum kMinorVersion = 0x821C;          // GL_MINOR_VERSION
 const GLenum kClampToEdge = 0x812F;           // GL_CLAMP_TO_EDGE
 const GLenum kLinearMipmapLinear = 0x2703;    // GL_LINEAR_MIPMAP_LINEAR (GL 1.1 basligi da tanimlar)
 const GLenum kTextureMaxLevel = 0x813D;       // GL_TEXTURE_MAX_LEVEL
+const GLenum kFramebuffer = 0x8D40;           // GL_FRAMEBUFFER
+const GLenum kDrawFramebuffer = 0x8CA9;       // GL_DRAW_FRAMEBUFFER
+const GLenum kReadFramebuffer = 0x8CA8;       // GL_READ_FRAMEBUFFER
+const GLenum kDrawFramebufferBinding = 0x8CA6;  // GL_DRAW_FRAMEBUFFER_BINDING
+const GLenum kReadFramebufferBinding = 0x8CAA;  // GL_READ_FRAMEBUFFER_BINDING
+const GLenum kColorAttachment0 = 0x8CE0;      // GL_COLOR_ATTACHMENT0
+const GLenum kFramebufferComplete = 0x8CD5;   // GL_FRAMEBUFFER_COMPLETE
+const GLenum kMaxTextureSize = 0x0D33;        // GL_MAX_TEXTURE_SIZE
 
 // Fonksiyon adreslerini surucuden alir. Eksik fonksiyon ya da OpenGL < 3.3
 // ise false doner, nedeni pOutError'a yazilir. Ikinci cagri bir sey yapmaz.
@@ -60,6 +68,13 @@ GLboolean IsProgram(GLuint pProgram);    // bu ad su anki baglamda bir shader pr
 
 // --- Doku ---
 void GenerateMipmap(GLenum pTarget);     // bagli dokunun kucultulmus seviyelerini surucu uretir (GL 3.0)
+
+// --- Framebuffer (FBO, GL 3.0): baglamlar arasi PAYLASILMAZ (VAO gibi) ---
+void GenFramebuffers(GLsizei pCount, GLuint* pFramebuffers);
+void DeleteFramebuffers(GLsizei pCount, const GLuint* pFramebuffers);
+void BindFramebuffer(GLenum pTarget, GLuint pFramebuffer);
+void FramebufferTexture2D(GLenum pTarget, GLenum pAttachment, GLenum pTextureTarget, GLuint pTexture, GLint pLevel);
+GLenum CheckFramebufferStatus(GLenum pTarget);
 
 // --- Buffer / vertex array ---
 void GenBuffers(GLsizei pCount, GLuint* pBuffers);

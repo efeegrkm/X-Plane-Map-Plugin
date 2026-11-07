@@ -31,6 +31,7 @@ namespace Gfx
 
 class Texture;
 class StaticMesh;
+class RenderTarget;
 
 // Yazi koseleri: konum (boxel), atlas koordinati, renk (alfa = atlasin kaplamasiyla carpilir)
 struct TextVertex
@@ -70,7 +71,8 @@ public:
     void Draw(const Mesh& pMesh);
     void Draw(const OutlinedLines& pLines);  // once kontur, sonra renkli cizgi
     // pVertices: 3'erli ucgenler (doku koordinatli)
-    void DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices);
+    // pBlend false: saydamliksiz kopya (MapImageCache resmini basarken)
+    void DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices, bool pBlend = true);
     // GPU'da duran sekli ciz: ekrandaki konum = pOffset + kose * pScale (boxel)
     // pLineWidth: Primitive::Lines icin gercek piksel kalinligi (1 = ince; uclarda kose yok)
     void DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth = 1.0f);
@@ -80,6 +82,13 @@ public:
     // Bekleyen yazilari tek cizim cagrisiyla basar. Her pencere ciziminin SONUNDA cagrilmali
     // (sekil cizimleri bunu kendisi once cagirir).
     void FlushText();
+
+    // --- Ekran disi cizim (0.18, MapImageCache) ---
+    // Sonraki cizimler pTarget'in dokusuna gider; pBoxels dikdortgeni dokunun tamamini kaplar.
+    // X-Plane'in framebuffer'i, viewport'u, scissor'u ve temizleme rengi kaydedilir; doku
+    // saydam siyahla temizlenir. FBO kurulamazsa false (hicbir sey degismez).
+    bool BeginOffscreen(RenderTarget& pTarget, const RectD& pBoxels);
+    void EndOffscreen();  // kaydedilenleri geri koyar
 
 private:
     struct Program
@@ -115,6 +124,15 @@ private:
     std::vector<TextVertex> mPendingText;  // henuz basilmamis harfler
     int mPendingAtlas = 0;                 // onlarin atlas dokusu (XPLMBindTexture2d numarasi)
     float mMvp[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+
+    // BeginOffscreen'in kaydettikleri
+    bool mOffscreen = false;
+    float mSavedMvp[16] = {};
+    int mSavedDrawFramebuffer = 0;
+    int mSavedReadFramebuffer = 0;
+    int mSavedViewport[4] = {};
+    bool mSavedScissor = false;
+    float mSavedClearColor[4] = {};
 };
 
 }  // namespace Gfx

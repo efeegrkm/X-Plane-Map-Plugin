@@ -49,6 +49,10 @@ public:
 
     void SetCenter(const LatLon& pCenter);
     LatLon Center() const;
+    // Merkez Mercator biriminde (0..1); MapImageCache resmin gorunumunu bununla kurar
+    double CenterMercatorX() const;
+    double CenterMercatorY() const;
+    void SetCenterMercator(double pX, double pY);
 
     void SetZoom(double pZoom);  // kMinZoom..kMaxZoom araligina kirpilir
     double Zoom() const;

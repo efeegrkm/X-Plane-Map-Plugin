@@ -38,6 +38,11 @@ using Uniform4fFn = void(APIENTRY*)(GLint, float, float, float, float);
 using IsVertexArrayFn = GLboolean(APIENTRY*)(GLuint);
 using IsProgramFn = GLboolean(APIENTRY*)(GLuint);
 using GenerateMipmapFn = void(APIENTRY*)(GLenum);
+using GenFramebuffersFn = void(APIENTRY*)(GLsizei, GLuint*);
+using DeleteFramebuffersFn = void(APIENTRY*)(GLsizei, const GLuint*);
+using BindFramebufferFn = void(APIENTRY*)(GLenum, GLuint);
+using FramebufferTexture2DFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLuint, GLint);
+using CheckFramebufferStatusFn = GLenum(APIENTRY*)(GLenum);
 
 // Yuklenen adresler. Surec boyunca tek bir OpenGL surucusu oldugu icin
 // global tutulmalari dogal (X-Plane'in butun baglamlari ayni surucuden).
@@ -73,6 +78,11 @@ struct Functions
     IsVertexArrayFn mIsVertexArray = nullptr;
     IsProgramFn mIsProgram = nullptr;
     GenerateMipmapFn mGenerateMipmap = nullptr;
+    GenFramebuffersFn mGenFramebuffers = nullptr;
+    DeleteFramebuffersFn mDeleteFramebuffers = nullptr;
+    BindFramebufferFn mBindFramebuffer = nullptr;
+    FramebufferTexture2DFn mFramebufferTexture2D = nullptr;
+    CheckFramebufferStatusFn mCheckFramebufferStatus = nullptr;
 };
 
 Functions gFunctions;
@@ -163,6 +173,11 @@ bool Load(std::string& pOutError)
     LoadOne("glIsVertexArray", tF.mIsVertexArray, tMissing);
     LoadOne("glIsProgram", tF.mIsProgram, tMissing);
     LoadOne("glGenerateMipmap", tF.mGenerateMipmap, tMissing);
+    LoadOne("glGenFramebuffers", tF.mGenFramebuffers, tMissing);
+    LoadOne("glDeleteFramebuffers", tF.mDeleteFramebuffers, tMissing);
+    LoadOne("glBindFramebuffer", tF.mBindFramebuffer, tMissing);
+    LoadOne("glFramebufferTexture2D", tF.mFramebufferTexture2D, tMissing);
+    LoadOne("glCheckFramebufferStatus", tF.mCheckFramebufferStatus, tMissing);
     if (!tMissing.empty())
     {
         pOutError = "OpenGL functions missing: " + tMissing;
@@ -219,6 +234,31 @@ GLboolean IsProgram(GLuint pProgram)
 void GenerateMipmap(GLenum pTarget)
 {
     gFunctions.mGenerateMipmap(pTarget);
+}
+
+void GenFramebuffers(GLsizei pCount, GLuint* pFramebuffers)
+{
+    gFunctions.mGenFramebuffers(pCount, pFramebuffers);
+}
+
+void DeleteFramebuffers(GLsizei pCount, const GLuint* pFramebuffers)
+{
+    gFunctions.mDeleteFramebuffers(pCount, pFramebuffers);
+}
+
+void BindFramebuffer(GLenum pTarget, GLuint pFramebuffer)
+{
+    gFunctions.mBindFramebuffer(pTarget, pFramebuffer);
+}
+
+void FramebufferTexture2D(GLenum pTarget, GLenum pAttachment, GLenum pTextureTarget, GLuint pTexture, GLint pLevel)
+{
+    gFunctions.mFramebufferTexture2D(pTarget, pAttachment, pTextureTarget, pTexture, pLevel);
+}
+
+GLenum CheckFramebufferStatus(GLenum pTarget)
+{
+    return gFunctions.mCheckFramebufferStatus(pTarget);
 }
 
 void GenBuffers(GLsizei pCount, GLuint* pBuffers)

@@ -5,6 +5,7 @@
 // Liste alttan uste dogru cizilir: ilk eklenen en altta kalir.
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,6 +13,14 @@
 #include "Layer.h"
 
 class Settings;
+
+// Hangi katmanlar cizilsin (0.18, MapImageCache)
+enum class LayerPass
+{
+    All,      // hepsi (onbelleksiz cizim, onizleme)
+    Cached,   // onbellekteki harita resmine girenler (IsOverlay() == false)
+    Overlay,  // her karede resmin ustune cizilenler (IsOverlay() == true)
+};
 
 class LayerManager
 {
@@ -24,9 +33,16 @@ public:
 
     void UpdateAll(float pNow);
 
+    // Gorunen katmanlarin PrepareFrame'i (her karede, cizimden once). Biri yeni veri aldiysa true.
+    bool PrepareAll();
+
+    // Durum imzasi: gorunurluk, alt katmanlar, ust katman (overlay) ayrimi. Degisirse harita
+    // resmi hemen yeniden cizilir (MapImageCache).
+    uint64_t VisibilitySignature() const;
+
     // Once gorunen katmanlarin geometrisi (liste sirasiyla), sonra yazilari
     // (Layer::LabelPriority sirasiyla)
-    void DrawAll(const DrawContext& pContext);
+    void DrawAll(const DrawContext& pContext, LayerPass pPass = LayerPass::All);
 
     // Imlecin altindaki seyin aciklamasi: en ustteki gorunen katmandan baslar
     std::string DescribeAt(const DrawContext& pContext, double pX, double pY) const;

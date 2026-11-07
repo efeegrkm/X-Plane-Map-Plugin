@@ -58,6 +58,20 @@ Texture Texture::FromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps)
     return Texture(tId);
 }
 
+Texture Texture::CreateEmpty(int pWidth, int pHeight)
+{
+    int tId = 0;
+    XPLMGenerateTextureNumbers(&tId, 1);
+    XPLMBindTexture2d(tId, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pWidth, pHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, Gl::kTextureMaxLevel, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Gl::kClampToEdge);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Gl::kClampToEdge);
+    return Texture(tId);
+}
+
 bool Texture::IsValid() const
 {
     return mId != 0;

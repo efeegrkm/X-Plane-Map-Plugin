@@ -28,6 +28,8 @@ public:
 
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
+    // Yarim kalan cizim varken imlece giden kesikli cizgi her karede degisir: o surece ustte cizilir
+    bool IsOverlay() const override;
 
 private:
     struct PendingLabel

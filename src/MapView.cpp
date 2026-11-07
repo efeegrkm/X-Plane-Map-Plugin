@@ -76,6 +76,23 @@ void MapView::SetCenter(const LatLon& pCenter)
     ClampCenter();
 }
 
+double MapView::CenterMercatorX() const
+{
+    return mCenterX;
+}
+
+double MapView::CenterMercatorY() const
+{
+    return mCenterY;
+}
+
+void MapView::SetCenterMercator(double pX, double pY)
+{
+    mCenterX = pX - std::floor(pX);  // 180. boylamda sarilma
+    mCenterY = pY;
+    ClampCenter();
+}
+
 LatLon MapView::Center() const
 {
     LatLon tCenter;

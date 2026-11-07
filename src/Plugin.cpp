@@ -445,6 +445,10 @@ void PrimeMapPlugin::StepLoading()
         tMessage += tTerrainStatus;
     }
     mWindow->SetStatusMessage(tMessage);
+    // Harita resmi onbellegi: veri gelirken resim hiz sinirinda yenilensin (MapImageCache)
+    const bool tBusy = !mNavLoader.IsDone() || mAirportGeometry.IsLoading() || mAirportDetails.PendingCount() > 0 ||
+                       mAirways.IsLoading() || !mTerrainStore.IsIdle();
+    mWindow->SetDataBusy(tBusy);
 }
 
 void PrimeMapPlugin::LoadTerrainColors()
