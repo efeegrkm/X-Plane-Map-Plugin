@@ -41,6 +41,12 @@ void LayerManager::UpdateAll(float pNow)
     }
 }
 
+void LayerManager::ResetToDefaults(const MapTheme& pTheme)
+{
+    const Settings tEmpty;  // bos ayar: her katman ve alt katman tema / katman varsayilanini alir
+    LoadVisibility(tEmpty, pTheme);
+}
+
 bool LayerManager::PrepareAll()
 {
     bool tChanged = false;
@@ -128,6 +134,17 @@ void LayerManager::DrawAll(const DrawContext& pContext, LayerPass pPass)
     for (Layer* tLayer : tByPriority)
     {
         tLayer->DrawLabels(pContext);
+    }
+    // Kenara yapisik parcalar: resimde olmayan her gecis (dogrudan cizim ya da ust gecis) cizer
+    if (pPass != LayerPass::Cached)
+    {
+        for (const std::unique_ptr<Layer>& tLayer : mLayers)
+        {
+            if (tLayer->IsVisible() && !tLayer->IsOverlay())
+            {
+                tLayer->DrawOverlay(pContext);
+            }
+        }
     }
 }
 

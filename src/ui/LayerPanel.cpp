@@ -19,6 +19,8 @@ const int kArrowWidth = 14;   // acilir satirdaki ok
 const int kIndent = 18;       // her seviyenin iceri kaymasi
 const int kMinWidth = 190;
 const int kMinRows = 4;       // pencere cok kucukse bile en az bu kadar satir
+const char* kResetLabel = "Defaults";
+const int kResetHeight = 18;  // baslik satirindaki kucuk dugme
 
 struct LayerGroup
 {
@@ -211,7 +213,9 @@ void LayerPanel::Layout(const RectI& pAnchor, int pMinBottom, const LayerManager
     }
 
     // Genislik: en uzun satir (kaydirma degisince panel ziplamasin diye tum satirlar)
-    int tWidth = kMinWidth;
+    // En dar hali: baslik + kaydirma yazisi + "Defaults" dugmesi sigsin
+    int tWidth = std::max(kMinWidth, kPadding + Ui::TextWidth("LAYERS") + Ui::TextWidth("00-00 / 00") + 24 +
+                                         Ui::ButtonWidth(kResetLabel) + kPadding);
     for (const Row& tRow : mRows)
     {
         const Layer* tLayer = tRow.mKind == RowKind::Group ? nullptr : pLayers.At(tRow.mLayers[0]);
@@ -235,6 +239,16 @@ void LayerPanel::Layout(const RectI& pAnchor, int pMinBottom, const LayerManager
     mRect.mRight = pAnchor.mLeft + tWidth;
     mRect.mTop = tTop;
     mRect.mBottom = mRect.mTop - (tFixed + mShownRows * kRowHeight);
+}
+
+RectI LayerPanel::ResetButtonRect() const
+{
+    RectI tButton;
+    tButton.mRight = mRect.mRight - kPadding;
+    tButton.mLeft = tButton.mRight - Ui::ButtonWidth(kResetLabel) + 8;
+    tButton.mTop = mRect.mTop - kPadding + 2;
+    tButton.mBottom = tButton.mTop - kResetHeight;
+    return tButton;
 }
 
 RectI LayerPanel::RowRect(int pIndex) const
@@ -284,8 +298,10 @@ void LayerPanel::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Laye
         // Kaydirma durumu: "5-18 / 31" sag ustte
         const std::string tRange = std::to_string(mFirstRow + 1) + "-" + std::to_string(mFirstRow + mShownRows) +
                                    " / " + std::to_string(tRowCount);
-        Ui::Text(mRect.mRight - kPadding - Ui::TextWidth(tRange), tTitleBase, tRange, Ui::kTextDim);
+        Ui::Text(ResetButtonRect().mLeft - 8 - Ui::TextWidth(tRange), tTitleBase, tRange, Ui::kTextDim);
     }
+    const RectI tReset = ResetButtonRect();
+    Ui::Button(pCanvas, tReset, kResetLabel, false, true, tReset.Contains(pMouseX, pMouseY));
     const float tSeparatorY = static_cast<float>(mRect.mTop - kPadding - kTitleHeight) + 3.5f;
     Ui::Line(pCanvas, {static_cast<float>(mRect.mLeft + kPadding), tSeparatorY},
              {static_cast<float>(mRect.mRight - kPadding), tSeparatorY}, 1.0f, Ui::kBorder);
@@ -345,6 +361,11 @@ LayerPanel::Hit LayerPanel::HitTest(int pX, int pY, const LayerManager& pLayers)
         return tHit;
     }
     tHit.mInside = true;
+    if (ResetButtonRect().Contains(pX, pY))
+    {
+        tHit.mResetDefaults = true;
+        return tHit;
+    }
     for (int tIndex = mFirstRow; tIndex < mFirstRow + mShownRows; ++tIndex)
     {
         const Row& tRow = mRows[tIndex];

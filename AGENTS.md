@@ -313,7 +313,8 @@ tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Ön
     karede çağrılmaz (dururken ~1/s, kayarken ≤ 15/s). Her karede gereken iş
     (`Pop...` ile hazır veri almak) `Layer::PrepareFrame`'e; her karede değişen
     çizim (`mNow` animasyonu, imleç) ya `Layer::IsOverlay` ile üst geçişe ya da
-    hiç. Yeni bir görünürlük durumu eklersen `LayerManager::VisibilitySignature` /
+    hiç. Pencere kenarına yapışık parçalar (ızgara yazıları) `Layer::DrawOverlay`'de:
+    resimde olsalar kaydırırken resimle kayıp sonra yerine zıplarlardı. Yeni bir görünürlük durumu eklersen `LayerManager::VisibilitySignature` /
     `MapWindow::SceneSignature`'a kat; yoksa değişiklik ≤ 1 s gecikir.
 15. **Yazılar `Canvas`'ta biriktirilir** (`AtlasTextRenderer` → `QueueText`);
     şekil çizimleri önce `FlushText` yapar. Canvas dışında bir şey çizen kod

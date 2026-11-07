@@ -131,6 +131,13 @@ public:
     {
     }
 
+    // Her karede harita resminin USTUNE cizilen kisim (katmanin kendisi resimde olsa bile).
+    // Pencere kenarina yapisik kalmasi gereken seyler icin: izgara yazilari alt ve sol kenarda
+    // durur; resimde olsalar kaydirirken resimle birlikte kayip sonra yerine ziplarlardi.
+    virtual void DrawOverlay(const DrawContext& /*pContext*/)
+    {
+    }
+
     // Fare (pX, pY) boxel noktasinin ustundeyse ne oldugunu anlatan kisa
     // metin ("Runway 16L/34R ..."); yoksa bos. Son cizimdeki konumlara gore.
     virtual std::string Describe(const DrawContext& /*pContext*/, double /*pX*/, double /*pY*/) const

@@ -50,6 +50,7 @@ public:
         int mSubLayerOwner = -1;       // >= 0: bu katmanin mSubLayer. alt katmani ac/kapa
         int mSubLayer = -1;
         std::string mExpandKey;        // bos degilse bu satiri ac/kapa (ToggleExpanded)
+        bool mResetDefaults = false;   // baslik satirindaki "Defaults" dugmesi: bu modun varsayilanlari
     };
 
     bool IsOpen() const;
@@ -86,6 +87,7 @@ private:
         int mIndent = 0;
     };
 
+    RectI ResetButtonRect() const;
     RectI RowRect(int pIndex) const;  // pIndex: mRows indeksi (kaydirma hesaba katilir)
     static RectI BoxRect(const RectI& pRow, int pIndent);
     static int VisibleCount(const LayerManager& pLayers, const std::vector<int>& pIndices);

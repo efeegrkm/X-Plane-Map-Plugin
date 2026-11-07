@@ -838,7 +838,7 @@ yok).</div>
   <li><b>Görünüm:</b> resmin <code>MapView</code>'ı aynı zoom, geniş viewport; merkezi, içerik pencereyle birebir aynı yere düşecek şekilde kaydırılır. Etiketler pencerenin boş alanına yerleşir (payda etiket yok).</li>
   <li><b>X-Plane ile yaşamak:</b> <code>BeginOffscreen</code> X-Plane'in draw/read framebuffer'ını, viewport'u, scissor'ı ve temizleme rengini kaydedip geri koyar. FBO nesnesi bağlamlar arası paylaşılmaz: pop-out'ta <code>RenderTarget</code> o bağlam için yenisini aynı dokuya bağlar.</li>
   <li><b>Yedek:</b> FBO kurulamazsa ya da <code>[render] cache = 0</code> / <code>[text] renderer = xplane</code> ise harita eskisi gibi her karede doğrudan çizilir.</li>
-  <li><b>Katman kuralları:</b> her karede gereken iş <code>Layer::PrepareFrame</code>'de; her karede değişen çizim <code>Layer::IsOverlay</code> ile üstte. Havalimanı yükleniyor çerçevesinin yanıp sönmesi bu yüzden kaldırıldı.</li>
+  <li><b>Katman kuralları:</b> her karede gereken iş <code>Layer::PrepareFrame</code>'de; her karede değişen çizim <code>Layer::IsOverlay</code> ile üstte; pencere kenarına yapışık parçalar (ızgara yazıları) <code>Layer::DrawOverlay</code>'de. Havalimanı yükleniyor çerçevesinin yanıp sönmesi bu yüzden kaldırıldı.</li>
 </ul>
 <h3>11.2 Yazı çizici (0.19)</h3>
 <ul>

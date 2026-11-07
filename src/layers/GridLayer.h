@@ -13,7 +13,7 @@ public:
     GridLayer();
 
     void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
+    void DrawOverlay(const DrawContext& pContext) override;  // kenar yazilari: her karede ustte
 
 private:
     static double StepFor(const DrawContext& pContext);

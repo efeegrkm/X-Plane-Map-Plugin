@@ -846,6 +846,14 @@ bool MapWindow::HandleControlClick(int pX, int pY)
 
 void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
 {
+    if (pHit.mResetDefaults)
+    {
+        mLayers.ResetToDefaults(ThemeFor(mMapMode));
+        mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));
+        SaveSettings();
+        Log("layers reset to the defaults of {} mode", ThemeFor(mMapMode).mId);
+        return;
+    }
     if (!pHit.mExpandKey.empty())
     {
         mLayerPanel.ToggleExpanded(pHit.mExpandKey);  // grubu / katmani ac-kapa (gorunurluk degismez)

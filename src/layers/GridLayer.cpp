@@ -73,7 +73,7 @@ void GridLayer::Draw(const DrawContext& pContext)
     pContext.mCanvas->Draw(tLines);
 }
 
-void GridLayer::DrawLabels(const DrawContext& pContext)
+void GridLayer::DrawOverlay(const DrawContext& pContext)
 {
     const MapView& tView = *pContext.mView;
     const GeoBounds tBounds = tView.VisibleBounds();

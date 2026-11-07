@@ -36,6 +36,9 @@ public:
     // Gorunen katmanlarin PrepareFrame'i (her karede, cizimden once). Biri yeni veri aldiysa true.
     bool PrepareAll();
 
+    // Bu modun varsayilan gorunurlugu (katmanlar ve alt katmanlar; ayar dosyasi yok sayilir)
+    void ResetToDefaults(const MapTheme& pTheme);
+
     // Durum imzasi: gorunurluk, alt katmanlar, ust katman (overlay) ayrimi. Degisirse harita
     // resmi hemen yeniden cizilir (MapImageCache).
     uint64_t VisibilitySignature() const;

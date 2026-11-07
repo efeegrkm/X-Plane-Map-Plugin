@@ -59,7 +59,7 @@ Log: `C:\X-Plane 11\Log.txt` içinde `[prime-map-plugin]` ile başlayan satırla
 
 | Düğme | Ne yapar |
 |---|---|
-| Layers | Katman paneli: grup › katman › alt katman. Kutu altındakilerin hepsini açar/kapatır (karışıksa çizgi), ok listeyi açar (varsayılan kapalı) |
+| Layers | Katman paneli: grup › katman › alt katman. Kutu altındakilerin hepsini açar/kapatır (karışıksa çizgi), ok listeyi açar (varsayılan kapalı). Başlıktaki **Defaults** bu modun bütün katmanlarını varsayılana döndürür |
 | Map: ... | Harita modu listesi (aşağıda) |
 | Follow aircraft / Center on aircraft | Uçağı takip et / bir kez uçağa ortala |
 | Go to airport | Arama paneli: ICAO, kimlik veya ad yaz (ör. `KSEA`, `tacoma`), en iyi 8 sonuçtan birine tıkla ya da ↑/↓ + Enter. Harita oraya gider ve havalimanı ekrana sığar; **uçağın konumu değişmez**, uçak takibi kapanır. Panel açıkken klavye haritadadır (tuşlar X-Plane'e gitmez); haritaya tıklayınca ya da Esc ile klavye X-Plane'e döner |
