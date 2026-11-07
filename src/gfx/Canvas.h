@@ -14,8 +14,10 @@
 //   - kendi shader / vertex buffer'ini baglar, cizer,
 //   - X-Plane'in bagli tuttugu program / vertex array / buffer'i ve
 //     yuz ayiklama (cull face) durumunu oldugu gibi geri koyar.
-// Yazilar X-Plane'in XPLMDrawString'i ile cizilir (Ui::Text); Draw'lar
-// arasinda guvenle cagrilabilir.
+// Yazilar (0.18): kendi atlasimizdan (ui/AtlasTextRenderer) QueueText ile
+// biriktirilir; bir sonraki sekil ciziminden once ya da FlushText'te TEK
+// cizim cagrisiyla basilir (sekillerle ust uste binme sirasi korunur).
+// Yedek yol: X-Plane'in XPLMDrawString'i (Ui::Text), Draw'lar arasinda guvenle cagrilabilir.
 #pragma once
 
 #include <string>
@@ -29,6 +31,16 @@ namespace Gfx
 
 class Texture;
 class StaticMesh;
+
+// Yazi koseleri: konum (boxel), atlas koordinati, renk (alfa = atlasin kaplamasiyla carpilir)
+struct TextVertex
+{
+    float mX = 0.0f;
+    float mY = 0.0f;
+    float mU = 0.0f;
+    float mV = 0.0f;
+    Rgba mColor;
+};
 
 class Canvas
 {
@@ -63,6 +75,12 @@ public:
     // pLineWidth: Primitive::Lines icin gercek piksel kalinligi (1 = ince; uclarda kose yok)
     void DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth = 1.0f);
 
+    // Yazi harflerini biriktirir (3'erli ucgenler). Baska atlasla cagrilirsa once bekleyenler basilir.
+    void QueueText(const Texture& pAtlas, const std::vector<TextVertex>& pVertices);
+    // Bekleyen yazilari tek cizim cagrisiyla basar. Her pencere ciziminin SONUNDA cagrilmali
+    // (sekil cizimleri bunu kendisi once cagirir).
+    void FlushText();
+
 private:
     struct Program
     {
@@ -77,6 +95,7 @@ private:
     bool CanDraw() const;
     void BindColorArray();    // renkli koselerin VAO'su (bu baglam icin)
     void BindTextureArray();  // dokulu koselerin VAO'su (bu baglam icin)
+    void BindTextArray();     // yazi koselerinin VAO'su (bu baglam icin)
 
     bool mTried = false;
     bool mReady = false;
@@ -85,11 +104,16 @@ private:
 
     Program mColorProgram;
     Program mTextureProgram;
+    Program mTextProgram;
     bool mContextUsable = false;
     ContextVertexArray mColorArray;  // vertex array (koselerin duzeni), baglam basina
     unsigned int mColorBuffer = 0;   // vertex buffer (koseler), baglamlar arasi paylasilir
     ContextVertexArray mTextureArray;
     unsigned int mTextureBuffer = 0;
+    ContextVertexArray mTextArray;
+    unsigned int mTextBuffer = 0;
+    std::vector<TextVertex> mPendingText;  // henuz basilmamis harfler
+    int mPendingAtlas = 0;                 // onlarin atlas dokusu (XPLMBindTexture2d numarasi)
     float mMvp[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 };
 

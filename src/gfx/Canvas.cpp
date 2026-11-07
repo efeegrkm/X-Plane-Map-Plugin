@@ -61,6 +61,33 @@ void main()
 }
 )";
 
+// Yazi: renk koseden, alfa = kose alfasi x atlas kaplamasi
+const char* kTextVertexShader = R"(#version 330 core
+layout(location = 0) in vec2 aPosition;
+layout(location = 1) in vec2 aUv;
+layout(location = 2) in vec4 aColor;
+uniform mat4 uMvp;
+out vec2 vUv;
+out vec4 vColor;
+void main()
+{
+    vUv = aUv;
+    vColor = aColor;
+    gl_Position = uMvp * vec4(aPosition, 0.0, 1.0);
+}
+)";
+
+const char* kTextFragmentShader = R"(#version 330 core
+in vec2 vUv;
+in vec4 vColor;
+uniform sampler2D uTexture;
+out vec4 oColor;
+void main()
+{
+    oColor = vec4(vColor.rgb, vColor.a * texture(uTexture, vUv).a);
+}
+)";
+
 // X-Plane'in bagli tuttugu nesneler: cizimden once kaydedilip sonra geri konur
 class BindingGuard
 {
@@ -154,7 +181,8 @@ bool Canvas::Init()
     }
     mContext = Gl::DescribeContext();
     if (!BuildProgram(kColorVertexShader, kColorFragmentShader, mColorProgram) ||
-        !BuildProgram(kTextureVertexShader, kTextureFragmentShader, mTextureProgram))
+        !BuildProgram(kTextureVertexShader, kTextureFragmentShader, mTextureProgram) ||
+        !BuildProgram(kTextVertexShader, kTextFragmentShader, mTextProgram))
     {
         return false;
     }
@@ -163,10 +191,13 @@ bool Canvas::Init()
     // ilk cizimde, o anki baglam icin olusturulur (BindColorArray).
     Gl::GenBuffers(1, &mColorBuffer);
     Gl::GenBuffers(1, &mTextureBuffer);
+    Gl::GenBuffers(1, &mTextBuffer);
 
     BindingGuard tGuard;
     Gl::UseProgram(mTextureProgram.mId);
     Gl::Uniform1i(Gl::GetUniformLocation(mTextureProgram.mId, "uTexture"), 0);
+    Gl::UseProgram(mTextProgram.mId);
+    Gl::Uniform1i(Gl::GetUniformLocation(mTextProgram.mId, "uTexture"), 0);
 
     mReady = true;
     return true;
@@ -228,11 +259,19 @@ void Canvas::Release()
     {
         Gl::DeleteBuffers(1, &mColorBuffer);
         Gl::DeleteBuffers(1, &mTextureBuffer);
+        Gl::DeleteBuffers(1, &mTextBuffer);
         mColorBuffer = 0;
         mTextureBuffer = 0;
+        mTextBuffer = 0;
     }
     mColorArray.Release();
     mTextureArray.Release();
+    mTextArray.Release();
+    if (mTextProgram.mId != 0)
+    {
+        Gl::DeleteProgram(mTextProgram.mId);
+        mTextProgram.mId = 0;
+    }
     if (mColorProgram.mId != 0)
     {
         Gl::DeleteProgram(mColorProgram.mId);
@@ -306,8 +345,62 @@ void Canvas::BindTextureArray()
         });
 }
 
+void Canvas::BindTextArray()
+{
+    mTextArray.Get(
+        [this]()
+        {
+            // Yazi koseleri: x, y + u, v + renk
+            Gl::BindBuffer(Gl::kArrayBuffer, mTextBuffer);
+            Gl::EnableVertexAttribArray(0);
+            Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(TextVertex), offsetof(TextVertex, mX));
+            Gl::EnableVertexAttribArray(1);
+            Gl::VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(TextVertex), offsetof(TextVertex, mU));
+            Gl::EnableVertexAttribArray(2);
+            Gl::VertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(TextVertex), offsetof(TextVertex, mColor));
+        });
+}
+
+void Canvas::QueueText(const Texture& pAtlas, const std::vector<TextVertex>& pVertices)
+{
+    if (!pAtlas.IsValid() || pVertices.empty())
+    {
+        return;
+    }
+    if (mPendingAtlas != pAtlas.Id())
+    {
+        FlushText();
+        mPendingAtlas = pAtlas.Id();
+    }
+    mPendingText.insert(mPendingText.end(), pVertices.begin(), pVertices.end());
+}
+
+void Canvas::FlushText()
+{
+    if (mPendingText.empty())
+    {
+        return;
+    }
+    if (CanDraw())
+    {
+        XPLMSetGraphicsState(0, 1, 0, 0, 1, 0, 0);  // 1 doku birimi, saydamlik var
+        XPLMBindTexture2d(mPendingAtlas, 0);
+
+        BindingGuard tGuard;
+        Gl::UseProgram(mTextProgram.mId);
+        Gl::UniformMatrix4(mTextProgram.mMvpLocation, mMvp);
+        BindTextArray();
+        Gl::BindBuffer(Gl::kArrayBuffer, mTextBuffer);
+        Gl::BufferData(Gl::kArrayBuffer, static_cast<GLsizeiptr>(mPendingText.size() * sizeof(TextVertex)),
+                       mPendingText.data(), Gl::kStreamDraw);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(mPendingText.size()));
+    }
+    mPendingText.clear();
+}
+
 void Canvas::Draw(const Mesh& pMesh)
 {
+    FlushText();  // once bekleyen yazilar: ust uste binme sirasi korunsun
     if (!CanDraw() || pMesh.IsEmpty())
     {
         return;
@@ -336,6 +429,7 @@ void Canvas::Draw(const OutlinedLines& pLines)
 
 void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth)
 {
+    FlushText();
     if (!CanDraw() || pMesh.IsEmpty())
     {
         return;
@@ -371,6 +465,7 @@ void Canvas::DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double p
 
 void Canvas::DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices)
 {
+    FlushText();
     if (!CanDraw() || pVertices.empty() || !pTexture.IsValid())
     {
         return;

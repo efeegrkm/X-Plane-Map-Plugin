@@ -36,6 +36,7 @@ set(CORE_SOURCES
     src/LabelPlacer.cpp
     src/GeoGrid.cpp
     src/BackgroundJob.cpp
+    src/gfx/FontAtlas.cpp
     src/gfx/Mesh.cpp
     src/data/NavDatabase.cpp
     src/data/AirportGeometry.cpp
@@ -102,6 +103,7 @@ set(PLUGIN_SOURCES
     src/ui/ToolPalette.cpp
     src/ui/ModePanel.cpp
     src/ui/AirportSearchPanel.cpp
+    src/ui/AtlasTextRenderer.cpp
     src/ui/StatusBar.cpp
 )
 
@@ -127,6 +129,8 @@ function(map_compile_options target)
     target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/src)
     # earcut.hpp (dis kutuphane, tek baslik): third_party/earcut/README.txt
     target_include_directories(${target} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/third_party/earcut)
+    # stb_truetype.h (dis kutuphane, tek baslik): third_party/stb/README.txt
+    target_include_directories(${target} SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/third_party)
     target_link_libraries(${target} PRIVATE Threads::Threads lzma_sdk)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /utf-8 /permissive-)
@@ -242,7 +246,8 @@ if(MAP_PREVIEW AND WIN32)
         src/ui/LayerPanel.cpp
         src/ui/ToolPalette.cpp
         src/ui/ModePanel.cpp
-        src/ui/StatusBar.cpp)
+        src/ui/StatusBar.cpp
+        src/ui/AtlasTextRenderer.cpp)
     map_compile_options(map_preview)
     target_include_directories(map_preview PRIVATE ${CMAKE_SOURCE_DIR})
     target_include_directories(map_preview SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)

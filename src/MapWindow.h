@@ -11,6 +11,7 @@
 //     cizimlerinin cizim dosyasina kaydi
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "XPLMDataAccess.h"
@@ -23,6 +24,7 @@
 #include "gfx/Canvas.h"
 #include "MapTheme.h"
 #include "ui/AirportSearchPanel.h"
+#include "ui/AtlasTextRenderer.h"
 #include "ui/LayerPanel.h"
 #include "ui/ModePanel.h"
 #include "ui/StatusBar.h"
@@ -88,6 +90,7 @@ private:
 
     void OnDraw();
     bool PrepareCanvas();  // OpenGL hazir mi (ilk karede yukler); degilse hatayi pencereye yazar
+    void CreateTextRenderer();  // ilk karede: kendi yazi atlasimiz ([text] renderer = atlas | xplane)
     void DrawTooltip(const DrawContext& pContext, const std::string& pText);  // imlecin yaninda kucuk aciklama
     int OnClick(int pX, int pY, XPLMMouseStatus pStatus);
     int OnRightClick(int pX, int pY, XPLMMouseStatus pStatus);
@@ -133,6 +136,7 @@ private:
     MapView mView;
     Gfx::Canvas mCanvas;               // tum seklin cizildigi kapi (modern OpenGL)
     bool mCanvasChecked = false;
+    std::unique_ptr<AtlasTextRenderer> mText;  // nullptr: X-Plane'in yazisi (yedek)
     bool mContextWarned = false;  // pop-out baglaminda shader yok uyarisi bir kez loglandi
     Toolbar mToolbar;
     LayerPanel mLayerPanel;

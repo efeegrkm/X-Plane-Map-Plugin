@@ -1,6 +1,7 @@
 // MapWindow.cpp
 #include "MapWindow.h"
 
+#include <array>
 #include <chrono>
 #include <cstdio>
 #include <format>
@@ -12,6 +13,7 @@
 
 #include "XPLMGraphics.h"
 #include "XPLMProcessing.h"
+#include "XPLMUtilities.h"
 
 #include "Drawings.h"
 #include "LayerManager.h"
@@ -29,6 +31,8 @@ namespace
 const char* kWindowSection = "window";
 const char* kViewSection = "view";
 const char* kToolsSection = "tools";
+const char* kTextSection = "text";
+const char* kFontFile = "Resources/fonts/DejaVuSans.ttf";  // X-Plane kurulumunda var (lisans: Bitstream Vera)
 
 const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
@@ -116,6 +120,11 @@ void MapWindow::Create()
 
 void MapWindow::Destroy()
 {
+    if (mText)
+    {
+        Ui::SetTextRenderer(nullptr);  // Ui artik bu nesneyi gostermesin
+        mText.reset();
+    }
     if (mWindow)
     {
         XPLMDestroyWindow(mWindow);
@@ -280,6 +289,7 @@ void MapWindow::OnDraw()
             mContextWarned = true;
         }
         Ui::Text(mArea.mLeft + 10, mArea.mTop - 30, "Map cannot draw in this window, use Pop in", Ui::kTextYellow);
+        mCanvas.FlushText();
         return;
     }
 
@@ -305,6 +315,10 @@ void MapWindow::OnDraw()
     tContext.mArea = ToRectD(mArea);
     tContext.mClearArea = ClearArea();
     tContext.mPixelsPerBoxel = tBoxelToPixel ? PixelsPerBoxel(*tBoxelToPixel) : 1.0;
+    if (mText)
+    {
+        mText->SetPixelsPerBoxel(tContext.mPixelsPerBoxel);  // UI olcegi degistiyse atlas yeniden basilir
+    }
     tContext.mNow = tNow;
     tContext.mHasCursor = tMouseInside && !IsOverControls(tMouseX, tMouseY);
     tContext.mCursorX = tMouseX;
@@ -318,6 +332,7 @@ void MapWindow::OnDraw()
     }
 
     DrawControls(tMouseX, tMouseY, tMouseInside);
+    mCanvas.FlushText();  // bekleyen yazilar (tek cizim cagrisi)
 
     // Bizim cizim suremiz (yumusatilmis): teshis modunda alt seritte gorunur
     const double tDrawMs =
@@ -361,6 +376,33 @@ void MapWindow::DrawTooltip(const DrawContext& pContext, const std::string& pTex
     Ui::Text(tLeft + tPadding, tBox.mBottom + tPadding + 1, pText, Ui::kTextWhite);
 }
 
+void MapWindow::CreateTextRenderer()
+{
+    const std::string tMode = mSettings.GetString(kTextSection, "renderer", "atlas");
+    mSettings.SetString(kTextSection, "renderer", tMode);  // dosyada gorunsun
+    if (tMode == "xplane")
+    {
+        Log("text: X-Plane font (XPLMDrawString), [text] renderer = xplane");
+        return;
+    }
+    // Boyut X-Plane yazisiyla ayni: yerlesim (etiket kutulari, dugmeler) degismesin
+    int tHeight = 10;
+    XPLMGetFontDimensions(xplmFont_Proportional, nullptr, &tHeight, nullptr);
+    std::array<char, 2048> tSystemPath = {};
+    XPLMGetSystemPath(tSystemPath.data());
+    const std::string tFontPath = std::string(tSystemPath.data()) + kFontFile;
+    std::unique_ptr<AtlasTextRenderer> tText = std::make_unique<AtlasTextRenderer>(mCanvas, tHeight);
+    std::string tError;
+    if (!tText->Load(tFontPath, &tError))
+    {
+        Log("text: own font atlas not available ({}), using X-Plane font", tError);
+        return;
+    }
+    mText = std::move(tText);
+    Ui::SetTextRenderer(mText.get());
+    Log("text: font atlas from {} (cap height {} boxels)", tFontPath, tHeight);
+}
+
 bool MapWindow::PrepareCanvas()
 {
     const bool tFirstTry = !mCanvasChecked;
@@ -370,6 +412,7 @@ bool MapWindow::PrepareCanvas()
         if (tFirstTry)
         {
             Log("OpenGL ready: {}", mCanvas.ContextText());
+            CreateTextRenderer();
         }
         return true;
     }

@@ -2,9 +2,9 @@
 // Arayuz cizim yardimcilari: dolu kutu, cerceve, cizgi, yazi, dugme, onay kutusu.
 // Tum koordinatlar global boxel (pencere draw callback'inin koordinatlari).
 //
-// Sekiller Gfx::Canvas ile (modern OpenGL), yazilar X-Plane'in kendi yazi
-// tipiyle (XPLMDrawString) cizilir. Yazilar Turkce harf ve derece isareti
-// cizemez: metinler ASCII olmali.
+// Sekiller Gfx::Canvas ile (modern OpenGL). Yazilar etkin TextRenderer ile
+// (0.18: AtlasTextRenderer, kendi atlasimiz; yoksa X-Plane'in XPLMDrawString'i).
+// Yedek yol Turkce harf ve derece isareti cizemez: metinler simdilik ASCII.
 #pragma once
 
 #include <string_view>
@@ -16,6 +16,8 @@ namespace Gfx
 {
 class Canvas;
 }
+
+class TextRenderer;
 
 namespace Ui
 {
@@ -39,7 +41,11 @@ void FillRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor);
 void FrameRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor);
 void Line(Gfx::Canvas& pCanvas, const PointF& pFrom, const PointF& pTo, float pWidth, const Rgba& pColor);
 
-// pX, pY: yazinin sol alt kosesi (taban cizgisi). Saydamlik desteklenmez.
+// Etkin yazi cizici. nullptr: X-Plane'in XPLMDrawString'i (yedek). Sahibi MapWindow / onizleme;
+// X-Plane'in yazi fonksiyonlari gibi surec genelinde tektir.
+void SetTextRenderer(TextRenderer* pRenderer);
+
+// pX, pY: yazinin sol alt kosesi (taban cizgisi). Yedek yolda saydamlik desteklenmez.
 void Text(int pX, int pY, std::string_view pText, const Rgba& pColor);
 int TextWidth(std::string_view pText);
 int FontHeight();

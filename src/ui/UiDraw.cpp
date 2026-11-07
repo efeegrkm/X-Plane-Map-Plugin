@@ -6,11 +6,14 @@
 #include "XPLMGraphics.h"
 
 #include "gfx/Canvas.h"
+#include "ui/TextRenderer.h"
 
 namespace
 {
 
 const int kButtonPadding = 10;  // yazinin iki yanindaki bosluk
+
+TextRenderer* gTextRenderer = nullptr;  // etkin yazi cizici (SetTextRenderer); nullptr = XPLMDrawString
 
 // XPLMDrawString / XPLMMeasureString degistirilebilir char* istiyor:
 // her seferinde kendi kopyamizi veriyoruz.
@@ -45,8 +48,18 @@ void Line(Gfx::Canvas& pCanvas, const PointF& pFrom, const PointF& pTo, float pW
     pCanvas.Draw(tMesh);
 }
 
+void SetTextRenderer(TextRenderer* pRenderer)
+{
+    gTextRenderer = pRenderer;
+}
+
 void Text(int pX, int pY, std::string_view pText, const Rgba& pColor)
 {
+    if (gTextRenderer)
+    {
+        gTextRenderer->Draw(pX, pY, pText, pColor);
+        return;
+    }
     std::string tCopy = MutableCopy(pText);
     float tColor[3] = {pColor.mR, pColor.mG, pColor.mB};
     XPLMDrawString(tColor, pX, pY, tCopy.data(), nullptr, xplmFont_Proportional);
@@ -54,12 +67,20 @@ void Text(int pX, int pY, std::string_view pText, const Rgba& pColor)
 
 int TextWidth(std::string_view pText)
 {
+    if (gTextRenderer)
+    {
+        return gTextRenderer->Width(pText);
+    }
     std::string tCopy = MutableCopy(pText);
     return static_cast<int>(XPLMMeasureString(xplmFont_Proportional, tCopy.data(), static_cast<int>(tCopy.size())));
 }
 
 int FontHeight()
 {
+    if (gTextRenderer)
+    {
+        return gTextRenderer->Height();
+    }
     int tHeight = 10;
     XPLMGetFontDimensions(xplmFont_Proportional, nullptr, &tHeight, nullptr);
     return tHeight;

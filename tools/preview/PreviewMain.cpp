@@ -20,6 +20,8 @@
 
 #include "Drawings.h"
 #include "gfx/Canvas.h"
+#include "ui/AtlasTextRenderer.h"
+#include "XPLMGraphics.h"
 #include "gfx/GlInclude.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
@@ -82,6 +84,7 @@ struct Options
     int mHeight = 800;
     std::string mOut = "preview.ppm";
     std::string mXPlane = "C:/X-Plane 11/";
+    bool mAtlasText = true;  // --xplm-text: kendi yazi atlasimiz yerine XPLMDrawString
     bool mUi = true;
     bool mDemoDrawings = false;
     bool mFixes = false;
@@ -129,6 +132,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--xplane" && tHasValue)
         {
             pOut->mXPlane = pArgv[++tIndex];
+        }
+        else if (tArg == "--xplm-text")
+        {
+            pOut->mAtlasText = false;  // eski yol: XPLMDrawString (onizlemede Windows yazi tipi)
         }
         else if (tArg == "--no-ui")
         {
@@ -323,6 +330,23 @@ int main(int pArgc, char** pArgv)
         return 1;
     }
     std::printf("OpenGL: %s\n", tCanvas.ContextText().c_str());
+    std::unique_ptr<AtlasTextRenderer> tText;
+    if (tOptions.mAtlasText)
+    {
+        int tFontHeight = 10;
+        XPLMGetFontDimensions(xplmFont_Proportional, nullptr, &tFontHeight, nullptr);
+        tText = std::make_unique<AtlasTextRenderer>(tCanvas, tFontHeight);
+        std::string tError;
+        if (tText->Load(tOptions.mXPlane + "Resources/fonts/DejaVuSans.ttf", &tError))
+        {
+            Ui::SetTextRenderer(tText.get());
+        }
+        else
+        {
+            std::printf("text atlas: %s (using stub font)\n", tError.c_str());
+            tText.reset();
+        }
+    }
 
     // --- Veri ---
     const std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
@@ -542,6 +566,7 @@ int main(int pArgc, char** pArgv)
         }
         tStatus.Draw(tCanvas, tArea, tView, tView.BoxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");
     }
+    tCanvas.FlushText();
     glFinish();
 
     if (!WritePpm(tOptions.mOut, tWidth, tHeight))
