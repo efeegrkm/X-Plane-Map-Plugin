@@ -2,6 +2,7 @@
 #include "data/TerrainStore.h"
 
 #include <chrono>
+#include <cmath>
 #include <format>
 #include <filesystem>
 #include <fstream>
@@ -15,6 +16,10 @@
 #include "data/TerrainRaster.h"
 #include "data/TerrainTriangles.h"
 #include "data/TerrainVectors.h"
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace
 {
@@ -128,6 +133,10 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
         {
             WorkerLoop();
         });
+#if defined(_WIN32)
+    // Dusuk oncelik: isci X-Plane'in kare suresinden pay almasin (ekran istekleri yine once gelir)
+    SetThreadPriority(static_cast<HANDLE>(mThread.native_handle()), THREAD_PRIORITY_BELOW_NORMAL);
+#endif
 }
 
 void TerrainStore::SetCacheLimit(uint64_t pBytes)
@@ -151,6 +160,113 @@ void TerrainStore::TrimCache()
                            tResult.mTotalBytes / 1048576.0, mCacheLimit / 1048576.0, tResult.mRemovedTiles,
                            tResult.mRemovedBytes / 1048576.0));
     }
+}
+
+void TerrainStore::SetFocus(double pLat, double pLon)
+{
+    std::lock_guard<std::mutex> tLock(mMutex);
+    mFocusLat = pLat;
+    mFocusLon = pLon;
+}
+
+void TerrainStore::SetPrefetchTiles(const std::vector<int>& pTiles)
+{
+    {
+        std::lock_guard<std::mutex> tLock(mMutex);
+        mPrefetch.assign(pTiles.begin(), pTiles.end());
+    }
+    mWake.notify_one();
+}
+
+void TerrainStore::StartPrecache(const std::vector<int>& pTiles)
+{
+    {
+        std::lock_guard<std::mutex> tLock(mMutex);
+        mPrecache.assign(pTiles.begin(), pTiles.end());
+        mPrecacheDone = 0;
+        mPrecacheTotal = static_cast<int>(pTiles.size());
+    }
+    mWake.notify_one();
+}
+
+void TerrainStore::CancelPrecache()
+{
+    std::lock_guard<std::mutex> tLock(mMutex);
+    mPrecache.clear();
+    mPrecacheTotal = mPrecacheDone;  // bitmis sayilir
+}
+
+bool TerrainStore::PrecacheProgress(int* pDone, int* pTotal) const
+{
+    std::lock_guard<std::mutex> tLock(mMutex);
+    *pDone = mPrecacheDone;
+    *pTotal = mPrecacheTotal;
+    return mPrecacheDone < mPrecacheTotal;
+}
+
+bool TerrainStore::ServeBackgroundTile()
+{
+    // ISCI thread'i. Ekranin istegi varken calismaz (dusuk oncelik): bir karo ~0,5-1 s surer.
+    int tKey = -1;
+    bool tPrecache = false;
+    {
+        std::lock_guard<std::mutex> tLock(mMutex);
+        if (!mRequests.empty() || !mVectorRequests.empty())
+        {
+            return false;
+        }
+        while (tKey < 0 && (!mPrecache.empty() || !mPrefetch.empty()))
+        {
+            tPrecache = !mPrecache.empty();
+            std::deque<int>& tQueue = tPrecache ? mPrecache : mPrefetch;
+            const int tCandidate = tQueue.front();
+            tQueue.pop_front();
+            if (mBackgroundDone.count(tCandidate) == 0)
+            {
+                tKey = tCandidate;
+            }
+            else if (tPrecache)
+            {
+                ++mPrecacheDone;  // bu oturumda zaten hazirlandi
+            }
+        }
+        if (tKey < 0)
+        {
+            return false;
+        }
+    }
+    const int tWest = tKey % 360 - 180;
+    const int tSouth = tKey / 360 - 90;
+    bool tInMemory = false;
+    for (const auto& tEntry : mRasters)
+    {
+        tInMemory = tInMemory || tEntry.first == tKey;
+    }
+    if (!tInMemory)
+    {
+        // Gecici nesnelere: onbellek dosyalari yazilir (ya da guncelse sadece okunup dokunulur),
+        // bellekteki raster / rakim LRU'su degismez (ekrandaki karolar itilmez)
+        TerrainRaster tRaster;
+        ElevationGrid tElevation;
+        TerrainVectors tVectors;
+        std::string tLog;
+        TerrainTileState tState = TerrainTileState::Unknown;
+        BuildRaster(mIndex, tWest, tSouth, mCacheDirectory, &tRaster, &tLog, &tState, &tElevation, &tVectors);
+        if (!tLog.empty())
+        {
+            tLog.pop_back();
+            AddLog((tPrecache ? "pre-cache: " : "prefetch: ") + tLog);
+        }
+        SetState(tWest, tSouth, tState);
+        mCacheGrew = true;
+    }
+    std::lock_guard<std::mutex> tLock(mMutex);
+    mBackgroundDone.insert(tKey);
+    if (tPrecache)
+    {
+        ++mPrecacheDone;
+    }
+    return true;
 }
 
 void TerrainStore::Stop()
@@ -292,13 +408,34 @@ void TerrainStore::SetState(int pWest, int pSouth, TerrainTileState pState)
     mStates[SceneryIndex::TileKey(pWest, pSouth)] = pState;
 }
 
+namespace
+{
+
+// Istegin (karo / parca) ortasinin odaga uzakligi (derece^2, boylam enleme gore kisalir)
+double FocusDistance(const TerrainImageKey& pKey, double pFocusLat, double pFocusLon)
+{
+    const int tCount = TerrainStore::ChunksPerSide(pKey.mLevel);
+    const int tColumn = tCount > 1 ? pKey.mChunk % tCount : 0;
+    const int tRow = tCount > 1 ? pKey.mChunk / tCount : 0;
+    const double tLon = pKey.mWest + (tColumn + 0.5) / tCount;
+    const double tLat = pKey.mSouth + 1.0 - (tRow + 0.5) / tCount;  // satir 0 = kuzey
+    double tDeltaLon = std::abs(tLon - pFocusLon);
+    tDeltaLon = std::min(tDeltaLon, 360.0 - tDeltaLon);
+    const double tCos = std::cos(pFocusLat * 3.14159265358979 / 180.0);
+    const double tDeltaLat = tLat - pFocusLat;
+    return tDeltaLon * tDeltaLon * tCos * tCos + tDeltaLat * tDeltaLat;
+}
+
+}  // namespace
+
 bool TerrainStore::PickRequest(TerrainImageKey* pOut)
 {
-    // mMutex kilitliyken cagrilir. En son istenen; esitlikte kaba seviye once
-    // (once bulanik ama hizli bir goruntu, sonra keskini).
+    // mMutex kilitliyken cagrilir. En son istenen; esitlikte kaba seviye once (once bulanik ama
+    // hizli bir goruntu, sonra keskini); o da esitse ekran merkezine yakin olan (Asama 4).
     bool tFound = false;
     uint64_t tBestFrame = 0;
     int tBestLevel = 0;
+    double tBestDistance = 0.0;
     for (auto tIterator = mRequests.begin(); tIterator != mRequests.end();)
     {
         if (tIterator->second.mFrame + kStaleFrames < mFrame)
@@ -308,11 +445,16 @@ bool TerrainStore::PickRequest(TerrainImageKey* pOut)
         }
         const uint64_t tFrame = tIterator->second.mFrame;
         const int tLevel = tIterator->first.mLevel;
-        if (!tFound || tFrame > tBestFrame || (tFrame == tBestFrame && tLevel < tBestLevel))
+        const double tDistance = FocusDistance(tIterator->first, mFocusLat, mFocusLon);
+        const bool tBetter = !tFound || tFrame > tBestFrame ||
+                             (tFrame == tBestFrame && (tLevel < tBestLevel ||
+                                                       (tLevel == tBestLevel && tDistance < tBestDistance)));
+        if (tBetter)
         {
             tFound = true;
             tBestFrame = tFrame;
             tBestLevel = tLevel;
+            tBestDistance = tDistance;
             *pOut = tIterator->first;
         }
         ++tIterator;
@@ -966,6 +1108,10 @@ void TerrainStore::WorkerLoop()
         {
             continue;  // vektor istekleri kucuk ve yol katmani bekliyor: once onlar
         }
+        if (ServeBackgroundTile())
+        {
+            continue;  // ekranin istegi yok: bolge onbellegi / onceden yukleme
+        }
         if (tIdle)
         {
             LogImageTimes();  // bekleme oncesi: bu turun ozeti
@@ -980,7 +1126,8 @@ void TerrainStore::WorkerLoop()
             mWake.wait(tLock,
                        [this]()
                        {
-                           return mStopping || !mVectorRequests.empty() ||
+                           const bool tBackground = mRequests.empty() && (!mPrecache.empty() || !mPrefetch.empty());
+                           return mStopping || tBackground || !mVectorRequests.empty() ||
                                   (!mRequests.empty() && mResults.size() < kMaxQueuedResults);
                        });
             if (mStopping)

@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <format>
 #include <cstring>
@@ -35,6 +36,7 @@
 #include "data/AirportGeometryStore.h"
 #include "data/AirportDetailStore.h"
 #include "data/AptDatIndexer.h"
+#include "data/SceneryIndex.h"
 #include "data/NavDatabase.h"
 #include "data/NavLoader.h"
 #include "data/TerrainClasses.h"
@@ -58,7 +60,7 @@
 namespace
 {
 
-const char* kVersion = "0.18";
+const char* kVersion = "0.19";
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";  // kullanici zemin renklerini buradan degistirir
@@ -66,6 +68,11 @@ const char* kTerrainCacheFolder = "cache/terrain/";
 const char* kAirportCacheFolder = "cache/airports/";
 const char* kCacheSection = "cache";
 const int kDefaultTerrainCacheMb = 1024;  // zemin onbellegi siniri (kullanici karari, 0 = sinirsiz)
+const int kDefaultPrefetchTiles = 20;     // onceden yukleme: ucagin onu + FMS rotasi, en cok bu kadar karo
+const float kPrefetchPeriod = 5.0f;       // onceden yukleme listesi bu kadar saniyede bir yenilenir
+const double kTileBytesEstimate = 3.5 * 1048576.0;  // karo basina onbellek (raster + rakim + vektor)
+const double kPrecacheLimitShare = 0.8;   // bolge onbellegi, onbellek sinirinin en cok bu kadarini doldurabilir
+const float kNoticeSeconds = 8.0f;        // alt seritteki kisa bildirimlerin suresi
 const double kNavLoadBudgetMs = 4.0;  // nav verisi okunurken her karede en fazla bu kadar
 
 // Havalimani ozetlerinin kaynagi: apt.dat dosyalarini tarayan indeksleyici
@@ -85,6 +92,8 @@ private:
     {
         kMenuDiagnostics = 1,
         kMenuClearTrack,
+        kMenuPrecache,
+        kMenuCancelPrecache,
     };
 
     static void MenuCallback(void* pMenuRef, void* pItemRef);
@@ -102,6 +111,9 @@ private:
     void CreateCommands();
     void CreateMenu();
     void ToggleDiagnostics();
+    void UpdatePrefetch(float pNow);  // ucagin gidis yonu + FMS rotasi uzerindeki karolar
+    void StartPrecacheVisible();      // gorunen alanin karolarinin disk onbellegi
+    void ShowNotice(const std::string& pText);
     static std::string FindPluginDirectory();
 
     Settings mSettings;
@@ -119,6 +131,15 @@ private:
     Drawings mDrawings;
     LayerManager mLayers;  // katmanlar yukaridaki verilere bagli: onlardan SONRA tanimli olmali
     TrackLayer* mTrackLayer = nullptr;  // sahibi mLayers; menuden temizlemek icin
+    FmsLayer* mFmsLayer = nullptr;  // sahibi mLayers; onceden yukleme rotasi icin
+    int mCacheLimitMb = 0;
+    int mPrefetchTiles = 0;
+    float mLastPrefetch = -100.0f;
+    bool mPrecacheRunning = false;
+    std::string mNotice;  // kisa bildirim (alt serit), mNoticeUntil'e kadar
+    float mNoticeUntil = 0.0f;
+    XPLMCommandRef mPrecacheCommand = nullptr;
+    XPLMCommandRef mCancelPrecacheCommand = nullptr;
     TerrainLayer* mTerrainLayer = nullptr;  // sahibi mLayers; "Loading terrain" durum yazisi icin
     std::unique_ptr<MapWindow> mWindow;
 
@@ -211,7 +232,9 @@ void PrimeMapPlugin::CreateLayers()
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mNavDatabase));
     mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, mNavDatabase));
-    mLayers.Add(std::make_unique<FmsLayer>());
+    std::unique_ptr<FmsLayer> tFms = std::make_unique<FmsLayer>();
+    mFmsLayer = tFms.get();
+    mLayers.Add(std::move(tFms));
     std::unique_ptr<TrackLayer> tTrack = std::make_unique<TrackLayer>(mAircraft);
     mTrackLayer = tTrack.get();
     mLayers.Add(std::move(tTrack));
@@ -230,6 +253,10 @@ void PrimeMapPlugin::CreateCommands()
     XPLMRegisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
     mNextModeCommand = XPLMCreateCommand("ozdev/map/next_mode", "Map: next map mode (Scenery / VFR / IFR)");
     XPLMRegisterCommandHandler(mNextModeCommand, CommandCallback, 1, this);
+    mPrecacheCommand = XPLMCreateCommand("ozdev/map/precache_view", "Map: pre-cache terrain of the visible area");
+    mCancelPrecacheCommand = XPLMCreateCommand("ozdev/map/precache_cancel", "Map: cancel terrain pre-cache");
+    XPLMRegisterCommandHandler(mPrecacheCommand, CommandCallback, 1, this);
+    XPLMRegisterCommandHandler(mCancelPrecacheCommand, CommandCallback, 1, this);
 }
 
 void PrimeMapPlugin::CreateMenu()
@@ -255,6 +282,9 @@ void PrimeMapPlugin::CreateMenu()
         XPLMAppendMenuItem(mMenu, "Diagnostics mode", reinterpret_cast<void*>(intptr_t(kMenuDiagnostics)), 0);
     XPLMCheckMenuItem(mMenu, mDiagnosticsItem, xplm_Menu_Unchecked);
     XPLMAppendMenuItem(mMenu, "Clear flight track", reinterpret_cast<void*>(intptr_t(kMenuClearTrack)), 0);
+    XPLMAppendMenuSeparator(mMenu);
+    XPLMAppendMenuItemWithCommand(mMenu, "Pre-cache terrain of visible area", mPrecacheCommand);
+    XPLMAppendMenuItemWithCommand(mMenu, "Cancel terrain pre-cache", mCancelPrecacheCommand);
 }
 
 void PrimeMapPlugin::ToggleDiagnostics()
@@ -341,6 +371,15 @@ int PrimeMapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     {
         mWindow->NextMapMode();
     }
+    else if (pCommand == mPrecacheCommand)
+    {
+        StartPrecacheVisible();
+    }
+    else if (pCommand == mCancelPrecacheCommand && mPrecacheRunning)
+    {
+        mTerrainStore.CancelPrecache();
+        ShowNotice("Terrain pre-cache cancelled");
+    }
     return 0;  // komut bizim; baska kimse islemesin
 }
 
@@ -350,6 +389,7 @@ float PrimeMapPlugin::OnFlightLoop()
     StepLoading();
     mAircraft.Refresh();
     mLayers.UpdateAll(tNow);
+    UpdatePrefetch(tNow);
     if (mWindow)
     {
         mWindow->Update(tNow);
@@ -372,6 +412,9 @@ void PrimeMapPlugin::StepLoading()
         const int tCacheMegabytes = std::max(0, mSettings.GetInt(kCacheSection, "terrain_mb", kDefaultTerrainCacheMb));
         mSettings.SetInt(kCacheSection, "terrain_mb", tCacheMegabytes);
         mTerrainStore.SetCacheLimit(static_cast<uint64_t>(tCacheMegabytes) << 20);
+        mCacheLimitMb = tCacheMegabytes;
+        mPrefetchTiles = std::max(0, mSettings.GetInt(kCacheSection, "prefetch_tiles", kDefaultPrefetchTiles));
+        mSettings.SetInt(kCacheSection, "prefetch_tiles", mPrefetchTiles);
         mTerrainStore.Start(mXPlaneDirectory, mPluginDirectory + kTerrainCacheFolder, mTerrainPalette,
                             AllTerrainStyles());
     }
@@ -444,11 +487,137 @@ void PrimeMapPlugin::StepLoading()
         tMessage += tMessage.empty() ? "" : "   ";
         tMessage += tTerrainStatus;
     }
+    // Bolge onbellegi ilerlemesi ve bitisi
+    int tDone = 0;
+    int tTotal = 0;
+    const bool tPrecaching = mTerrainStore.PrecacheProgress(&tDone, &tTotal);
+    if (tPrecaching)
+    {
+        tMessage += tMessage.empty() ? "" : "   ";
+        tMessage += std::format("Pre-caching terrain: {}/{}", tDone, tTotal);
+    }
+    else if (mPrecacheRunning)
+    {
+        Log("terrain pre-cache finished: {} tiles", tDone);
+        ShowNotice(std::format("Terrain pre-cache finished: {} tiles", tDone));
+    }
+    mPrecacheRunning = tPrecaching;
+    if (!mNotice.empty() && XPLMGetElapsedTime() < mNoticeUntil)
+    {
+        tMessage += tMessage.empty() ? "" : "   ";
+        tMessage += mNotice;
+    }
     mWindow->SetStatusMessage(tMessage);
     // Harita resmi onbellegi: veri gelirken resim hiz sinirinda yenilensin (MapImageCache)
     const bool tBusy = !mNavLoader.IsDone() || mAirportGeometry.IsLoading() || mAirportDetails.PendingCount() > 0 ||
                        mAirways.IsLoading() || !mTerrainStore.IsIdle();
     mWindow->SetDataBusy(tBusy);
+}
+
+void PrimeMapPlugin::ShowNotice(const std::string& pText)
+{
+    mNotice = pText;
+    mNoticeUntil = XPLMGetElapsedTime() + kNoticeSeconds;
+}
+
+void PrimeMapPlugin::UpdatePrefetch(float pNow)
+{
+    if (pNow - mLastPrefetch < kPrefetchPeriod || mPrefetchTiles <= 0 || !mTerrainStore.IsIndexReady())
+    {
+        return;
+    }
+    mLastPrefetch = pNow;
+    std::vector<int> tTiles;
+    auto tAdd = [this, &tTiles](const LatLon& pPoint)
+    {
+        const int tWest = static_cast<int>(std::floor(pPoint.mLon));
+        const int tSouth = static_cast<int>(std::floor(pPoint.mLat));
+        if (static_cast<int>(tTiles.size()) >= mPrefetchTiles || tSouth < -90 || tSouth > 89 ||
+            mTerrainStore.CoverageOf(tWest, tSouth) != TileCoverage::HasDsf)
+        {
+            return;
+        }
+        const int tKey = SceneryIndex::TileKey(tWest, tSouth);
+        if (std::find(tTiles.begin(), tTiles.end(), tKey) == tTiles.end())
+        {
+            tTiles.push_back(tKey);
+        }
+    };
+    // Ucagin onu: hareket ediyorsa gidis yonunde 120 NM'ye kadar
+    const AircraftState& tAircraft = mAircraft.State();
+    LatLon tFrom = tAircraft.mPosition;
+    if (tAircraft.mValid)
+    {
+        tAdd(tAircraft.mPosition);
+        if (tAircraft.mGroundSpeedKt > 40.0)
+        {
+            for (double tDistance = 15.0; tDistance <= 120.0; tDistance += 15.0)
+            {
+                tAdd(DestinationPoint(tAircraft.mPosition, tAircraft.mHeadingDeg, tDistance));
+            }
+        }
+    }
+    // FMS rotasinin kalan kismi: bacaklar ~10 NM aralikla orneklenir
+    const std::vector<LatLon> tRoute = mFmsLayer ? mFmsLayer->RouteAhead() : std::vector<LatLon>();
+    for (size_t tIndex = 0; tIndex < tRoute.size(); ++tIndex)
+    {
+        if (tIndex == 0 && !tAircraft.mValid)
+        {
+            tFrom = tRoute[0];
+        }
+        const double tLength = DistanceNm(tFrom, tRoute[tIndex]);
+        const double tBearing = InitialBearingDeg(tFrom, tRoute[tIndex]);
+        for (double tDistance = 0.0; tDistance < tLength; tDistance += 10.0)
+        {
+            tAdd(DestinationPoint(tFrom, tBearing, tDistance));
+        }
+        tAdd(tRoute[tIndex]);
+        tFrom = tRoute[tIndex];
+    }
+    mTerrainStore.SetPrefetchTiles(tTiles);
+}
+
+void PrimeMapPlugin::StartPrecacheVisible()
+{
+    if (!mWindow || !mTerrainStore.IsIndexReady())
+    {
+        ShowNotice("Pre-cache: scenery index is not ready yet");
+        return;
+    }
+    const GeoBounds tBounds = mWindow->VisibleBounds();
+    const int tSouth = std::max(-90, static_cast<int>(std::floor(tBounds.mSouth)));
+    const int tNorth = std::min(89, static_cast<int>(std::floor(tBounds.mNorth)));
+    const int tWest = static_cast<int>(std::floor(tBounds.mWest));
+    const int tEast = std::min(tWest + 359, static_cast<int>(std::floor(tBounds.mEast)));
+    std::vector<int> tTiles;
+    for (int tLat = tSouth; tLat <= tNorth; ++tLat)
+    {
+        for (int tColumn = tWest; tColumn <= tEast; ++tColumn)
+        {
+            const int tLon = ((tColumn + 180) % 360 + 360) % 360 - 180;
+            if (mTerrainStore.CoverageOf(tLon, tLat) == TileCoverage::HasDsf)
+            {
+                tTiles.push_back(SceneryIndex::TileKey(tLon, tLat));
+            }
+        }
+    }
+    if (tTiles.empty())
+    {
+        ShowNotice("Pre-cache: no installed scenery in the visible area");
+        return;
+    }
+    // Onbellek siniriyla catismasin: sigmayacaksa hic baslama (CacheTrim yeni karolari silerdi)
+    const double tEstimateMb = tTiles.size() * kTileBytesEstimate / 1048576.0;
+    if (mCacheLimitMb > 0 && tEstimateMb > mCacheLimitMb * kPrecacheLimitShare)
+    {
+        ShowNotice(std::format("Pre-cache: area too large ({} tiles, ~{:.0f} MB; cache limit {} MB). Zoom in "
+                               "or raise [cache] terrain_mb",
+                               tTiles.size(), tEstimateMb, mCacheLimitMb));
+        return;
+    }
+    mTerrainStore.StartPrecache(tTiles);
+    mPrecacheRunning = true;
+    Log("terrain pre-cache started: {} tiles (~{:.0f} MB)", tTiles.size(), tEstimateMb);
 }
 
 void PrimeMapPlugin::LoadTerrainColors()

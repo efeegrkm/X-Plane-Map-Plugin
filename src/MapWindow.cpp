@@ -951,6 +951,11 @@ void MapWindow::NextMapMode()
     SetMapMode(NextMode(mMapMode));
 }
 
+GeoBounds MapWindow::VisibleBounds() const
+{
+    return mView.VisibleBounds();
+}
+
 MapMode MapWindow::GetMapMode() const
 {
     return mMapMode;

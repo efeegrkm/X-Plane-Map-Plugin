@@ -231,6 +231,7 @@ void TerrainLayer::Draw(const DrawContext& pContext)
     {
         return;
     }
+    mStore.SetFocus(tView.Center().mLat, tView.Center().mLon);  // merkezden kenara oncelik
     const GeoBounds tBounds = tView.VisibleBounds();
     const int tSouth = std::max(-90, static_cast<int>(std::floor(tBounds.mSouth)));
     const int tNorth = std::min(89, static_cast<int>(std::floor(tBounds.mNorth)));

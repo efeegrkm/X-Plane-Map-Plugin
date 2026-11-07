@@ -152,6 +152,18 @@ public:
     // Katman karonun vektorlerini bellekten attiginda: tekrar istenebilsin
     void ForgetVectors(int pWest, int pSouth);
 
+    // --- Asama 4 (0.18) ---
+    // Ekran merkezi: ayni karede istenen goruntulerden (ayni seviyede) merkeze yakin olan once uretilir
+    void SetFocus(double pLat, double pLon);
+    // Arka plan onbellegi: isci, ekranin istegi yokken bu karolarin disk onbellegini (raster, rakim,
+    // vektor) hazirlar; doku uretmez, bellekteki karolari itmez. Once bolge listesi (StartPrecache),
+    // sonra onceden yukleme listesi (SetPrefetchTiles). Karo = SceneryIndex::TileKey.
+    void SetPrefetchTiles(const std::vector<int>& pTiles);  // oncelik sirasiyla; oncekinin yerine gecer
+    void StartPrecache(const std::vector<int>& pTiles);
+    void CancelPrecache();
+    // Bolge onbellegi calisiyorsa true ve ilerleme
+    bool PrecacheProgress(int* pDone, int* pTotal) const;
+
     // Test ve onizleme icin: karonun raster'ini (ve pElevation verilmisse rakimini) bekleterek
     // hazirlar (iscisiz). Onbellekte ikisi de guncelse DSF'e dokunmaz.
     static bool BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
@@ -185,6 +197,7 @@ private:
     const ElevationGrid* ElevationFor(int pWest, int pSouth, int pLevel);
     void KeepElevation(int pWest, int pSouth, std::unique_ptr<ElevationGrid> pGrid);
     void TrimCache();  // isci: disk onbellegini mCacheLimit'e indirir
+    bool ServeBackgroundTile();  // isci: ekran istegi yoksa bir arka plan karosu (true: is yapildi)
     void KeepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> pGrid);
     void BuildImageFor(const TerrainImageKey& pKey, const TerrainRaster& pRaster, TerrainImage* pOut);
     // Vektorler: bellekte yoksa karonun raster'iyla birlikte yuklenir / uretilir (RasterFor)
@@ -220,6 +233,15 @@ private:
     std::unordered_map<int, TerrainTileState> mStates;
     std::string mLog;
     std::string mStatus;
+
+    // Asama 4: odak ve arka plan kuyruklari (mMutex ile)
+    double mFocusLat = 0.0;
+    double mFocusLon = 0.0;
+    std::deque<int> mPrefetch;
+    std::deque<int> mPrecache;
+    int mPrecacheDone = 0;
+    int mPrecacheTotal = 0;
+    std::unordered_set<int> mBackgroundDone;  // bu oturumda disk onbellegi hazirlanmis karolar
 
     bool mHasInFlight = false;            // isci su an bu goruntuyu uretiyor (ayni istek tekrar alinmaz)
     TerrainImageKey mInFlight;

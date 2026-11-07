@@ -25,6 +25,9 @@ public:
     void Draw(const DrawContext& pContext) override;
     void DrawLabels(const DrawContext& pContext) override;
 
+    // Rotanin henuz ucurulmamis kismi (aktif bacagin sonundan itibaren); zemin onceden yuklemesi icin
+    std::vector<LatLon> RouteAhead() const;
+
 private:
     struct Waypoint
     {

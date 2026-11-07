@@ -1,6 +1,7 @@
 // FmsLayer.cpp
 #include "layers/FmsLayer.h"
 
+#include <algorithm>
 #include <array>
 #include <format>
 
@@ -71,6 +72,16 @@ void FmsLayer::ReadFms()
         mWaypoints.push_back({{tLat, tLon}, tId.data(), tAltitude});
     }
     mDestination = (tCount > 0) ? XPLMGetDestinationFMSEntry() : -1;
+}
+
+std::vector<LatLon> FmsLayer::RouteAhead() const
+{
+    std::vector<LatLon> tPoints;
+    for (size_t tIndex = static_cast<size_t>(std::max(0, mDestination)); tIndex < mWaypoints.size(); ++tIndex)
+    {
+        tPoints.push_back(mWaypoints[tIndex].mPosition);
+    }
+    return tPoints;
 }
 
 void FmsLayer::Draw(const DrawContext& pContext)

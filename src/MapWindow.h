@@ -68,6 +68,9 @@ public:
     void NextMapMode();
     MapMode GetMapMode() const;
 
+    // Haritada gorunen alan (bolge onbellegi komutu icin)
+    GeoBounds VisibleBounds() const;
+
     // Alt seritte gosterilecek kisa durum yazisi (bos = yok).
     // Ornek: "Loading nav data: 120000"
     void SetStatusMessage(const std::string& pMessage);
