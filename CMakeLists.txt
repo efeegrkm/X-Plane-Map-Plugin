@@ -14,8 +14,6 @@ option(MAP_TESTS "X-Plane'siz testleri derle" OFF)
 # Prime Map API (0.20): prime_map statik kutuphanesinin C calisma kutuphanesi.
 # OFF = /MT (statik, prime_map_MT.lib), ON = /MD (DLL, prime_map_MD.lib). Debug'da sonuna "d".
 option(PRIME_MAP_DYNAMIC_CRT "prime_map'i /MD ile derle (OFF: /MT)" OFF)
-option(MAP_API_DEMO "Ornek host eklentisini (tools/map_api_demo) derle" ON)
-option(MAP_DEPLOY_DEMO "Ornek host eklentisini de X-Plane'e kur" OFF)
 
 if(NOT EXISTS "${XPSDK}/CHeaders/XPLM/XPLMDisplay.h")
     message(FATAL_ERROR "X-Plane SDK bulunamadi: ${XPSDK}\n"
@@ -299,25 +297,6 @@ if(MAP_PREVIEW AND WIN32)
 endif()
 
 # ---------------------------------------------------------------------------
-# Ornek host eklentisi (GNS gelistiricisinin baslangic noktasi): tools/map_api_demo
-if(MAP_API_DEMO)
-    add_library(map_api_demo SHARED tools/map_api_demo/DemoMain.cpp)
-    map_host_plugin(map_api_demo)
-    target_include_directories(map_api_demo PRIVATE ${CMAKE_SOURCE_DIR}/src/api)  # host gibi: sadece PrimeMap.h
-    set_target_properties(map_api_demo PROPERTIES PREFIX "" OUTPUT_NAME ${XPL_NAME} SUFFIX ".xpl"
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/map_api_demo/64
-        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/map_api_demo/64
-        ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/map_api_demo/lib)
-    if(MAP_DEPLOY_DEMO AND EXISTS "${XPLANE_DIR}/Resources/plugins")
-        add_custom_command(TARGET map_api_demo POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${XPLANE_DIR}/Resources/plugins/map_api_demo/64"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:map_api_demo>
-                    "${XPLANE_DIR}/Resources/plugins/map_api_demo/64/"
-            COMMENT "Demo X-Plane'e kuruluyor")
-    endif()
-endif()
-
-# ---------------------------------------------------------------------------
 # SDK paketi: cmake --install <derleme> --prefix <klasor>/prime_map_sdk [--config Debug|Release]
 #   include/PrimeMap.h, lib/prime_map_MT[d].lib veya prime_map_MD[d].lib, docs, examples, CHANGELOG.md
 # Iki CRT icin iki derleme klasoru gerekir (PRIME_MAP_DYNAMIC_CRT=OFF ve ON); ayni prefix'e kurulabilir.
@@ -325,4 +304,4 @@ install(TARGETS prime_map ARCHIVE DESTINATION lib)
 install(FILES src/api/PrimeMap.h DESTINATION include)
 install(FILES docs/CHANGELOG.md DESTINATION . OPTIONAL)
 install(FILES docs/PrimeMap_API.pdf DESTINATION docs OPTIONAL)
-install(DIRECTORY tools/map_api_demo/ DESTINATION examples/map_api_demo)
+install(DIRECTORY examples/map_api_test/ DESTINATION examples/map_api_test)  # ayri proje, sadece paketi kullanir

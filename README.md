@@ -18,7 +18,7 @@ güncellenir. Hedef kullanım: simülatörlerin eğitmen istasyonu (IOS) ekranla
 Harita artık başka bir X-Plane eklentisine gömülebilir bir C++ statik kütüphane: `prime_map`
 (tek genel başlık `src/api/PrimeMap.h`). Bu eklentinin kendisi de haritaya sadece bu API ile erişir;
 kullanıcı açısından görünüş ve ayar dosyaları 0.19 ile aynı. Ayrıntı ve fonksiyon listesi:
-`docs/PrimeMap_API.pdf`; örnek host eklentisi: `tools/map_api_demo`.
+`docs/PrimeMap_API.pdf`; bütün fonksiyonları deneyen ayrı test eklentisi: `examples/map_api_test`.
 
 ## Kurulum ve derleme
 

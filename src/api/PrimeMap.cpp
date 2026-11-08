@@ -450,9 +450,11 @@ void Map::FitBounds(const GeoBounds& pBounds)
     const double tY1 = Mercator::LatToY(pBounds.mNorth);
     const double tWidth = std::max(tX1 - tX0, 1e-12);
     const double tHeight = std::max(tY1 - tY0, 1e-12);
-    // Dunya kenari 256 * 2^zoom boxel: alanin iki yonde de sigacagi en buyuk zoom
-    const double tScale = std::min(tGeometry.mWidth / (MapView::kTileSize * tWidth),
-                                   tGeometry.mHeight / (MapView::kTileSize * tHeight));
+    // Dunya kenari 256 * 2^zoom boxel: alanin iki yonde de sigacagi en buyuk zoom; kenarlarda %5 pay
+    // (alan pencere kenarina yapismasin, yuvarlama ile disarida kalmasin)
+    const double kMargin = 1.05;
+    const double tScale = std::min(tGeometry.mWidth / (MapView::kTileSize * tWidth * kMargin),
+                                   tGeometry.mHeight / (MapView::kTileSize * tHeight * kMargin));
     tWindow->SetFollowAircraft(false);
     tWindow->View().SetCenterMercator(std::fmod(tX0 + tWidth * 0.5, 1.0), (tY0 + tY1) * 0.5);
     tWindow->View().SetZoom(std::log2(std::max(tScale, 1e-9)));

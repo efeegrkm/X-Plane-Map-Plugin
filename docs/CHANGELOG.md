@@ -2,7 +2,7 @@
 
 ## 1.0.0 (prime-map-plugin 0.20, 2026-11-08)
 
-İlk sürüm. X-Plane'de henüz denenmedi.
+İlk sürüm. Örnek/test eklentisi: `examples/map_api_test`.
 
 - Tek genel başlık `PrimeMap.h`; statik kütüphane `prime_map_MT[d].lib` / `prime_map_MD[d].lib` (LZMA içinde).
 - `Init` / `Shutdown` / `GetStatus` / `VersionString`.
