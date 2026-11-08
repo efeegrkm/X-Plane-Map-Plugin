@@ -13,6 +13,13 @@ güncellenir. Hedef kullanım: simülatörlerin eğitmen istasyonu (IOS) ekranla
 | `MIMARI.pdf` (kaynağı `docs/MIMARI.html`) | Kodu anlamak isteyen geliştirici: mimari, veri akışı şemaları, dosya görevleri |
 | `AGENTS.md` | Projede çalışacak yapay zekâ asistanı: kurallar, kod standardı, derleme, doğrulanmış gerçekler, durum |
 
+## Prime Map API (0.20)
+
+Harita artık başka bir X-Plane eklentisine gömülebilir bir C++ statik kütüphane: `prime_map`
+(tek genel başlık `src/api/PrimeMap.h`). Bu eklentinin kendisi de haritaya sadece bu API ile erişir;
+kullanıcı açısından görünüş ve ayar dosyaları 0.19 ile aynı. Ayrıntı ve fonksiyon listesi:
+`docs/PrimeMap_API.pdf`; örnek host eklentisi: `tools/map_api_demo`.
+
 ## Kurulum ve derleme
 
 Qt Creator'da projeyi aç ve derle (kit: Desktop Qt 6.10.1 MSVC2022 64bit; Qt

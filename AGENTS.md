@@ -11,7 +11,7 @@ başlayabilmesi için yazıldı. Tamamını oku. Sonra:
 - Her kaynak dosyanın başında Türkçe bir açıklama bloğu var (ne yapar, neden,
   zoom eşikleri, küçük şemalar). Bir dosyayı değiştirmeden önce o bloğu oku.
 
-Durum tarihi: **2026-11-07**, sürüm **0.19**.
+Durum tarihi: **2026-11-08**, sürüm **0.20** (dal `feature/api`, main'e birleştirilmedi).
 
 ---
 
@@ -330,7 +330,7 @@ tür ile nav verisinden çözülür (104.581 segmentin hepsi çözülüyor). Ön
 Ayrıntı ve şemalar `MIMARI.pdf`'te. Kısaca:
 
 ```
-X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
+X-Plane ─► plugin/PluginMain.cpp (giris, menu, komut, ini) ─► api/PrimeMap ─► engine/MapData (flight loop)
               │                         │
               ▼                         ▼
      src/data depolari          MapWindow (pencere, fare, ui/)
@@ -339,7 +339,7 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
               └──────────────► LayerManager ─► layers/* ─► gfx/Canvas (GL 3.3)
 ```
 
-- **Çekirdek X-Plane'e bağımlı değil**; XPLM sadece `Plugin.cpp`,
+- **Çekirdek X-Plane'e bağımlı değil**; XPLM sadece `plugin/PluginMain.cpp`, `api/PrimeMap.cpp`, `engine/MapData.cpp`,
   `MapWindow.*`, `data/NavLoader`, `data/AircraftData`, `layers/FmsLayer`,
   `Log.cpp`, `gfx/Canvas.cpp`, `gfx/Texture.cpp`, `ui/UiDraw.cpp`. Bu sayede
   çekirdek testlerde ve önizlemede çalışır. CMake: `CORE_SOURCES` /
@@ -347,7 +347,7 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 - **İstekle veri:** katmanlar `AirportDetailStore::Use(i)` /
   `TerrainStore::Request` ile ister; hazır değilse yer tutucu çizer; flight
   loop istekleri işçiye verir. Çizim hiç beklemez.
-- **Katman sırası:** `Plugin.cpp::CreateLayers()`. Etiket önceliği
+- **Katman sırası:** `engine/MapData.cpp::CreateLayers()`. Etiket önceliği
   `LabelPriority` (havalimanı 10, pist 15, VOR 20, NDB 30, ILS 40, fix 60,
   hava yolu 70); `LabelPlacer` çakışanı reddeder.
 - **Çizim (0.19):** `MapWindow::OnDraw` → `LayerManager::PrepareAll` →
@@ -373,7 +373,17 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
   (kabartma, VFR bandı, su tonu, kıyı çizgisi; formüller `TerrainRelief`).
   Deniz / veri yok: `WorldTileMap` (`dsf_files`) → `SceneryIndex::NoBaseCoverage`.
   Ayrıntı MIMARI bölüm 9.5–9.7.
-- **Yeni katman:** `Layer`'dan türet → `CreateLayers()`'a ekle → CMake →
+- **Prime Map API (0.20):** `src/api/PrimeMap.h` tek genel başlık; `prime_map` STATIC
+  kütüphanesi (CORE + PLUGIN kaynakları + lzma nesneleri; `PRIME_MAP_DYNAMIC_CRT` OFF=/MT, ON=/MD,
+  Debug'da `d`). Eklenti (`prime-map-plugin`) sadece `PluginMain.cpp` + `prime_map`; haritaya
+  SADECE API ile erişir. `MapWindow` artık motor: `Embedded`/`Standalone`, UI ve fare anahtarı
+  (fare kapalıyken tıklama 0 döner = alttaki pencereye), ayarlar bellekte + revizyon sayacı
+  (dosyayı host yazar). Katman enum tablosu ve panel kuralları tek yerde: `engine/LayerTable`
+  (panel de bunu çağırır). Örnek host: `tools/map_api_demo` (`MAP_API_DEMO`, kurulum
+  `MAP_DEPLOY_DEMO`). Belge: `docs/PrimeMap_API.html` → `.pdf`, `docs/CHANGELOG.md`.
+  SDK paketi: `cmake --install <derleme> --prefix prime_map_sdk`.
+- **Yeni katman:** `Layer`'dan türet → `engine/MapData.cpp::CreateLayers()`'a ekle → `engine/LayerTable.cpp` +
+  `PrimeMap.h` `MapLayer`'a satır → CMake →
   `MapTheme.cpp` varsayılan görünürlük → `ui/LayerPanel.cpp` `kGroups`.
 
 ## 10. Ayar dosyaları (eklenti klasörü)
@@ -401,11 +411,18 @@ X-Plane ─► Plugin.cpp (giris, komut, flight loop: depolari ilerletir)
 | 0.16 | Zemin Aşama 0 (DSF overlay envanteri, `dsf_info`) + Aşama 1: tam çözünürlüklü DEM + piramit, piksel başına çok yönlü kabartma, komşu karolu örnekleme ve yenileme, VFR sectional bantları, kıyı çizgisi / şeridi / derinlik tonu, `dsf_files` ile deniz / veri yok, `[relief] [water] [vfr]` ayarları | denendi: sorunsuz; kullanıcı "gelişme var ama yeterince iyi değil" |
 | 0.17 | Aşama 3: sınıf renkleri X-Plane'in `.ter` dokularından (`TerrainPaletteSource`, `[palette] source`). Aşama 2: DSF vektörleri (`TerrainVectors`, `.vectors` önbelleği, dışlamalar): orman ve yerleşim zemine işlenir (Terrain alt katmanları Forests / Built-up areas; VFR'da yerleşim sarı), yollar / demiryolu / enerji hattı yeni `RoadLayer` (Roads and railways, 6 alt katman). Raster önbelleği v4, palet v3 | denendi: yerleşim simülatör için önemsiz bulundu (varsayılan kapalı kalsın) |
 | 0.19 | **Kendi yazı çizicimiz** (`FontAtlas` + stb_truetype, X-Plane'in `Resources/fonts/DejaVuSans.ttf`'i; `AtlasTextRenderer`, tek çizim çağrısı; `[text] renderer`). **Harita resmi önbelleği** (`MapImageCache`, `RenderTarget`, `Canvas::BeginOffscreen`; `[render] cache / max_fps`; önizlemede doğrudan çizimle 540 bin pikselde 11 piksel fark). **Zemin Aşama 4**: merkezden kenara öncelik, önceden yükleme (`[cache] prefetch_tiles`), görünen alanı önbellekleme komutu; işçi düşük öncelikli. İkinci işçi yapılmadı (kullanıcıyla: risk > kazanç) | **denenmedi** |
+| 0.20 | **Prime Map API** (`feature/api`): `prime_map` statik kütüphane + `PrimeMap.h`; `Plugin.cpp` → `engine/MapData` + `plugin/PluginMain.cpp`; Embedded/Standalone pencere, UI ve fare anahtarı; katman enum'u ve kuralları `engine/LayerTable`; `map_api_demo`; `/MT` `/MD` Release+Debug uyarısız; testler 30.659 | **denenmedi** |
 | 0.18 | Kullanıcının kaydettiği katman ayarları varsayılan oldu (`MapTheme.cpp` tabloları); yeni **Dark** modu (siyah kara, lacivert su, minimal); **Go to airport** paneli (`AirportSearchPanel`, `AirportSearch`; sadece harita gider, klavye odağı panel açıkken); alt şeritte `Loading terrain: N images` (kaba / boş zemin görünen her an); zemin önbelleğine disk sınırı (`CacheTrim`, `[cache] terrain_mb` = 1024); ad **prime-map-plugin** (klasör `plugins/prime-map-plugin`, log `[prime-map-plugin]`, menü "Prime Map Plugin", imza `ozdev.prime_map_plugin`; komutlar `ozdev/map/...` aynı kaldı) | **denenmedi** |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.
 
 ### Açık konular
+- API (0.20) X-Plane'de denenmedi: eklenti birebir aynı mı, demo yerleşimi, fare kapalıyken tıklamanın
+  alttaki pencereye geçmesi, Embedded'in host penceresinin üstünde kalması.
+- API: `src/ui` derleme düzeyinde hâlâ iç başlıkları görüyor (eylemler ve katman kuralları API ile aynı
+  koddan geçiyor ama ayrı hedef / include sınırı yapılmadı). Önbellek dosyaları (`.terrain` vb.)
+  geçici dosya + yeniden adlandırma ile yazılmıyor (iki eklenti aynı önbellek klasörünü paylaşmamalı).
+  `map_preview` motoru (MapWindow) değil kendi çizim yolunu kullanıyor. API belgesinde ekran görüntüsü yok.
 - VOR sapması işaret/kaynak doğrulaması (bölüm 7).
 - Mod renkleri FAA geleneğinden; X-Plane'in kendi haritasıyla karşılaştırılıp
   ayarlanmadı (kullanıcıdan ekran görüntüsü istenebilir).

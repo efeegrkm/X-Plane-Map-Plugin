@@ -892,6 +892,28 @@ Zemin görüntü anahtarı biçimi de içerir (<code>TerrainImageKey::mStyle</co
 önbelleklenir.</p>
 
 <!-- ================================================================== -->
+<h2>13b. Prime Map API (0.20)</h2>
+<p>Harita bir statik kütüphane (<code>prime_map</code>) oldu; tek genel başlık <code>src/api/PrimeMap.h</code>
+(sadece standart C++). Ayrıntılı referans: <code>docs/PrimeMap_API.pdf</code>.</p>
+<pre>
+eski (0.19)                         yeni (0.20)
+Plugin.cpp  (veri + menu + komut)   engine/MapData.*      veri depolari, yukleme, prefetch, precache, palet, flight loop
+                                    plugin/PluginMain.cpp menu, ozdev/map/* komutlari, ini dosyalari (sadece API ile)
+MapWindow   (pencere + ayar dosya)  MapWindow             motor: pencere (Embedded/Standalone), cizim, fare, UI;
+                                                          ayarlar bellekte + revizyon sayaci
+MapWindow::ApplyLayerPanelHit       engine/LayerTable.*   MapLayer enum <-> anahtar tablosu + panel kurallari
+                                    api/PrimeMap.*        genel API kopru (tek harita, global MapData)
+</pre>
+<ul>
+<li><b>Fare yönlendirmesi:</b> basmada önce UI'a sorulur; almazsa ve fare kapalıysa basma-sürükleme-bırakma hepsi 0 döner
+(alttaki pencereye). Tekerlek ve sağ tık da aynı.</li>
+<li><b>Dosyalar:</b> kütüphane ayar/çizim dosyası yazmaz. <code>GetSettingsRevision</code>/<code>GetDrawingsRevision</code>
+değişince host <code>Export...</code> ile alıp yazar. Eklenti bunu her karede kontrol eder.</li>
+<li><b>Zemin ayarı:</b> <code>Open</code>'dan hemen sonra (ilk kareden önce) verilirse tam etkili; zemin işçisi ilk karede başlar.</li>
+<li><b>CMake:</b> <code>prime_map</code> STATIC (lzma OBJECT kütüphanesi içinde), <code>PRIME_MAP_DYNAMIC_CRT</code>,
+<code>prime-map-plugin</code> SHARED, <code>map_api_demo</code> SHARED, <code>install</code> = SDK paketi.</li>
+</ul>
+
 <h2>14. Ayar ve önbellek dosyaları</h2>
 <p>Hepsi <code>C:\X-Plane 11\Resources\plugins\prime-map-plugin\</code> altında (eklenti X-Plane klasöründe başka hiçbir yere
 yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
