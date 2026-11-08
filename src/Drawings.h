@@ -55,6 +55,9 @@ public:
     // Her seyi siler
     void Clear();
 
+    // Bitmis tek bir sekli siler (tur + numara); bulunamazsa false
+    bool Remove(ShapeKind pKind, int pNumber);
+
     const std::vector<Shape>& Shapes() const;  // bitmis sekiller
     const Shape* Current() const;              // yarim kalan cizim (yoksa nullptr)
     int ShapeCount() const;

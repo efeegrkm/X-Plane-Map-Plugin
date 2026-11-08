@@ -22,23 +22,21 @@
 #include "data/AircraftData.h"
 #include "data/AirportGeometryStore.h"
 #include "data/AirportSearch.h"
+#include "engine/LayerTable.h"
 #include "gfx/GlScreen.h"
 #include "ui/UiDraw.h"
 
 namespace
 {
 
-const char* kWindowSection = "window";
 const char* kViewSection = "view";
 const char* kToolsSection = "tools";
-const char* kTextSection = "text";
-const char* kRenderSection = "render";
-const int kDefaultMaxRenderRate = 15;  // harita resmi en cok saniyede bu kadar yeniden cizilir
 const char* kFontFile = "Resources/fonts/DejaVuSans.ttf";  // X-Plane kurulumunda var (lisans: Bitstream Vera)
 
 const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
 const int kMaxSize = 8192;
+const int kEmbeddedMinSize = 50;     // Embedded pencere: host kucuk bir ekran verebilir (GNS)
 const double kWheelZoomStep = 0.5;   // tekerlegin her "tik"i bu kadar zoom
 const float kMouseTimeout = 0.25f;   // pop-out'ta imlec bu sureden eski ise pencere disinda say
 const float kDiagnosticsPeriod = 2.0f;
@@ -51,13 +49,11 @@ const double kDefaultZoom = 6.0;
 
 }  // namespace
 
-MapWindow::MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings, Drawings& pDrawings,
-                     const std::string& pDrawingsPath, const AirportGeometryStore& pAirports)
+MapWindow::MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Drawings& pDrawings,
+                     const AirportGeometryStore& pAirports)
     : mLayers(pLayers)
     , mAircraft(pAircraft)
-    , mSettings(pSettings)
     , mDrawings(pDrawings)
-    , mDrawingsPath(pDrawingsPath)
     , mAirports(pAirports)
     , mSearchPanel(pAirports)
 {
@@ -72,14 +68,22 @@ MapWindow::~MapWindow()
 // Olusturma, gorunurluk
 // ============================================================================
 
-void MapWindow::Create()
+void MapWindow::Create(const MapWindowOptions& pOptions)
 {
     if (mWindow)
     {
         return;
     }
-    LoadSettings();
-    LoadDrawings();
+    mEmbedded = pOptions.mEmbedded;
+    mShowControls = pOptions.mUiVisible;
+    mMouseInput = pOptions.mMouseInput;
+    mXPlaneFont = pOptions.mXPlaneFont;
+    mUseImageCache = pOptions.mImageCache;
+    mImageCache.SetMaxRate(pOptions.mMaxRenderFps);
+    mFloatingGeometry = pOptions.mGeometry;
+    mHasFloatingGeometry = true;
+    mMapMode = pOptions.mMode;
+    ApplySettings();  // bos ayar: varsayilan gorunum ve modun varsayilan katmanlari
 
     XPLMCreateWindow_t tParams;
     std::memset(&tParams, 0, sizeof(tParams));
@@ -97,7 +101,10 @@ void MapWindow::Create()
     tParams.handleCursorFunc = CursorCallback;
     tParams.handleMouseWheelFunc = WheelCallback;
     tParams.refcon = this;
-    tParams.decorateAsFloatingWindow = xplm_WindowDecorationRoundRectangle;  // X-Plane'in ince cercevesi
+    // Standalone: X-Plane'in ince cercevesi (tasinir, boyutlanir). Embedded: cercevesiz; kullanici
+    // tasiyamaz / boyutlandiramaz, yeri sadece host'un SetGeometry cagrisiyla degisir.
+    tParams.decorateAsFloatingWindow =
+        mEmbedded ? xplm_WindowDecorationNone : xplm_WindowDecorationRoundRectangle;
     tParams.layer = xplm_WindowLayerFloatingWindows;
     mWindow = XPLMCreateWindowEx(&tParams);
     if (!mWindow)
@@ -107,14 +114,21 @@ void MapWindow::Create()
     }
 
     XPLMSetWindowPositioningMode(mWindow, xplm_WindowPositionFree, -1);
-    XPLMSetWindowResizingLimits(mWindow, kMinWidth, kMinHeight, kMaxSize, kMaxSize);
+    if (mEmbedded)
+    {
+        XPLMSetWindowResizingLimits(mWindow, kEmbeddedMinSize, kEmbeddedMinSize, kMaxSize, kMaxSize);
+    }
+    else
+    {
+        XPLMSetWindowResizingLimits(mWindow, kMinWidth, kMinHeight, kMaxSize, kMaxSize);
+    }
     std::string tTitle = "Map";  // SDK degistirilebilir char* istiyor
     XPLMSetWindowTitle(mWindow, tTitle.data());
     mFramePeriodRef = XPLMFindDataRef("sim/operation/misc/frame_rate_period");  // saniye/kare
-    Log("map window created ({},{} - {},{})", mFloatingGeometry.mLeft, mFloatingGeometry.mTop,
-        mFloatingGeometry.mRight, mFloatingGeometry.mBottom);
+    Log("map window created ({}, {},{} - {},{})", mEmbedded ? "embedded" : "standalone", mFloatingGeometry.mLeft,
+        mFloatingGeometry.mTop, mFloatingGeometry.mRight, mFloatingGeometry.mBottom);
 
-    if (mStartVisible)
+    if (pOptions.mVisible)
     {
         SetVisible(true);
     }
@@ -343,7 +357,9 @@ void MapWindow::OnDraw()
         mText->SetPixelsPerBoxel(tContext.mPixelsPerBoxel);  // UI olcegi degistiyse atlas yeniden basilir
     }
     tContext.mNow = tNow;
-    tContext.mHasCursor = tMouseInside && !IsOverControls(tMouseX, tMouseY);
+    mLastPixelsPerBoxel = tContext.mPixelsPerBoxel;
+    // Fare kapaliyken imlece bagli seyler (tooltip, cizim cizgisi) yok
+    tContext.mHasCursor = mMouseInput && tMouseInside && !IsOverControls(tMouseX, tMouseY);
     tContext.mCursorX = tMouseX;
     tContext.mCursorY = tMouseY;
     mLabelPlacer.Reset(tContext.mClearArea);  // etiketler seritlerin altina girmesin
@@ -439,9 +455,7 @@ void MapWindow::DrawTooltip(const DrawContext& pContext, const std::string& pTex
 
 void MapWindow::CreateTextRenderer()
 {
-    const std::string tMode = mSettings.GetString(kTextSection, "renderer", "atlas");
-    mSettings.SetString(kTextSection, "renderer", tMode);  // dosyada gorunsun
-    if (tMode == "xplane")
+    if (mXPlaneFont)
     {
         Log("text: X-Plane font (XPLMDrawString), [text] renderer = xplane");
         return;
@@ -513,9 +527,9 @@ void MapWindow::DrawControls(int pMouseX, int pMouseY, bool pMouseInside)
 {
     if (!mShowControls)
     {
-        // Kontroller gizli: sadece imlec haritanin ustundeyken kucuk bir
-        // "Controls" dugmesi goster; imlec cikinca sadece harita kalir.
-        if (pMouseInside)
+        // Kontroller gizli: Standalone'da imlec haritanin ustundeyken kucuk bir
+        // "Controls" dugmesi goster; imlec cikinca sadece harita kalir. Embedded'de hic bir sey.
+        if (pMouseInside && !mEmbedded)
         {
             const RectI tButton = ShowControlsButtonRect();
             Ui::Button(mCanvas, tButton, "Controls", false, true, tButton.Contains(pMouseX, pMouseY));
@@ -666,9 +680,18 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
 
     if (pStatus == xplm_MouseDown)
     {
-        XPLMBringWindowToFront(mWindow);
         mPaletteDrag = false;
-        mPressOnMap = !HandleControlClick(pX, pY);
+        mPassClick = false;
+        const bool tOnControls = HandleControlClick(pX, pY);
+        if (!tOnControls && !mMouseInput)
+        {
+            // Fare kapali: basma, surukleme ve birakma hep birlikte alttaki pencereye gecer
+            mPassClick = true;
+            mPressOnMap = false;
+            return 0;
+        }
+        XPLMBringWindowToFront(mWindow);
+        mPressOnMap = !tOnControls;
         if (mPressOnMap)
         {
             SetKeyboardFocus(false);  // haritaya tiklandi: tuslar yine X-Plane'e (panel acik kalir)
@@ -679,6 +702,15 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
         mDragLastX = pX;
         mDragLastY = pY;
         return 1;
+    }
+
+    if (mPassClick)
+    {
+        if (pStatus == xplm_MouseUp)
+        {
+            mPassClick = false;
+        }
+        return 0;
     }
 
     if (pStatus == xplm_MouseDrag && mPaletteDrag)
@@ -725,6 +757,10 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
 int MapWindow::OnRightClick(int pX, int pY, XPLMMouseStatus pStatus)
 {
     RememberMouse(pX, pY);
+    if (!mMouseInput)
+    {
+        return IsOverControls(pX, pY) ? 1 : 0;  // fare kapali: haritadaki sag tik alttaki pencereye
+    }
     // Sag tik: yarim kalan rota/bolgeyi bitir (tiklamayi her durumda tuket)
     if (pStatus == xplm_MouseDown && !IsOverControls(pX, pY) && mDrawings.Current())
     {
@@ -762,6 +798,10 @@ int MapWindow::OnWheel(int pX, int pY, int pWheel, int pClicks)
     {
         return 1;  // uzun katman listesini kaydir (harita zoom yapmasin)
     }
+    if (!mMouseInput)
+    {
+        return IsOverControls(pX, pY) ? 1 : 0;  // fare kapali: tekerlek alttaki pencereye
+    }
     const double tDelta = pClicks * kWheelZoomStep;
     if (mFollowAircraft && mAircraft.State().mValid)
     {
@@ -780,7 +820,7 @@ bool MapWindow::HandleControlClick(int pX, int pY)
 {
     if (!mShowControls)
     {
-        if (ShowControlsButtonRect().Contains(pX, pY))
+        if (!mEmbedded && ShowControlsButtonRect().Contains(pX, pY))
         {
             ToggleControls();
             return true;
@@ -848,10 +888,7 @@ void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
 {
     if (pHit.mResetDefaults)
     {
-        mLayers.ResetToDefaults(ThemeFor(mMapMode));
-        mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));
-        SaveSettings();
-        Log("layers reset to the defaults of {} mode", ThemeFor(mMapMode).mId);
+        ResetLayers();
         return;
     }
     if (!pHit.mExpandKey.empty())
@@ -859,86 +896,36 @@ void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
         mLayerPanel.ToggleExpanded(pHit.mExpandKey);  // grubu / katmani ac-kapa (gorunurluk degismez)
         return;
     }
-    bool tChanged = false;
+    // Paneldeki satiri API ogesine cevir; kurallar engine/LayerTable'da (API ile ayni yol)
+    std::optional<PrimeMap::MapLayer> tItem;
     if (pHit.mSubLayerOwner >= 0)
     {
-        // Alt katman: tersine cevir. Acilirsa katman da acilir (yoksa gorunmezdi);
-        // son alt katman kapanirsa katman da kapanir (kutu "bos" gorunsun)
-        Layer* tLayer = mLayers.At(pHit.mSubLayerOwner);
-        const bool tVisible = !(tLayer->IsVisible() && tLayer->IsSubLayerVisible(pHit.mSubLayer));
-        if (tVisible && !tLayer->IsVisible())
-        {
-            // Kapali katmanin bir alt katmani acildi: sadece o acilsin (katman "yarim"
-            // gorunur), digerleri kapali kalsin; eski alt katman ayarlari geri gelmesin
-            for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
-            {
-                tLayer->SetSubLayerVisible(tSub, false);
-            }
-        }
-        tLayer->SetSubLayerVisible(pHit.mSubLayer, tVisible);
-        if (tVisible)
-        {
-            tLayer->SetVisible(true);
-        }
-        else if (tLayer->VisibleSubLayerCount() == 0)
-        {
-            tLayer->SetVisible(false);
-        }
-        Log("layer '{}': {}", LayerManager::SubLayerKey(*tLayer, pHit.mSubLayer), tVisible ? "on" : "off");
-        tChanged = true;
+        tItem = PrimeMap::LayerFromKey(LayerManager::SubLayerKey(*mLayers.At(pHit.mSubLayerOwner), pHit.mSubLayer));
     }
-    // Grup kutusu: bu modda varsayilan acik katmanlardan biri kapaliysa onlari ac
-    // (varsayilan kapali olanlar, ornek Taxi routes, grupla acilmaz; tek tek acilir);
-    // hepsi aciksa gruptaki her katmani kapat
-    bool tGroupOn = false;
-    std::vector<int> tToggle = pHit.mToggle;
-    if (pHit.mIsGroupBox)
+    else if (!pHit.mToggle.empty())
     {
-        std::vector<int> tDefaultOn;
-        for (int tIndex : pHit.mToggle)
+        tItem = PrimeMap::LayerFromKey(mLayers.At(pHit.mToggle.front())->Id());
+        if (tItem && pHit.mIsGroupBox)
         {
-            if (LayerManager::ThemeDefault(*mLayers.At(tIndex), ThemeFor(mMapMode)))
-            {
-                tDefaultOn.push_back(tIndex);
-            }
-        }
-        if (tDefaultOn.empty())
-        {
-            tDefaultOn = pHit.mToggle;
-        }
-        for (int tIndex : tDefaultOn)
-        {
-            tGroupOn = tGroupOn || !mLayers.At(tIndex)->IsVisible();
-        }
-        if (tGroupOn)
-        {
-            tToggle = tDefaultOn;
+            tItem = PrimeMap::ParentOf(*tItem);
         }
     }
-    for (int tIndex : tToggle)
+    if (!tItem)
     {
-        Layer* tLayer = mLayers.At(tIndex);
-        // Grup kutusu: hepsini ayni duruma getir; tek katman: tersine cevir
-        const bool tVisible = pHit.mIsGroupBox ? tGroupOn : !tLayer->IsVisible();
-        if (tLayer->IsVisible() != tVisible)
-        {
-            tLayer->SetVisible(tVisible);
-            Log("layer '{}': {}", tLayer->Id(), tVisible ? "on" : "off");
-        }
-        // Butun alt katmanlari kapali bir katman acilirsa hepsini ac (bos katman gostermesin)
-        if (tVisible && tLayer->SubLayerCount() > 0 && tLayer->VisibleSubLayerCount() == 0)
-        {
-            for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
-            {
-                tLayer->SetSubLayerVisible(tSub, true);
-            }
-        }
-        tChanged = true;
+        return;
     }
-    if (tChanged)
+    if (LayerRules::Toggle(mLayers, ThemeFor(mMapMode), *tItem))
     {
+        Log("layer '{}': {}", PrimeMap::LayerKey(*tItem), LayerRules::IsVisible(mLayers, *tItem) ? "on" : "off");
         SaveSettings();
     }
+}
+
+void MapWindow::ResetLayers()
+{
+    mLayers.ResetToDefaults(ThemeFor(mMapMode));
+    Log("layers reset to the defaults of {} mode", ThemeFor(mMapMode).mId);
+    SaveSettings();
 }
 
 void MapWindow::SetMapMode(MapMode pMode)
@@ -1154,32 +1141,15 @@ void MapWindow::CenterOnAircraft()
 // Ayarlar ve cizim dosyasi
 // ============================================================================
 
-void MapWindow::LoadSettings()
+void MapWindow::ApplySettings()
 {
-    RectI tSaved;
-    tSaved.mLeft = mSettings.GetInt(kWindowSection, "left", 0);
-    tSaved.mTop = mSettings.GetInt(kWindowSection, "top", 0);
-    tSaved.mRight = mSettings.GetInt(kWindowSection, "right", 0);
-    tSaved.mBottom = mSettings.GetInt(kWindowSection, "bottom", 0);
-    if (IsGeometryUsable(tSaved))
-    {
-        mFloatingGeometry = tSaved;
-    }
-    else
-    {
-        mFloatingGeometry = DefaultGeometry();
-    }
-    mHasFloatingGeometry = true;
-    mStartVisible = mSettings.GetBool(kWindowSection, "visible", false);
-
     LatLon tCenter;
     tCenter.mLat = mSettings.GetDouble(kViewSection, "center_lat", kDefaultCenter.mLat);
     tCenter.mLon = mSettings.GetDouble(kViewSection, "center_lon", kDefaultCenter.mLon);
     mView.SetCenter(tCenter);
     mView.SetZoom(mSettings.GetDouble(kViewSection, "zoom", kDefaultZoom));
     mFollowAircraft = mSettings.GetBool(kViewSection, "follow_aircraft", true);
-    mShowControls = mSettings.GetBool(kViewSection, "show_controls", true);
-    mMapMode = ModeFromId(mSettings.GetString(kViewSection, "mode", "scenery"), MapMode::Scenery);
+    mMapMode = ModeFromId(mSettings.GetString(kViewSection, "mode", ThemeFor(mMapMode).mId), mMapMode);
 
     mToolPalette.SetVisible(mSettings.GetBool(kToolsSection, "visible", true));
     mToolPalette.SetCollapsed(mSettings.GetBool(kToolsSection, "collapsed", false));
@@ -1187,32 +1157,15 @@ void MapWindow::LoadSettings()
                            mSettings.GetInt(kToolsSection, "offset_top", 8));
 
     mLayers.LoadVisibility(mSettings, ThemeFor(mMapMode));
-
-    // Harita resmi onbellegi (dosyada gorunsun diye geri yazilir)
-    mUseImageCache = mSettings.GetBool(kRenderSection, "cache", true);
-    const int tMaxRate = mSettings.GetInt(kRenderSection, "max_fps", kDefaultMaxRenderRate);
-    mSettings.SetBool(kRenderSection, "cache", mUseImageCache);
-    mSettings.SetInt(kRenderSection, "max_fps", tMaxRate);
-    mImageCache.SetMaxRate(tMaxRate);
 }
 
 void MapWindow::SaveSettings()
 {
-    if (mHasFloatingGeometry)
-    {
-        mSettings.SetInt(kWindowSection, "left", mFloatingGeometry.mLeft);
-        mSettings.SetInt(kWindowSection, "top", mFloatingGeometry.mTop);
-        mSettings.SetInt(kWindowSection, "right", mFloatingGeometry.mRight);
-        mSettings.SetInt(kWindowSection, "bottom", mFloatingGeometry.mBottom);
-    }
-    mSettings.SetBool(kWindowSection, "visible", IsVisible());
-
     const LatLon tCenter = mView.Center();
     mSettings.SetDouble(kViewSection, "center_lat", tCenter.mLat);
     mSettings.SetDouble(kViewSection, "center_lon", tCenter.mLon);
     mSettings.SetDouble(kViewSection, "zoom", mView.Zoom());
     mSettings.SetBool(kViewSection, "follow_aircraft", mFollowAircraft);
-    mSettings.SetBool(kViewSection, "show_controls", mShowControls);
     mSettings.SetString(kViewSection, "mode", ThemeFor(mMapMode).mId);
 
     mSettings.SetBool(kToolsSection, "visible", mToolPalette.IsVisible());
@@ -1221,86 +1174,152 @@ void MapWindow::SaveSettings()
     mSettings.SetInt(kToolsSection, "offset_top", mToolPalette.OffsetTop());
 
     mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));
-
-    if (!mSettings.Save())
-    {
-        Log("WARNING: could not write the settings file: {}", mSettings.Path());
-    }
-}
-
-void MapWindow::LoadDrawings()
-{
-    std::ifstream tFile(mDrawingsPath);
-    if (!tFile)
-    {
-        return;  // henuz hic cizim kaydedilmemis
-    }
-    std::ostringstream tText;
-    tText << tFile.rdbuf();
-    const int tCount = mDrawings.Deserialize(tText.str());
-    Log("drawings loaded: {} shapes from {}", tCount, mDrawingsPath);
+    ++mSettingsRevision;  // host bunu gorup dosyaya yazar
 }
 
 void MapWindow::SaveDrawings()
 {
-    std::ofstream tFile(mDrawingsPath, std::ios::trunc);
-    if (!tFile)
-    {
-        Log("WARNING: could not write the drawings file: {}", mDrawingsPath);
-        return;
-    }
-    tFile << mDrawings.Serialize();
+    ++mDrawingsRevision;  // host bunu gorup ExportDrawings ile dosyaya yazar
 }
 
-RectI MapWindow::DefaultGeometry() const
+std::string MapWindow::ExportSettings()
 {
-    // Ana X-Plane penceresinin ortasinda, ekranin %70'i (en fazla 1000x700)
-    int tLeft = 0;
-    int tTop = 0;
-    int tRight = 0;
-    int tBottom = 0;
-    XPLMGetScreenBoundsGlobal(&tLeft, &tTop, &tRight, &tBottom);
-    int tWidth = (tRight - tLeft) * 7 / 10;
-    int tHeight = (tTop - tBottom) * 7 / 10;
-    if (tWidth > 1000)
+    SaveSettings();
+    return mSettings.ToText({kViewSection, kToolsSection, "layers*"});
+}
+
+void MapWindow::ImportSettings(const std::string& pText)
+{
+    // Eski map_settings.ini aynen okunur ([window] gibi baska bolumler zararsiz)
+    mSettings.MergeText(pText);
+    ApplySettings();
+    ++mSettingsRevision;
+}
+
+// ============================================================================
+// API icin
+// ============================================================================
+
+MapView& MapWindow::View()
+{
+    return mView;
+}
+
+void MapWindow::SetGeometry(const RectI& pGeometry)
+{
+    mFloatingGeometry = pGeometry;
+    mHasFloatingGeometry = true;
+    if (mWindow && !XPLMWindowIsPoppedOut(mWindow))
     {
-        tWidth = 1000;
+        XPLMSetWindowGeometry(mWindow, pGeometry.mLeft, pGeometry.mTop, pGeometry.mRight, pGeometry.mBottom);
     }
-    if (tHeight > 700)
+    mArea = pGeometry;
+    mView.SetViewport(ToRectD(mArea));
+}
+
+RectI MapWindow::GetGeometry() const
+{
+    if (!mWindow)
     {
-        tHeight = 700;
-    }
-    if (tWidth < kMinWidth)
-    {
-        tWidth = kMinWidth;
-    }
-    if (tHeight < kMinHeight)
-    {
-        tHeight = kMinHeight;
+        return mFloatingGeometry;
     }
     RectI tGeometry;
-    tGeometry.mLeft = (tLeft + tRight) / 2 - tWidth / 2;
-    tGeometry.mRight = tGeometry.mLeft + tWidth;
-    tGeometry.mBottom = (tTop + tBottom) / 2 - tHeight / 2;
-    tGeometry.mTop = tGeometry.mBottom + tHeight;
+    XPLMGetWindowGeometry(mWindow, &tGeometry.mLeft, &tGeometry.mTop, &tGeometry.mRight, &tGeometry.mBottom);
     return tGeometry;
 }
 
-bool MapWindow::IsGeometryUsable(const RectI& pGeometry) const
+void MapWindow::BringToFront()
 {
-    if (pGeometry.Width() < kMinWidth || pGeometry.Height() < kMinHeight)
+    if (mWindow)
     {
-        return false;
+        XPLMBringWindowToFront(mWindow);
     }
-    // Pencerenin baslik cubugu ekranda kalmali (yoksa kullanici tutup tasiyamaz).
-    // Kaydedilen yer, monitor sokulmus veya cozunurluk degismisse ekran disinda kalabilir.
-    int tLeft = 0;
-    int tTop = 0;
-    int tRight = 0;
-    int tBottom = 0;
-    XPLMGetScreenBoundsGlobal(&tLeft, &tTop, &tRight, &tBottom);
-    const int tTitleBar = 30;
-    const bool tTitleVisible = pGeometry.mTop + tTitleBar <= tTop && pGeometry.mTop >= tBottom + 20;
-    const bool tHorizontalVisible = pGeometry.mRight >= tLeft + 100 && pGeometry.mLeft <= tRight - 100;
-    return tTitleVisible && tHorizontalVisible;
+}
+
+void MapWindow::SetPoppedOut(bool pPoppedOut)
+{
+    if (mWindow && !mEmbedded && IsPoppedOut() != pPoppedOut)
+    {
+        TogglePopOut();
+    }
+}
+
+bool MapWindow::IsPoppedOut() const
+{
+    return mWindow && XPLMWindowIsPoppedOut(mWindow) != 0;
+}
+
+void MapWindow::SetUiVisible(bool pVisible)
+{
+    if (mShowControls != pVisible)
+    {
+        ToggleControls();
+    }
+}
+
+bool MapWindow::IsUiVisible() const
+{
+    return mShowControls;
+}
+
+void MapWindow::SetMouseInput(bool pEnabled)
+{
+    mMouseInput = pEnabled;
+    mPressOnMap = false;
+}
+
+bool MapWindow::IsMouseInputEnabled() const
+{
+    return mMouseInput;
+}
+
+void MapWindow::SetFollowAircraft(bool pFollow)
+{
+    mFollowAircraft = pFollow;
+    if (pFollow)
+    {
+        CenterOnAircraft();
+    }
+    SaveSettings();
+}
+
+bool MapWindow::IsFollowingAircraft() const
+{
+    return mFollowAircraft;
+}
+
+bool MapWindow::IsDiagnosticsOn() const
+{
+    return mDiagnostics;
+}
+
+void MapWindow::DrawingsChanged()
+{
+    SaveDrawings();
+}
+
+std::vector<std::pair<std::string, std::string>> MapWindow::DescribeAt(int pX, int pY)
+{
+    DrawContext tContext;
+    tContext.mView = &mView;
+    tContext.mCanvas = &mCanvas;
+    tContext.mTheme = &ThemeFor(mMapMode);
+    tContext.mArea = ToRectD(mArea);
+    tContext.mClearArea = ClearArea();
+    tContext.mPixelsPerBoxel = mLastPixelsPerBoxel;
+    tContext.mHasCursor = true;
+    tContext.mCursorX = pX;
+    tContext.mCursorY = pY;
+    tContext.mLabels = &mLabelPlacer;
+    return mLayers.DescribeAllAt(tContext, pX, pY);
+}
+
+uint64_t MapWindow::SettingsRevision() const
+{
+    return mSettingsRevision;
+}
+
+uint64_t MapWindow::DrawingsRevision() const
+{
+    return mDrawingsRevision;
 }

@@ -28,13 +28,20 @@ public:
     // Rotanin henuz ucurulmamis kismi (aktif bacagin sonundan itibaren); zemin onceden yuklemesi icin
     std::vector<LatLon> RouteAhead() const;
 
-private:
     struct Waypoint
     {
         LatLon mPosition;
         std::string mId;
         int mAltitudeFt;
     };
+
+    // API: rota host'tan (true; SetHostRoute ile) ya da X-Plane FMS'inden (false, varsayilan)
+    void SetFromHost(bool pFromHost);
+    bool IsFromHost() const;
+    // pActive: ucagin su an uctugu noktanin indeksi (aktif bacagin sonu); -1 = yok
+    void SetHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive);
+
+private:
 
     struct PendingLabel
     {
@@ -46,6 +53,7 @@ private:
     void ReadFms();
 
     std::vector<Waypoint> mWaypoints;
+    bool mFromHost = false;
     int mDestination = -1;  // FMS'in su an uctugu nokta (aktif bacagin sonu)
     float mLastReadTime = -10.0f;
     std::vector<PendingLabel> mLabels;

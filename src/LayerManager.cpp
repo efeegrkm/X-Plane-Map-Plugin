@@ -96,6 +96,24 @@ std::string LayerManager::DescribeAt(const DrawContext& pContext, double pX, dou
     return "";
 }
 
+std::vector<std::pair<std::string, std::string>> LayerManager::DescribeAllAt(const DrawContext& pContext,
+                                                                           double pX, double pY) const
+{
+    std::vector<std::pair<std::string, std::string>> tFound;
+    for (auto tIterator = mLayers.rbegin(); tIterator != mLayers.rend(); ++tIterator)
+    {
+        if ((*tIterator)->IsVisible())
+        {
+            std::string tText = (*tIterator)->Describe(pContext, pX, pY);
+            if (!tText.empty())
+            {
+                tFound.emplace_back((*tIterator)->Id(), std::move(tText));
+            }
+        }
+    }
+    return tFound;
+}
+
 void LayerManager::DrawAll(const DrawContext& pContext, LayerPass pPass)
 {
     auto tInPass = [pPass](const Layer& pLayer)

@@ -28,6 +28,11 @@ void AircraftData::Init()
 
 void AircraftData::Refresh()
 {
+    if (mFromHost)
+    {
+        mState = mHostState;
+        return;
+    }
     if (!mLatRef || !mLonRef)
     {
         mState.mValid = false;
@@ -41,6 +46,26 @@ void AircraftData::Refresh()
 
     // Ucak yuklenmeden once konum (0, 0) gelir; bunu gecerli sayma
     mState.mValid = std::fabs(mState.mPosition.mLat) > 1e-6 || std::fabs(mState.mPosition.mLon) > 1e-6;
+}
+
+void AircraftData::SetFromHost(bool pFromHost)
+{
+    mFromHost = pFromHost;
+    Refresh();
+}
+
+bool AircraftData::IsFromHost() const
+{
+    return mFromHost;
+}
+
+void AircraftData::SetHostState(const AircraftState& pState)
+{
+    mHostState = pState;
+    if (mFromHost)
+    {
+        mState = pState;
+    }
 }
 
 const AircraftState& AircraftData::State() const

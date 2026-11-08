@@ -141,6 +141,19 @@ void Drawings::Clear()
     Log("all drawings cleared");
 }
 
+bool Drawings::Remove(ShapeKind pKind, int pNumber)
+{
+    for (auto tIterator = mShapes.begin(); tIterator != mShapes.end(); ++tIterator)
+    {
+        if (tIterator->mKind == pKind && tIterator->mNumber == pNumber)
+        {
+            mShapes.erase(tIterator);
+            return true;
+        }
+    }
+    return false;
+}
+
 const std::vector<Drawings::Shape>& Drawings::Shapes() const
 {
     return mShapes;

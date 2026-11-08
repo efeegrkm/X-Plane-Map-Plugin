@@ -37,8 +37,35 @@ FmsLayer::FmsLayer()
 {
 }
 
+void FmsLayer::SetFromHost(bool pFromHost)
+{
+    mFromHost = pFromHost;
+    mWaypoints.clear();
+    mDestination = -1;
+    mLastReadTime = -10.0f;  // X-Plane'e donuste hemen oku
+}
+
+bool FmsLayer::IsFromHost() const
+{
+    return mFromHost;
+}
+
+void FmsLayer::SetHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive)
+{
+    if (!mFromHost)
+    {
+        return;
+    }
+    mWaypoints = pWaypoints;
+    mDestination = (pActive >= 0 && pActive < static_cast<int>(mWaypoints.size())) ? pActive : -1;
+}
+
 void FmsLayer::Update(float pNow)
 {
+    if (mFromHost)
+    {
+        return;
+    }
     if (pNow - mLastReadTime < kReadInterval)
     {
         return;

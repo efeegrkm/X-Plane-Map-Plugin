@@ -8,10 +8,15 @@
 #pragma once
 
 #include <format>
+#include <functional>
 #include <string_view>
 #include <utility>
 
 void LogLine(std::string_view pText);
+
+// Satir oneki (varsayilan "[prime-map]") ve istege bagli hedef (bos: Log.txt)
+void SetLogPrefix(std::string_view pPrefix);
+void SetLogCallback(std::function<void(std::string_view)> pCallback);
 
 template <typename... TArgs>
 void Log(std::format_string<TArgs...> pFormat, TArgs&&... pArgs)

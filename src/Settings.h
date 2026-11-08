@@ -10,6 +10,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 class Settings
 {
@@ -17,6 +18,12 @@ public:
     // Dosyayi okur. Dosya yoksa false doner ve ayarlar bos kalir
     // (bu bir hata degil: ilk acilista dosya henuz yoktur).
     bool Load(const std::string& pPath);
+
+    // Metinden okuma (dosyasiz; API ice aktarma). LoadText onceki her seyi siler, MergeText ustune yazar.
+    void LoadText(const std::string& pText);
+    void MergeText(const std::string& pText);
+    // Metin olarak (dosya bicimiyle ayni). pSections bos: butun bolumler; "layers*" on ekle eslesir.
+    std::string ToText(const std::vector<std::string>& pSections) const;
 
     // Son Load edilen (veya SetPath ile verilen) dosyaya yazar
     bool Save() const;

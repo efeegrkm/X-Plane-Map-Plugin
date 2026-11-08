@@ -24,6 +24,11 @@ public:
 
     const AircraftState& State() const;
 
+    // API: ucak durumunu host verir (true) ya da dataref'ler (false, varsayilan)
+    void SetFromHost(bool pFromHost);
+    bool IsFromHost() const;
+    void SetHostState(const AircraftState& pState);
+
 private:
     XPLMDataRef mLatRef = nullptr;
     XPLMDataRef mLonRef = nullptr;
@@ -31,4 +36,6 @@ private:
     XPLMDataRef mGroundSpeedRef = nullptr;
     XPLMDataRef mElevationRef = nullptr;
     AircraftState mState;
+    AircraftState mHostState;
+    bool mFromHost = false;
 };

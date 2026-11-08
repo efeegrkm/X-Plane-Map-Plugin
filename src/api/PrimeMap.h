@@ -1,6 +1,6 @@
 // PrimeMap.h
 // Prime Map API: X-Plane 11 haritasini baska bir X-Plane eklentisinin icine gomer.
-// TASLAK (tasarim onayi icin, feature/api). Bu dosya kutuphanenin TEK genel basligidir:
+// Bu dosya kutuphanenin TEK genel basligidir:
 // sadece standart C++ tipleri kullanir; XPLM, OpenGL ya da projenin ic basliklari yok.
 //
 // Yasam dongusu (hepsi X-Plane ana thread'inde):
@@ -28,6 +28,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace PrimeMap

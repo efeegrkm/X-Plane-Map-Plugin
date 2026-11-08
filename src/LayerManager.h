@@ -49,6 +49,9 @@ public:
 
     // Imlecin altindaki seyin aciklamasi: en ustteki gorunen katmandan baslar
     std::string DescribeAt(const DrawContext& pContext, double pX, double pY) const;
+    // API sorgusu: imlecin altinda bir sey olan her gorunen katman (en ustteki once): kimlik + metin
+    std::vector<std::pair<std::string, std::string>> DescribeAllAt(const DrawContext& pContext, double pX,
+                                                                   double pY) const;
 
     // Mod basina bolum ("layers.vfr" ...): anahtar = katman kimligi, deger = 1/0.
     // Dosyada yoksa: temanin varsayilani, o da yoksa katmanin kendi varsayilani.

@@ -7,12 +7,20 @@
 //   - fare: surukleme kaydirir (her modda), tekerlek imlecin etrafinda zoom;
 //     cizim modlarinda tiklama kose ekler, sag tik rota/bolgeyi bitirir
 //   - her karede cizim sirasi: zemin rengi -> katmanlar -> kontroller
-//   - pencere yeri/boyutu, gorunum ve katmanlarin ayar dosyasina, kullanici
-//     cizimlerinin cizim dosyasina kaydi
+//   - gorunum ve katman ayarlarini BELLEKTE tutmak (0.20: dosyaya host yazar; API
+//     ExportSettings / ImportSettings, degisince SettingsRevision / DrawingsRevision artar)
+//
+// 0.20 (API): iki pencere stili. Standalone = bugunku pencere (cerceve, pop-out, gizli
+// kontrollerde "Controls" dugmesi). Embedded = cercevesiz, yeri sadece SetGeometry ile.
+// UI (seritler, paneller) ve fare (surukle / tekerlek / tooltip / cizim) ayri anahtarlar:
+// fare kapaliyken haritaya tiklama alttaki pencereye gecirilir (0 dondurulur).
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "XPLMDataAccess.h"
 #include "XPLMDisplay.h"
@@ -24,6 +32,7 @@
 #include "ScreenMath.h"
 #include "gfx/Canvas.h"
 #include "MapTheme.h"
+#include "Settings.h"
 #include "ui/AirportSearchPanel.h"
 #include "ui/AtlasTextRenderer.h"
 #include "ui/LayerPanel.h"
@@ -36,24 +45,36 @@ class AircraftData;
 class AirportGeometryStore;
 class Drawings;
 class LayerManager;
-class Settings;
 
 struct DrawContext;
+
+// Pencereyi acarken verilenler (API OpenConfig'in ic karsiligi)
+struct MapWindowOptions
+{
+    RectI mGeometry;           // global boxel
+    bool mEmbedded = true;     // false: Standalone
+    bool mVisible = true;
+    bool mUiVisible = false;
+    bool mMouseInput = false;
+    MapMode mMode = MapMode::Scenery;
+    bool mImageCache = true;   // [render] cache
+    int mMaxRenderFps = 15;    // [render] max_fps
+    bool mXPlaneFont = false;  // [text] renderer = xplane
+};
 
 class MapWindow
 {
 public:
-    // pDrawingsPath: kullanici cizimlerinin kaydedilecegi dosya; pAirports: "Go to airport" aramasi
-    MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Settings& pSettings, Drawings& pDrawings,
-              const std::string& pDrawingsPath, const AirportGeometryStore& pAirports);
+    // pAirports: "Go to airport" aramasi
+    MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Drawings& pDrawings,
+              const AirportGeometryStore& pAirports);
     ~MapWindow();
 
     MapWindow(const MapWindow&) = delete;
     MapWindow& operator=(const MapWindow&) = delete;
 
-    // Pencereyi ayar dosyasindaki yer/boyutla olusturur, cizimleri yukler.
-    // Son kapanista acik birakildiysa yine acik baslar.
-    void Create();
+    // Pencereyi verilen yer, stil ve anahtarlarla olusturur
+    void Create(const MapWindowOptions& pOptions);
     void Destroy();
 
     bool IsVisible() const;
@@ -82,8 +103,34 @@ public:
     // Flight loop'tan her karede: pencerenin X dugmesiyle kapatildigini fark eder
     void Update(float pNow);
 
-    // Pencere, gorunum ve katman ayarlarini dosyaya yazar
+    // Gorunum, palet ve katman ayarlarini bellekteki ayara yazar, SettingsRevision'i artirir
     void SaveSettings();
+
+    // --- API (api/PrimeMap.cpp) ---
+    MapView& View();
+    void SetGeometry(const RectI& pGeometry);
+    RectI GetGeometry() const;
+    void BringToFront();
+    void SetPoppedOut(bool pPoppedOut);
+    bool IsPoppedOut() const;
+    void SetUiVisible(bool pVisible);
+    bool IsUiVisible() const;
+    void SetMouseInput(bool pEnabled);
+    bool IsMouseInputEnabled() const;
+    void SetFollowAircraft(bool pFollow);
+    bool IsFollowingAircraft() const;
+    void CenterOnAircraft();
+    void GoToAirport(int pAirport);  // haritayi havalimanina tasir (ucaga dokunmaz), takibi kapatir
+    bool IsDiagnosticsOn() const;
+    void ResetLayers();              // bu modun varsayilanlari ("Defaults" dugmesi)
+    void DrawingsChanged();          // cizim degisti: DrawingsRevision artar
+    std::string ExportSettings();    // [view] [tools] [layers.*]
+    void ImportSettings(const std::string& pText);
+    // Son cizilen kareye gore (pX, pY) altindaki seyler: katman kimligi + metin (en ustteki once)
+    std::vector<std::pair<std::string, std::string>> DescribeAt(int pX, int pY);
+    std::string PerformanceText() const;
+    uint64_t SettingsRevision() const;
+    uint64_t DrawingsRevision() const;
 
 private:
     // --- XPLM callback'leri: refcon bu nesnenin adresi ---
@@ -113,12 +160,10 @@ private:
     void ApplyLayerPanelHit(const LayerPanel::Hit& pHit);
     RectI PaletteBounds() const;  // cizim paletinin kalabilecegi alan (seritlerin arasi)
     void TogglePopOut();
-    void CenterOnAircraft();
     // "Go to airport": paneli acar/kapatir; panel acikken klavye odagi bizde (tuslar X-Plane'e gitmez)
     void SetSearchOpen(bool pOpen);
     void SetKeyboardFocus(bool pFocus);
     bool HasKeyboardFocus() const;
-    void GoToAirport(int pAirport);  // haritayi havalimanina tasir (ucaga dokunmaz), takibi kapatir
     ToolbarState CurrentToolbarState() const;
     RectI ShowControlsButtonRect() const;
     bool MouseInside(int* pX, int* pY) const;
@@ -126,20 +171,22 @@ private:
     RectD ClearArea() const;
     std::string HintText() const;
     void LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor);
-    std::string PerformanceText() const;
     uint64_t SceneSignature() const;  // degisince harita resmi hemen yeniden cizilir (mod, katman, cizim)
 
-    void LoadSettings();
-    void LoadDrawings();
+    void ApplySettings();  // bellekteki [view] [tools] [layers.*] ayarlarini uygular
     void SaveDrawings();
-    RectI DefaultGeometry() const;
-    bool IsGeometryUsable(const RectI& pGeometry) const;
 
     LayerManager& mLayers;
     AircraftData& mAircraft;
-    Settings& mSettings;
+    Settings mSettings;  // bellekte (dosya yok): mod basina katman durumu, gorunum, palet
     Drawings& mDrawings;
-    std::string mDrawingsPath;
+    uint64_t mSettingsRevision = 0;
+    uint64_t mDrawingsRevision = 0;
+    bool mEmbedded = true;
+    bool mMouseInput = false;
+    bool mXPlaneFont = false;
+    bool mPassClick = false;  // fare kapali: bu basma alttaki pencereye gecirildi
+    double mLastPixelsPerBoxel = 1.0;
 
     XPLMWindowID mWindow = nullptr;
     MapView mView;
@@ -171,7 +218,6 @@ private:
     RectI mArea;                       // son cizimdeki harita alani (global boxel)
     RectI mFloatingGeometry;           // X-Plane icindeyken son yer/boyut (kayit icin)
     bool mHasFloatingGeometry = false;
-    bool mStartVisible = false;        // ayar dosyasina gore acik baslasin mi
     bool mWasVisible = false;
 
     bool mFollowAircraft = true;
