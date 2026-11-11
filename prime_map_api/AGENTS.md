@@ -86,7 +86,7 @@ trafik, debrief, büyük ekranda okunurluk).
   katman kimliği, tanımlayıcılar. **Kod yorumları Türkçe ve ASCII** (ş→s,
   ğ→g, ı→i, ç→c, ö→o, ü→u). `README.md`, `AGENTS.md`, `docs/MIMARI.html`
   Türkçe (normal Türkçe harflerle).
-- C++20 (`std::format`, `std::to_array`), `/W4` uyarısız, statik CRT.
+- C++20 (`std::format`, `std::to_array`), `/W4` uyarısız, `/MD` CRT (ekip standardı).
 - XPLM callback'lerine refcon olarak `this` verilir; global durum yok.
 - Dış kod repoda tutulmaz; COTS kuralı: üçüncü taraf bileşenler
   `C:\workspace\cots\<bileşen>` altına konur, README'de linkleriyle belgelenir
@@ -141,10 +141,11 @@ C:\Qt\Tools\Ninja\ninja.exe -C <derleme_klasoru>
 | `MAP_TESTS` | `map_tests.exe`: X-Plane'siz testler. Çıktı `N checks passed, 0 failed` olmalı (0.21: 30.659 kontrol) |
 | `MAP_PREVIEW` | `map_preview.exe` ve `dsf_info.exe` |
 | `COTS_DIR`, `XPSDK` | Farklı COTS / X-Plane SDK klasörü (`C:\workspace\cots`, `cots\X-Plane-SDK`) |
-| `PRIME_MAP_DYNAMIC_CRT` | OFF = /MT, ON = /MD (`prime_map_MT.lib` / `prime_map_MD.lib`) |
 
-SDK paketi üretimi: `cmake --install <derleme> --prefix C:\workspace\projects\prime_map_sdk`
-(bölüm 8'deki hedef listesiyle). Resmi eklenti ayrı repodadır: `prime_map_plugin`.
+CRT `/MD` sabittir (ekip standardı; `PRIME_MAP_DYNAMIC_CRT` seçeneği 0.22'de
+kaldırıldı). SDK paketi üretimi yok (ekip kalıbı); tüketim `add_subdirectory` +
+`target_link_libraries(... prime_map)` yoluyla olur (bölüm 8). Resmi eklenti
+ayrı repodadır: `prime_map_plugin`.
 
 - **Önizleme** (X-Plane'siz görsel kontrol): `map_preview --lat 47.45 --lon
   -122.30 --zoom 12 --mode vfr --out ksea.ppm` (ayrıca `--size --show <katman>
@@ -378,15 +379,19 @@ X-Plane ─► plugin/PluginMain.cpp (giris, menu, komut, ini) ─► api/PrimeM
   (kabartma, VFR bandı, su tonu, kıyı çizgisi; formüller `TerrainRelief`).
   Deniz / veri yok: `WorldTileMap` (`dsf_files`) → `SceneryIndex::NoBaseCoverage`.
   Ayrıntı MIMARI bölüm 9.5–9.7.
-- **Prime Map API (0.20):** `src/api/PrimeMap.h` tek genel başlık; `prime_map` STATIC
-  kütüphanesi (CORE + PLUGIN kaynakları + lzma nesneleri; `PRIME_MAP_DYNAMIC_CRT` OFF=/MT, ON=/MD,
-  Debug'da `d`). Resmi eklenti 0.21'de ayrı repoya taşındı (`prime_map_plugin`; ince kabuk
-  `PluginMain.cpp` + `Settings`, SDK paketinden beslenir); haritaya SADECE API ile erişilir.
+- **Prime Map API (0.20→0.22):** `PrimeMap.h` tek genel başlık (0.22'de repo köküne taşındı;
+  `primemapglobal.h` yanında). 0.22'de ekip kalıbı: `prime_map` **SHARED DLL** (STATIC'ten geçildi),
+  `PRIME_MAP_EXPORT` makroları, kurulum fabrikası `MapFactory::CreateMap` (`Map::Open` geriye uyumlu
+  durur), CRT `/MD` sabit, SDK paketi/install kaldırıldı — tüketim `add_subdirectory` +
+  `target_link_libraries(... prime_map)` + `#include <prime_map_api/PrimeMap.h>`. Resmi eklenti ayrı
+  repoda (`prime_map_plugin`; ince kabuk `PluginMain.cpp` + `Settings`, kütüphaneyi hedef adına linkler);
+  haritaya SADECE API ile erişilir.
   `MapWindow` artık motor: `Embedded`/`Standalone`, UI ve fare anahtarı
   (fare kapalıyken tıklama 0 döner = alttaki pencereye), ayarlar bellekte + revizyon sayacı
   (dosyayı host yazar). Katman enum tablosu ve panel kuralları tek yerde: `engine/LayerTable`
-  (panel de bunu çağırır). Test/örnek host: `examples/map_api_test` (ayrı CMake projesi, sadece SDK paketini kullanır; X-Plane'de `Resources/plugins/map_api_test`, sonuçlar Log.txt `[map-api-test] PASS|FAIL`). Belge: `docs/PrimeMap_API.html` → `.pdf`, `docs/CHANGELOG.md`.
-  SDK paketi: `cmake --install <derleme> --prefix prime_map_sdk`.
+  (panel de bunu çağırır). Test/örnek host: `examples/map_api_test` (ayrı CMake projesi, kütüphaneyi
+  `add_subdirectory` ile kullanır; X-Plane'de `Resources/plugins/map_api_test`, sonuçlar Log.txt
+  `[map-api-test] PASS|FAIL`). Belge: `docs/PrimeMap_API.html` → `.pdf`, `docs/CHANGELOG.md`.
 - **Yeni katman:** `Layer`'dan türet → `engine/MapData.cpp::CreateLayers()`'a ekle → `engine/LayerTable.cpp` +
   `PrimeMap.h` `MapLayer`'a satır → CMake →
   `MapTheme.cpp` varsayılan görünürlük → `ui/LayerPanel.cpp` `kGroups`.
@@ -418,6 +423,7 @@ X-Plane ─► plugin/PluginMain.cpp (giris, menu, komut, ini) ─► api/PrimeM
 | 0.19 | **Kendi yazı çizicimiz** (`FontAtlas` + stb_truetype, X-Plane'in `Resources/fonts/DejaVuSans.ttf`'i; `AtlasTextRenderer`, tek çizim çağrısı; `[text] renderer`). **Harita resmi önbelleği** (`MapImageCache`, `RenderTarget`, `Canvas::BeginOffscreen`; `[render] cache / max_fps`; önizlemede doğrudan çizimle 540 bin pikselde 11 piksel fark). **Zemin Aşama 4**: merkezden kenara öncelik, önceden yükleme (`[cache] prefetch_tiles`), görünen alanı önbellekleme komutu; işçi düşük öncelikli. İkinci işçi yapılmadı (kullanıcıyla: risk > kazanç) | **denenmedi** |
 | 0.20 | **Prime Map API** (`feature/api`): `prime_map` statik kütüphane + `PrimeMap.h`; `Plugin.cpp` → `engine/MapData` + `plugin/PluginMain.cpp`; Embedded/Standalone pencere, UI ve fare anahtarı; katman enum'u ve kuralları `engine/LayerTable`; `examples/map_api_test`; `/MT` `/MD` Release+Debug uyarısız; testler 30.659 | **API test eklentisi X-Plane'de: 94/95 PASS** (2026-11-08; tek FAIL FitBounds kenar yuvarlaması, %5 pay ile düzeltildi, düzeltme X-Plane'de henüz denenmedi). Fare kapalıyken tıklama geçişi elle denenmedi |
 | 0.21 | **İki repoya bölünme + COTS**: eklenti üretimi bu repodan çıkarıldı (`src/plugin/`, `prime-map-plugin` hedefi yok; resmi eklenti ayrı `prime_map_plugin` reposu, SDK paketini kullanır). Üçüncü taraf bileşenler repodan çıkarıldı → `C:\workspace\cots` (X-Plane-SDK, lzma, earcut, stb; `COTS_DIR`, README tablosu). İmza/komutlar `prime.*` / `prime/map/*` (0.18 satırındaki `ozdev.` tarihî kayıttır). Hızlı başlangıç bölümü `PrimeMap_API.pdf`'e eklendi; testler 30.659 | yeniden derlendi, X-Plane'de bu sürüm başlığıyla denenmedi |
+| 0.22 | **Ekip kalıbına geçiş**: `prime_map` STATIC → **SHARED DLL** (`prime_map.dll`); `primemapglobal.h` (`PRIME_MAP_EXPORT`, ekibin `utilsglobal.h` deseni); `MapFactory` (ekibin `DBManagerFactory` deseni; `Map::Open` fabrikaya yönlendirir); genel başlık repo köküne taşındı (`#include <prime_map_api/PrimeMap.h>`); CRT `/MT` → **`/MD` sabit** (ekip standardı; `PRIME_MAP_DYNAMIC_CRT` kaldırıldı); SDK paketi + install kuralları kaldırıldı; üç tüketici (`prime_map_plugin`, `plugin-api-test`, `examples/map_api_test`) `add_subdirectory` + hedef-adına linklendi; `map_tests`/`map_preview` iç sınıfları test ettiği için kaynakla derlemeye devam eder (bilinçli fark); testler 30.659 | derlendi + X-Plane'e `win.xpl` + `prime_map.dll` kuruldu (17:13); X-Plane'de runtime testi **yapılmadı** |
 | 0.18 | Kullanıcının kaydettiği katman ayarları varsayılan oldu (`MapTheme.cpp` tabloları); yeni **Dark** modu (siyah kara, lacivert su, minimal); **Go to airport** paneli (`AirportSearchPanel`, `AirportSearch`; sadece harita gider, klavye odağı panel açıkken); alt şeritte `Loading terrain: N images` (kaba / boş zemin görünen her an); zemin önbelleğine disk sınırı (`CacheTrim`, `[cache] terrain_mb` = 1024); ad **prime-map-plugin** (klasör `plugins/prime-map-plugin`, log `[prime-map-plugin]`, menü "Prime Map Plugin", imza `ozdev.prime_map_plugin`; komutlar `ozdev/map/...` aynı kaldı) | **denenmedi** |
 
 Hiç yapılmamış: FPS ölçümü (Diagnostics modu var), Vulkan modunda deneme.

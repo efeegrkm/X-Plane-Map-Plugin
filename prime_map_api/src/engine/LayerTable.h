@@ -17,7 +17,7 @@
 #include <optional>
 #include <string_view>
 
-#include "api/PrimeMap.h"
+#include "PrimeMap.h"
 
 class LayerManager;
 class Layer;

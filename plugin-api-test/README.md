@@ -1,8 +1,14 @@
 # plugin_api_test
 
-Prime Map API'yi denemek i├ºin ayr─▒ bir X-Plane 11 eklentisi: kendi UI'─▒ +
-SDK paketiyle harita g├Âmme testi (Ad─▒m 1 UI, Ad─▒m 2 API ba─ƒlama).
-B├╝t├╝n API ├ºa─ƒr─▒lar─▒ `src/MapApiCalls.cpp` i├ºindedir; liste: `docs/API_LISTESI.md`.
+Prime Map API'yi denemek için ayrı bir X-Plane 11 eklentisi: kendi UI'ı +
+harita gömme testi (Adım 1 UI, Adım 2 API bağlama).
+Bütün API çağrıları `src/MapApiCalls.cpp` içindedir; liste: `docs/API_LISTESI.md`.
+
+Kütüphane tüketimi: `prime_map_api` aynı CMake oturumuna
+`add_subdirectory` ile katılır, hedef adına (`prime_map`) linklenir; SDK paketi yoktur.
+Derleme sonrası `prime_map.dll` otomatik olarak `win.xpl`'nin yanına kopyalanır;
+X-Plane'e kurarken ikisini de `<X-Plane>\Resources\plugins\plugin-api-test\64\`
+altına koyun.
 
 ## Derleme
 
@@ -12,17 +18,17 @@ cmake -S . -B build -G Ninja -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.exe -D
 ninja -C build   ->  build/plugin_api_test/64/win.xpl
 ```
 
-`win.xpl`'yi X-Plane'e kurmak i├ºin: `<X-Plane>\Resources\plugins\plugin-api-test\64\`
-(X-Plane kapal─▒yken).
+`win.xpl`'yi X-Plane'e kurmak için: `<X-Plane>\Resources\plugins\plugin-api-test\64\`
+(X-Plane kapalıyken).
 
-## ├£├º├╝nc├╝ Taraf Bile┼ƒenler
+## Üçüncü Taraf Bileşenler
 
-┼×irket kural─▒ gere─ƒi ├╝├º├╝nc├╝ taraf bile┼ƒenler repoda tutulmaz;
-`C:\workspace\cots` alt─▒ndan okunur:
+Şirket kuralı gereği üçüncü taraf bileşenler repoda tutulmaz;
+`C:\workspace\cots` altından okunur:
 
-| Bile┼ƒen | S├╝r├╝m | Ne i├ºin kullan─▒l─▒yor | ─░ndirme | Kurulum klas├Âr├╝ |
+| Bileşen | Sürüm | Ne için kullanılıyor | İndirme | Kurulum klasörü |
 |---|---|---|---|---|
-| X-Plane SDK | 3.0 (XPLM301) | X-Plane eklenti aray├╝z├╝: ba┼ƒl─▒klar + `XPLM_64.lib` | https://developer.x-plane.com/sdk/ | `C:\workspace\cots\X-Plane-SDK` |
+| X-Plane SDK | 3.0 (XPLM301) | X-Plane eklenti arayüzü: başlıklar + `XPLM_64.lib` | https://developer.x-plane.com/sdk/ | `C:\workspace\cots\X-Plane-SDK` |
 
-Ayr─▒ca `prime_map_sdk` paketi gerekir: `-DPRIME_MAP_SDK=<klasor>`
-(varsay─▒lan: `../prime_map_sdk`).
+Varsayılan kütüphane yolu: kardeş klasör `../prime_map_api`;
+farklı yerdeyse `-DPRIME_MAP_DIR=<klasor>`.

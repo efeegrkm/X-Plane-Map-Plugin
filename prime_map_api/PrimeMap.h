@@ -3,10 +3,15 @@
 // Bu dosya kutuphanenin TEK genel basligidir:
 // sadece standart C++ tipleri kullanir; XPLM, OpenGL ya da projenin ic basliklari yok.
 //
+// Kutuphane SHARED DLL olarak derlenir (prime_map.dll). Tuketici projede:
+//   add_subdirectory(<prime_map_api yolu> prime_map_build)
+//   target_link_libraries(<hedef> PRIVATE prime_map)
+// Derlemeden sonra prime_map.dll, tuketici eklentisinin (win.xpl) yanina kopyalanir.
+//
 // Yasam dongusu (hepsi X-Plane ana thread'inde):
 //
-//   XPluginEnable  : PrimeMap::Init(tConfig)           veri yuklemesi baslar (arka planda)
-//                    tMap = PrimeMap::Map::Open(...)   harita penceresi (tek harita)
+//   XPluginEnable  : PrimeMap::Init(tConfig)                    veri yuklemesi baslar (arka planda)
+//                    tMap = PrimeMap::MapFactory::CreateMap(..) harita penceresi (tek harita)
 //   ...            : tMap->ZoomIn(), tMap->SetMode(...) ... (host'un dugmeleri)
 //   XPluginDisable : tMap.reset()                      pencere kapanir
 //                    PrimeMap::Shutdown()              arka plan isleri durur
@@ -31,15 +36,18 @@
 #include <utility>
 #include <vector>
 
+#include "primemapglobal.h"
+
 namespace PrimeMap
 {
 
 // --- Surum --------------------------------------------------------------------
-// API kirilirsa major artar; yeni fonksiyon minor, duzeltme patch.
+// API sozlesme surumu: kirilirse major artar; yeni fonksiyon minor, duzeltme patch.
+// (Repodaki surumden bagimsizdir; CMake PROJECT_VERSION dosya surumune yazilir.)
 constexpr int kVersionMajor = 1;
 constexpr int kVersionMinor = 0;
 constexpr int kVersionPatch = 0;
-std::string VersionString();  // "1.0.0"
+PRIME_MAP_EXPORT std::string VersionString();  // "1.0.0"
 
 // --- Basit tipler -------------------------------------------------------------
 struct LatLon
@@ -119,10 +127,10 @@ struct Status
     std::string mPerformanceText;    // teshis modunda "FPS .. draw .. ms"; degilse bos
 };
 
-bool Init(const InitConfig& pConfig);  // ikinci kez: false
-void Shutdown();                       // once Map kapatilmis olmali
-bool IsInitialized();
-Status GetStatus();
+PRIME_MAP_EXPORT bool Init(const InitConfig& pConfig);  // ikinci kez: false
+PRIME_MAP_EXPORT void Shutdown();                       // once Map kapatilmis olmali
+PRIME_MAP_EXPORT bool IsInitialized();
+PRIME_MAP_EXPORT Status GetStatus();
 
 // --- Katmanlar -----------------------------------------------------------------
 // Gruplar, katmanlar ve alt katmanlar tek duz enum; sira katman paneliyle ayni.
@@ -164,14 +172,14 @@ enum class LayerState
     Mixed,  // panelin [-] kutusu: alt ogelerin bir kismi acik
 };
 
-std::optional<MapLayer> ParentOf(MapLayer pLayer);  // en ust oge (grup, Drawings): nullopt
-std::vector<MapLayer> ChildrenOf(MapLayer pLayer);
-std::vector<MapLayer> TopLevelLayers();             // gruplar + grupsuz katmanlar, panel sirasiyla
-LayerKind KindOf(MapLayer pLayer);
-const char* LayerName(MapLayer pLayer);             // panelde gorunen ad ("Water runways")
-const char* LayerKey(MapLayer pLayer);              // ayar anahtari ("runways.water"); grup: "group.airports"
-std::optional<MapLayer> LayerFromKey(std::string_view pKey);
-bool IsLayerDefaultVisible(MapLayer pLayer, MapMode pMode);
+PRIME_MAP_EXPORT std::optional<MapLayer> ParentOf(MapLayer pLayer);  // en ust oge (grup, Drawings): nullopt
+PRIME_MAP_EXPORT std::vector<MapLayer> ChildrenOf(MapLayer pLayer);
+PRIME_MAP_EXPORT std::vector<MapLayer> TopLevelLayers();             // gruplar + grupsuz katmanlar, panel sirasiyla
+PRIME_MAP_EXPORT LayerKind KindOf(MapLayer pLayer);
+PRIME_MAP_EXPORT const char* LayerName(MapLayer pLayer);             // panelde gorunen ad ("Water runways")
+PRIME_MAP_EXPORT const char* LayerKey(MapLayer pLayer);              // ayar anahtari ("runways.water"); grup: "group.airports"
+PRIME_MAP_EXPORT std::optional<MapLayer> LayerFromKey(std::string_view pKey);
+PRIME_MAP_EXPORT bool IsLayerDefaultVisible(MapLayer pLayer, MapMode pMode);
 
 // --- Sorgu / arama sonuclari ---------------------------------------------------------
 struct AirportMatch
@@ -275,10 +283,17 @@ struct OpenConfig
     bool mXPlaneFont = false;    // true: XPLMDrawString (yedek); false: kendi yazi atlasimiz
 };
 
-class Map
+// pimpl uyesi (std::unique_ptr<Impl>) MSVC'de C4251 verir; Impl tamamen DLL icinde
+// yasadigi icin uyari her iki tarafta da guvenli sekilde susturulur.
+#if defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 4251)
+#endif
+class PRIME_MAP_EXPORT Map
 {
 public:
     // Tek harita: ikinci Open (ilki kapanmadan) nullptr + log. Init yapilmadiysa nullptr.
+    // Tercih edilen giris MapFactory::CreateMap; Open geriye uyumluluk icin korunur.
     static std::unique_ptr<Map> Open(const OpenConfig& pConfig);
     ~Map();  // pencereyi kapatir
 
@@ -387,8 +402,27 @@ public:
 
 private:
     Map();
+    friend class MapFactory;  // nesneyi yalnizca fabrika kurar
+
     struct Impl;
     std::unique_ptr<Impl> mImpl;
+};
+#if defined(_MSC_VER)
+    #pragma warning(pop)
+#endif
+
+// --- Fabrika -------------------------------------------------------------------
+// Harita kurulumu yalnizca fabrikanin static metoduyla yapilir; fabrika
+// kendisi orneklenebilir degildir.
+class PRIME_MAP_EXPORT MapFactory
+{
+public:
+    // Tek harita kurali ve "once Init" kurali burada uygulanir (Map::Open ile ayni).
+    static std::unique_ptr<Map> CreateMap(const OpenConfig& pConfig);
+
+private:
+    MapFactory() = default;
+    ~MapFactory() = default;
 };
 
 }  // namespace PrimeMap

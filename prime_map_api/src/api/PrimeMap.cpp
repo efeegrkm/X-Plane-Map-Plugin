@@ -5,10 +5,12 @@
 //   PrimeMap::Map                          ->  MapWindow (pencere, cizim, fare, UI)
 //   katman fonksiyonlari                   ->  engine/LayerTable (panelle ayni kurallar)
 //
-// Kutuphanenin kopyasi basina (her host eklenti DLL'i) tek MapData ve en cok bir harita
+// Kutuphanenin kopyasi basina (prime_map.dll basina) tek MapData ve en cok bir harita
 // vardir: bunlar bu dosyanin global'leridir (API serbest fonksiyonlar oldugu icin).
+// Ayni X-Plane surecindeki tum hostlar ayni DLL'i kullandigi icin durumu da paylasir:
+// Init bir kez yapilir, tek harita kurali hostlar arasinda ortaktir.
 // Butun fonksiyonlar X-Plane ana thread'inden cagrilmalidir.
-#include "api/PrimeMap.h"
+#include "PrimeMap.h"
 
 #include <algorithm>
 #include <array>
@@ -186,16 +188,16 @@ Map::Map()
 {
 }
 
-std::unique_ptr<Map> Map::Open(const OpenConfig& pConfig)
+std::unique_ptr<Map> MapFactory::CreateMap(const OpenConfig& pConfig)
 {
     if (!gData)
     {
-        Log("WARNING: Map::Open before PrimeMap::Init");
+        Log("WARNING: CreateMap before PrimeMap::Init");
         return nullptr;
     }
     if (gOpenWindow)
     {
-        Log("WARNING: Map::Open: only one map per plugin; close the first one");
+        Log("WARNING: CreateMap: only one map per plugin; close the first one");
         return nullptr;
     }
     std::unique_ptr<Map> tMap(new Map());
@@ -218,6 +220,11 @@ std::unique_ptr<Map> Map::Open(const OpenConfig& pConfig)
     gOpenWindow = tMap->mImpl->mWindow.get();
     gData->AttachWindow(gOpenWindow);
     return tMap;
+}
+
+std::unique_ptr<Map> Map::Open(const OpenConfig& pConfig)
+{
+    return MapFactory::CreateMap(pConfig);
 }
 
 Map::~Map()
@@ -1071,4 +1078,4 @@ bool Map::IsDiagnosticsOn() const
     return tWindow && tWindow->IsDiagnosticsOn();
 }
 
-}  // namespace PrimeMap
+}  // namespace PrimeMap

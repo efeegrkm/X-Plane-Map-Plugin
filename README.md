@@ -1,22 +1,21 @@
-# X-Plane Map Plugin — 0.21 (SDK'lı dağıtım)
+# X-Plane Map Plugin — 0.22 (ekip kütüphane kalıbı)
 
-Bu dal, ekip kütüphane kalıbına geçişten (0.22) önceki **SDK paketli dağıtım
-düzeninin** son hâlidir. Ağaç üç bağımsız projeden oluşur:
+Bu dal, kütüphanenin **ekip kütüphane kalıbına** (SHARED DLL) geçilmiş asıl
+sürümüdür. Ağaç üç bağımsız projeden oluşur:
 
 ```
-prime_map_api/     harita kütüphanesi + genel API (prime_map STATIC; prime_map_MT[d].lib / prime_map_MD[d].lib)
-prime_map_plugin/  resmî X-Plane eklentisi (SDK paketindeki statik kütüphaneye karşı linklenir)
+prime_map_api/     harita kütüphanesi + genel API (prime_map SHARED → prime_map.dll)
+prime_map_plugin/  resmî X-Plane eklentisi (ince kabuk)
 plugin-api-test/   API'yi ayrı bir eklentide deneyen test eklentisi
 ```
 
-Tüketim akışı (0.21):
+Tüketim (0.22): SDK paketi yoktur; kütüphane aynı CMake oturumuna
+`add_subdirectory(<prime_map_api yolu> prime_map_build)` ile katılır ve hedef
+adına linklenir (`target_link_libraries(<hedef> PRIVATE prime_map)`). Include:
+`#include <prime_map_api/PrimeMap.h>`. Giriş noktası
+`PrimeMap::MapFactory::CreateMap` (giriye uyumluluk: `Map::Open`).
+Derlemeden sonra `prime_map.dll`, tüketici eklentinin (`win.xpl`) yanına kopyalanır.
 
-1. `prime_map_api` derlenir: `cmake -S prime_map_api -B b_api -G Ninja -DCMAKE_BUILD_TYPE=Release`
-2. SDK paketi üretilir: `cmake --install b_api --prefix <klasor>/prime_map_sdk`
-   → `include/PrimeMap.h`, `lib/prime_map_MT.lib` (veya `/MD` ile `prime_map_MD.lib`), `docs/`, `examples/`
-3. Tüketici eklenti `-DPRIME_MAP_SDK=<paket yolu>` ile derlenir ve
-   `#include "PrimeMap.h"` ile API'yi kullanır; `prime_map_MT.lib` eklentinin içine gömülür.
-
-Not: Bu anlık görüntü, 0.21 kaynak ağacı commit'lenmeden 0.22'ye geçildiği için
-oturum kayıtlarından birebir kurtarılmıştır; tam derleme + 30.659 test ile doğrulanmıştır.
-0.22'deki (ekip standardı, SHARED DLL) sürüm için `main` dalına bakınız.
+Yöntem: SDK paketi/install yoktur (0.21 düzeni için `feature/api` dalına bakınız).
+CRT `/MD` sabittir. Sürüm bilgisi CMake `project(VERSION)`'tan her iki DLL'e
+(Windows sürüm kaynağı, .rc) gömülür.

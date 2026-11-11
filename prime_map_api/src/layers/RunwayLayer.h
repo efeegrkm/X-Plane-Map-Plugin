@@ -1,7 +1,7 @@
 // RunwayLayer.h
 // Pistler: her pist, iki ucu ve genisligi ile gercek olcekli bir dikdortgen.
-// Veri AirportGeometryStore'dan gelir (gecici apt.dat okuyucusu veya ekip
-// motoru; katman hangisi oldugunu bilmez).
+// Veri AirportGeometryStore'dan gelir (gecici apt.dat okuyucusu veya dis veri
+// kaynagi; katman hangisi oldugunu bilmez).
 //
 //   zoom >= 9    : pist dikdortgeni (yuzeye gore renk; cok dar ise en az 2 boxel)
 //   zoom >= 11.5 : pist numaralari uclarin disinda

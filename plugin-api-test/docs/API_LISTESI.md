@@ -1,159 +1,159 @@
-# Prime Map API ÔÇö ├ça─ƒr─▒ Listesi (v1.0.0)
+# Prime Map API — Çağrı Listesi (v1.0.0)
 
-Tek genel ba┼ƒl─▒k: `include/PrimeMap.h`. ─░stisna yok: ge├ºersiz de─ƒer ÔåÆ i┼ƒlem yap─▒lmaz,
-Log'a tek sat─▒r uyar─▒, d├Ân├╝┼ƒ `false` / bo┼ƒ. T├╝m ├ºa─ƒr─▒lar X-Plane **ana thread**'inde.
+Tek genel başlık: `include/PrimeMap.h`. İstisna yok: geçersiz değer → işlem yapılmaz,
+Log'a tek satır uyarı, dönüş `false` / boş. Tüm çağrılar X-Plane **ana thread**'inde.
 
-T├╝m s─▒n─▒f─▒n kaynak hali: `prime_map_sdk/include/PrimeMap.h`.
-Her ├ºa─ƒr─▒n─▒n sarmalay─▒c─▒s─▒: `prime_map_sdk/examples/map_api_test/src/MapApiCalls.cpp`
-(bu eklentideki d├╝─ƒmeler de bu metotlar─▒ ├ºa─ƒ─▒racak).
+Tüm sınıfın kaynak hali: `prime_map_sdk/include/PrimeMap.h`.
+Her çağrının sarmalayıcısı: `prime_map_sdk/examples/map_api_test/src/MapApiCalls.cpp`
+(bu eklentideki düğmeler de bu metotları çağıracak).
 
 ---
 
-## 1. Ya┼ƒam d├Âng├╝s├╝ (Map'ten ba─ƒ─▒ms─▒z, mod├╝l d├╝zeyi)
+## 1. Yaşam döngüsü (Map'ten bağımsız, modül düzeyi)
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `PrimeMap::Init(const InitConfig&)` | K├╝t├╝phaneyi ba┼ƒlat─▒r; veri y├╝klemesini arka planda ba┼ƒlat─▒r. ─░kinci ├ºa─ƒr─▒ `false` d├Âner |
-| `PrimeMap::Shutdown()` | Arka plan i┼ƒlerini durdurur. ├ûnce harita kapat─▒lm─▒┼ƒ olmal─▒ |
-| `PrimeMap::IsInitialized()` | Ba┼ƒlat─▒ld─▒ m─▒ |
-| `PrimeMap::GetStatus()` | `Status`: nav/havaliman─▒/hava yolu/zemin haz─▒r m─▒, ka├º zemin resmi bekliyor, alt ┼ƒerit metni |
+| `PrimeMap::Init(const InitConfig&)` | Kütüphaneyi başlatır; veri yüklemesini arka planda başlatır. İkinci çağrı `false` döner |
+| `PrimeMap::Shutdown()` | Arka plan işlerini durdurur. Önce harita kapatılmış olmalı |
+| `PrimeMap::IsInitialized()` | Başlatıldı mı |
+| `PrimeMap::GetStatus()` | `Status`: nav/havalimanı/hava yolu/zemin hazır mı, kaç zemin resmi bekliyor, alt şerit metni |
 | `PrimeMap::VersionString()` | "1.0.0" |
 
-`InitConfig` alanlar─▒: `mCacheDirectory` (bo┼ƒ = host eklenti klas├Âr├╝/cache/), `mLogPrefix`,
-`mLogCallback` (log sat─▒rlar─▒n─▒ host'a y├Ânlendirir), `mTerrainCacheMb`, `mPrefetchTiles`.
+`InitConfig` alanları: `mCacheDirectory` (boş = host eklenti klasörü/cache/), `mLogPrefix`,
+`mLogCallback` (log satırlarını host'a yönlendirir), `mTerrainCacheMb`, `mPrefetchTiles`.
 
-## 2. Harita penceresi ÔÇö `PrimeMap::Map`
+## 2. Harita penceresi — `PrimeMap::Map`
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `Map::Open(const OpenConfig&)` | Harita penceresini a├ºar. **Tek harita**: a├º─▒kken ikinci `Open` ÔåÆ `nullptr` |
-| `~Map()` / `reset()` | Pencereyi kapat─▒r |
-| `SetGeometry(Geometry)` | Yer + boyut (boxel; sol-├╝st k├Â┼ƒe + geni┼ƒlik/y├╝kseklik). Embedded stilin yer de─ƒi┼ƒtirme yolu |
-| `GetGeometry()` | ÔÇö |
-| `SetVisible(bool)` / `IsVisible()` | Haritay─▒ g├Âster/gizle |
-| `BringToFront()` | Pencereyi en ├Âne al─▒r |
-| `SetPoppedOut(bool)` / `IsPoppedOut()` | Sadece Standalone stil: X-Plane d─▒┼ƒ─▒na ├º─▒kar |
-| `SetUiVisible(bool)` | Haritan─▒n kendi ├╝st ┼ƒeridi, paneller, durum sat─▒r─▒, tooltip kutusu |
-| `SetMouseInput(bool)` | S├╝r├╝kleme / tekerlek / tooltip / ├ºizim t─▒klamas─▒ (UI'dan ba─ƒ─▒ms─▒z). Kapal─▒yken t─▒klama alttaki pencereye ge├ºer |
+| `Map::Open(const OpenConfig&)` | Harita penceresini açar. **Tek harita**: açıkken ikinci `Open` → `nullptr` |
+| `~Map()` / `reset()` | Pencereyi kapatır |
+| `SetGeometry(Geometry)` | Yer + boyut (boxel; sol-üst köşe + genişlik/yükseklik). Embedded stilin yer değiştirme yolu |
+| `GetGeometry()` | — |
+| `SetVisible(bool)` / `IsVisible()` | Haritayı göster/gizle |
+| `BringToFront()` | Pencereyi en öne alır |
+| `SetPoppedOut(bool)` / `IsPoppedOut()` | Sadece Standalone stil: X-Plane dışına çıkar |
+| `SetUiVisible(bool)` | Haritanın kendi üst şeridi, paneller, durum satırı, tooltip kutusu |
+| `SetMouseInput(bool)` | Sürükleme / tekerlek / tooltip / çizim tıklaması (UI'dan bağımsız). Kapalıyken tıklama alttaki pencereye geçer |
 
-`OpenConfig`: `mGeometry`, `mStyle` (Embedded = ├ºer├ºevesiz / Standalone = ta┼ƒ─▒n─▒r pencere),
-`mMode`, `mUiVisible`, `mMouseInput`, `mVisible`, `mImageCache` (FBO ├Ânbelle─ƒi), `mMaxRenderFps`, `mXPlaneFont`.
+`OpenConfig`: `mGeometry`, `mStyle` (Embedded = çerçevesiz / Standalone = taşınır pencere),
+`mMode`, `mUiVisible`, `mMouseInput`, `mVisible`, `mImageCache` (FBO önbelleği), `mMaxRenderFps`, `mXPlaneFont`.
 
-## 3. G├Âr├╝n├╝m
+## 3. Görünüm
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
 | `SetCenter(lat, lon)` / `GetCenter()` | Harita merkezini koy/oku |
-| `SetZoom(z)` / `GetZoom()` | Zoom 3..16.5 (d─▒┼ƒ─▒ndaysa k─▒rp─▒l─▒r) |
-| `MinZoom()` / `MaxZoom()` | S─▒n─▒rlar |
-| `ZoomIn()` / `ZoomOut()` | Bir kademe (varsay─▒lan 0.5 = bir tekerlek tiki) |
-| `SetZoomStep(z)` | Kademe miktar─▒ |
-| `PanLeft/Right/Up/Down()` | G├Âr├╝nt├╝n├╝n %25'i kadar kayd─▒r─▒r |
-| `SetPanStep(frac)` | Kayd─▒rma ad─▒m─▒ (g├Âr├╝nt├╝n├╝n kesri, varsay─▒lan 0.25) |
-| `PanBy(dx, dy)` | Boxel cinsinden kayd─▒rma (s├╝r├╝kleme ile ayn─▒ y├Ân) |
-| `FitBounds(GeoBounds)` | Verilen enlem/boylam kutusunu s─▒─ƒd─▒r─▒r |
-| `GetVisibleBounds()` | ┼×u an g├Âr├╝nen kutu |
-| `GetMetersPerBoxel()` | Merkez enleminde ├Âl├ºek |
-| `SetFollowAircraft(bool)` | U├ºa─ƒ─▒ takip a├º/kapa (elle kayd─▒rma takibi kapat─▒r) |
-| `CenterOnAircraft()` | Merkezi u├ºa─ƒa al─▒r |
-| `GoToAirport("KSEA")` | Sadece harita gider (u├ºak de─ƒi┼ƒmez) |
-| `FindAirports(query, max)` | ICAO/ad aramas─▒ ÔåÆ `AirportMatch` listesi |
-| `ScreenToGeo(x, y)` / `GeoToScreen(lat, lon, &x, &y)` | Ekran Ôåö co─ƒrafya d├Ân├╝┼ƒ├╝m├╝ |
+| `SetZoom(z)` / `GetZoom()` | Zoom 3..16.5 (dışındaysa kırpılır) |
+| `MinZoom()` / `MaxZoom()` | Sınırlar |
+| `ZoomIn()` / `ZoomOut()` | Bir kademe (varsayılan 0.5 = bir tekerlek tiki) |
+| `SetZoomStep(z)` | Kademe miktarı |
+| `PanLeft/Right/Up/Down()` | Görüntünün %25'i kadar kaydırır |
+| `SetPanStep(frac)` | Kaydırma adımı (görüntünün kesri, varsayılan 0.25) |
+| `PanBy(dx, dy)` | Boxel cinsinden kaydırma (sürükleme ile aynı yön) |
+| `FitBounds(GeoBounds)` | Verilen enlem/boylam kutusunu sığdırır |
+| `GetVisibleBounds()` | Şu an görünen kutu |
+| `GetMetersPerBoxel()` | Merkez enleminde ölçek |
+| `SetFollowAircraft(bool)` | Uçağı takip aç/kapa (elle kaydırma takibi kapatır) |
+| `CenterOnAircraft()` | Merkezi uçağa alır |
+| `GoToAirport("KSEA")` | Sadece harita gider (uçak değişmez) |
+| `FindAirports(query, max)` | ICAO/ad araması → `AirportMatch` listesi |
+| `ScreenToGeo(x, y)` / `GeoToScreen(lat, lon, &x, &y)` | Ekran ↔ coğrafya dönüşümü |
 
 ## 4. Mod
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
 | `SetMode(MapMode)` | Scenery / Vfr / IfrLow / IfrHigh / Dark |
-| `GetMode()` | ÔÇö |
-| `NextMode()` | S─▒radaki moda ge├º |
+| `GetMode()` | — |
+| `NextMode()` | Sıradaki moda geç |
 
-## 5. Katmanlar (kurallar katman paneliyle birebir ayn─▒)
+## 5. Katmanlar (kurallar katman paneliyle birebir aynı)
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `SetLayerVisible(MapLayer, bool)` | Katman─▒/alt katman─▒ a├º-kapa |
-| `IsLayerVisible(MapLayer)` | Kendi kutusu (├╝st ├Â─ƒe kapal─▒ysa yine ├ºizilmez) |
-| `ToggleLayer(MapLayer)` | Panel kutusuna t─▒klaman─▒n ayn─▒s─▒ (grupta: hepsi a├º─▒ksa hepsini kapat─▒r) |
-| `SetLayersVisible({...}, bool)` | Toplu a├º-kapa |
-| `ShowOnlyLayers({...})` | Verilenler hari├º hepsini kapat─▒r |
-| `ResetLayersToDefaults()` | Modun varsay─▒lanlar─▒ |
+| `SetLayerVisible(MapLayer, bool)` | Katmanı/alt katmanı aç-kapa |
+| `IsLayerVisible(MapLayer)` | Kendi kutusu (üst öğe kapalıysa yine çizilmez) |
+| `ToggleLayer(MapLayer)` | Panel kutusuna tıklamanın aynısı (grupta: hepsi açıksa hepsini kapatır) |
+| `SetLayersVisible({...}, bool)` | Toplu aç-kapa |
+| `ShowOnlyLayers({...})` | Verilenler hariç hepsini kapatır |
+| `ResetLayersToDefaults()` | Modun varsayılanları |
 | `GetLayerState(MapLayer)` | Off / On / Mixed (grup kutusundaki [-]) |
-| `ParentOf / ChildrenOf / TopLevelLayers` | Katman a─ƒac─▒ |
-| `KindOf` / `LayerName` / `LayerKey` / `LayerFromKey` | T├╝r (grup/katman/alt), panel ad─▒, ayar anahtar─▒ ("runways.water") |
-| `IsLayerDefaultVisible(layer, mode)` | Varsay─▒lan g├Âr├╝n├╝rl├╝k |
+| `ParentOf / ChildrenOf / TopLevelLayers` | Katman ağacı |
+| `KindOf` / `LayerName` / `LayerKey` / `LayerFromKey` | Tür (grup/katman/alt), panel adı, ayar anahtarı ("runways.water") |
+| `IsLayerDefaultVisible(layer, mode)` | Varsayılan görünürlük |
 
-`MapLayer` enum'u (s─▒ra paneliyle ayn─▒): `MapGroup` (Terrain, TerrainForests, TerrainBuiltUp,
+`MapLayer` enum'u (sıra paneliyle aynı): `MapGroup` (Terrain, TerrainForests, TerrainBuiltUp,
 Roads + 6 alt, Grid), `AirportsGroup` (AirportSymbols, Runways + 6 alt, Surfaces + 4 alt,
 Objects + 13 alt, TaxiRoutes), `NavaidsGroup` (Vor, Ndb, Ils, Fixes), `AirwaysGroup`
 (Low, High), `FlightGroup` (Aircraft, FmsRoute, FlightTrack), `Drawings` (+ 4 alt).
 
-## 6. ├çizimler (kullan─▒c─▒ ├ºizimleri)
+## 6. Çizimler (kullanıcı çizimleri)
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
 | `SetDrawTool(DrawTool)` | Pan / Point / Route / Region |
-| `GetDrawTool()` | ÔÇö |
-| `AddDrawingPoint(lat, lon)` | A├º─▒k ├ºizime nokta ekler (Pan arac─▒nda `false`) |
-| `FinishDrawing()` / `UndoDrawing()` / `HasUnfinishedDrawing()` | ├çizimi bitir / son noktay─▒ al / a├º─▒k ├ºizim var m─▒ |
+| `GetDrawTool()` | — |
+| `AddDrawingPoint(lat, lon)` | Açık çizime nokta ekler (Pan aracında `false`) |
+| `FinishDrawing()` / `UndoDrawing()` / `HasUnfinishedDrawing()` | Çizimi bitir / son noktayı al / açık çizim var mı |
 | `ClearDrawings()` | Hepsini siler |
-| `GetShapes()` / `RemoveShape(id)` | ├çizimleri oku / tek sil |
-| `ExportDrawings()` / `ImportDrawings(text)` | map_drawings.txt bi├ºimi |
+| `GetShapes()` / `RemoveShape(id)` | Çizimleri oku / tek sil |
+| `ExportDrawings()` / `ImportDrawings(text)` | map_drawings.txt biçimi |
 
-## 7. U├ºak, iz, rota
+## 7. Uçak, iz, rota
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `SetAircraftSource(DataSource)` | `XPlane` (dataref, varsay─▒lan) / `Host` |
-| `SetAircraft(AircraftState)` | Host iken **her karede** konum/heading/h─▒z/irtifa |
-| `GetAircraft()` | ÔÇö |
-| `ClearTrack()` | U├ºu┼ƒ izini temizler |
-| `SetRouteSource(DataSource)` / `SetRoute(waypoints, activeIndex)` | FMS yerine host rotas─▒ |
+| `SetAircraftSource(DataSource)` | `XPlane` (dataref, varsayılan) / `Host` |
+| `SetAircraft(AircraftState)` | Host iken **her karede** konum/heading/hız/irtifa |
+| `GetAircraft()` | — |
+| `ClearTrack()` | Uçuş izini temizler |
+| `SetRouteSource(DataSource)` / `SetRoute(waypoints, activeIndex)` | FMS yerine host rotası |
 
 ## 8. Sorgu
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `QueryAt(lat, lon)` / `QueryAtScreen(x, y)` | Son ├ºizilen kareye g├Âre "burada ne var" ÔåÆ `MapObject` (katman + tooltip metni) |
+| `QueryAt(lat, lon)` / `QueryAtScreen(x, y)` | Son çizilen kareye göre "burada ne var" → `MapObject` (katman + tooltip metni) |
 
 ## 9. Ayarlar
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `ExportSettings()` / `ImportSettings(text)` | G├Âr├╝n├╝m + mod katmanlar─▒ + ara├ºlar metni |
-| `GetTerrainSettings()` / `SetTerrainSettings(...)` | `terrain_colors.ini`'nin t├╝m anahtarlar─▒ (renkler, shading, warp, relief, water, vfr) |
-| `ExportTerrainSettings()` / `ImportTerrainSettings(text)` | ini metni (yorumlar─▒yla) |
-| `GetSettingsRevision()` / `GetDrawingsRevision()` | De─ƒi┼ƒince artan saya├ºlar; host bak─▒p de─ƒi┼ƒtiyse dosyaya yazar |
+| `ExportSettings()` / `ImportSettings(text)` | Görünüm + mod katmanları + araçlar metni |
+| `GetTerrainSettings()` / `SetTerrainSettings(...)` | `terrain_colors.ini`'nin tüm anahtarları (renkler, shading, warp, relief, water, vfr) |
+| `ExportTerrainSettings()` / `ImportTerrainSettings(text)` | ini metni (yorumlarıyla) |
+| `GetSettingsRevision()` / `GetDrawingsRevision()` | Değişince artan sayaçlar; host bakıp değiştiyse dosyaya yazar |
 
-## 10. ├ûn ├Ânbellek ve te┼ƒhis
+## 10. Ön önbellek ve teşhis
 
-| ├ça─ƒr─▒ | Ne yapar |
+| Çağrı | Ne yapar |
 |---|---|
-| `PrecacheVisibleArea()` | G├Âr├╝nen alan─▒ ├Ânbelle─ƒe al─▒r (s─▒n─▒r─▒n %80'ini a┼ƒarsa ba┼ƒlamaz) |
-| `PrecacheArea(GeoBounds)` | ─░stedi─ƒin b├Âlgeyi ├Ânbelle─ƒe al─▒r (u├ºu┼ƒ ├Âncesi y├╝kleme) |
-| `CancelPrecache()` | ─░ptal |
-| `SetDiagnostics(bool)` | FPS / draw ms te┼ƒhisi (`Status::mPerformanceText`) |
+| `PrecacheVisibleArea()` | Görünen alanı önbelleğe alır (sınırın %80'ini aşarsa başlamaz) |
+| `PrecacheArea(GeoBounds)` | İstediğin bölgeyi önbelleğe alır (uçuş öncesi yükleme) |
+| `CancelPrecache()` | İptal |
+| `SetDiagnostics(bool)` | FPS / draw ms teşhisi (`Status::mPerformanceText`) |
 
 ---
 
-## Bu eklentinin d├╝─ƒmeleri hangi ├ºa─ƒr─▒ya ba─ƒlanacak (Ad─▒m 3)
+## Bu eklentinin düğmeleri hangi çağrıya bağlanacak (Adım 3)
 
-| D├╝─ƒme | ├ça─ƒr─▒ |
+| Düğme | Çağrı |
 |---|---|
-| `^` (yukar─▒) | `mMap->PanUp()` |
-| `v` (a┼ƒa─ƒ─▒) | `mMap->PanDown()` |
+| `^` (yukarı) | `mMap->PanUp()` |
+| `v` (aşağı) | `mMap->PanDown()` |
 | `<` (sol) | `mMap->PanLeft()` |
-| `>` (sa─ƒ) | `mMap->PanRight()` |
+| `>` (sağ) | `mMap->PanRight()` |
 | `+` | `mMap->ZoomIn()` |
 | `-` | `mMap->ZoomOut()` |
 
-## Ad─▒m-ad─▒m ba─ƒlama s─▒ras─▒ (Ad─▒m 2-3)
+## Adım-adım bağlama sırası (Adım 2-3)
 
-1. `PrimeMap::Init({})` ÔÇö eklenti a├º─▒l─▒┼ƒ─▒nda (bir kez).
-2. `PrimeMap::Map::Open({...})` ÔÇö haritay─▒ harita alan─▒na denk geometriyle a├º;
+1. `PrimeMap::Init({})` — eklenti açılışında (bir kez).
+2. `PrimeMap::Map::Open({...})` — haritayı harita alanına denk geometriyle aç;
    `mStyle = Embedded`, `mUiVisible = false`, `mMouseInput = false`.
-3. `mMap->SetCenter(47.45, -122.30); mMap->SetZoom(11);` ÔÇö ba┼ƒlang─▒├º g├Âr├╝n├╝m├╝ (KSEA).
-4. Pencere ta┼ƒ─▒n─▒r/boyutlan─▒rsa draw'da harita alan─▒ dikd├Ârtgenini yeniden hesaplay─▒p
-   `mMap->SetGeometry(...)` ├ºa─ƒ─▒r.
-5. `Press()` i├ºinde ilgili `mMap->Pan...()/ZoomIn()/ZoomOut()` ├ºa─ƒr─▒s─▒.
-6. `XPluginDisable`'da s─▒rayla: `mMap.reset()` ÔåÆ `PrimeMap::Shutdown()`.
+3. `mMap->SetCenter(47.45, -122.30); mMap->SetZoom(11);` — başlangıç görünümü (KSEA).
+4. Pencere taşınır/boyutlanırsa draw'da harita alanı dikdörtgenini yeniden hesaplayıp
+   `mMap->SetGeometry(...)` çağır.
+5. `Press()` içinde ilgili `mMap->Pan...()/ZoomIn()/ZoomOut()` çağrısı.
+6. `XPluginDisable`'da sırayla: `mMap.reset()` → `PrimeMap::Shutdown()`.

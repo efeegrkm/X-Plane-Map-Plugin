@@ -1,5 +1,5 @@
 // TestPluginMain.cpp
-// Prime Map API test eklentisi (ayri bir X-Plane eklentisi; sadece SDK paketini kullanir).
+// Prime Map API test eklentisi (ayri bir X-Plane eklentisi; kutuphaneyi CMake hedefi olarak kullanir).
 //
 //   XPluginEnable : kutuphane + Embedded harita (UI ve fare kapali), otomatik test baslar
 //   flight loop   : otomatik test adimlari (sonuclar Log.txt'de "[map-api-test]")

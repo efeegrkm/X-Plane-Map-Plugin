@@ -1,20 +1,18 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_api VERSION 0.20 LANGUAGES C CXX)
+project(prime_map_api VERSION 0.22 LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
-# COTS: ucuncu taraf bile┼ƒenler repoda TUTULMAZ; C:\workspace\cots altindan okunur.
+# COTS: ucuncu taraf bileşenler repoda TUTULMAZ; C:\workspace\cots altindan okunur.
 # Kurulum ve indirme linkleri: README.md -> "Ucuncu Taraf Bilesenler"
-set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bile┼ƒen klasoru (COTS)")
+set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")
 
 # X-Plane SDK: <COTS>/X-Plane-SDK
 # (baska bir SDK kullanmak icin: -DXPSDK=<klasor>)
 set(XPSDK "${COTS_DIR}/X-Plane-SDK" CACHE PATH "X-Plane SDK klasoru")
 
 option(MAP_TESTS "X-Plane'siz testleri derle" OFF)
-# Prime Map API (0.20): prime_map statik kutuphanesinin C calisma kutuphanesi.
-# OFF = /MT (statik, prime_map_MT.lib), ON = /MD (DLL, prime_map_MD.lib). Debug'da sonuna "d".
-option(PRIME_MAP_DYNAMIC_CRT "prime_map'i /MD ile derle (OFF: /MT)" OFF)
+option(MAP_PREVIEW "X-Plane'siz goruntu onizleme aracini derle (Windows)" OFF)
 
 # Eski derleme klasorunde kalmis bayat XPSDK yolunu kendiliginden duzelt
 if(NOT EXISTS "${XPSDK}/CHeaders/XPLM/XPLMDisplay.h" AND
@@ -29,18 +27,12 @@ if(NOT EXISTS "${XPSDK}/CHeaders/XPLM/XPLMDisplay.h")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
-# Butun hedefler C calisma kutuphanesini icine gomer (plugin ek DLL istemesin;
-# lzma_sdk, testler ve araclar da ayni ayarla derlensin ki baglayici karismasin)
-if(PRIME_MAP_DYNAMIC_CRT)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-    set(PRIME_MAP_CRT MD)
-else()
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    set(PRIME_MAP_CRT MT)
-endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# CRT: /MD (dinamik). STL tipleri DLL sinirindan gectigi icin tuketiciler de
+# ayni CRT ile derlenmek zorundadir.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
-# X-Plane'e bagimli OLMAYAN dosyalar: hem plugine hem testlere girer
+# X-Plane'e bagimli OLMAYAN dosyalar: hem kutuphaneye hem testlere girer
 set(CORE_SOURCES
     src/Geo.cpp
     src/Drawings.cpp
@@ -86,7 +78,7 @@ set(CORE_SOURCES
     src/data/AirportDetailStore.cpp
 )
 
-# X-Plane SDK'si ve OpenGL kullanan dosyalar (prime_map kutuphanesine girer)
+# X-Plane SDK'si ve OpenGL kullanan dosyalar (prime_map DLL'ine girer)
 set(PLUGIN_SOURCES
     src/api/PrimeMap.cpp
     src/engine/MapData.cpp
@@ -133,7 +125,7 @@ find_package(Threads REQUIRED)
 
 # LZMA SDK: X-Plane DSF dosyalari 7z ile sikistirilmis (cots/lzma/README.txt)
 file(GLOB LZMA_SOURCES ${COTS_DIR}/lzma/*.c)
-add_library(lzma_sdk OBJECT ${LZMA_SOURCES})  # nesneleri prime_map.lib'in icine girer
+add_library(lzma_sdk OBJECT ${LZMA_SOURCES})  # nesneleri prime_map.dll'in icine girer
 target_include_directories(lzma_sdk SYSTEM PUBLIC ${COTS_DIR}/lzma)
 # Z7_ST: LZMA sikistiricisi tek thread'li derlenir (cok thread'li eslestirici LzFindMt eklenmedi;
 # cots/lzma/README.txt). Sikistirma zaten zemin iscisinin kendi thread'inde calisir.
@@ -145,9 +137,11 @@ else()
     target_compile_options(lzma_sdk PRIVATE -w)
 endif()
 
-# Ortak derleyici ayarlari (uyarilar acik; hem plugin hem test)
+# Ortak derleyici ayarlari (uyarilar acik; hem kutuphane hem test)
 function(map_compile_options target)
-    target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(${target} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR})  # genel basliklar repo kokunde (PrimeMap.h, primemapglobal.h)
     # earcut.hpp (dis kutuphane, tek baslik): cots/earcut/README.txt
     target_include_directories(${target} SYSTEM PRIVATE ${COTS_DIR}/earcut)
     # stb_truetype.h (dis kutuphane, tek baslik): cots/stb/README.txt
@@ -159,6 +153,10 @@ function(map_compile_options target)
     else()
         target_compile_options(${target} PRIVATE -Wall -Wextra)
     endif()
+    # Kütüphane kaynaklarını derleyen her hedef (prime_map, map_tests, map_preview)
+    # export tarafını derler: PRIME_MAP_EXPORT dllexport olur ve iç sınıflar
+    # uyarısız derlenir (map_tests DLL'i kullanmaz, iç sınıfları doğrudan test eder).
+    target_compile_definitions(${target} PRIVATE PRIME_MAP_LIBRARY)
 endfunction()
 
 # SDK basliklari ve tanimlari (X-Plane 11: SDK 3.0; XP12'ye ozel API derleme hatasi verir)
@@ -174,18 +172,45 @@ function(map_xplm_options target)
     endif()
 endfunction()
 
-# --- prime_map
-add_library(prime_map STATIC ${CORE_SOURCES} ${PLUGIN_SOURCES})
+# --- prime_map ---------------------------------------------------------------
+# SHARED kutuphane. Genel yuzey yalnizca PrimeMap.h'deki PRIME_MAP_EXPORT'lu
+# sembollerdir; geri kalan her simge DLL icinde kalir. Paket uretilmez (install
+# yok): tuketici ayni CMake oturumuna add_subdirectory ile katilir ve hedef
+# adina linkler:
+#   add_subdirectory(<prime_map_api yolu> prime_map_build)
+#   target_link_libraries(<hedef> PRIVATE prime_map)
+add_library(prime_map SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
 map_compile_options(prime_map)
 map_xplm_options(prime_map)
-set_target_properties(prime_map PROPERTIES OUTPUT_NAME prime_map_${PRIME_MAP_CRT} DEBUG_POSTFIX d)
+if(WIN32)
+    # XPLM_64.lib: sembolleri X-Plane.exe'nin cikardigi import kutuphanesi. DLL
+    # yuklenirken X-Plane tarafindan cozulur (win.xpl ile ayni yontem).
+    target_link_libraries(prime_map PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32 gdi32 user32)
+endif()
 
 # Qt Creator proje agacinda baslik dosyalarini da goster
-file(GLOB_RECURSE MAP_HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.h)
-target_sources(prime_map PRIVATE ${MAP_HEADERS})
+file(GLOB_RECURSE MAP_HEADERS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
+target_sources(prime_map PRIVATE
+    ${MAP_HEADERS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/PrimeMap.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/primemapglobal.h)
+
+# Tuketici include'u klasor adi onekli yazilir: #include <prime_map_api/PrimeMap.h>
+target_include_directories(prime_map
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Windows surum kaynagi: surum bilgisi CMake PROJECT_VERSION'dan DLL'e gomulur
+# (Dosya Ozellikleri -> Ayrintilar).
+if(WIN32)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/primemap.rc.in
+                   ${CMAKE_CURRENT_BINARY_DIR}/primemap.rc @ONLY)
+    target_sources(prime_map PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/primemap.rc)
+endif()
 
 # ---------------------------------------------------------------------------
 # X-Plane'siz testler (istege bagli): cmake -DMAP_TESTS=ON
+# (Testler ic siniflara erisir; kutuphane kaynagini dogrudan derler, DLL'i kullanmaz.)
 if(MAP_TESTS)
     add_executable(map_tests tests/tests.cpp ${CORE_SOURCES})
     map_compile_options(map_tests)
@@ -198,11 +223,12 @@ endif()
 # Katmanlari X-Plane olmadan, gercek X-Plane verisiyle bir resme cizer
 # (tools/preview/PreviewMain.cpp). SDK fonksiyonlarinin karsiliklari
 # XplmStubs.cpp'de; XPLM=1 ile SDK basliklari onlari "bizim" sayar.
-option(MAP_PREVIEW "X-Plane'siz goruntu onizleme aracini derle (Windows)" OFF)
 if(MAP_PREVIEW AND WIN32)
     add_executable(map_preview
         tools/preview/PreviewMain.cpp
+        tools/preview/XplmStubs.h
         tools/preview/XplmStubs.cpp
+        tools/preview/FileNavLoader.h
         tools/preview/FileNavLoader.cpp
         ${CORE_SOURCES}
         src/Log.cpp
@@ -237,7 +263,7 @@ if(MAP_PREVIEW AND WIN32)
         src/ui/StatusBar.cpp
         src/ui/AtlasTextRenderer.cpp)
     map_compile_options(map_preview)
-    target_include_directories(map_preview PRIVATE ${CMAKE_SOURCE_DIR})
+    target_include_directories(map_preview PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_include_directories(map_preview SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
     target_compile_definitions(map_preview PRIVATE IBM=1 APL=0 LIN=0 XPLM=1
                                XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1)
@@ -248,14 +274,5 @@ if(MAP_PREVIEW AND WIN32)
     map_compile_options(dsf_info)
 endif()
 
-# ---------------------------------------------------------------------------
-# SDK paketi: cmake --install <derleme> --prefix <klasor>/prime_map_sdk [--config Debug|Release]
-#   include/PrimeMap.h, lib/prime_map_MT[d].lib veya prime_map_MD[d].lib, docs, examples, CHANGELOG.md
-# Iki CRT icin iki derleme klasoru gerekir (PRIME_MAP_DYNAMIC_CRT=OFF ve ON); ayni prefix'e kurulabilir.
-install(TARGETS prime_map ARCHIVE DESTINATION lib)
-install(FILES src/api/PrimeMap.h DESTINATION include)
-install(FILES docs/CHANGELOG.md DESTINATION . OPTIONAL)
-install(FILES docs/PrimeMap_API.pdf DESTINATION docs OPTIONAL)
-install(DIRECTORY examples/map_api_test/ DESTINATION examples/map_api_test
-        PATTERN build EXCLUDE PATTERN .qtcreator EXCLUDE PATTERN .qtc EXCLUDE
-        PATTERN .qtc_clangd EXCLUDE PATTERN .qtcreator* EXCLUDE)  # ayri proje, sadece paketi kullanir
+# NOT: install()/paket uretimi yok. Tuketim yukaridaki add_subdirectory +
+# hedef adina link yontemidir.

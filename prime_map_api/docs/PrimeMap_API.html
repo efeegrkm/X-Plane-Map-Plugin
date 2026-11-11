@@ -24,8 +24,8 @@
 <div class="sub">Herhangi bir X-Plane 11 eklentisine gömülebilen harita kütüphanesi &middot; 2026-11-10</div>
 
 <h2>1. Tanım</h2>
-<p>Prime Map API, X-Plane 11 eklentilerinin kendi arayüzlerine katmanlı bir hareketli harita yerleştirmesini sağlayan bir C++ statik
-kütüphanedir. Harita, verisini sadece X-Plane'den alır: kurulu DSF sahneleri (zemin, su, yollar), apt.dat (havalimanları), nav
+<p>Prime Map API, X-Plane 11 eklentilerinin kendi arayüzlerine katmanlı bir hareketli harita yerleştirmesini sağlayan bir C++
+kütüphanesidir (SHARED DLL: <code>prime_map.dll</code>). Harita, verisini sadece X-Plane'den alır: kurulu DSF sahneleri (zemin, su, yollar), apt.dat (havalimanları), nav
 veritabanı, <code>earth_awy.dat</code> (hava yolları), dataref'ler (uçak) ve FMS (rota). Harita kendi XPLM penceresinde, kendi
 flight loop'uyla çizilir; host eklenti pencereyi açar, konumlandırır ve bütün davranışı API fonksiyonlarıyla yönetir.
 Haritanın yerleşik arayüzü (araç şeridi, katman paneli, mod paneli, çizim paleti, havalimanı arama, durum şeridi, tooltip) isteğe
@@ -34,8 +34,9 @@ bağlıdır.</p>
 <tr><th>Özellik</th><th>Değer</th></tr>
 <tr><td>Platform</td><td>X-Plane 11, Windows x64, SDK 3.0 (XPLM301). Host her zaman bir X-Plane eklentisidir.</td></tr>
 <tr><td>Dil, derleyici</td><td>C++20, MSVC 2022</td></tr>
-<tr><td>Ad alanı / başlık</td><td><code>PrimeMap</code> / tek başlık <code>PrimeMap.h</code> (sadece standart C++ tipleri)</td></tr>
-<tr><td>Harita sayısı</td><td>Eklenti başına bir</td></tr>
+<tr><td>Ad alanı / başlık</td><td><code>PrimeMap</code> / tek başlık <code>PrimeMap.h</code> (<code>#include &lt;prime_map_api/PrimeMap.h&gt;</code>; sadece standart C++ tipleri)</td></tr>
+<tr><td>Dağıtım biçimi</td><td>SHARED DLL (<code>prime_map.dll</code>, <code>/MD</code> CRT) + import kütüphanesi <code>prime_map.lib</code>; DLL host eklentinin yanına kopyalanır. Hedef makinede MSVC 2022 redistributable gerekir</td></tr>
+<tr><td>Harita sayısı</td><td>Eklenti başına bir. DLL ortak kütüphane olduğu için aynı X-Plane sürecindeki <b>tüm hostlar</b> aynı durumu paylaşır: <code>Init</code> bir kez yapılır, ikinci hostta <code>false</code> döner; tek harita kuralı hostlar arasında ortaktır</td></tr>
 <tr><td>Thread</td><td>Bütün fonksiyonlar X-Plane ana thread'inden çağrılır</td></tr>
 <tr><td>Hata modeli</td><td>İstisna yok. Geçersiz değer: işlem yapılmaz, Log'a bir satır uyarı, dönüş <code>false</code> / boş</td></tr>
 <tr><td>Dosyalar</td><td>Kütüphane ayar/çizim dosyası yazmaz (dışa/içe aktarma metinleri verir); sadece önbellek klasörüne yazar</td></tr>
@@ -44,28 +45,29 @@ bağlıdır.</p>
 <h2>2. Hızlı başlangıç</h2>
 <p>Var olan bir X-Plane 11 eklentisine harita eklemek beş adımdır. Fonksiyonların tam listesi bölüm 5'tedir.</p>
 
-<h3>Adım 1 &mdash; SDK paketini edinin</h3>
-<p>Güncel <code>prime_map_sdk</code> paketini temin edin ve eklenti projesinin yanına yerleştirin. Paketin içeriği bölüm 3'te
-listelenir: başlık (<code>include/PrimeMap.h</code>), statik kütüphane (<code>lib/</code>), örnek eklenti, bu belge. Sürüm notları
-<code>CHANGELOG.md</code>'dedir.</p>
+<h3>Adım 1 &mdash; Kütüphane reposunu edinin</h3>
+<p><code>prime_map_api</code> reposunu eklenti projesinin yanına alın (kardeş klasör). İçeriği: genel başlık (<code>PrimeMap.h</code>,
+<code>primemapglobal.h</code>), CMake kütüphane tanımı, örnek eklenti (<code>examples/map_api_test</code>), bu belge. Sürüm notları
+<code>CHANGELOG.md</code>'dedir. SDK paketi üretilmez; tüketim CMake hedefi üzerinden yapılır (Adım 2).</p>
 
 <h3>Adım 2 &mdash; Derlemeye bağlayın</h3>
-<p>Gereksinimler: C++20, MSVC 2022, X-Plane SDK 3.0. X-Plane SDK'sı
+<p>Gereksinimler: C++20, MSVC 2022 (<b>/MD CRT</b> &mdash; kütüphane ile aynı olmak zorunda), X-Plane SDK 3.0. X-Plane SDK'sı
 <a href="https://developer.x-plane.com/sdk/">developer.x-plane.com/sdk</a> adresinden indirilir
 (geliştirme ortamına göre <code>C:\workspace\cots\X-Plane-SDK</code> altına kurulur; repoda tutulmaz).
-Host, kendi CRT'sine uyan kütüphaneyi seçer (/MT eklenti &rarr;
-<code>prime_map_MT.lib</code>, /MD eklenti &rarr; <code>prime_map_MD.lib</code>; debug varyantları <code>d</code> ekidir):</p>
-<pre>target_include_directories(host PRIVATE ${PRIME_MAP_SDK}/include)
-target_link_libraries(host PRIVATE ${PRIME_MAP_SDK}/lib/prime_map_MT$&lt;$&lt;CONFIG:Debug&gt;:d&gt;.lib
+Kütüphane aynı CMake oturumuna katılır ve hedef adına bağlanır:</p>
+<pre>add_subdirectory(${CMAKE_SOURCE_DIR}/../prime_map_api prime_map_build)
+target_link_libraries(host PRIVATE prime_map          # include yolu transitif gelir
                       ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
 target_compile_definitions(host PRIVATE
     XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1   # SDK 3.0 seviyesi
     IBM=1 APL=0 LIN=0                          # Windows; APL/LIN diger platformlar</pre>
+<p>Host kodunda başlık: <code>#include &lt;prime_map_api/PrimeMap.h&gt;</code>. Derleme sonrası <code>prime_map.dll</code>,
+host eklentinin (<code>win.xpl</code>) yanına kopyalanmalıdır; DLL'i yükleyen host'un kendisidir.</p>
 
 <h3>Adım 3 &mdash; Yaşam döngüsünü bağlayın</h3>
 <p>Kütüphane <code>XPluginEnable</code>'da başlatılır ve harita açılır; <code>XPluginDisable</code>'da kapatılır. En küçük çalışan
 iskelet:</p>
-<pre>#include "PrimeMap.h"
+<pre>#include &lt;prime_map_api/PrimeMap.h&gt;
 
 static std::unique_ptr&lt;PrimeMap::Map&gt; gMap;
 
@@ -80,7 +82,7 @@ PLUGIN_API int XPluginEnable(void)
     tOpen.mGeometry = { 100, 800, 640, 480 };   // sol, ust, genislik, yukseklik (boxel)
     tOpen.mUiVisible = true;                    // yerlesik arayuz (araç seridi, katman paneli ...)
     tOpen.mMouseInput = true;                   // fare ile kaydirma ve zoom
-    gMap = PrimeMap::Map::Open(tOpen);
+    gMap = PrimeMap::MapFactory::CreateMap(tOpen);   // veya: Map::Open(tOpen)
     return 1;
 }
 
@@ -106,40 +108,43 @@ fonksiyonları kendi kontrollerine bağlar.</p>
 <p>Harita penceresi görünür ve durum şeridi veri yüklemesini gösterir. Başarısızlıkta işlemler sessizce yapılmaz; neden
 Log.txt'ye <code>mLogPrefix</code> ile yazılır (<code>InitConfig::mLogCallback</code> ile log'ları kendi dosyanıza da alabilirsiniz).
 Yükleme durumu için <code>PrimeMap::GetStatus()</code>, sürüm uyumu için <code>PrimeMap::VersionString()</code> kullanın.
-Yeni bir SDK sürümünde paketteki <code>include/</code> ve <code>lib/</code> dosyalarını değiştirmeniz yeterlidir; API uyumsuzluğu
+Yeni bir SDK sürümünde kütüphane reposunu güncellemeniz yeterlidir; API uyumsuzluğu
 major sürüm artışıyla bildirilir.</p>
 
 <h3>Sık karşılaşılan durumlar</h3>
 <table>
 <tr><th>Belirti</th><th>Sebep / çözüm</th></tr>
-<tr><td><code>Map::Open</code> nullptr döner</td><td><code>Init</code> çağrılmadı ya da false döndü; veya zaten açık bir harita var (eklenti başına bir harita). Önce <code>IsInitialized()</code> kontrol edin</td></tr>
+<tr><td><code>Map::Open</code> / <code>CreateMap</code> nullptr döner</td><td><code>Init</code> çağrılmadı ya da false döndü; veya zaten açık bir harita var (eklenti başına bir harita). Önce <code>IsInitialized()</code> kontrol edin</td></tr>
 <tr><td><code>Init</code> false döner</td><td>Önbellek klasörü yazılabilir değil (<code>mCacheDirectory</code> boşsa eklenti klasörü altındaki <code>cache/</code>). Klasörü kontrol edin ya da yazılabilir bir yol verin</td></tr>
 <tr><td>Pencere hiç açılmıyor</td><td>Pencere gizli olabilir (<code>OpenConfig::mVisible</code>, <code>SetVisible</code>); geometri ekran dışında olabilir (bölüm 5: left/top/right/bottom kuralı)</td></tr>
 <tr><td>Zemin gri / boş kareler</td><td>Karoya kurulu sahne yok: o karo deniz veya "veri yok"tur; alt şeritte <code>Loading terrain</code> yazıyorsa yükleme devam ediyor. Kurulu sahneler simülatördekiyle aynıdır, kütüphane ayrı veri indirmez</td></tr>
 <tr><td>Katmanlar / mod ayarları her açılışta sıfırlanıyor</td><td>Host kaydetmiyor: <code>ExportSettings</code> + revizyon sayaçları (bölüm 6). Kütüphane dosya yazmaz</td></tr>
 <tr><td>Neden log dosyası bulamıyorum</td><td>Kütüphane dosyaya yazmaz; satırlar X-Plane'in <code>Log.txt</code>'sine <code>mLogPrefix</code> ("[prime-map]") ile yazılır. Kendi dosyanıza almak için <code>InitConfig::mLogCallback</code></td></tr>
 <tr><td>Fonksiyon sessizce iş yapmıyor</td><td>Tasarlanan hata modeli: geçersiz değer işleme alınmaz, Log'a uyarı yazılır, dönüş false/boş. Detaylı görmek için <code>SetDiagnostics(true)</code></td></tr>
-<tr><td>Link hatası: tanımlanmamış XPLM sembolleri</td><td><code>XPLM_64.lib</code> bağlanmamış, ya da host CRT'si kütüphane CRT'siyle uyuşmuyor (/MT &rarr; <code>prime_map_MT.lib</code>, /MD &rarr; <code>prime_map_MD.lib</code>; debug varyantı <code>d</code> ekidir)</td></tr>
+<tr><td>Link hatası: tanımlanmamış XPLM sembolleri</td><td><code>XPLM_64.lib</code> bağlanmamış</td></tr>
+<tr><td>Host açılışta <code>prime_map.dll</code> bulunamıyor</td><td>DLL host eklentinin (<code>win.xpl</code>) yanında değil; aynı <code>64/</code> klasörüne kopyalayın. Ya da host CRT'si kütüphaneden farklı: iki taraf da <code>/MD</code> olmalı</td></tr>
 </table>
 
-<h2>3. Paket ve bağlama</h2>
+<h2>3. Kütüphane ve bağlama (ekip kalıbı)</h2>
 <table>
 <tr><th>Dosya</th><th>İçerik</th></tr>
-<tr><td><code>include/PrimeMap.h</code></td><td>Genel başlık</td></tr>
-<tr><td><code>lib/prime_map_MT.lib</code>, <code>prime_map_MTd.lib</code></td><td>Statik CRT (/MT, /MTd)</td></tr>
-<tr><td><code>lib/prime_map_MD.lib</code>, <code>prime_map_MDd.lib</code></td><td>DLL CRT (/MD, /MDd)</td></tr>
+<tr><td><code>PrimeMap.h</code></td><td>Genel başlık (repo kökünde; <code>#include &lt;prime_map_api/PrimeMap.h&gt;</code>)</td></tr>
+<tr><td><code>primemapglobal.h</code></td><td>Export makrosu (<code>PRIME_MAP_EXPORT</code>; tüketici tarafında dllimport olur)</td></tr>
+<tr><td><code>prime_map.dll</code> + <code>prime_map.lib</code></td><td>SHARED kütüphane ve import kütüphanesi (link otomatiktir: hedef adına bağlanır)</td></tr>
 <tr><td><code>examples/map_api_test/</code></td><td>Bütün fonksiyonları çağıran örnek/test eklentisi (ayrı CMake projesi)</td></tr>
 <tr><td><code>docs/PrimeMap_API.pdf</code>, <code>CHANGELOG.md</code></td><td>Bu belge, sürüm notları</td></tr>
 </table>
-<p>Host, <code>PrimeMap.h</code>'i include eder; kendi CRT'sine uyan <code>.lib</code>'i, <code>XPLM_64.lib</code>'i ve <code>opengl32</code>'yi
-bağlar. Başka dosya, DLL veya kurulum gerekmez (LZMA kütüphanenin içindedir; yazı tipi X-Plane'in
-<code>Resources/fonts/DejaVuSans.ttf</code> dosyasından okunur).</p>
-<p>Paketin üretilmesi: <code>cmake -B b -DPRIME_MAP_DYNAMIC_CRT=OFF|ON -DCMAKE_BUILD_TYPE=Release|Debug</code>,
-<code>cmake --build b --target prime_map</code>, <code>cmake --install b --prefix prime_map_sdk</code>.</p>
+<p>Host, kütüphane reposunu <code>add_subdirectory</code> ile kendi oturumuna katar, <code>prime_map</code> hedefine bağlanır ve
+<code>XPLM_64.lib</code> + <code>opengl32</code>'yi bağlar. LZMA kütüphanenin içindedir; yazı tipi X-Plane'in
+<code>Resources/fonts/DejaVuSans.ttf</code> dosyasından okunur. Kütüphane <code>/MD</code> CRT ile derlenir;
+host da <code>/MD</code> ile derlenmelidir (STL tipleri DLL sınırından geçer).</p>
+<p>Kütüphanenin derlenmesi: <code>cmake -B b -DCMAKE_BUILD_TYPE=Release</code>, <code>cmake --build b --target prime_map</code>
+(sonuç: <code>prime_map.dll</code>). Paket/install adımı yoktur; tüketim CMake hedefi üzerinden yapılır.</p>
 
 <h2>4. Yaşam döngüsü</h2>
-<pre>XPluginEnable :  PrimeMap::Init(config)                     veri yüklemesi başlar (arka planda)
-                 auto map = PrimeMap::Map::Open(openConfig)  harita penceresi açılır
+<pre>XPluginEnable :  PrimeMap::Init(config)                                veri yüklemesi başlar (arka planda)
+                 auto map = PrimeMap::MapFactory::CreateMap(openConfig) harita penceresi açılır
+                 (Map::Open aynı işi yapar; fabrika ekibin kalıbıdır)
 çalışırken    :  map-&gt;SetGeometry(...), map-&gt;ZoomIn(), map-&gt;SetMode(...) ...
 XPluginDisable:  map.reset()                                pencere kapanır
                  PrimeMap::Shutdown()                       arka plan işleri durur</pre>

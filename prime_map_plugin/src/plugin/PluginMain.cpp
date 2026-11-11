@@ -27,7 +27,7 @@
 #include "XPLMUtilities.h"
 
 #include "Settings.h"
-#include "PrimeMap.h"
+#include <prime_map_api/PrimeMap.h>
 
 namespace
 {

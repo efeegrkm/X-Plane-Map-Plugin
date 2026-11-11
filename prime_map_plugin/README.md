@@ -1,39 +1,62 @@
 # prime_map_plugin
 
-X-Plane 11 i├ºin harita eklentisi (**ince kabuk**): haritan─▒n motoru ve aray├╝z├╝
-[prime_map_api](../prime_map_api) projesinden ├º─▒kan SDK paketi i├ºindeki statik
-k├╝t├╝phanede (`prime_map_MT.lib`) durur; bu proje sadece X-Plane giri┼ƒ noktas─▒n─▒
-(`src/plugin/PluginMain.cpp`), ayar dosyas─▒ okuma/yazmas─▒n─▒ (`Settings`) ve
-kurulumu i├ºerir.
+X-Plane 11 için harita eklentisi (**ince kabuk**): haritanın motoru ve arayüzü
+[prime_map_api](../prime_map_api) projesinin SHARED kütüphanesinde
+(`prime_map.dll`) durur; bu proje sadece X-Plane giriş noktasını
+(`src/plugin/PluginMain.cpp`), ayar dosyası okuma/yazmasını (`Settings`) ve
+kurulumu içerir.
 
-## Yap─▒
+## Yapı
 
 ```
-src/plugin/PluginMain.cpp   X-Plane giri┼ƒ noktalar─▒, men├╝, komutlar, ayar dosyalar─▒
-src/Settings.h/.cpp         map_settings.ini okuma/yazma yard─▒mc─▒s─▒ (kopya; motor taraf─▒nda da var)
+src/plugin/PluginMain.cpp   X-Plane giriş noktaları, menü, komutlar, ayar dosyaları
+src/Settings.h/.cpp         map_settings.ini okuma/yazma yardımcısı (kopya; motor tarafında da var)
 ```
 
-Haritaya **sadece** `PrimeMap.h` (API) ├╝zerinden eri┼ƒilir.
+Haritaya **sadece** `PrimeMap.h` (API) üzerinden erişilir:
+`#include <prime_map_api/PrimeMap.h>`.
 
-## ├£├º├╝nc├╝ Taraf Bile┼ƒenler
+## Menü, komutlar ve API eşleşmesi
 
-┼×irket kural─▒ gere─ƒi ├╝├º├╝nc├╝ taraf bile┼ƒenler repoda tutulmaz;
-`C:\workspace\cots` alt─▒ndan okunur:
+Eklentide "eklentiye özel" tek şey X-Plane tarafı: menü, klavye komutları ve
+ayar dosyaları. Her biri API çağrısına çevrilir — eklentide yapılabilen her şey
+API'de de vardır (yeni bir host aynı eşleşmeyi kendi UI'ına kurabilir):
 
-| Bile┼ƒen | S├╝r├╝m | Ne i├ºin kullan─▒l─▒yor | ─░ndirme | Kurulum klas├Âr├╝ |
+| Komut (Settings → Keyboard) | Menü öğesi | Yaptığı API çağrısı |
+|---|---|---|
+| `prime/map/toggle` | Show / hide map | `map->SetVisible(!IsVisible())` |
+| `prime/map/controls` | Show / hide controls | `map->SetUiVisible(!IsUiVisible())` |
+| `prime/map/diagnostics` | Diagnostics mode | `map->SetDiagnostics(!IsDiagnosticsOn())` |
+| `prime/map/next_mode` | Next map mode | `map->NextMode()` |
+| `prime/map/precache_view` | Pre-cache terrain | `map->PrecacheVisibleArea()` |
+| `prime/map/precache_cancel` | Cancel pre-cache | `map->CancelPrecache()` |
+
+Haritanın geri kalan kontrolü de API'dedir (eklenti menüsünde ayrı öğe olarak
+dursun dursun API'de karşılığı vardır): görünüm için `SetCenter`, `SetZoom`,
+`PanLeft/Right/Up/Down`, `ZoomIn/ZoomOut`, `FitBounds`, `SetFollowAircraft`,
+`GoToAirport`; mod için `SetMode(mode)` / `NextMode()`; **katmanlar için
+`SetLayerVisible(MapLayer, bool)`, `ToggleLayer`, `ShowOnlyLayers`,
+`ResetLayersToDefaults`** (katman listesi ve kurallar:
+`docs/PrimeMap_API.pdf` böl. 6–7); çizim için `SetDrawTool`,
+`AddDrawingPoint`, `FinishDrawing`, `UndoDrawing`; uçak/rota için
+`SetAircraftSource`, `SetRouteSource` + Host kaynakları. Ayarlar:
+`ExportSettings` / `ImportSettings` (+ revizyon sayaçları). Bütün liste ve
+açıklamalar `docs/PrimeMap_API.pdf`'tedir.
+
+## Üçüncü Taraf Bileşenler
+
+Şirket kuralı gereği üçüncü taraf bileşenler repoda tutulmaz;
+`C:\workspace\cots` altından okunur:
+
+| Bileşen | Sürüm | Ne için kullanılıyor | İndirme | Kurulum klasörü |
 |---|---|---|---|---|
-| X-Plane SDK | 3.0 (XPLM301) | X-Plane eklenti aray├╝z├╝: ba┼ƒl─▒klar + `XPLM_64.lib` | https://developer.x-plane.com/sdk/ | `C:\workspace\cots\X-Plane-SDK` |
+| X-Plane SDK | 3.0 (XPLM301) | X-Plane eklenti arayüzü: başlıklar + `XPLM_64.lib` | https://developer.x-plane.com/sdk/ | `C:\workspace\cots\X-Plane-SDK` |
 
-## Gereksinim: prime_map_sdk
+## Gereksinim: prime_map_api
 
-Derlemeden ├Ânce SDK paketi gerekir. `prime_map_api` projesinden:
-
-```bat
-cmake --install <api_derleme_klasoru> --prefix <yol>\prime_map_sdk
-```
-
-Varsay─▒lan beklenti: bu klas├Âr├╝n karde┼ƒi olan `../prime_map_sdk`.
-Farkl─▒ yerdeyse: `-DPRIME_MAP_SDK=<klasor>`.
+Derlemeden önce kütüphane reposu gerekir (SDK paketi **yoktur**; tüketim
+`add_subdirectory` + hedef adına link yoluyladır). Varsayılan beklenti: bu klasörün
+kardeşi olan `../prime_map_api`. Farklı yerdeyse: `-DPRIME_MAP_DIR=<klasor>`.
 
 ## Derleme
 
@@ -44,18 +67,18 @@ cmake -S . -B build_cmd -G Ninja -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.ex
 ninja -C build_cmd
 ```
 
-`MAP_DEPLOY=ON` (varsay─▒lan) derleme sonras─▒ `win.xpl`'yi
-`<X-Plane>/Resources/plugins/prime-map-plugin/64/` alt─▒na kopyalar
-(X-Plane a├º─▒kken dosya kilitli; ├Ânce kapat).
+`MAP_DEPLOY=ON` (varsayılan) derleme sonrası `win.xpl`'yi **ve** `prime_map.dll`'yi
+`<X-Plane>/Resources/plugins/prime-map-plugin/64/` altına kopyalar
+(X-Plane açıkken dosya kilitli; önce kapat).
 
-`/MD` k├╝t├╝phanesi kullanmak i├ºin: SDK'y─▒ `/MD` ile derleyip ayn─▒ klas├Âre kurun ve
-burada `-DPRIME_MAP_DYNAMIC_CRT=ON` verin.
+CRT: `/MD` (kütüphaneyle aynı). Hedef makinede MSVC 2022
+redistributable kurulu olmalıdır.
 
-## Dosyalar (eklenti klas├Âr├╝nde)
+## Dosyalar (eklenti klasöründe)
 
-| Dosya | ─░├ºerik |
+| Dosya | İçerik |
 |---|---|
-| `map_settings.ini` | pencere, g├Âr├╝n├╝m, ├Ânbellek, katmanlar (host yazar) |
-| `map_drawings.txt` | kullan─▒c─▒ ├ºizimleri |
-| `terrain_colors.ini` | zemin renk ayarlar─▒ |
-| `cache/` | zemin/havaliman─▒ ├Ânbelle─ƒi |
+| `map_settings.ini` | pencere, görünüm, önbellek, katmanlar (host yazar) |
+| `map_drawings.txt` | kullanıcı çizimleri |
+| `terrain_colors.ini` | zemin renk ayarları |
+| `cache/` | zemin/havalimanı önbelleği |

@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "PrimeMap.h"
+#include <prime_map_api/PrimeMap.h>
 
 class MapApiCalls
 {
