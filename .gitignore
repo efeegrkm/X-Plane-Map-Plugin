@@ -1,60 +1,32 @@
-# C++ objects and libs
+# C++ / derleme cikislari
 *.slo
 *.lo
 *.o
+*.obj
 *.a
-*.la
-*.lai
-*.so
-*.so.*
+*.lib
 *.dll
-*.dylib
-
-# Qt-es
-object_script.*.Release
-object_script.*.Debug
-*_plugin_import.cpp
-/.qmake.cache
-/.qmake.stash
-*.pro.user
-*.pro.user.*
-*.qbs.user
-*.qbs.user.*
-*.moc
-moc_*.cpp
-moc_*.h
-qrc_*.cpp
-ui_*.h
-*.qmlc
-*.jsc
-Makefile*
-*build-*
+*.exe
+*.pdb
+*.ilk
+*.exp
 build/
-*.qm
-*.prl
-*.qmlls.ini
+*build-*
+b_*/
 
-# Qt unit tests
-target_wrapper.*
-
-# QtCreator
+# Qt Creator
+*.user
 *.autosave
-
-# QtCreator Qml
-*.qmlproject.user
-*.qmlproject.user.*
-
-# QtCreator CMake
+.qtcreator/
+.qtc/
+.qtc_clangd/
 CMakeLists.txt.user*
-
-# QtCreator 4.8< compilation database
 compile_commands.json
 
-# QtCreator local machine specific files for imported projects
-*creator.user*
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
 
-*_qmlcache.qrc
-
-# Bu proje: Qt Creator kullanici ayarlari ve yerel klasoru
-*.user
-.qtcreator/
+# SDK paketi (cmake --install ile uretilir; repoya girmez)
+prime_map_sdk/

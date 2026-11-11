@@ -1,0 +1,5 @@
+# Build çıktıları ve IDE dosyaları
+build/
+.qtcreator/
+CMakeLists.txt.user
+*.user
