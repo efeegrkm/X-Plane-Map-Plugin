@@ -9,7 +9,6 @@ cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)
 project(plugin_api_test LANGUAGES CXX)
 
-# COTS: ucuncu taraf bileşenler repoda tutulmaz; C:\workspace\cots altindan okunur.
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")
 set(XPSDK "${COTS_DIR}/X-Plane-SDK" CACHE PATH "X-Plane SDK klasoru")
 # Prime Map kutuphanesinin reposu (kardes klasor)

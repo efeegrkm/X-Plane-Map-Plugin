@@ -12,7 +12,7 @@ project(prime_map_plugin VERSION 0.22 LANGUAGES CXX)
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")
 # X-Plane SDK: <COTS>/X-Plane-SDK (kurulum: README -> Ucuncu Taraf Bilesenler)
 set(XPSDK "${COTS_DIR}/X-Plane-SDK" CACHE PATH "X-Plane SDK klasoru")
-# Prime Map kutuphanesinin reposu (kardes klasor)
+# Prime Map kutuphanesinin reposu
 set(PRIME_MAP_DIR "" CACHE PATH "prime_map_api klasoru (PrimeMap.h + CMakeLists.txt)")
 if(NOT PRIME_MAP_DIR)
     set(PRIME_MAP_DIR "${CMAKE_SOURCE_DIR}/../prime_map_api")

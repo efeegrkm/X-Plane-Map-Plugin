@@ -32,7 +32,7 @@
 namespace
 {
 
-const char* kVersion = "0.20";
+const char* kVersion = "0.22";  // CMake project(VERSION) ile ayni olmali
 const char* kSettingsFileName = "map_settings.ini";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainColorsFileName = "terrain_colors.ini";

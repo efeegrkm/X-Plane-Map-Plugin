@@ -41,6 +41,7 @@ namespace
 
 std::unique_ptr<MapData> gData;
 MapWindow* gOpenWindow = nullptr;  // acik haritanin penceresi (tek harita kurali)
+int gHostCount = 0;                // kutuphaneyi kullanan host sayisi (Init/Shutdown dengesi)
 
 // Shape kimligi: tur * kShapeIdBase + etiket numarasi (oturum icinde sabit)
 const int kShapeIdBase = 1000000;
@@ -96,8 +97,14 @@ bool Init(const InitConfig& pConfig)
 {
     if (gData)
     {
-        Log("WARNING: PrimeMap::Init called twice");
-        return false;
+        // SHARED DLL: ayni X-Plane surecinde birden cok host eklenti olabilir
+        // (resmi eklenti + test/uygulama eklentileri). Kutuphane durumu surecte
+        // TEK'tir; ilk host'un yapilandirmasi (log oneki, onbellek klasoru)
+        // gecerli kalir. Sonraki hostlarin Init'i ek is yapmaz, true doner.
+        ++gHostCount;
+        Log("Init: library already running (hosts: {}); first host's config is in effect",
+            gHostCount);
+        return true;
     }
     SetLogPrefix(pConfig.mLogPrefix);
     SetLogCallback(pConfig.mLogCallback);
@@ -115,6 +122,7 @@ bool Init(const InitConfig& pConfig)
     tConfig.mPrefetchTiles = std::max(0, pConfig.mPrefetchTiles);
     gData = std::make_unique<MapData>(tConfig);
     gData->Start();
+    gHostCount = 1;
     Log("Prime Map API {} ready (cache: {})", VersionString(), tConfig.mCacheDirectory);
     return true;
 }
@@ -125,6 +133,15 @@ void Shutdown()
     {
         return;
     }
+    // Referans sayaci: bir host cikiyor; diger hostlar kutuphaneyi kullaniyorsa
+    // calisma surer, tam kapanma yalnizca son host cikarken olur.
+    --gHostCount;
+    if (gHostCount > 0)
+    {
+        Log("Shutdown: kept for other hosts (hosts: {})", gHostCount);
+        return;
+    }
+    gHostCount = 0;
     if (gOpenWindow)
     {
         // Host haritayi kapatmayi unuttu: pencereyi burada kapat (Map nesnesi bos kalir)
