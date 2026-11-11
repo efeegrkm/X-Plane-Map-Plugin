@@ -65,6 +65,7 @@ public:
 
     void Start();  // katmanlar, palet, flight loop (Init)
     void Stop();   // isciler durur (Shutdown)
+    bool IsRunning() const { return mRunning; }  // Start ile Stop arasinda true
 
     // Harita penceresi acilinca / kapaninca
     void AddWindow(MapWindow* pWindow);     // harita penceresini cari listesine ekle
@@ -121,5 +122,6 @@ private:
     std::string mNotice;
     float mNoticeUntil = 0.0f;
     bool mFlightLoopRegistered = false;
+    bool mRunning = false;  // Start/Stop arasinda true (Map nesneleri yasarligini buradan sorar)
     MapDataStatus mStatus;
 };

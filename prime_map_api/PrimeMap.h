@@ -10,11 +10,11 @@
 //
 // Yasam dongusu (hepsi X-Plane ana thread'inde):
 //
-//   XPluginEnable  : PrimeMap::Init(tConfig)                    veri yuklemesi baslar (arka planda)
-//                    tMap = PrimeMap::MapFactory::CreateMap(..) harita penceresi (tek harita)
+//   XPluginEnable  : prime::MapLibrary::Get().Init(tConfig)  kutuphane nesnesi baslar (arka planda yukler)
+//                    tMap = lib.CreateMap(..)               harita penceresi (ayni anda birden cok harita acilabilir)
 //   ...            : tMap->ZoomIn(), tMap->SetMode(...) ... (host'un dugmeleri)
 //   XPluginDisable : tMap.reset()                      pencere kapanir
-//                    PrimeMap::Shutdown()              arka plan isleri durur
+//                    lib.Shutdown()              arka plan isleri durur
 //
 // Harita kendi XPLM penceresinde, kendi flight loop'uyla kendisi cizer. Host sadece
 // acar, yerini / boyutunu soyler ve fonksiyonlari kendi dugmelerine baglar.
@@ -38,7 +38,7 @@
 
 #include "primemapglobal.h"
 
-namespace PrimeMap
+namespace prime
 {
 
 // --- Surum --------------------------------------------------------------------
@@ -128,10 +128,54 @@ struct Status
     std::string mPerformanceText;    // teshis modunda "FPS .. draw .. ms"; degilse bos
 };
 
-PRIME_MAP_EXPORT bool Init(const InitConfig& pConfig);  // ikinci kez: false
-PRIME_MAP_EXPORT void Shutdown();                       // once Map kapatilmis olmali
-PRIME_MAP_EXPORT bool IsInitialized();
-PRIME_MAP_EXPORT Status GetStatus();
+// --- Kutuphane (baslatma) -------------------------------------------------------
+// Kutuphanenin kendisi bir nesnedir (MapLibrary): Init onu baslatir, CreateMap
+// uzerinden istenildigi kadar Map nesnesi uretilir. SHARED DLL oldugu icin ayni
+// X-Plane surecindeki tum host eklentileri Get() ile TEK ornegi paylasir; ilk
+// host'un yapilandirmasi gecerli kalir ve Init/Shutdown referans sayaclidir.
+class Map;
+struct OpenConfig;
+
+// pimpl uyesi (std::unique_ptr<Impl>) MSVC'de C4251 verir; Impl tamamen DLL icinde
+// yasadigi icin uyari her iki tarafta da guvenli sekilde susturulur.
+#if defined(_MSC_VER)
+    #pragma warning(push)
+    #pragma warning(disable : 4251)
+#endif
+class PRIME_MAP_EXPORT MapLibrary
+{
+public:
+    // Surecin tek kutuphane ornegi. Butun metotlar X-Plane ana thread'inden cagrilmalidir.
+    static MapLibrary& Get();
+    ~MapLibrary();
+
+    // Kutuphaneyi baslatir; veri yuklemesi arka planda baslar. Kutuphane zaten
+    // calisiyorsa (baska host) ek is yapmaz, true doner. Her Init icin kapanista
+    // bir Shutdown beklenir.
+    bool Init(const InitConfig& pConfig);
+    // Referans sayacini dusurur; son host cikarken arka plan isleri durdurulur ve
+    // acik kalan harita pencereleri kapatilir (once Map nesnelerini birakmak tercih edilir).
+    void Shutdown();
+    bool IsInitialized() const;
+    Status GetStatus() const;
+
+    // Yeni bir harita penceresi acar. Ayni anda birden cok Map nesnesi yasayabilir;
+    // her harita kendi penceresiyle bagimsizdir. Init yapilmadiysa nullptr + log.
+    std::unique_ptr<Map> CreateMap(const OpenConfig& pConfig);
+
+private:
+    MapLibrary();
+    MapLibrary(const MapLibrary&) = delete;
+    MapLibrary& operator=(const MapLibrary&) = delete;
+
+    struct Impl;
+    std::unique_ptr<Impl> mImpl;
+
+    friend class Map;  // Map, kendi penceresini kutuphanenin acik pencere listesinden dusurebilir
+};
+#if defined(_MSC_VER)
+    #pragma warning(pop)
+#endif
 
 // --- Katmanlar -----------------------------------------------------------------
 // Gruplar, katmanlar ve alt katmanlar tek duz enum; sira katman paneliyle ayni.
@@ -293,8 +337,8 @@ struct OpenConfig
 class PRIME_MAP_EXPORT Map
 {
 public:
-    // Tek harita: ikinci Open (ilki kapanmadan) nullptr + log. Init yapilmadiysa nullptr.
-    // Tercih edilen giris MapFactory::CreateMap; Open geriye uyumluluk icin korunur.
+    // Init yapilmadiysa nullptr + log. Tercih edilen giris MapLibrary::CreateMap;
+    // Open geriye uyumluluk icin korunur.
     static std::unique_ptr<Map> Open(const OpenConfig& pConfig);
     ~Map();  // pencereyi kapatir
 
@@ -403,7 +447,7 @@ public:
 
 private:
     Map();
-    friend class MapFactory;  // nesneyi yalnizca fabrika kurar
+    friend class MapLibrary;  // nesneyi yalnizca kutuphane kurar
 
     struct Impl;
     std::unique_ptr<Impl> mImpl;
@@ -412,18 +456,4 @@ private:
     #pragma warning(pop)
 #endif
 
-// --- Fabrika -------------------------------------------------------------------
-// Harita kurulumu yalnizca fabrikanin static metoduyla yapilir; fabrika
-// kendisi orneklenebilir degildir.
-class PRIME_MAP_EXPORT MapFactory
-{
-public:
-    // Tek harita kurali ve "once Init" kurali burada uygulanir (Map::Open ile ayni).
-    static std::unique_ptr<Map> CreateMap(const OpenConfig& pConfig);
-
-private:
-    MapFactory() = default;
-    ~MapFactory() = default;
-};
-
-}  // namespace PrimeMap
+}  // namespace prime

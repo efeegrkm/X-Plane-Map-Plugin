@@ -902,7 +902,7 @@ Plugin.cpp  (veri + menu + komut)   engine/MapData.*      veri depolari, yukleme
 MapWindow   (pencere + ayar dosya)  MapWindow             motor: pencere (Embedded/Standalone), cizim, fare, UI;
                                                           ayarlar bellekte + revizyon sayaci
 MapWindow::ApplyLayerPanelHit       engine/LayerTable.*   MapLayer enum <-> anahtar tablosu + panel kurallari
-                                    api/PrimeMap.*        genel API kopru (tek harita, global MapData)
+                                    api/PrimeMap.*        genel API kopru (coklu harita; durum MapLibrary nesnesinde)
 </pre>
 <ul>
 <li><b>Fare yönlendirmesi:</b> basmada önce UI'a sorulur; almazsa ve fare kapalıysa basma-sürükleme-bırakma hepsi 0 döner
@@ -912,7 +912,7 @@ değişince host <code>Export...</code> ile alıp yazar. Eklenti bunu her karede
 <li><b>Zemin ayarı:</b> <code>Open</code>'dan hemen sonra (ilk kareden önce) verilirse tam etkili; zemin işçisi ilk karede başlar.</li>
 <li><b>CMake (0.22):</b> <code>prime_map</code> SHARED DLL (lzma OBJECT kütüphanesi DLL'in içinde),
 CRT <code>/MD</code> sabit, export makrosu <code>primemapglobal.h</code> (<code>PRIME_MAP_EXPORT</code>),
-fabrika <code>MapFactory</code>; SDK paketi/install yok &mdash; tüketim <code>add_subdirectory</code> +
+kutuphane nesnesi <code>MapLibrary</code>; SDK paketi/install yok &mdash; tüketim <code>add_subdirectory</code> +
 hedef-adına link (<code>prime_map_plugin</code>, <code>plugin-api-test</code>, <code>examples/map_api_test</code>);
 <code>map_tests</code>/<code>map_preview</code> iç sınıfları test ettiği için kaynakla derlemeye devam eder.</li>
 </ul>

@@ -1,5 +1,5 @@
 // LayerTable.h
-// PrimeMap::MapLayer enum'u ile katman / alt katman kimlikleri arasindaki TEK esleme tablosu
+// prime::MapLayer enum'u ile katman / alt katman kimlikleri arasindaki TEK esleme tablosu
 // ve katman panelinin ac/kapa kurallari. X-Plane'e bagimli DEGIL (testlerde calisir).
 //
 //   MapLayer::RunwaysWater  <->  "runways.water"  (ayar anahtari, bugunkuyle ayni)
@@ -27,20 +27,20 @@ namespace LayerRules
 {
 
 // Katman (alt katmansa sahibi) LayerManager'da; yoksa / grupsa nullptr
-Layer* FindLayer(const LayerManager& pLayers, PrimeMap::MapLayer pLayer);
+Layer* FindLayer(const LayerManager& pLayers, prime::MapLayer pLayer);
 // Alt katmanin sahibindeki indeksi; alt katman degilse -1
-int SubLayerIndex(const LayerManager& pLayers, PrimeMap::MapLayer pLayer);
+int SubLayerIndex(const LayerManager& pLayers, prime::MapLayer pLayer);
 
-bool IsVisible(const LayerManager& pLayers, PrimeMap::MapLayer pLayer);
-PrimeMap::LayerState State(const LayerManager& pLayers, PrimeMap::MapLayer pLayer);
+bool IsVisible(const LayerManager& pLayers, prime::MapLayer pLayer);
+prime::LayerState State(const LayerManager& pLayers, prime::MapLayer pLayer);
 // Degisiklik olduysa true
-bool SetVisible(LayerManager& pLayers, const MapTheme& pTheme, PrimeMap::MapLayer pLayer, bool pVisible);
-bool Toggle(LayerManager& pLayers, const MapTheme& pTheme, PrimeMap::MapLayer pLayer);
+bool SetVisible(LayerManager& pLayers, const MapTheme& pTheme, prime::MapLayer pLayer, bool pVisible);
+bool Toggle(LayerManager& pLayers, const MapTheme& pTheme, prime::MapLayer pLayer);
 // Sadece verilenler acik kalir (ust ogeleri gerektikce acilir)
-void ShowOnly(LayerManager& pLayers, const MapTheme& pTheme, const PrimeMap::MapLayer* pBegin,
-              const PrimeMap::MapLayer* pEnd);
+void ShowOnly(LayerManager& pLayers, const MapTheme& pTheme, const prime::MapLayer* pBegin,
+              const prime::MapLayer* pEnd);
 
 // Panel grubu adi ("Airports") -> grup ogesi
-std::optional<PrimeMap::MapLayer> GroupFromPanelName(std::string_view pName);
+std::optional<prime::MapLayer> GroupFromPanelName(std::string_view pName);
 
 }  // namespace LayerRules

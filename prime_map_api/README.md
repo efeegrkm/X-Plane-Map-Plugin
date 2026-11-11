@@ -31,16 +31,18 @@ haritaya sadece bu API ile erişir; kullanıcı açısından görünüş ve ayar
 fonksiyonları deneyen ayrı test eklentisi: `examples/map_api_test`.
 
 **0.22'de kütüphane sunumu yenilendi:** `add_library(prime_map SHARED ...)` + export
-makrosu `primemapglobal.h` (`PRIME_MAP_EXPORT`) + kurulum fabrikası `MapFactory`
-(`Map::Open` geriye uyumluluk için durur ve fabrikaya yönlendirir). SDK paketi/install
-**yoktur**; tüketim CMake hedefi üzerinden yapılır (aşağıda "Tüketim").
+makrosu `primemapglobal.h` (`PRIME_MAP_EXPORT`) + kurulum girişi
+`prime::MapLibrary::Get()` (nesne üstünden `Init` / `Shutdown` / `CreateMap`;
+`Map::Open` geriye uyumluluk için durur ve `CreateMap`'e yönlendirir; namespace
+`prime`). SDK paketi/install **yoktur**; tüketim CMake hedefi üzerinden yapılır
+(aşağıda "Tüketim").
 
 Eklentinin menüsünden/panellerinden yapılan her şeyin API karşılığı vardır —
 yeni bir host bu fonksiyonlarla aynı davranışı kurabilir:
 
 | Neyi | API |
 |---|---|
-| Pencere | `MapFactory::CreateMap` (veya `Map::Open`), `SetGeometry`, `SetVisible`, `SetPoppedOut`, `SetUiVisible`, `SetMouseInput` |
+| Pencere | `MapLibrary::Get().CreateMap` (veya `Map::Open`), `SetGeometry`, `SetVisible`, `SetPoppedOut`, `SetUiVisible`, `SetMouseInput` |
 | Görünüm | `SetCenter`, `SetZoom`, `ZoomIn/Out`, `Pan*`, `FitBounds`, `SetFollowAircraft`, `GoToAirport`, `FindAirports` |
 | Mod | `SetMode(mode)`, `NextMode()`, `GetMode()` |
 | **Katmanlar** | `SetLayerVisible(MapLayer, bool)`, `ToggleLayer`, `ShowOnlyLayers`, `SetLayersVisible`, `ResetLayersToDefaults`, `GetLayerState` (ağaç: `TopLevelLayers`, `ParentOf`, `ChildrenOf`) |
@@ -120,22 +122,32 @@ dizinini (`<prime_map_api/PrimeMap.h>` yazabilmek için gereken) ve CRT
 ayarını kendisi yayınlar. `prime_map.dll` derlendiğinde senin
 `CMAKE_RUNTIME_OUTPUT_DIRECTORY`'ne düşmez — 4. adımdaki kopya gerekir.
 
-**Adım 3 — İlk kod.** Giriş noktası `MapFactory::CreateMap`'tir
-(`Map::Open` geriye uyumluluk için durur ve fabrikaya yönlendirir):
+**Adım 3 — İlk kod.** Giriş noktası `prime::MapLibrary::Get()`'tir: `Init` kütüphane
+nesnesini başlatır, `CreateMap` harita penceresi açar (`Map::Open` geriye
+uyumluluk için durur ve `CreateMap`'e yönlendirir):
 
 ```cpp
 #include <prime_map_api/PrimeMap.h>   // klasor adi onekli (prime-utils/utils.h mantigi)
 
-PrimeMap::Map* map = PrimeMap::MapFactory::CreateMap("benim-eklentim", *host);
-if (!map) return;                      // olusmadiysa Log'a bakinin
-map->SetGeometry(50, 50, 900, 600);    // sol-ust 50,50; 900x600 (boxel)
-map->SetVisible(true);                 // ilk karede gorunur olur
+// XPluginEnable (ana thread):
+auto& lib = prime::MapLibrary::Get();
+lib.Init({});                                       // veri yuklemesi arka planda baslar
+auto map = lib.CreateMap({});                       // istersen ayni anda baska haritalar da acabilirsin
+if (!map) return;                                   // Init yapilmadiysa nullptr; Log'a bak
+map->SetGeometry({50, 650, 900, 600});              // sol-ust 50,650; 900x600 (boxel)
+map->SetVisible(true);
+
+// XPluginDisable:
+map.reset();                                        // once pencereler
+lib.Shutdown();                                     // referans sayacini dusurur
 ```
 
 Kurallar: bütün çağrılar X-Plane ana thread'inden; pencere `XPLMCreateWindow`
 ile host'a değil kütüphaneye ait olur; istisna yoktur — geçersiz değer
 işlem görmez, `false`/boş döner, Log'a tek satır yazar (tam fonksiyon
-listesi: `docs/PrimeMap_API.pdf`).
+listesi: `docs/PrimeMap_API.pdf`). Aynı X-Plane sürecinde birden çok host
+eklenti kütüphaneyi paylaşabilir: `Init`/`Shutdown` referans sayaçlıdır,
+ilk host'un `InitConfig`'i geçerli olur.
 
 **Adım 4 — Derleme ve dağıtım.** `ninja`, `prime_map.dll`'yi API build
 klasöründe üretir; host eklentinin **yanına kopyalanması gerekir** (Windows
@@ -154,7 +166,7 @@ makinede MSVC 2022 redistributable (`VC_redist.x64`) kurulu olmalıdır.
 
 **Adım 5 — Doğrulama.** X-Plane'i aç; Log.txt'de
 `[prime-map-plugin] Prime Map API 0.22 ready` benzeri satırı gör. Kod
-tarafında `PrimeMap::VersionString()` de `"0.22.0"` döner. Sürüm sabitleri
+tarafında `prime::VersionString()` de `"0.22.0"` döner. Sürüm sabitleri
 (`PrimeMap.h` içindeki `kVersionMajor/Minor/Patch`) CMake'in
 `project(VERSION)`'u ile configure sırasında denetlenir; biri
 güncellenmezse configure **hata verir** (sürüm attırırken ikisini birlikte

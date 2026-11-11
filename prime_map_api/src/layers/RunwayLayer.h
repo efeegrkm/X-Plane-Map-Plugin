@@ -3,7 +3,9 @@
 // Veri AirportGeometryStore'dan gelir (gecici apt.dat okuyucusu veya dis veri
 // kaynagi; katman hangisi oldugunu bilmez).
 //
-//   zoom >= 9    : pist dikdortgeni (yuzeye gore renk; cok dar ise en az 2 boxel)
+//   zoom >= 11   : pist dikdortgeni (yuzeye gore renk; cok dar ise en az 2 boxel)
+//                  pavement (AirportSurfaceLayer kSurfaceMinZoom) ile ayni esik:
+//                  kaplamalar kaybolunca pistler de kaybolur
 //   zoom >= 11.5 : pist numaralari uclarin disinda
 //   zoom >= 12   : blast pad / overrun (koyu)
 //   zoom >= 13   : esik cizgileri ve kesikli orta hat

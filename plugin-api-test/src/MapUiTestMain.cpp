@@ -4,7 +4,7 @@
 // Bir X-Plane penceresi acar; ortada Prime Map haritasi, etrafinda 4 kaydirma dugmesi
 // (yukari / asagi / sol / sag) ve altta 2 zoom dugmesi (+ / -) vardir.
 //
-// Harita PrimeMap::Init + Map::Open ile harita alaninin icine Embedded stilinde gomulur;
+// Harita prime::MapLibrary::Get().Init + MapLibrary::CreateMap ile harita alaninin icine Embedded stilinde gomulur;
 // butun cagrilari src\MapApiCalls.cpp yapar. "SDK_BOUND" yorumu ile isaretli satirlar
 // API baglantisi icin yapilan degisikliklerdir.
 // Kod standardi ana projeyle ayni: m/p/t onekleri, suslu parantez alt satirda,
@@ -109,7 +109,7 @@ private:
     // SDK_BOUND: harita erisimi (Init / Open / Pan / Zoom ... hepsi bu siniftan)
     MapApiCalls mApi;
     // SDK_BOUND: pencere boyutlanirsa haritayi yeniden yerlestirmek icin son gonderilen yer
-    PrimeMap::Geometry mSentGeometry;
+    prime::Geometry mSentGeometry;
     bool mHasSentGeometry = false;
     Button mPressed = Button::PanUp;
     double mPressTime = -1000.0;          // son basma zamani (vurgu icin)
@@ -150,7 +150,7 @@ void UiPlugin::Enable()
     XPLMDebugString("[plugin-api-test] window created\n");
 
     // SDK_BOUND: kutuphaneyi baslat ve haritayi harita alaninin yerine ac.
-    //   - InitLibrary: PrimeMap::Init; veri yuklemesi arka planda baslar.
+    //   - InitLibrary: MapLibrary::Init; veri yuklemesi arka planda baslar.
     //     mLogPrefix: Log.txt satirlari "[plugin-api-test-lib]" ile baslar.
     //     mCacheDirectory: bos = bu eklentinin klasoru/cache/ (zemin onbellegi oraya yazilir).
     //   - OpenMap: Map::Open; Embedded stil = cercevesiz pencere, bizim harita alaninin
@@ -159,9 +159,9 @@ void UiPlugin::Enable()
     {
         ReadWindowRect(mWindow);
         Layout();
-        const PrimeMap::Geometry tGeometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
+        const prime::Geometry tGeometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
                                            mMapRect.Height()};
-        if (mApi.OpenMap(tGeometry, PrimeMap::WindowStyle::Embedded, false, false))
+        if (mApi.OpenMap(tGeometry, prime::WindowStyle::Embedded, false, false))
         {
             // SDK_BOUND: baslangic gorunumu (KSEA)
             mApi.SetCenter(47.45, -122.30);
@@ -293,9 +293,9 @@ void UiPlugin::Draw()
     if (!mHasSentGeometry || mSentGeometry.mLeft != mMapRect.mLeft || mSentGeometry.mTop != mMapRect.mTop
         || mSentGeometry.mWidth != mMapRect.Width() || mSentGeometry.mHeight != mMapRect.Height())
     {
-        mApi.SetGeometry(PrimeMap::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
+        mApi.SetGeometry(prime::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
                                             mMapRect.Height()});
-        mSentGeometry = PrimeMap::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
+        mSentGeometry = prime::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
                                            mMapRect.Height()};
         mHasSentGeometry = true;
     }

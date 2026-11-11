@@ -82,10 +82,12 @@ void MapData::Start()
     CreateLayers();
     XPLMRegisterFlightLoopCallback(FlightLoopCallback, -1.0f, this);
     mFlightLoopRegistered = true;
+    mRunning = true;
 }
 
 void MapData::Stop()
 {
+    mRunning = false;  // IsRunning() false: Map nesneleri Shutdown sonrasini fark eder
     if (mFlightLoopRegistered)
     {
         XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);

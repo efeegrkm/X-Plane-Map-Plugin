@@ -11,7 +11,7 @@
 namespace
 {
 
-using PrimeMap::MapLayer;
+using prime::MapLayer;
 
 const float kDataTimeout = 300.0f;  // havalimani / nav verisi en cok bu kadar beklenir (s)
 const float kDrawWait = 2.0f;       // sorgudan once harita bu kadar cizilsin (s)
@@ -50,7 +50,7 @@ void SelfTest::Step(float pNow)
 {
     if (mPhase == 1)
     {
-        const PrimeMap::Status tStatus = mCalls.GetStatus();
+        const prime::Status tStatus = mCalls.GetStatus();
         const bool tReady = tStatus.mAirportsReady && tStatus.mNavReady;
         if (tReady || pNow - mPhaseStart > kDataTimeout)
         {
@@ -82,9 +82,9 @@ void SelfTest::RunImmediate()
     Check(!mCalls.OpenSecondMap(), "Map::Open second map returns nullptr");
 
     // --- Pencere
-    const PrimeMap::Geometry tGeometry = {150, 750, 640, 420};
+    const prime::Geometry tGeometry = {150, 750, 640, 420};
     mCalls.SetGeometry(tGeometry);
-    const PrimeMap::Geometry tBack = mCalls.GetGeometry();
+    const prime::Geometry tBack = mCalls.GetGeometry();
     Check(tBack.mLeft == 150 && tBack.mTop == 750 && tBack.mWidth == 640 && tBack.mHeight == 420,
           "SetGeometry / GetGeometry",
           std::format("{} {} {} {}", tBack.mLeft, tBack.mTop, tBack.mWidth, tBack.mHeight));
@@ -106,7 +106,7 @@ void SelfTest::RunImmediate()
 
     // --- Gorunum
     mCalls.SetCenter(47.45, -122.30);
-    const PrimeMap::LatLon tCenter = mCalls.GetCenter();
+    const prime::LatLon tCenter = mCalls.GetCenter();
     Check(Near(tCenter.mLat, 47.45, 1e-6) && Near(tCenter.mLon, -122.30, 1e-6), "SetCenter / GetCenter");
     Check(!mCalls.IsFollowingAircraft(), "SetCenter stops following");
     mCalls.SetZoom(10.0);
@@ -126,7 +126,7 @@ void SelfTest::RunImmediate()
     mCalls.SetZoomStep(0.5);
     mCalls.SetZoom(10.0);
 
-    PrimeMap::LatLon tBefore = mCalls.GetCenter();
+    prime::LatLon tBefore = mCalls.GetCenter();
     mCalls.PanLeft();
     Check(mCalls.GetCenter().mLon < tBefore.mLon, "PanLeft moves view west");
     tBefore = mCalls.GetCenter();
@@ -138,7 +138,7 @@ void SelfTest::RunImmediate()
     tBefore = mCalls.GetCenter();
     mCalls.PanDown();
     Check(mCalls.GetCenter().mLat < tBefore.mLat, "PanDown moves view south");
-    const PrimeMap::GeoBounds tView = mCalls.GetVisibleBounds();
+    const prime::GeoBounds tView = mCalls.GetVisibleBounds();
     const double tSpan = tView.mEast - tView.mWest;
     mCalls.SetPanStep(0.5);
     tBefore = mCalls.GetCenter();
@@ -156,34 +156,34 @@ void SelfTest::RunImmediate()
     int tY = 0;
     mCalls.SetCenter(47.45, -122.30);
     const bool tOnScreen = mCalls.GeoToScreen(47.45, -122.30, &tX, &tY);
-    const PrimeMap::LatLon tGeo = mCalls.ScreenToGeo(tX, tY);
+    const prime::LatLon tGeo = mCalls.ScreenToGeo(tX, tY);
     Check(tOnScreen && Near(tGeo.mLat, 47.45, 0.01) && Near(tGeo.mLon, -122.30, 0.01),
           "GeoToScreen / ScreenToGeo round trip", std::format("screen {} {}", tX, tY));
     Check(tX == 150 + 320 && tY == 750 - 210, "GeoToScreen of the center is the window center");
     Check(!mCalls.GeoToScreen(-47.0, 60.0, &tX, &tY), "GeoToScreen outside the window returns false");
 
     // --- Mod
-    const PrimeMap::MapMode tModes[] = {PrimeMap::MapMode::Vfr, PrimeMap::MapMode::IfrLow, PrimeMap::MapMode::IfrHigh,
-                                        PrimeMap::MapMode::Dark, PrimeMap::MapMode::Scenery};
-    for (PrimeMap::MapMode tMode : tModes)
+    const prime::MapMode tModes[] = {prime::MapMode::Vfr, prime::MapMode::IfrLow, prime::MapMode::IfrHigh,
+                                        prime::MapMode::Dark, prime::MapMode::Scenery};
+    for (prime::MapMode tMode : tModes)
     {
         mCalls.SetMode(tMode);
         Check(mCalls.GetMode() == tMode, std::format("SetMode / GetMode {}", static_cast<int>(tMode)));
     }
     mCalls.NextMode();
-    Check(mCalls.GetMode() == PrimeMap::MapMode::Vfr, "NextMode Scenery -> Vfr");
-    mCalls.SetMode(PrimeMap::MapMode::Scenery);
+    Check(mCalls.GetMode() == prime::MapMode::Vfr, "NextMode Scenery -> Vfr");
+    mCalls.SetMode(prime::MapMode::Scenery);
 
     // --- Katman yardimcilari
     Check(mCalls.TopLevelLayers().size() == 6, "TopLevelLayers (5 groups + drawings)");
     Check(mCalls.ChildrenOf(MapLayer::Runways).size() == 6, "ChildrenOf(Runways)");
     Check(mCalls.ParentOf(MapLayer::RunwaysWater) == MapLayer::Runways, "ParentOf(RunwaysWater)");
     Check(!mCalls.ParentOf(MapLayer::AirportsGroup), "ParentOf(group) = none");
-    Check(mCalls.KindOf(MapLayer::NavaidsGroup) == PrimeMap::LayerKind::Group, "KindOf");
+    Check(mCalls.KindOf(MapLayer::NavaidsGroup) == prime::LayerKind::Group, "KindOf");
     Check(mCalls.LayerName(MapLayer::RunwaysWater) == "Water runways", "LayerName");
     Check(mCalls.LayerKey(MapLayer::RunwaysWater) == "runways.water", "LayerKey");
     Check(mCalls.LayerFromKey("airport_objects.signs") == MapLayer::ObjectsSigns, "LayerFromKey");
-    Check(!mCalls.IsLayerDefaultVisible(MapLayer::TaxiRoutes, PrimeMap::MapMode::Scenery), "IsLayerDefaultVisible");
+    Check(!mCalls.IsLayerDefaultVisible(MapLayer::TaxiRoutes, prime::MapMode::Scenery), "IsLayerDefaultVisible");
 
     // --- Katmanlar (panel kurallari)
     mCalls.ResetLayersToDefaults();
@@ -191,13 +191,13 @@ void SelfTest::RunImmediate()
     mCalls.SetLayerVisible(MapLayer::Runways, false);
     Check(!mCalls.IsLayerVisible(MapLayer::RunwaysPaved), "SetLayerVisible(layer, false) hides sub layers");
     mCalls.SetLayerVisible(MapLayer::RunwaysWater, true);
-    Check(mCalls.GetLayerState(MapLayer::Runways) == PrimeMap::LayerState::Mixed &&
+    Check(mCalls.GetLayerState(MapLayer::Runways) == prime::LayerState::Mixed &&
               !mCalls.IsLayerVisible(MapLayer::RunwaysPaved),
           "sub layer of a closed layer opens alone (GetLayerState Mixed)");
     mCalls.ToggleLayer(MapLayer::AirwaysGroup);
-    Check(mCalls.GetLayerState(MapLayer::AirwaysGroup) == PrimeMap::LayerState::Off, "ToggleLayer(group) off");
+    Check(mCalls.GetLayerState(MapLayer::AirwaysGroup) == prime::LayerState::Off, "ToggleLayer(group) off");
     mCalls.ToggleLayer(MapLayer::AirwaysGroup);
-    Check(mCalls.GetLayerState(MapLayer::AirwaysGroup) == PrimeMap::LayerState::On, "ToggleLayer(group) on");
+    Check(mCalls.GetLayerState(MapLayer::AirwaysGroup) == prime::LayerState::On, "ToggleLayer(group) on");
     mCalls.SetLayersVisible({MapLayer::Vor, MapLayer::Ndb}, false);
     Check(!mCalls.IsLayerVisible(MapLayer::Vor) && !mCalls.IsLayerVisible(MapLayer::Ndb), "SetLayersVisible");
     mCalls.ShowOnlyLayers({MapLayer::Terrain, MapLayer::AirportSymbols});
@@ -207,24 +207,24 @@ void SelfTest::RunImmediate()
     Check(mCalls.GetSettingsRevision() > tRevision, "GetSettingsRevision increases on change");
 
     // --- Cizimler
-    mCalls.SetDrawTool(PrimeMap::DrawTool::Pan);
+    mCalls.SetDrawTool(prime::DrawTool::Pan);
     Check(!mCalls.AddDrawingPoint(47.0, -122.0), "AddDrawingPoint refused with Pan");
     const uint64_t tDrawingsRevision = mCalls.GetDrawingsRevision();
-    mCalls.SetDrawTool(PrimeMap::DrawTool::Point);
-    Check(mCalls.GetDrawTool() == PrimeMap::DrawTool::Point, "SetDrawTool / GetDrawTool");
+    mCalls.SetDrawTool(prime::DrawTool::Point);
+    Check(mCalls.GetDrawTool() == prime::DrawTool::Point, "SetDrawTool / GetDrawTool");
     Check(mCalls.AddDrawingPoint(47.45, -122.30), "AddDrawingPoint (point)");
-    mCalls.SetDrawTool(PrimeMap::DrawTool::Route);
+    mCalls.SetDrawTool(prime::DrawTool::Route);
     mCalls.AddDrawingPoint(47.40, -122.40);
     mCalls.AddDrawingPoint(47.50, -122.20);
     Check(mCalls.HasUnfinishedDrawing(), "HasUnfinishedDrawing");
     Check(mCalls.FinishDrawing(), "FinishDrawing (route)");
     Check(!mCalls.FinishDrawing(), "FinishDrawing with nothing open returns false");
-    mCalls.SetDrawTool(PrimeMap::DrawTool::Region);
+    mCalls.SetDrawTool(prime::DrawTool::Region);
     mCalls.AddDrawingPoint(47.3, -122.5);
     mCalls.AddDrawingPoint(47.3, -122.1);
     mCalls.AddDrawingPoint(47.6, -122.3);
     mCalls.FinishDrawing();
-    std::vector<PrimeMap::Shape> tShapes = mCalls.GetShapes();
+    std::vector<prime::Shape> tShapes = mCalls.GetShapes();
     Check(tShapes.size() == 3 && tShapes[0].mLabel == "P1" && tShapes[1].mLabel == "R1" && tShapes[2].mLabel == "A1",
           "GetShapes (P1, R1, A1)", std::format("{} shapes", tShapes.size()));
     Check(mCalls.GetDrawingsRevision() > tDrawingsRevision, "GetDrawingsRevision increases");
@@ -234,17 +234,17 @@ void SelfTest::RunImmediate()
     mCalls.ClearDrawings();
     Check(mCalls.GetShapes().empty(), "ClearDrawings");
     Check(mCalls.ImportDrawings(tExported) && mCalls.GetShapes().size() == 3, "ExportDrawings / ImportDrawings");
-    mCalls.SetDrawTool(PrimeMap::DrawTool::Pan);
+    mCalls.SetDrawTool(prime::DrawTool::Pan);
 
     // --- Ayarlar
-    mCalls.SetMode(PrimeMap::MapMode::IfrHigh);
+    mCalls.SetMode(prime::MapMode::IfrHigh);
     const std::string tSettings = mCalls.ExportSettings();
     Check(tSettings.find("[layers.ifr_high]") != std::string::npos && tSettings.find("mode=ifr_high") != std::string::npos,
           "ExportSettings");
-    mCalls.SetMode(PrimeMap::MapMode::Scenery);
-    Check(mCalls.ImportSettings(tSettings) && mCalls.GetMode() == PrimeMap::MapMode::IfrHigh, "ImportSettings");
-    mCalls.SetMode(PrimeMap::MapMode::Scenery);
-    PrimeMap::TerrainSettings tTerrain = mCalls.GetTerrainSettings();
+    mCalls.SetMode(prime::MapMode::Scenery);
+    Check(mCalls.ImportSettings(tSettings) && mCalls.GetMode() == prime::MapMode::IfrHigh, "ImportSettings");
+    mCalls.SetMode(prime::MapMode::Scenery);
+    prime::TerrainSettings tTerrain = mCalls.GetTerrainSettings();
     Check(tTerrain.mVfrBandsFeet.size() == 8 && !tTerrain.mClassColors.empty(), "GetTerrainSettings");
     const double tShading = tTerrain.mShadingStrength;
     tTerrain.mShadingStrength = 0.42;
@@ -265,7 +265,7 @@ void SelfTest::RunImmediate()
 void SelfTest::RunWithData()
 {
     // --- Arama ve havalimanina gitme
-    const std::vector<PrimeMap::AirportMatch> tMatches = mCalls.FindAirports("KSEA", 5);
+    const std::vector<prime::AirportMatch> tMatches = mCalls.FindAirports("KSEA", 5);
     Check(!tMatches.empty() && tMatches[0].mIdent == "KSEA", "FindAirports(KSEA)",
           tMatches.empty() ? "none" : tMatches[0].mName);
     Check(mCalls.GoToAirport("KSEA"), "GoToAirport(KSEA)");
@@ -275,22 +275,22 @@ void SelfTest::RunWithData()
     Check(!mCalls.GoToAirport("QQQQ9"), "GoToAirport unknown ident returns false");
 
     // --- FitBounds
-    PrimeMap::GeoBounds tArea;
+    prime::GeoBounds tArea;
     tArea.mSouth = 47.0;
     tArea.mWest = -123.0;
     tArea.mNorth = 48.0;
     tArea.mEast = -122.0;
     mCalls.FitBounds(tArea);
-    const PrimeMap::GeoBounds tView = mCalls.GetVisibleBounds();
+    const prime::GeoBounds tView = mCalls.GetVisibleBounds();
     Check(tView.mSouth <= 47.0 && tView.mNorth >= 48.0 && tView.mWest <= -123.0 && tView.mEast >= -122.0,
           "FitBounds: area fully visible",
           std::format("{:.3f} {:.3f} {:.3f} {:.3f}", tView.mSouth, tView.mWest, tView.mNorth, tView.mEast));
     Check(tView.mNorth - tView.mSouth < 2.5, "FitBounds: not zoomed out too far");
 
     // --- Ucak (host kaynakli)
-    mCalls.SetAircraftSource(PrimeMap::DataSource::Host);
-    Check(mCalls.GetAircraftSource() == PrimeMap::DataSource::Host, "SetAircraftSource / GetAircraftSource");
-    PrimeMap::AircraftState tAircraft;
+    mCalls.SetAircraftSource(prime::DataSource::Host);
+    Check(mCalls.GetAircraftSource() == prime::DataSource::Host, "SetAircraftSource / GetAircraftSource");
+    prime::AircraftState tAircraft;
     tAircraft.mValid = true;
     tAircraft.mPosition = {47.60, -122.33};
     tAircraft.mHeadingDeg = 90.0;
@@ -309,8 +309,8 @@ void SelfTest::RunWithData()
     Check(true, "ClearTrack (called)");
 
     // --- Rota (host kaynakli)
-    mCalls.SetRouteSource(PrimeMap::DataSource::Host);
-    Check(mCalls.GetRouteSource() == PrimeMap::DataSource::Host, "SetRouteSource / GetRouteSource");
+    mCalls.SetRouteSource(prime::DataSource::Host);
+    Check(mCalls.GetRouteSource() == prime::DataSource::Host, "SetRouteSource / GetRouteSource");
     mCalls.SetRoute({{"KSEA", {47.449, -122.309}, 0}, {"SEA", {47.435, -122.310}, 3000}, {"KPAE", {47.906, -122.282}, 0}},
                     1);
     Check(true, "SetRoute (3 waypoints; visible on the map)");
@@ -331,7 +331,7 @@ void SelfTest::RunAfterDraw()
     {
         for (int tDx = -40; tDx <= 40 && tFound.empty(); tDx += 4)
         {
-            const std::vector<PrimeMap::MapObject> tObjects = mCalls.QueryAtScreen(tX + tDx, tY + tDy);
+            const std::vector<prime::MapObject> tObjects = mCalls.QueryAtScreen(tX + tDx, tY + tDy);
             if (!tObjects.empty())
             {
                 tFound = std::format("{}: {}", mCalls.LayerKey(tObjects[0].mLayer), tObjects[0].mText);
@@ -339,11 +339,11 @@ void SelfTest::RunAfterDraw()
         }
     }
     Check(!tFound.empty(), "QueryAtScreen near KSEA", tFound);
-    const std::vector<PrimeMap::MapObject> tAtGeo = mCalls.QueryAt(47.4490, -122.3093);
+    const std::vector<prime::MapObject> tAtGeo = mCalls.QueryAt(47.4490, -122.3093);
     Check(true, "QueryAt (called)", std::format("{} objects", tAtGeo.size()));
 
     // --- On onbellek
-    PrimeMap::GeoBounds tOcean;
+    prime::GeoBounds tOcean;
     tOcean.mSouth = -40.0;
     tOcean.mWest = -140.0;
     tOcean.mNorth = -39.5;
@@ -354,14 +354,14 @@ void SelfTest::RunAfterDraw()
     mCalls.CancelPrecache();
 
     // --- UI ve fare acik birak (elle denemek icin), Status
-    const PrimeMap::Status tStatus = mCalls.GetStatus();
+    const prime::Status tStatus = mCalls.GetStatus();
     Check(tStatus.mNavReady && tStatus.mAirportsReady, "GetStatus after load",
           std::format("airways {} terrain index {}", tStatus.mAirwaysReady, tStatus.mTerrainIndexReady));
 
     // --- Kapat / yeniden ac (tek harita kurali serbest kalir)
     mCalls.CloseMap();
     Check(!mCalls.IsOpen(), "CloseMap");
-    const bool tReopened = mCalls.OpenMap({150, 750, 640, 420}, PrimeMap::WindowStyle::Embedded, true, true);
+    const bool tReopened = mCalls.OpenMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, true, true);
     Check(tReopened, "Map::Open again after close (UI and mouse on)");
     mCalls.GoToAirport("KSEA");
 }

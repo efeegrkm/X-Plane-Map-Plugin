@@ -1,11 +1,10 @@
-# Prime Map API — Çağrı Listesi (v1.0.0)
+# Prime Map API — Çağrı Listesi (v0.22.0)
 
-Tek genel başlık: `include/PrimeMap.h`. İstisna yok: geçersiz değer → işlem yapılmaz,
+Tek genel başlık: `PrimeMap.h`. İstisna yok: geçersiz değer → işlem yapılmaz,
 Log'a tek satır uyarı, dönüş `false` / boş. Tüm çağrılar X-Plane **ana thread**'inde.
 
-Tüm sınıfın kaynak hali: `prime_map_sdk/include/PrimeMap.h`.
-Her çağrının sarmalayıcısı: `prime_map_sdk/examples/map_api_test/src/MapApiCalls.cpp`
-(bu eklentideki düğmeler de bu metotları çağıracak).
+Namespace: `prime`. Kütüphane nesnesi: `prime::MapLibrary::Get()` (süreçte tek örnek;
+SHARED DLL olduğu için aynı X-Plane sürecindeki tüm host eklentileri paylaşır).
 
 ---
 
@@ -13,20 +12,21 @@ Her çağrının sarmalayıcısı: `prime_map_sdk/examples/map_api_test/src/MapA
 
 | Çağrı | Ne yapar |
 |---|---|
-| `PrimeMap::Init(const InitConfig&)` | Kütüphaneyi başlatır; veri yüklemesini arka planda başlatır. İkinci çağrı `false` döner |
-| `PrimeMap::Shutdown()` | Arka plan işlerini durdurur. Önce harita kapatılmış olmalı |
-| `PrimeMap::IsInitialized()` | Başlatıldı mı |
-| `PrimeMap::GetStatus()` | `Status`: nav/havalimanı/hava yolu/zemin hazır mı, kaç zemin resmi bekliyor, alt şerit metni |
-| `PrimeMap::VersionString()` | "1.0.0" |
+| `prime::MapLibrary::Get().Init(const InitConfig&)` | Kütüphane nesnesini başlatır; veri yüklemesini arka planda başlatır. Zaten çalışıyorsa (başka host) ek iş yapmaz, `true` döner (referans sayaçlı) |
+| `prime::MapLibrary::Get().Shutdown()` | Referans sayacını düşürür; son host çıkarken arka plan işleri durur, açık haritalar kapatılır |
+| `prime::MapLibrary::Get().IsInitialized()` | Başlatıldı mı |
+| `prime::MapLibrary::Get().GetStatus()` | `Status`: nav/havalimanı/hava yolu/zemin hazır mı, kaç zemin resmi bekliyor, alt şerit metni |
+| `prime::VersionString()` | "0.22.0" |
 
 `InitConfig` alanları: `mCacheDirectory` (boş = host eklenti klasörü/cache/), `mLogPrefix`,
 `mLogCallback` (log satırlarını host'a yönlendirir), `mTerrainCacheMb`, `mPrefetchTiles`.
 
-## 2. Harita penceresi — `PrimeMap::Map`
+## 2. Harita penceresi — `prime::Map`
 
 | Çağrı | Ne yapar |
 |---|---|
-| `Map::Open(const OpenConfig&)` | Harita penceresini açar. **Tek harita**: açıkken ikinci `Open` → `nullptr` |
+| `MapLibrary::Get().CreateMap(const OpenConfig&)` | Yeni harita penceresi açar. **Çoklu harita**: aynı anda birden çok `Map` nesnesi yaşayabilir |
+| `Map::Open(const OpenConfig&)` | `CreateMap` ile aynı (geriye uyumluluk) |
 | `~Map()` / `reset()` | Pencereyi kapatır |
 | `SetGeometry(Geometry)` | Yer + boyut (boxel; sol-üst köşe + genişlik/yükseklik). Embedded stilin yer değiştirme yolu |
 | `GetGeometry()` | — |
@@ -149,11 +149,11 @@ Objects + 13 alt, TaxiRoutes), `NavaidsGroup` (Vor, Ndb, Ils, Fixes), `AirwaysGr
 
 ## Adım-adım bağlama sırası (Adım 2-3)
 
-1. `PrimeMap::Init({})` — eklenti açılışında (bir kez).
-2. `PrimeMap::Map::Open({...})` — haritayı harita alanına denk geometriyle aç;
+1. `prime::MapLibrary::Get().Init({})` — eklenti açılışında (bir kez).
+2. `prime::Map::Open({...})` — haritayı harita alanına denk geometriyle aç;
    `mStyle = Embedded`, `mUiVisible = false`, `mMouseInput = false`.
 3. `mMap->SetCenter(47.45, -122.30); mMap->SetZoom(11);` — başlangıç görünümü (KSEA).
 4. Pencere taşınır/boyutlanırsa draw'da harita alanı dikdörtgenini yeniden hesaplayıp
    `mMap->SetGeometry(...)` çağır.
 5. `Press()` içinde ilgili `mMap->Pan...()/ZoomIn()/ZoomOut()` çağrısı.
-6. `XPluginDisable`'da sırayla: `mMap.reset()` → `PrimeMap::Shutdown()`.
+6. `XPluginDisable`'da sırayla: `mMap.reset()` → `prime::MapLibrary::Get().Shutdown()`.

@@ -20,16 +20,16 @@ public:
     bool InitLibrary(const std::string& pLogPrefix);
     void ShutdownLibrary();
     bool IsInitialized() const;
-    PrimeMap::Status GetStatus() const;
+    prime::Status GetStatus() const;
     std::string VersionString() const;
 
     // --- Harita penceresi ---
-    bool OpenMap(const PrimeMap::Geometry& pGeometry, PrimeMap::WindowStyle pStyle, bool pUi, bool pMouse);
+    bool OpenMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse);
     bool OpenSecondMap();  // tek harita kurali: false beklenir
     void CloseMap();
     bool IsOpen() const;
-    void SetGeometry(const PrimeMap::Geometry& pGeometry);
-    PrimeMap::Geometry GetGeometry() const;
+    void SetGeometry(const prime::Geometry& pGeometry);
+    prime::Geometry GetGeometry() const;
     void SetVisible(bool pVisible);
     bool IsVisible() const;
     void BringToFront();
@@ -42,7 +42,7 @@ public:
 
     // --- Gorunum ---
     void SetCenter(double pLat, double pLon);
-    PrimeMap::LatLon GetCenter() const;
+    prime::LatLon GetCenter() const;
     void SetZoom(double pZoom);
     double GetZoom() const;
     double MinZoom() const;
@@ -56,71 +56,71 @@ public:
     void PanDown();
     void SetPanStep(double pFraction);
     void PanBy(double pDeltaX, double pDeltaY);
-    void FitBounds(const PrimeMap::GeoBounds& pBounds);
-    PrimeMap::GeoBounds GetVisibleBounds() const;
+    void FitBounds(const prime::GeoBounds& pBounds);
+    prime::GeoBounds GetVisibleBounds() const;
     double GetMetersPerBoxel() const;
     void SetFollowAircraft(bool pFollow);
     bool IsFollowingAircraft() const;
     void CenterOnAircraft();
     bool GoToAirport(const std::string& pIdent);
-    std::vector<PrimeMap::AirportMatch> FindAirports(const std::string& pQuery, int pMax) const;
-    PrimeMap::LatLon ScreenToGeo(int pX, int pY) const;
+    std::vector<prime::AirportMatch> FindAirports(const std::string& pQuery, int pMax) const;
+    prime::LatLon ScreenToGeo(int pX, int pY) const;
     bool GeoToScreen(double pLat, double pLon, int* pX, int* pY) const;
 
     // --- Mod ---
-    void SetMode(PrimeMap::MapMode pMode);
-    PrimeMap::MapMode GetMode() const;
+    void SetMode(prime::MapMode pMode);
+    prime::MapMode GetMode() const;
     void NextMode();
 
     // --- Katmanlar ---
-    void SetLayerVisible(PrimeMap::MapLayer pLayer, bool pVisible);
-    bool IsLayerVisible(PrimeMap::MapLayer pLayer) const;
-    void ToggleLayer(PrimeMap::MapLayer pLayer);
-    void SetLayersVisible(std::initializer_list<PrimeMap::MapLayer> pLayers, bool pVisible);
-    void ShowOnlyLayers(std::initializer_list<PrimeMap::MapLayer> pLayers);
+    void SetLayerVisible(prime::MapLayer pLayer, bool pVisible);
+    bool IsLayerVisible(prime::MapLayer pLayer) const;
+    void ToggleLayer(prime::MapLayer pLayer);
+    void SetLayersVisible(std::initializer_list<prime::MapLayer> pLayers, bool pVisible);
+    void ShowOnlyLayers(std::initializer_list<prime::MapLayer> pLayers);
     void ResetLayersToDefaults();
-    PrimeMap::LayerState GetLayerState(PrimeMap::MapLayer pLayer) const;
-    std::optional<PrimeMap::MapLayer> ParentOf(PrimeMap::MapLayer pLayer) const;
-    std::vector<PrimeMap::MapLayer> ChildrenOf(PrimeMap::MapLayer pLayer) const;
-    std::vector<PrimeMap::MapLayer> TopLevelLayers() const;
-    PrimeMap::LayerKind KindOf(PrimeMap::MapLayer pLayer) const;
-    std::string LayerName(PrimeMap::MapLayer pLayer) const;
-    std::string LayerKey(PrimeMap::MapLayer pLayer) const;
-    std::optional<PrimeMap::MapLayer> LayerFromKey(const std::string& pKey) const;
-    bool IsLayerDefaultVisible(PrimeMap::MapLayer pLayer, PrimeMap::MapMode pMode) const;
+    prime::LayerState GetLayerState(prime::MapLayer pLayer) const;
+    std::optional<prime::MapLayer> ParentOf(prime::MapLayer pLayer) const;
+    std::vector<prime::MapLayer> ChildrenOf(prime::MapLayer pLayer) const;
+    std::vector<prime::MapLayer> TopLevelLayers() const;
+    prime::LayerKind KindOf(prime::MapLayer pLayer) const;
+    std::string LayerName(prime::MapLayer pLayer) const;
+    std::string LayerKey(prime::MapLayer pLayer) const;
+    std::optional<prime::MapLayer> LayerFromKey(const std::string& pKey) const;
+    bool IsLayerDefaultVisible(prime::MapLayer pLayer, prime::MapMode pMode) const;
 
     // --- Cizimler ---
-    void SetDrawTool(PrimeMap::DrawTool pTool);
-    PrimeMap::DrawTool GetDrawTool() const;
+    void SetDrawTool(prime::DrawTool pTool);
+    prime::DrawTool GetDrawTool() const;
     bool AddDrawingPoint(double pLat, double pLon);
     bool FinishDrawing();
     bool UndoDrawing();
     void ClearDrawings();
     bool HasUnfinishedDrawing() const;
-    std::vector<PrimeMap::Shape> GetShapes() const;
+    std::vector<prime::Shape> GetShapes() const;
     bool RemoveShape(int pId);
     std::string ExportDrawings() const;
     bool ImportDrawings(const std::string& pText);
 
     // --- Ucak, iz, rota ---
-    void SetAircraftSource(PrimeMap::DataSource pSource);
-    PrimeMap::DataSource GetAircraftSource() const;
-    void SetAircraft(const PrimeMap::AircraftState& pState);
-    PrimeMap::AircraftState GetAircraft() const;
+    void SetAircraftSource(prime::DataSource pSource);
+    prime::DataSource GetAircraftSource() const;
+    void SetAircraft(const prime::AircraftState& pState);
+    prime::AircraftState GetAircraft() const;
     void ClearTrack();
-    void SetRouteSource(PrimeMap::DataSource pSource);
-    PrimeMap::DataSource GetRouteSource() const;
-    void SetRoute(const std::vector<PrimeMap::RouteWaypoint>& pWaypoints, int pActive);
+    void SetRouteSource(prime::DataSource pSource);
+    prime::DataSource GetRouteSource() const;
+    void SetRoute(const std::vector<prime::RouteWaypoint>& pWaypoints, int pActive);
 
     // --- Sorgu ---
-    std::vector<PrimeMap::MapObject> QueryAt(double pLat, double pLon) const;
-    std::vector<PrimeMap::MapObject> QueryAtScreen(int pX, int pY) const;
+    std::vector<prime::MapObject> QueryAt(double pLat, double pLon) const;
+    std::vector<prime::MapObject> QueryAtScreen(int pX, int pY) const;
 
     // --- Ayarlar ---
     std::string ExportSettings() const;
     bool ImportSettings(const std::string& pText);
-    PrimeMap::TerrainSettings GetTerrainSettings() const;
-    void SetTerrainSettings(const PrimeMap::TerrainSettings& pSettings);
+    prime::TerrainSettings GetTerrainSettings() const;
+    void SetTerrainSettings(const prime::TerrainSettings& pSettings);
     std::string ExportTerrainSettings() const;
     bool ImportTerrainSettings(const std::string& pText);
     uint64_t GetSettingsRevision() const;
@@ -128,11 +128,11 @@ public:
 
     // --- On onbellek, teshis ---
     bool PrecacheVisibleArea();
-    bool PrecacheArea(const PrimeMap::GeoBounds& pArea);
+    bool PrecacheArea(const prime::GeoBounds& pArea);
     void CancelPrecache();
     void SetDiagnostics(bool pOn);
     bool IsDiagnosticsOn() const;
 
 private:
-    std::unique_ptr<PrimeMap::Map> mMap;
+    std::unique_ptr<prime::Map> mMap;
 };

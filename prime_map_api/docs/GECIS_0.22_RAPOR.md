@@ -1,5 +1,10 @@
 # 0.22 — Ekip kalıbına geçiş raporu (2026-11-10, gece otomatik çalışma)
 
+> **Not (2026-11-11):** Bu rapor geçiş anının kaydıdır. Sonrasında `MapFactory`
+> fabrika sınıfı, kütüphaneyi bir **nesne** yapan `prime::MapLibrary` ile değiştirildi
+> (mentor geri bildirimi: Init bir nesneyi başlatmalı); namespace `prime` oldu,
+> çoklu host ve çoklu harita desteği eklendi. Güncel API: `PrimeMap.h`.
+
 Mentorun istediği yönde: `prime_map_api` "SDK paketi üreten statik kütüphane"den
 **ekibin kalıbına** (SHARED DLL + `*global.h` export makrosu + fabrika sınıfı +
 CMake hedef-adına tüketim) çevrildi. Analist subagent'in raporu ile birleştirildi.
@@ -50,7 +55,7 @@ CMake hedef-adına tüketim) çevrildi. Analist subagent'in raporu ile birleşti
 |---|---|---|
 | 1 | **Qt yok** | Senin kararın: kütüphane hem QML'li Qt pluginlerden hem saf C++ pluginlerden kullanılacak; X-Plane sürecine Qt DLL'i çekmek istenmez |
 | 2 | **Süperrepo dışı** (`add_subdirectory` kardeş klasörden) | Senin kararın; ileride prime-map submodule slotuna taşınırsa CMake zaten hazır (`CMAKE_CURRENT_SOURCE_DIR` kullanılıyor) |
-| 3 | **`namespace PrimeMap`** (ekip: `prime`) | Senin kararın |
+| 3 | **`namespace prime`** (ekip: `prime`) | Senin kararın |
 | 4 | **C++20** (ekip: 17) | `std::format` vs. kullanılıyor; 17'ye inmek büyük refactor; süperprojede olmadığımız için onları etkilemez |
 | 5 | **`/W4 /utf-8 /permissive-`** (ekipte uyarı bayrağı yok) | Mevcut kalite standardı; uyumsuzluk yaratmaz |
 | 6 | **Fabrika metot adı `CreateMap`** (ekip: `createXxx` camelCase) | Bizim API'nin tüm metotları PascalCase; tek üslup |

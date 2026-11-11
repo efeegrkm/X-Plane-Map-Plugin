@@ -1,15 +1,15 @@
 // PrimeMap.cpp
 // Genel API (PrimeMap.h) -> ic siniflar koprusu:
 //
-//   PrimeMap::Init / Shutdown / GetStatus  ->  MapData (veri, yukleme, flight loop)
-//   PrimeMap::Map                          ->  MapWindow (pencere, cizim, fare, UI)
-//   katman fonksiyonlari                   ->  engine/LayerTable (panelle ayni kurallar)
+//   prime::MapLibrary (Init / Shutdown / GetStatus)  ->  MapData (veri, yukleme, flight loop)
+//   prime::MapLibrary::CreateMap / prime::Map        ->  MapWindow (pencere, cizim, fare, UI)
+//   katman fonksiyonlari                             ->  engine/LayerTable (panelle ayni kurallar)
 //
-// Kutuphanenin kopyasi basina (prime_map.dll basina) tek MapData ve en cok bir harita
-// vardir: bunlar bu dosyanin global'leridir (API serbest fonksiyonlar oldugu icin).
-// Ayni X-Plane surecindeki tum hostlar ayni DLL'i kullandigi icin durumu da paylasir:
-// Init bir kez yapilir, tek harita kurali hostlar arasinda ortaktir.
-// Butun fonksiyonlar X-Plane ana thread'inden cagrilmalidir.
+// Kutuphanenin durumu (MapData + acik harita pencereleri + host sayisi) MapLibrary'nin
+// Impl'inde yasar: prime_map.dll basina TEK ornek (MapLibrary::Get()). Ayni X-Plane
+// surecindeki tum hostlar ayni DLL'i kullandigi icin durumu paylasir: Init bir kez
+// yapilir, coklu host referans sayaciyla yonetilir. Butun fonksiyonlar X-Plane ana
+// thread'inden cagrilmalidir.
 #include "PrimeMap.h"
 
 #include <algorithm>
@@ -40,10 +40,6 @@
 namespace
 {
 
-std::unique_ptr<MapData> gData;
-std::vector<MapWindow*> gOpenWindows;  // acik harita pencereleri (coklu host / coklu harita)
-int gHostCount = 0;                    // kutuphaneyi kullanan host sayisi (Init/Shutdown dengesi)
-
 // Shape kimligi: tur * kShapeIdBase + etiket numarasi (oturum icinde sabit)
 const int kShapeIdBase = 1000000;
 
@@ -73,38 +69,58 @@ std::string Upper(std::string pText)
     return pText;
 }
 
-PrimeMap::Rgb ParseRgb(std::istringstream& pStream)
+prime::Rgb ParseRgb(std::istringstream& pStream)
 {
-    PrimeMap::Rgb tColor;
+    prime::Rgb tColor;
     pStream >> tColor.mR >> tColor.mG >> tColor.mB;
     return tColor;
 }
 
 }  // namespace
 
-namespace PrimeMap
+namespace prime
 {
 
 // ============================================================================
-// Serbest fonksiyonlar
+// MapLibrary: kutuphanenin kendisi (surecte tek ornek)
 // ============================================================================
+
+struct MapLibrary::Impl
+{
+    std::unique_ptr<MapData> mData;        // tum harita verisi ve arka plan isleri
+    std::vector<MapWindow*> mOpenWindows;  // acik harita pencereleri (coklu harita / coklu host)
+    int mHostCount = 0;                    // Init/Shutdown dengesi (coklu host)
+};
+
+MapLibrary& MapLibrary::Get()
+{
+    static MapLibrary tLibrary;
+    return tLibrary;
+}
+
+MapLibrary::MapLibrary()
+    : mImpl(std::make_unique<Impl>())
+{
+}
+
+MapLibrary::~MapLibrary() = default;
 
 std::string VersionString()
 {
     return std::format("{}.{}.{}", kVersionMajor, kVersionMinor, kVersionPatch);
 }
 
-bool Init(const InitConfig& pConfig)
+bool MapLibrary::Init(const InitConfig& pConfig)
 {
-    if (gData)
+    if (mImpl->mData)
     {
         // SHARED DLL: ayni X-Plane surecinde birden cok host eklenti olabilir
         // (resmi eklenti + test/uygulama eklentileri). Kutuphane durumu surecte
         // TEK'tir; ilk host'un yapilandirmasi (log oneki, onbellek klasoru)
         // gecerli kalir. Sonraki hostlarin Init'i ek is yapmaz, true doner.
-        ++gHostCount;
+        ++mImpl->mHostCount;
         Log("Init: library already running (hosts: {}); first host's config is in effect",
-            gHostCount);
+            mImpl->mHostCount);
         return true;
     }
     SetLogPrefix(pConfig.mLogPrefix);
@@ -121,53 +137,53 @@ bool Init(const InitConfig& pConfig)
     }
     tConfig.mTerrainCacheMb = std::max(0, pConfig.mTerrainCacheMb);
     tConfig.mPrefetchTiles = std::max(0, pConfig.mPrefetchTiles);
-    gData = std::make_unique<MapData>(tConfig);
-    gData->Start();
-    gHostCount = 1;
+    mImpl->mData = std::make_unique<MapData>(tConfig);
+    mImpl->mData->Start();
+    mImpl->mHostCount = 1;
     Log("Prime Map API {} ready (cache: {})", VersionString(), tConfig.mCacheDirectory);
     return true;
 }
 
-void Shutdown()
+void MapLibrary::Shutdown()
 {
-    if (!gData)
+    if (!mImpl->mData)
     {
         return;
     }
     // Referans sayaci: bir host cikiyor; diger hostlar kutuphaneyi kullaniyorsa
     // calisma surer, tam kapanma yalnizca son host cikarken olur.
-    --gHostCount;
-    if (gHostCount > 0)
+    --mImpl->mHostCount;
+    if (mImpl->mHostCount > 0)
     {
-        Log("Shutdown: kept for other hosts (hosts: {})", gHostCount);
+        Log("Shutdown: kept for other hosts (hosts: {})", mImpl->mHostCount);
         return;
     }
-    gHostCount = 0;
-    for (MapWindow* tWindow : gOpenWindows)
+    mImpl->mHostCount = 0;
+    for (MapWindow* tWindow : mImpl->mOpenWindows)
     {
         // Host haritayi kapatmayi unuttu: pencereleri burada kapat (Map nesnesi bos kalir)
-        Log("WARNING: PrimeMap::Shutdown with open map(s); closing the map window(s)");
+        Log("WARNING: MapLibrary::Shutdown with open map(s); closing the map window(s)");
         tWindow->Destroy();
     }
-    gOpenWindows.clear();
-    gData->Stop();
-    gData.reset();
+    mImpl->mOpenWindows.clear();
+    mImpl->mData->Stop();
+    mImpl->mData.reset();
     Log("Prime Map API stopped");
 }
 
-bool IsInitialized()
+bool MapLibrary::IsInitialized() const
 {
-    return gData != nullptr;
+    return mImpl->mData != nullptr;
 }
 
-Status GetStatus()
+Status MapLibrary::GetStatus() const
 {
     Status tStatus;
-    if (!gData)
+    if (!mImpl->mData)
     {
         return tStatus;
     }
-    const MapDataStatus& tData = gData->Status();
+    const MapDataStatus& tData = mImpl->mData->Status();
     tStatus.mNavReady = tData.mNavReady;
     tStatus.mAirportsReady = tData.mAirportsReady;
     tStatus.mAirwaysReady = tData.mAirwaysReady;
@@ -178,7 +194,7 @@ Status GetStatus()
     tStatus.mPrecacheTotal = tData.mPrecacheTotal;
     tStatus.mText = tData.mText;
     MapWindow* tDiag = nullptr;
-    for (MapWindow* tWindow : gOpenWindows)
+    for (MapWindow* tWindow : mImpl->mOpenWindows)
     {
         if (tWindow->IsDiagnosticsOn())
         {
@@ -199,19 +215,21 @@ Status GetStatus()
 
 struct Map::Impl
 {
+    MapData* mData = nullptr;                 // kutuphanenin verisi (MapLibrary::Impl'de yasar)
     std::unique_ptr<MapWindow> mWindow;
     double mZoomStep = 0.5;   // bir tekerlek tiki
     double mPanStep = 0.25;   // gorunen alanin orani
 
+    // Shutdown haritayi kapattiysa nullptr (MapData yok edildiyse guvenli sekilde bos doner)
+    MapData* Data() const
+    {
+        return (mData && mData->IsRunning()) ? mData : nullptr;
+    }
+
     // Shutdown haritayi once kapattiysa nullptr
     MapWindow* Window() const
     {
-        if (!gData)
-        {
-            return nullptr;
-        }
-        const auto tIt = std::find(gOpenWindows.begin(), gOpenWindows.end(), mWindow.get());
-        return tIt != gOpenWindows.end() ? mWindow.get() : nullptr;
+        return (Data() && mWindow && mWindow->IsCreated()) ? mWindow.get() : nullptr;
     }
 };
 
@@ -220,16 +238,18 @@ Map::Map()
 {
 }
 
-std::unique_ptr<Map> MapFactory::CreateMap(const OpenConfig& pConfig)
+std::unique_ptr<Map> MapLibrary::CreateMap(const OpenConfig& pConfig)
 {
-    if (!gData)
+    if (!mImpl->mData)
     {
-        Log("WARNING: CreateMap before PrimeMap::Init");
+        Log("WARNING: CreateMap before MapLibrary::Init");
         return nullptr;
     }
     std::unique_ptr<Map> tMap(new Map());
-    tMap->mImpl->mWindow = std::make_unique<MapWindow>(gData->Layers(), gData->Aircraft(), gData->UserDrawings(),
-                                                       gData->Airports());
+    tMap->mImpl->mData = mImpl->mData.get();
+    tMap->mImpl->mWindow = std::make_unique<MapWindow>(mImpl->mData->Layers(), mImpl->mData->Aircraft(),
+                                                       mImpl->mData->UserDrawings(),
+                                                       mImpl->mData->Airports());
     MapWindowOptions tOptions;
     tOptions.mGeometry.mLeft = pConfig.mGeometry.mLeft;
     tOptions.mGeometry.mTop = pConfig.mGeometry.mTop;
@@ -244,25 +264,27 @@ std::unique_ptr<Map> MapFactory::CreateMap(const OpenConfig& pConfig)
     tOptions.mMaxRenderFps = pConfig.mMaxRenderFps;
     tOptions.mXPlaneFont = pConfig.mXPlaneFont;
     tMap->mImpl->mWindow->Create(tOptions);
-    gOpenWindows.push_back(tMap->mImpl->mWindow.get());
-    gData->AddWindow(tMap->mImpl->mWindow.get());
+    mImpl->mOpenWindows.push_back(tMap->mImpl->mWindow.get());
+    mImpl->mData->AddWindow(tMap->mImpl->mWindow.get());
     return tMap;
 }
 
 std::unique_ptr<Map> Map::Open(const OpenConfig& pConfig)
 {
-    return MapFactory::CreateMap(pConfig);
+    return MapLibrary::Get().CreateMap(pConfig);
 }
 
 Map::~Map()
 {
     if (MapWindow* tWindow = mImpl->Window())
     {
-        gData->RemoveWindow(tWindow);
-        gOpenWindows.erase(std::remove(gOpenWindows.begin(), gOpenWindows.end(), tWindow),
-                           gOpenWindows.end());
+        mImpl->Data()->RemoveWindow(tWindow);
         tWindow->Destroy();
     }
+    // Pencereyi kutuphanenin acik pencere listesinden dusur (Map, MapLibrary'nin dostu)
+    auto& tOpenWindows = MapLibrary::Get().mImpl->mOpenWindows;
+    tOpenWindows.erase(std::remove(tOpenWindows.begin(), tOpenWindows.end(), mImpl->mWindow.get()),
+                       tOpenWindows.end());
 }
 
 // --- Pencere ---------------------------------------------------------------------
@@ -545,9 +567,9 @@ bool Map::GoToAirport(const std::string& pIdent)
         return false;
     }
     const std::string tWanted = Upper(pIdent);
-    for (int tIndex : ::FindAirports(gData->Airports(), pIdent, 8))
+    for (int tIndex : ::FindAirports(mImpl->Data()->Airports(), pIdent, 8))
     {
-        if (Upper(gData->Airports().At(tIndex).mId) == tWanted)
+        if (Upper(mImpl->Data()->Airports().At(tIndex).mId) == tWanted)
         {
             tWindow->GoToAirport(tIndex);
             return true;
@@ -560,13 +582,13 @@ bool Map::GoToAirport(const std::string& pIdent)
 std::vector<AirportMatch> Map::FindAirports(const std::string& pQuery, int pMaxResults) const
 {
     std::vector<AirportMatch> tMatches;
-    if (!gData)
+    if (!mImpl->Data())
     {
         return tMatches;
     }
-    for (int tIndex : ::FindAirports(gData->Airports(), pQuery, std::max(0, pMaxResults)))
+    for (int tIndex : ::FindAirports(mImpl->Data()->Airports(), pQuery, std::max(0, pMaxResults)))
     {
-        const AirportGeometry& tAirport = gData->Airports().At(tIndex);
+        const AirportGeometry& tAirport = mImpl->Data()->Airports().At(tIndex);
         const ::LatLon tCenter = AirportCenter(tAirport);
         AirportMatch tMatch;
         tMatch.mIdent = tAirport.mId;
@@ -635,7 +657,7 @@ void Map::NextMode()
 void Map::SetLayerVisible(MapLayer pLayer, bool pVisible)
 {
     MapWindow* tWindow = mImpl->Window();
-    if (tWindow && LayerRules::SetVisible(gData->Layers(), ThemeFor(tWindow->GetMapMode()), pLayer, pVisible))
+    if (tWindow && LayerRules::SetVisible(mImpl->Data()->Layers(), ThemeFor(tWindow->GetMapMode()), pLayer, pVisible))
     {
         tWindow->SaveSettings();
     }
@@ -643,13 +665,13 @@ void Map::SetLayerVisible(MapLayer pLayer, bool pVisible)
 
 bool Map::IsLayerVisible(MapLayer pLayer) const
 {
-    return gData && LayerRules::IsVisible(gData->Layers(), pLayer);
+    return mImpl->Data() && LayerRules::IsVisible(mImpl->Data()->Layers(), pLayer);
 }
 
 void Map::ToggleLayer(MapLayer pLayer)
 {
     MapWindow* tWindow = mImpl->Window();
-    if (tWindow && LayerRules::Toggle(gData->Layers(), ThemeFor(tWindow->GetMapMode()), pLayer))
+    if (tWindow && LayerRules::Toggle(mImpl->Data()->Layers(), ThemeFor(tWindow->GetMapMode()), pLayer))
     {
         tWindow->SaveSettings();
     }
@@ -667,7 +689,7 @@ void Map::ShowOnlyLayers(std::initializer_list<MapLayer> pLayers)
 {
     if (MapWindow* tWindow = mImpl->Window())
     {
-        LayerRules::ShowOnly(gData->Layers(), ThemeFor(tWindow->GetMapMode()), pLayers.begin(), pLayers.end());
+        LayerRules::ShowOnly(mImpl->Data()->Layers(), ThemeFor(tWindow->GetMapMode()), pLayers.begin(), pLayers.end());
         tWindow->SaveSettings();
     }
 }
@@ -682,7 +704,7 @@ void Map::ResetLayersToDefaults()
 
 LayerState Map::GetLayerState(MapLayer pLayer) const
 {
-    return gData ? LayerRules::State(gData->Layers(), pLayer) : LayerState::Off;
+    return mImpl->Data() ? LayerRules::State(mImpl->Data()->Layers(), pLayer) : LayerState::Off;
 }
 
 // --- Cizimler -------------------------------------------------------------------
@@ -691,24 +713,24 @@ void Map::SetDrawTool(DrawTool pTool)
 {
     if (MapWindow* tWindow = mImpl->Window())
     {
-        gData->UserDrawings().SetMode(static_cast<Drawings::Mode>(pTool));  // yarim cizim biter
+        mImpl->Data()->UserDrawings().SetMode(static_cast<Drawings::Mode>(pTool));  // yarim cizim biter
         tWindow->DrawingsChanged();
     }
 }
 
 DrawTool Map::GetDrawTool() const
 {
-    return gData ? static_cast<DrawTool>(gData->UserDrawings().GetMode()) : DrawTool::Pan;
+    return mImpl->Data() ? static_cast<DrawTool>(mImpl->Data()->UserDrawings().GetMode()) : DrawTool::Pan;
 }
 
 bool Map::AddDrawingPoint(double pLat, double pLon)
 {
     MapWindow* tWindow = mImpl->Window();
-    if (!tWindow || gData->UserDrawings().GetMode() == Drawings::Mode::Pan)
+    if (!tWindow || mImpl->Data()->UserDrawings().GetMode() == Drawings::Mode::Pan)
     {
         return false;
     }
-    gData->UserDrawings().AddVertex({pLat, pLon});
+    mImpl->Data()->UserDrawings().AddVertex({pLat, pLon});
     tWindow->DrawingsChanged();
     return true;
 }
@@ -716,11 +738,11 @@ bool Map::AddDrawingPoint(double pLat, double pLon)
 bool Map::FinishDrawing()
 {
     MapWindow* tWindow = mImpl->Window();
-    if (!tWindow || !gData->UserDrawings().Current())
+    if (!tWindow || !mImpl->Data()->UserDrawings().Current())
     {
         return false;
     }
-    gData->UserDrawings().Finish();
+    mImpl->Data()->UserDrawings().Finish();
     tWindow->DrawingsChanged();
     return true;
 }
@@ -728,7 +750,7 @@ bool Map::FinishDrawing()
 bool Map::UndoDrawing()
 {
     MapWindow* tWindow = mImpl->Window();
-    Drawings* tDrawings = gData ? &gData->UserDrawings() : nullptr;
+    Drawings* tDrawings = mImpl->Data() ? &mImpl->Data()->UserDrawings() : nullptr;
     if (!tWindow || (!tDrawings->Current() && tDrawings->ShapeCount() == 0))
     {
         return false;
@@ -742,24 +764,24 @@ void Map::ClearDrawings()
 {
     if (MapWindow* tWindow = mImpl->Window())
     {
-        gData->UserDrawings().Clear();
+        mImpl->Data()->UserDrawings().Clear();
         tWindow->DrawingsChanged();
     }
 }
 
 bool Map::HasUnfinishedDrawing() const
 {
-    return gData && gData->UserDrawings().Current() != nullptr;
+    return mImpl->Data() && mImpl->Data()->UserDrawings().Current() != nullptr;
 }
 
 std::vector<Shape> Map::GetShapes() const
 {
     std::vector<Shape> tShapes;
-    if (!gData)
+    if (!mImpl->Data())
     {
         return tShapes;
     }
-    for (const Drawings::Shape& tInner : gData->UserDrawings().Shapes())
+    for (const Drawings::Shape& tInner : mImpl->Data()->UserDrawings().Shapes())
     {
         Shape tShape;
         tShape.mKind = static_cast<ShapeKind>(tInner.mKind);
@@ -779,7 +801,7 @@ bool Map::RemoveShape(int pId)
     MapWindow* tWindow = mImpl->Window();
     const int tKind = pId / kShapeIdBase;
     if (!tWindow || tKind < 0 || tKind > 2 ||
-        !gData->UserDrawings().Remove(static_cast<Drawings::ShapeKind>(tKind), pId % kShapeIdBase))
+        !mImpl->Data()->UserDrawings().Remove(static_cast<Drawings::ShapeKind>(tKind), pId % kShapeIdBase))
     {
         Log("WARNING: RemoveShape: no shape with id {}", pId);
         return false;
@@ -790,7 +812,7 @@ bool Map::RemoveShape(int pId)
 
 std::string Map::ExportDrawings() const
 {
-    return gData ? gData->UserDrawings().Serialize() : std::string();
+    return mImpl->Data() ? mImpl->Data()->UserDrawings().Serialize() : std::string();
 }
 
 bool Map::ImportDrawings(const std::string& pText)
@@ -800,7 +822,7 @@ bool Map::ImportDrawings(const std::string& pText)
     {
         return false;
     }
-    const int tCount = gData->UserDrawings().Deserialize(pText);
+    const int tCount = mImpl->Data()->UserDrawings().Deserialize(pText);
     tWindow->DrawingsChanged();
     Log("drawings imported: {} shapes", tCount);
     return tCount > 0 || pText.find_first_not_of(" \t\r\n") == std::string::npos;
@@ -810,20 +832,20 @@ bool Map::ImportDrawings(const std::string& pText)
 
 void Map::SetAircraftSource(DataSource pSource)
 {
-    if (gData)
+    if (mImpl->Data())
     {
-        gData->Aircraft().SetFromHost(pSource == DataSource::Host);
+        mImpl->Data()->Aircraft().SetFromHost(pSource == DataSource::Host);
     }
 }
 
 DataSource Map::GetAircraftSource() const
 {
-    return (gData && gData->Aircraft().IsFromHost()) ? DataSource::Host : DataSource::XPlane;
+    return (mImpl->Data() && mImpl->Data()->Aircraft().IsFromHost()) ? DataSource::Host : DataSource::XPlane;
 }
 
 void Map::SetAircraft(const AircraftState& pState)
 {
-    if (!gData)
+    if (!mImpl->Data())
     {
         return;
     }
@@ -833,15 +855,15 @@ void Map::SetAircraft(const AircraftState& pState)
     tInner.mHeadingDeg = pState.mHeadingDeg;
     tInner.mGroundSpeedKt = pState.mGroundSpeedKt;
     tInner.mAltitudeFt = pState.mAltitudeFt;
-    gData->Aircraft().SetHostState(tInner);
+    mImpl->Data()->Aircraft().SetHostState(tInner);
 }
 
 AircraftState Map::GetAircraft() const
 {
     AircraftState tState;
-    if (gData)
+    if (mImpl->Data())
     {
-        const ::AircraftState& tInner = gData->Aircraft().State();
+        const ::AircraftState& tInner = mImpl->Data()->Aircraft().State();
         tState.mValid = tInner.mValid;
         tState.mPosition = {tInner.mPosition.mLat, tInner.mPosition.mLon};
         tState.mHeadingDeg = tInner.mHeadingDeg;
@@ -853,33 +875,33 @@ AircraftState Map::GetAircraft() const
 
 void Map::ClearTrack()
 {
-    if (gData && gData->Track())
+    if (mImpl->Data() && mImpl->Data()->Track())
     {
-        gData->Track()->Clear();
+        mImpl->Data()->Track()->Clear();
         Log("flight track cleared");
     }
 }
 
 void Map::SetRouteSource(DataSource pSource)
 {
-    if (gData && gData->Fms())
+    if (mImpl->Data() && mImpl->Data()->Fms())
     {
-        gData->Fms()->SetFromHost(pSource == DataSource::Host);
+        mImpl->Data()->Fms()->SetFromHost(pSource == DataSource::Host);
     }
 }
 
 DataSource Map::GetRouteSource() const
 {
-    return (gData && gData->Fms() && gData->Fms()->IsFromHost()) ? DataSource::Host : DataSource::XPlane;
+    return (mImpl->Data() && mImpl->Data()->Fms() && mImpl->Data()->Fms()->IsFromHost()) ? DataSource::Host : DataSource::XPlane;
 }
 
 void Map::SetRoute(const std::vector<RouteWaypoint>& pWaypoints, int pActiveIndex)
 {
-    if (!gData || !gData->Fms())
+    if (!mImpl->Data() || !mImpl->Data()->Fms())
     {
         return;
     }
-    if (!gData->Fms()->IsFromHost())
+    if (!mImpl->Data()->Fms()->IsFromHost())
     {
         Log("WARNING: SetRoute ignored: route source is X-Plane (call SetRouteSource(DataSource::Host))");
         return;
@@ -889,7 +911,7 @@ void Map::SetRoute(const std::vector<RouteWaypoint>& pWaypoints, int pActiveInde
     {
         tInner.push_back({{tPoint.mPosition.mLat, tPoint.mPosition.mLon}, tPoint.mIdent, tPoint.mAltitudeFt});
     }
-    gData->Fms()->SetHostRoute(tInner, pActiveIndex);
+    mImpl->Data()->Fms()->SetHostRoute(tInner, pActiveIndex);
 }
 
 // --- Sorgu ------------------------------------------------------------------------
@@ -945,12 +967,12 @@ bool Map::ImportSettings(const std::string& pText)
 TerrainSettings Map::GetTerrainSettings() const
 {
     TerrainSettings tOut;
-    if (!gData)
+    if (!mImpl->Data())
     {
         return tOut;
     }
     Settings tIni;
-    gData->Palette().Save(tIni);
+    mImpl->Data()->Palette().Save(tIni);
     tOut.mUseXPlaneColors = tIni.GetString("palette", "source", "xplane") != "ini";
     for (int tClass = 0; tClass < kTerrainClassCount; ++tClass)
     {
@@ -994,12 +1016,12 @@ TerrainSettings Map::GetTerrainSettings() const
 
 void Map::SetTerrainSettings(const TerrainSettings& pSettings)
 {
-    if (!gData)
+    if (!mImpl->Data())
     {
         return;
     }
     Settings tIni;
-    gData->Palette().Save(tIni);  // [palette] version ve bilinmeyen anahtarlar korunur
+    mImpl->Data()->Palette().Save(tIni);  // [palette] version ve bilinmeyen anahtarlar korunur
     tIni.SetString("palette", "source", pSettings.mUseXPlaneColors ? "xplane" : "ini");
     for (const auto& [tKey, tColor] : pSettings.mClassColors)
     {
@@ -1032,21 +1054,21 @@ void Map::SetTerrainSettings(const TerrainSettings& pSettings)
         tIni.SetString("vfr", std::format("band_{}", tBand + 1),
                        std::format("{:.0f} {} {} {}", tFeet, tColor.mR, tColor.mG, tColor.mB));
     }
-    gData->ImportTerrainSettings(tIni.ToText({}));
+    mImpl->Data()->ImportTerrainSettings(tIni.ToText({}));
 }
 
 std::string Map::ExportTerrainSettings() const
 {
-    return gData ? gData->ExportTerrainSettings() : std::string();
+    return mImpl->Data() ? mImpl->Data()->ExportTerrainSettings() : std::string();
 }
 
 bool Map::ImportTerrainSettings(const std::string& pText)
 {
-    if (!gData)
+    if (!mImpl->Data())
     {
         return false;
     }
-    gData->ImportTerrainSettings(pText);
+    mImpl->Data()->ImportTerrainSettings(pText);
     return true;
 }
 
@@ -1071,7 +1093,7 @@ bool Map::PrecacheVisibleArea()
 
 bool Map::PrecacheArea(const GeoBounds& pArea)
 {
-    if (!gData)
+    if (!mImpl->Data())
     {
         return false;
     }
@@ -1080,14 +1102,14 @@ bool Map::PrecacheArea(const GeoBounds& pArea)
     tInner.mWest = pArea.mWest;
     tInner.mNorth = pArea.mNorth;
     tInner.mEast = pArea.mEast;
-    return gData->StartPrecache(tInner);
+    return mImpl->Data()->StartPrecache(tInner);
 }
 
 void Map::CancelPrecache()
 {
-    if (gData)
+    if (mImpl->Data())
     {
-        gData->CancelPrecache();
+        mImpl->Data()->CancelPrecache();
     }
 }
 
@@ -1106,4 +1128,4 @@ bool Map::IsDiagnosticsOn() const
     return tWindow && tWindow->IsDiagnosticsOn();
 }
 
-}  // namespace PrimeMap
+}  // namespace prime

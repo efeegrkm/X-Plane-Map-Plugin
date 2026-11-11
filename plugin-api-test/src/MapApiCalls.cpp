@@ -5,32 +5,32 @@
 
 bool MapApiCalls::InitLibrary(const std::string& pLogPrefix)
 {
-    PrimeMap::InitConfig tConfig;
+    prime::InitConfig tConfig;
     tConfig.mLogPrefix = pLogPrefix;  // onbellek: bos = bu eklentinin klasoru/cache/
-    return PrimeMap::Init(tConfig);
+    return prime::MapLibrary::Get().Init(tConfig);
 }
 
 void MapApiCalls::ShutdownLibrary()
 {
-    PrimeMap::Shutdown();
+    prime::MapLibrary::Get().Shutdown();
 }
 
-bool MapApiCalls::OpenMap(const PrimeMap::Geometry& pGeometry, PrimeMap::WindowStyle pStyle, bool pUi, bool pMouse)
+bool MapApiCalls::OpenMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse)
 {
-    PrimeMap::OpenConfig tConfig;
+    prime::OpenConfig tConfig;
     tConfig.mGeometry = pGeometry;
     tConfig.mStyle = pStyle;
     tConfig.mUiVisible = pUi;
     tConfig.mMouseInput = pMouse;
-    mMap = PrimeMap::Map::Open(tConfig);
+    mMap = prime::Map::Open(tConfig);
     return mMap != nullptr;
 }
 
 bool MapApiCalls::OpenSecondMap()
 {
-    PrimeMap::OpenConfig tConfig;
+    prime::OpenConfig tConfig;
     tConfig.mGeometry = {10, 300, 200, 150};
-    std::unique_ptr<PrimeMap::Map> tSecond = PrimeMap::Map::Open(tConfig);
+    std::unique_ptr<prime::Map> tSecond = prime::Map::Open(tConfig);
     return tSecond != nullptr;
 }
 
@@ -46,70 +46,70 @@ bool MapApiCalls::IsOpen() const
 
 bool MapApiCalls::IsInitialized() const
 {
-    return PrimeMap::IsInitialized();
+    return prime::MapLibrary::Get().IsInitialized();
 }
 
-PrimeMap::Status MapApiCalls::GetStatus() const
+prime::Status MapApiCalls::GetStatus() const
 {
-    return PrimeMap::GetStatus();
+    return prime::MapLibrary::Get().GetStatus();
 }
 
 std::string MapApiCalls::VersionString() const
 {
-    return PrimeMap::VersionString();
+    return prime::VersionString();
 }
 
 double MapApiCalls::MinZoom() const
 {
-    return PrimeMap::Map::MinZoom();
+    return prime::Map::MinZoom();
 }
 
 double MapApiCalls::MaxZoom() const
 {
-    return PrimeMap::Map::MaxZoom();
+    return prime::Map::MaxZoom();
 }
 
-std::optional<PrimeMap::MapLayer> MapApiCalls::ParentOf(PrimeMap::MapLayer pLayer) const
+std::optional<prime::MapLayer> MapApiCalls::ParentOf(prime::MapLayer pLayer) const
 {
-    return PrimeMap::ParentOf(pLayer);
+    return prime::ParentOf(pLayer);
 }
 
-std::vector<PrimeMap::MapLayer> MapApiCalls::ChildrenOf(PrimeMap::MapLayer pLayer) const
+std::vector<prime::MapLayer> MapApiCalls::ChildrenOf(prime::MapLayer pLayer) const
 {
-    return PrimeMap::ChildrenOf(pLayer);
+    return prime::ChildrenOf(pLayer);
 }
 
-std::vector<PrimeMap::MapLayer> MapApiCalls::TopLevelLayers() const
+std::vector<prime::MapLayer> MapApiCalls::TopLevelLayers() const
 {
-    return PrimeMap::TopLevelLayers();
+    return prime::TopLevelLayers();
 }
 
-PrimeMap::LayerKind MapApiCalls::KindOf(PrimeMap::MapLayer pLayer) const
+prime::LayerKind MapApiCalls::KindOf(prime::MapLayer pLayer) const
 {
-    return PrimeMap::KindOf(pLayer);
+    return prime::KindOf(pLayer);
 }
 
-std::string MapApiCalls::LayerName(PrimeMap::MapLayer pLayer) const
+std::string MapApiCalls::LayerName(prime::MapLayer pLayer) const
 {
-    return PrimeMap::LayerName(pLayer);
+    return prime::LayerName(pLayer);
 }
 
-std::string MapApiCalls::LayerKey(PrimeMap::MapLayer pLayer) const
+std::string MapApiCalls::LayerKey(prime::MapLayer pLayer) const
 {
-    return PrimeMap::LayerKey(pLayer);
+    return prime::LayerKey(pLayer);
 }
 
-std::optional<PrimeMap::MapLayer> MapApiCalls::LayerFromKey(const std::string& pKey) const
+std::optional<prime::MapLayer> MapApiCalls::LayerFromKey(const std::string& pKey) const
 {
-    return PrimeMap::LayerFromKey(pKey);
+    return prime::LayerFromKey(pKey);
 }
 
-bool MapApiCalls::IsLayerDefaultVisible(PrimeMap::MapLayer pLayer, PrimeMap::MapMode pMode) const
+bool MapApiCalls::IsLayerDefaultVisible(prime::MapLayer pLayer, prime::MapMode pMode) const
 {
-    return PrimeMap::IsLayerDefaultVisible(pLayer, pMode);
+    return prime::IsLayerDefaultVisible(pLayer, pMode);
 }
 
-void MapApiCalls::SetGeometry(const PrimeMap::Geometry& pGeometry)
+void MapApiCalls::SetGeometry(const prime::Geometry& pGeometry)
 {
     if (mMap)
     {
@@ -117,11 +117,11 @@ void MapApiCalls::SetGeometry(const PrimeMap::Geometry& pGeometry)
     }
 }
 
-PrimeMap::Geometry MapApiCalls::GetGeometry() const
+prime::Geometry MapApiCalls::GetGeometry() const
 {
     if (!mMap)
     {
-        return PrimeMap::Geometry();
+        return prime::Geometry();
     }
     return mMap->GetGeometry();
 }
@@ -210,11 +210,11 @@ void MapApiCalls::SetCenter(double pLat, double pLon)
     }
 }
 
-PrimeMap::LatLon MapApiCalls::GetCenter() const
+prime::LatLon MapApiCalls::GetCenter() const
 {
     if (!mMap)
     {
-        return PrimeMap::LatLon();
+        return prime::LatLon();
     }
     return mMap->GetCenter();
 }
@@ -308,7 +308,7 @@ void MapApiCalls::PanBy(double pDeltaX, double pDeltaY)
     }
 }
 
-void MapApiCalls::FitBounds(const PrimeMap::GeoBounds& pBounds)
+void MapApiCalls::FitBounds(const prime::GeoBounds& pBounds)
 {
     if (mMap)
     {
@@ -316,11 +316,11 @@ void MapApiCalls::FitBounds(const PrimeMap::GeoBounds& pBounds)
     }
 }
 
-PrimeMap::GeoBounds MapApiCalls::GetVisibleBounds() const
+prime::GeoBounds MapApiCalls::GetVisibleBounds() const
 {
     if (!mMap)
     {
-        return PrimeMap::GeoBounds();
+        return prime::GeoBounds();
     }
     return mMap->GetVisibleBounds();
 }
@@ -368,7 +368,7 @@ bool MapApiCalls::GoToAirport(const std::string& pIdent)
     return mMap->GoToAirport(pIdent);
 }
 
-std::vector<PrimeMap::AirportMatch> MapApiCalls::FindAirports(const std::string& pQuery, int pMax) const
+std::vector<prime::AirportMatch> MapApiCalls::FindAirports(const std::string& pQuery, int pMax) const
 {
     if (!mMap)
     {
@@ -377,11 +377,11 @@ std::vector<PrimeMap::AirportMatch> MapApiCalls::FindAirports(const std::string&
     return mMap->FindAirports(pQuery, pMax);
 }
 
-PrimeMap::LatLon MapApiCalls::ScreenToGeo(int pX, int pY) const
+prime::LatLon MapApiCalls::ScreenToGeo(int pX, int pY) const
 {
     if (!mMap)
     {
-        return PrimeMap::LatLon();
+        return prime::LatLon();
     }
     return mMap->ScreenToGeo(pX, pY);
 }
@@ -395,7 +395,7 @@ bool MapApiCalls::GeoToScreen(double pLat, double pLon, int* pX, int* pY) const
     return mMap->GeoToScreen(pLat, pLon, pX, pY);
 }
 
-void MapApiCalls::SetMode(PrimeMap::MapMode pMode)
+void MapApiCalls::SetMode(prime::MapMode pMode)
 {
     if (mMap)
     {
@@ -403,11 +403,11 @@ void MapApiCalls::SetMode(PrimeMap::MapMode pMode)
     }
 }
 
-PrimeMap::MapMode MapApiCalls::GetMode() const
+prime::MapMode MapApiCalls::GetMode() const
 {
     if (!mMap)
     {
-        return PrimeMap::MapMode::Scenery;
+        return prime::MapMode::Scenery;
     }
     return mMap->GetMode();
 }
@@ -420,7 +420,7 @@ void MapApiCalls::NextMode()
     }
 }
 
-void MapApiCalls::SetLayerVisible(PrimeMap::MapLayer pLayer, bool pVisible)
+void MapApiCalls::SetLayerVisible(prime::MapLayer pLayer, bool pVisible)
 {
     if (mMap)
     {
@@ -428,7 +428,7 @@ void MapApiCalls::SetLayerVisible(PrimeMap::MapLayer pLayer, bool pVisible)
     }
 }
 
-bool MapApiCalls::IsLayerVisible(PrimeMap::MapLayer pLayer) const
+bool MapApiCalls::IsLayerVisible(prime::MapLayer pLayer) const
 {
     if (!mMap)
     {
@@ -437,7 +437,7 @@ bool MapApiCalls::IsLayerVisible(PrimeMap::MapLayer pLayer) const
     return mMap->IsLayerVisible(pLayer);
 }
 
-void MapApiCalls::ToggleLayer(PrimeMap::MapLayer pLayer)
+void MapApiCalls::ToggleLayer(prime::MapLayer pLayer)
 {
     if (mMap)
     {
@@ -445,7 +445,7 @@ void MapApiCalls::ToggleLayer(PrimeMap::MapLayer pLayer)
     }
 }
 
-void MapApiCalls::SetLayersVisible(std::initializer_list<PrimeMap::MapLayer> pLayers, bool pVisible)
+void MapApiCalls::SetLayersVisible(std::initializer_list<prime::MapLayer> pLayers, bool pVisible)
 {
     if (mMap)
     {
@@ -453,7 +453,7 @@ void MapApiCalls::SetLayersVisible(std::initializer_list<PrimeMap::MapLayer> pLa
     }
 }
 
-void MapApiCalls::ShowOnlyLayers(std::initializer_list<PrimeMap::MapLayer> pLayers)
+void MapApiCalls::ShowOnlyLayers(std::initializer_list<prime::MapLayer> pLayers)
 {
     if (mMap)
     {
@@ -469,16 +469,16 @@ void MapApiCalls::ResetLayersToDefaults()
     }
 }
 
-PrimeMap::LayerState MapApiCalls::GetLayerState(PrimeMap::MapLayer pLayer) const
+prime::LayerState MapApiCalls::GetLayerState(prime::MapLayer pLayer) const
 {
     if (!mMap)
     {
-        return PrimeMap::LayerState::Off;
+        return prime::LayerState::Off;
     }
     return mMap->GetLayerState(pLayer);
 }
 
-void MapApiCalls::SetDrawTool(PrimeMap::DrawTool pTool)
+void MapApiCalls::SetDrawTool(prime::DrawTool pTool)
 {
     if (mMap)
     {
@@ -486,11 +486,11 @@ void MapApiCalls::SetDrawTool(PrimeMap::DrawTool pTool)
     }
 }
 
-PrimeMap::DrawTool MapApiCalls::GetDrawTool() const
+prime::DrawTool MapApiCalls::GetDrawTool() const
 {
     if (!mMap)
     {
-        return PrimeMap::DrawTool::Pan;
+        return prime::DrawTool::Pan;
     }
     return mMap->GetDrawTool();
 }
@@ -539,7 +539,7 @@ bool MapApiCalls::HasUnfinishedDrawing() const
     return mMap->HasUnfinishedDrawing();
 }
 
-std::vector<PrimeMap::Shape> MapApiCalls::GetShapes() const
+std::vector<prime::Shape> MapApiCalls::GetShapes() const
 {
     if (!mMap)
     {
@@ -575,7 +575,7 @@ bool MapApiCalls::ImportDrawings(const std::string& pText)
     return mMap->ImportDrawings(pText);
 }
 
-void MapApiCalls::SetAircraftSource(PrimeMap::DataSource pSource)
+void MapApiCalls::SetAircraftSource(prime::DataSource pSource)
 {
     if (mMap)
     {
@@ -583,16 +583,16 @@ void MapApiCalls::SetAircraftSource(PrimeMap::DataSource pSource)
     }
 }
 
-PrimeMap::DataSource MapApiCalls::GetAircraftSource() const
+prime::DataSource MapApiCalls::GetAircraftSource() const
 {
     if (!mMap)
     {
-        return PrimeMap::DataSource::XPlane;
+        return prime::DataSource::XPlane;
     }
     return mMap->GetAircraftSource();
 }
 
-void MapApiCalls::SetAircraft(const PrimeMap::AircraftState& pState)
+void MapApiCalls::SetAircraft(const prime::AircraftState& pState)
 {
     if (mMap)
     {
@@ -600,11 +600,11 @@ void MapApiCalls::SetAircraft(const PrimeMap::AircraftState& pState)
     }
 }
 
-PrimeMap::AircraftState MapApiCalls::GetAircraft() const
+prime::AircraftState MapApiCalls::GetAircraft() const
 {
     if (!mMap)
     {
-        return PrimeMap::AircraftState();
+        return prime::AircraftState();
     }
     return mMap->GetAircraft();
 }
@@ -617,7 +617,7 @@ void MapApiCalls::ClearTrack()
     }
 }
 
-void MapApiCalls::SetRouteSource(PrimeMap::DataSource pSource)
+void MapApiCalls::SetRouteSource(prime::DataSource pSource)
 {
     if (mMap)
     {
@@ -625,16 +625,16 @@ void MapApiCalls::SetRouteSource(PrimeMap::DataSource pSource)
     }
 }
 
-PrimeMap::DataSource MapApiCalls::GetRouteSource() const
+prime::DataSource MapApiCalls::GetRouteSource() const
 {
     if (!mMap)
     {
-        return PrimeMap::DataSource::XPlane;
+        return prime::DataSource::XPlane;
     }
     return mMap->GetRouteSource();
 }
 
-void MapApiCalls::SetRoute(const std::vector<PrimeMap::RouteWaypoint>& pWaypoints, int pActive)
+void MapApiCalls::SetRoute(const std::vector<prime::RouteWaypoint>& pWaypoints, int pActive)
 {
     if (mMap)
     {
@@ -642,7 +642,7 @@ void MapApiCalls::SetRoute(const std::vector<PrimeMap::RouteWaypoint>& pWaypoint
     }
 }
 
-std::vector<PrimeMap::MapObject> MapApiCalls::QueryAt(double pLat, double pLon) const
+std::vector<prime::MapObject> MapApiCalls::QueryAt(double pLat, double pLon) const
 {
     if (!mMap)
     {
@@ -651,7 +651,7 @@ std::vector<PrimeMap::MapObject> MapApiCalls::QueryAt(double pLat, double pLon) 
     return mMap->QueryAt(pLat, pLon);
 }
 
-std::vector<PrimeMap::MapObject> MapApiCalls::QueryAtScreen(int pX, int pY) const
+std::vector<prime::MapObject> MapApiCalls::QueryAtScreen(int pX, int pY) const
 {
     if (!mMap)
     {
@@ -678,16 +678,16 @@ bool MapApiCalls::ImportSettings(const std::string& pText)
     return mMap->ImportSettings(pText);
 }
 
-PrimeMap::TerrainSettings MapApiCalls::GetTerrainSettings() const
+prime::TerrainSettings MapApiCalls::GetTerrainSettings() const
 {
     if (!mMap)
     {
-        return PrimeMap::TerrainSettings();
+        return prime::TerrainSettings();
     }
     return mMap->GetTerrainSettings();
 }
 
-void MapApiCalls::SetTerrainSettings(const PrimeMap::TerrainSettings& pSettings)
+void MapApiCalls::SetTerrainSettings(const prime::TerrainSettings& pSettings)
 {
     if (mMap)
     {
@@ -740,7 +740,7 @@ bool MapApiCalls::PrecacheVisibleArea()
     return mMap->PrecacheVisibleArea();
 }
 
-bool MapApiCalls::PrecacheArea(const PrimeMap::GeoBounds& pArea)
+bool MapApiCalls::PrecacheArea(const prime::GeoBounds& pArea)
 {
     if (!mMap)
     {

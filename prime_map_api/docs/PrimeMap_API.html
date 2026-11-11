@@ -34,9 +34,9 @@ bağlıdır.</p>
 <tr><th>Özellik</th><th>Değer</th></tr>
 <tr><td>Platform</td><td>X-Plane 11, Windows x64, SDK 3.0 (XPLM301). Host her zaman bir X-Plane eklentisidir.</td></tr>
 <tr><td>Dil, derleyici</td><td>C++20, MSVC 2022</td></tr>
-<tr><td>Ad alanı / başlık</td><td><code>PrimeMap</code> / tek başlık <code>PrimeMap.h</code> (<code>#include &lt;prime_map_api/PrimeMap.h&gt;</code>; sadece standart C++ tipleri)</td></tr>
+<tr><td>Ad alanı / başlık</td><td><code>prime</code> / tek başlık <code>PrimeMap.h</code> (<code>#include &lt;prime_map_api/PrimeMap.h&gt;</code>; sadece standart C++ tipleri)</td></tr>
 <tr><td>Dağıtım biçimi</td><td>SHARED DLL (<code>prime_map.dll</code>, <code>/MD</code> CRT) + import kütüphanesi <code>prime_map.lib</code>; DLL host eklentinin yanına kopyalanır. Hedef makinede MSVC 2022 redistributable gerekir</td></tr>
-<tr><td>Harita sayısı</td><td>Eklenti başına bir. DLL ortak kütüphane olduğu için aynı X-Plane sürecindeki <b>tüm hostlar</b> aynı durumu paylaşır: <code>Init</code> bir kez yapılır, ikinci hostta <code>false</code> döner; tek harita kuralı hostlar arasında ortaktır</td></tr>
+<tr><td>Harita sayısı</td><td>Çoklu. Aynı anda birden çok açık <code>Map</code> penceresi olabilir; her harita kendi penceresiyle bağımsızdır. DLL ortak kütüphane olduğu için aynı X-Plane sürecindeki <b>tüm hostlar</b> aynı kütüphane nesnesini (<code>prime::MapLibrary::Get()</code>) paylaşır: <code>Init</code> bir kez yapılır, sonraki hostlar <code>true</code> alır (ilk hostun yapılandırması geçerlidir); kapanış referans sayaçlıdır</td></tr>
 <tr><td>Thread</td><td>Bütün fonksiyonlar X-Plane ana thread'inden çağrılır</td></tr>
 <tr><td>Hata modeli</td><td>İstisna yok. Geçersiz değer: işlem yapılmaz, Log'a bir satır uyarı, dönüş <code>false</code> / boş</td></tr>
 <tr><td>Dosyalar</td><td>Kütüphane ayar/çizim dosyası yazmaz (dışa/içe aktarma metinleri verir); sadece önbellek klasörüne yazar</td></tr>
@@ -78,27 +78,27 @@ host eklentinin (<code>win.xpl</code>) yanına kopyalanmalıdır (Windows DLL ar
 iskelet:</p>
 <pre>#include &lt;prime_map_api/PrimeMap.h&gt;
 
-static std::unique_ptr&lt;PrimeMap::Map&gt; gMap;
+static std::unique_ptr&lt;prime::Map&gt; gMap;
 
 PLUGIN_API int XPluginEnable(void)
 {
-    PrimeMap::InitConfig tInit;
+    prime::InitConfig tInit;
     // mCacheDirectory bos birakilirse: &lt;eklenti klasoru&gt;/cache/
-    if (!PrimeMap::Init(tInit))
+    if (!prime::MapLibrary::Get().Init(tInit))
         return 0;
 
-    PrimeMap::OpenConfig tOpen;
+    prime::OpenConfig tOpen;
     tOpen.mGeometry = { 100, 800, 640, 480 };   // sol, ust, genislik, yukseklik (boxel)
     tOpen.mUiVisible = true;                    // yerlesik arayuz (araç seridi, katman paneli ...)
     tOpen.mMouseInput = true;                   // fare ile kaydirma ve zoom
-    gMap = PrimeMap::MapFactory::CreateMap(tOpen);   // veya: Map::Open(tOpen)
+    gMap = prime::MapLibrary::Get().CreateMap(tOpen);   // veya: Map::Open(tOpen)
     return 1;
 }
 
 PLUGIN_API void XPluginDisable(void)
 {
     gMap.reset();            // pencere kapanir
-    PrimeMap::Shutdown();    // arka plan isleri durur
+    prime::MapLibrary::Get().Shutdown();    // arka plan isleri durur
 }</pre>
 <p>Veri yüklemesi arka planda sürer; harita hemen açılabilir, katmanlar veri geldikçe tamamlanır (bkz. bölüm 4).
 Kütüphane ayar/çizim dosyası <b>yazmaz</b>: pencere yeri, mod, katman görünürlükleri ve kullanıcı çizimleri bellekte tutulur;
@@ -116,14 +116,14 @@ fonksiyonları kendi kontrollerine bağlar.</p>
 <h3>Adım 5 &mdash; Doğrulayın</h3>
 <p>Harita penceresi görünür ve durum şeridi veri yüklemesini gösterir. Başarısızlıkta işlemler sessizce yapılmaz; neden
 Log.txt'ye <code>mLogPrefix</code> ile yazılır (<code>InitConfig::mLogCallback</code> ile log'ları kendi dosyanıza da alabilirsiniz).
-Yükleme durumu için <code>PrimeMap::GetStatus()</code>, sürüm uyumu için <code>PrimeMap::VersionString()</code> kullanın.
+Yükleme durumu için <code>prime::MapLibrary::Get().GetStatus()</code>, sürüm uyumu için <code>prime::VersionString()</code> kullanın.
 Yeni bir SDK sürümünde kütüphane reposunu güncellemeniz yeterlidir; API uyumsuzluğu
 major sürüm artışıyla bildirilir.</p>
 
 <h3>Sık karşılaşılan durumlar</h3>
 <table>
 <tr><th>Belirti</th><th>Sebep / çözüm</th></tr>
-<tr><td><code>Map::Open</code> / <code>CreateMap</code> nullptr döner</td><td><code>Init</code> çağrılmadı ya da false döndü; veya zaten açık bir harita var (eklenti başına bir harita). Önce <code>IsInitialized()</code> kontrol edin</td></tr>
+<tr><td><code>Map::Open</code> / <code>CreateMap</code> nullptr döner</td><td><code>MapLibrary::Get().Init(...)</code> çağrılmadı; önce <code>IsInitialized()</code> kontrol edin</td></tr>
 <tr><td><code>Init</code> false döner</td><td>Önbellek klasörü yazılabilir değil (<code>mCacheDirectory</code> boşsa eklenti klasörü altındaki <code>cache/</code>). Klasörü kontrol edin ya da yazılabilir bir yol verin</td></tr>
 <tr><td>Pencere hiç açılmıyor</td><td>Pencere gizli olabilir (<code>OpenConfig::mVisible</code>, <code>SetVisible</code>); geometri ekran dışında olabilir (bölüm 5: left/top/right/bottom kuralı)</td></tr>
 <tr><td>Zemin gri / boş kareler</td><td>Karoya kurulu sahne yok: o karo deniz veya "veri yok"tur; alt şeritte <code>Loading terrain</code> yazıyorsa yükleme devam ediyor. Kurulu sahneler simülatördekiyle aynıdır, kütüphane ayrı veri indirmez</td></tr>
@@ -151,14 +151,15 @@ host da <code>/MD</code> ile derlenmelidir (STL tipleri DLL sınırından geçer
 (sonuç: <code>prime_map.dll</code>). Paket/install adımı yoktur; tüketim CMake hedefi üzerinden yapılır.</p>
 
 <h2>4. Yaşam döngüsü</h2>
-<pre>XPluginEnable :  PrimeMap::Init(config)                                veri yüklemesi başlar (arka planda)
-                 auto map = PrimeMap::MapFactory::CreateMap(openConfig) harita penceresi açılır
-                 (Map::Open aynı işi yapar; fabrika ekibin kalıbıdır)
+<pre>XPluginEnable :  auto&amp; lib = prime::MapLibrary::Get();     kutuphane nesnesi
+                 lib.Init(config)                          veri yüklemesi başlar (arka planda)
+                 auto map = lib.CreateMap(openConfig)      harita penceresi açılır (aynı anda birden çok harita olabilir)
+                 (Map::Open aynı işi yapar; geriye uyumluluk için durur)
 çalışırken    :  map-&gt;SetGeometry(...), map-&gt;ZoomIn(), map-&gt;SetMode(...) ...
-XPluginDisable:  map.reset()                                pencere kapanır
-                 PrimeMap::Shutdown()                       arka plan işleri durur</pre>
+XPluginDisable:  map.reset()                               pencere kapanır
+                 lib.Shutdown()                            arka plan işleri durur (referans sayacılı)</pre>
 <p>Veri yüklenirken harita hemen açılabilir; hazır olmayan katmanlar boş/kaba çizilir ve veri geldikçe tamamlanır
-(<code>GetStatus</code>). Zemin ayarı (<code>ImportTerrainSettings</code>/<code>SetTerrainSettings</code>), <code>Open</code>'dan hemen sonra ve
+(<code>GetStatus</code>). Zemin ayarı (<code>ImportTerrainSettings</code>/<code>SetTerrainSettings</code>), <code>CreateMap</code>'ten hemen sonra ve
 ilk kareden önce verilirse tam etkilidir; sonradan verilen zemin ayarı bir sonraki X-Plane açılışında etkili olur.</p>
 
 <h2>5. Koordinatlar ve birimler</h2>
@@ -308,27 +309,27 @@ ilk kareden önce verilirse tam etkilidir; sonradan verilen zemin ayarı bir son
 </table>
 <pre>#include "PrimeMap.h"
 
-bool MapApiCalls::OpenMap(const PrimeMap::Geometry&amp; pGeometry, PrimeMap::WindowStyle pStyle, bool pUi, bool pMouse)
+bool MapApiCalls::OpenMap(const prime::Geometry&amp; pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse)
 {
-    PrimeMap::OpenConfig tConfig;
+    prime::OpenConfig tConfig;
     tConfig.mGeometry = pGeometry;
     tConfig.mStyle = pStyle;
     tConfig.mUiVisible = pUi;
     tConfig.mMouseInput = pMouse;
-    mMap = PrimeMap::Map::Open(tConfig);
+    mMap = prime::Map::Open(tConfig);
     return mMap != nullptr;
 }</pre>
 
 <h2>10. Sınırlar</h2>
 <table>
-<tr><td>Harita sayısı</td><td>Eklenti başına bir</td></tr>
+<tr><td>Harita sayısı</td><td>Çoklu: aynı anda birden çok açık <code>Map</code> penceresi</td></tr>
 <tr><td>Çizim yüzeyi</td><td>Kendi XPLM penceresi; 3D kokpit paneline ya da başka bir pencerenin içine çizmez</td></tr>
-<tr><td>Birden çok host</td><td>Her eklenti veriyi ayrı yükler; aynı önbellek klasörü paylaşılmamalı</td></tr>
+<tr><td>Birden çok host</td><td>Kütüphane nesnesi süreçte tektir ve paylaşılır; ayrı veri yüklenmez</td></tr>
 <tr><td>Sorgu</td><td>Tooltip metni döner; ayrı kimlik alanı yok</td></tr>
 </table>
 
 <h2>11. Sürüm</h2>
-<p>0.22 &mdash; ekip kalıbına geçiş: SHARED DLL (<code>MapFactory</code>, <code>PRIME_MAP_EXPORT</code>),
+<p>0.22 &mdash; ekip kalıbına geçiş: SHARED DLL (<code>MapLibrary</code>, <code>PRIME_MAP_EXPORT</code>),
 sürüm sabitleri CMake <code>project(VERSION)</code> ile birleştirildi ve configure'da denetlenir.
 0.20 &mdash; ilk sürüm (o dönem API sürümü 1.0.0 diye etiketlenmişti).</p>
 </body>

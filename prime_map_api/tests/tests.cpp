@@ -3550,37 +3550,37 @@ public:
 
 void TestApiLayers()
 {
-    using PrimeMap::MapLayer;
+    using prime::MapLayer;
     // 1) Tablo: her enum ogesinin anahtari geri ayni ogeye doner; ust ogeler tutarli
     for (int tIndex = 0; tIndex < static_cast<int>(MapLayer::Count); ++tIndex)
     {
         const MapLayer tLayer = static_cast<MapLayer>(tIndex);
-        const std::optional<MapLayer> tBack = PrimeMap::LayerFromKey(PrimeMap::LayerKey(tLayer));
-        CHECK(tBack && *tBack == tLayer, "layer key round trip %d (%s)", tIndex, PrimeMap::LayerKey(tLayer));
-        const std::optional<MapLayer> tParent = PrimeMap::ParentOf(tLayer);
-        switch (PrimeMap::KindOf(tLayer))
+        const std::optional<MapLayer> tBack = prime::LayerFromKey(prime::LayerKey(tLayer));
+        CHECK(tBack && *tBack == tLayer, "layer key round trip %d (%s)", tIndex, prime::LayerKey(tLayer));
+        const std::optional<MapLayer> tParent = prime::ParentOf(tLayer);
+        switch (prime::KindOf(tLayer))
         {
-            case PrimeMap::LayerKind::Group:
+            case prime::LayerKind::Group:
                 CHECK(!tParent, "group has no parent %d", tIndex);
                 break;
-            case PrimeMap::LayerKind::Layer:
-                CHECK(!tParent || PrimeMap::KindOf(*tParent) == PrimeMap::LayerKind::Group, "layer parent %d", tIndex);
+            case prime::LayerKind::Layer:
+                CHECK(!tParent || prime::KindOf(*tParent) == prime::LayerKind::Group, "layer parent %d", tIndex);
                 break;
-            case PrimeMap::LayerKind::SubLayer:
-                CHECK(tParent && PrimeMap::KindOf(*tParent) == PrimeMap::LayerKind::Layer, "sub parent %d", tIndex);
+            case prime::LayerKind::SubLayer:
+                CHECK(tParent && prime::KindOf(*tParent) == prime::LayerKind::Layer, "sub parent %d", tIndex);
                 break;
         }
     }
-    CHECK(PrimeMap::TopLevelLayers().size() == 6, "6 top level items (5 groups + drawings)");
-    CHECK(PrimeMap::ChildrenOf(MapLayer::AirportsGroup).size() == 5, "airports group has 5 layers");
-    CHECK(PrimeMap::ChildrenOf(MapLayer::Runways).size() == 6, "runways has 6 sub layers");
-    CHECK(std::string(PrimeMap::LayerKey(MapLayer::RunwaysWater)) == "runways.water", "runways.water key");
-    CHECK(std::string(PrimeMap::LayerName(MapLayer::RunwaysWater)) == "Water runways", "runways.water name");
-    CHECK(!PrimeMap::LayerFromKey("nonsense"), "unknown key");
-    CHECK(!PrimeMap::IsLayerDefaultVisible(MapLayer::TaxiRoutes, PrimeMap::MapMode::Scenery), "taxi off");
-    CHECK(PrimeMap::IsLayerDefaultVisible(MapLayer::Terrain, PrimeMap::MapMode::Scenery), "terrain on");
-    CHECK(!PrimeMap::IsLayerDefaultVisible(MapLayer::Fixes, PrimeMap::MapMode::Scenery), "fixes off (scenery)");
-    CHECK(PrimeMap::IsLayerDefaultVisible(MapLayer::Fixes, PrimeMap::MapMode::IfrHigh), "fixes on (ifr high)");
+    CHECK(prime::TopLevelLayers().size() == 6, "6 top level items (5 groups + drawings)");
+    CHECK(prime::ChildrenOf(MapLayer::AirportsGroup).size() == 5, "airports group has 5 layers");
+    CHECK(prime::ChildrenOf(MapLayer::Runways).size() == 6, "runways has 6 sub layers");
+    CHECK(std::string(prime::LayerKey(MapLayer::RunwaysWater)) == "runways.water", "runways.water key");
+    CHECK(std::string(prime::LayerName(MapLayer::RunwaysWater)) == "Water runways", "runways.water name");
+    CHECK(!prime::LayerFromKey("nonsense"), "unknown key");
+    CHECK(!prime::IsLayerDefaultVisible(MapLayer::TaxiRoutes, prime::MapMode::Scenery), "taxi off");
+    CHECK(prime::IsLayerDefaultVisible(MapLayer::Terrain, prime::MapMode::Scenery), "terrain on");
+    CHECK(!prime::IsLayerDefaultVisible(MapLayer::Fixes, prime::MapMode::Scenery), "fixes off (scenery)");
+    CHECK(prime::IsLayerDefaultVisible(MapLayer::Fixes, prime::MapMode::IfrHigh), "fixes on (ifr high)");
 
     // 2) Kurallar (katman paneliyle ayni)
     LayerManager tLayers;
@@ -3597,29 +3597,29 @@ void TestApiLayers()
 
     // Kapali katmanin alt katmani: sadece o acilir, katman "yarim"
     LayerRules::SetVisible(tLayers, tTheme, MapLayer::Runways, false);
-    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == PrimeMap::LayerState::Off, "runways off");
+    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == prime::LayerState::Off, "runways off");
     CHECK(!LayerRules::IsVisible(tLayers, MapLayer::RunwaysWater), "sub hidden with parent");
     LayerRules::SetVisible(tLayers, tTheme, MapLayer::RunwaysWater, true);
     CHECK(LayerRules::IsVisible(tLayers, MapLayer::RunwaysWater), "water on");
     CHECK(!LayerRules::IsVisible(tLayers, MapLayer::RunwaysPaved), "paved stays off");
-    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == PrimeMap::LayerState::Mixed, "runways mixed");
+    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == prime::LayerState::Mixed, "runways mixed");
     // Son alt katman kapaninca katman da kapanir
     LayerRules::Toggle(tLayers, tTheme, MapLayer::RunwaysWater);
-    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == PrimeMap::LayerState::Off, "last sub closes layer");
+    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == prime::LayerState::Off, "last sub closes layer");
     // Butun alt katmanlari kapali katman acilinca hepsi acilir
     LayerRules::SetVisible(tLayers, tTheme, MapLayer::Runways, true);
-    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == PrimeMap::LayerState::On, "layer opens all subs");
+    CHECK(LayerRules::State(tLayers, MapLayer::Runways) == prime::LayerState::On, "layer opens all subs");
 
     // Grup: kapat -> hepsi kapali; ac -> sadece varsayilan acik olanlar (taxi routes / objects kapali kalir)
     LayerRules::SetVisible(tLayers, tTheme, MapLayer::AirportsGroup, false);
-    CHECK(LayerRules::State(tLayers, MapLayer::AirportsGroup) == PrimeMap::LayerState::Off, "group off");
+    CHECK(LayerRules::State(tLayers, MapLayer::AirportsGroup) == prime::LayerState::Off, "group off");
     LayerRules::Toggle(tLayers, tTheme, MapLayer::AirportsGroup);
     CHECK(LayerRules::IsVisible(tLayers, MapLayer::AirportSymbols), "group on: symbols");
     CHECK(!LayerRules::IsVisible(tLayers, MapLayer::TaxiRoutes), "group on: taxi routes stay off");
-    CHECK(LayerRules::State(tLayers, MapLayer::AirportsGroup) == PrimeMap::LayerState::Mixed, "group mixed");
+    CHECK(LayerRules::State(tLayers, MapLayer::AirportsGroup) == prime::LayerState::Mixed, "group mixed");
     // Ikinci tiklama: varsayilanlar acik -> hepsi kapanir
     LayerRules::Toggle(tLayers, tTheme, MapLayer::AirportsGroup);
-    CHECK(LayerRules::State(tLayers, MapLayer::AirportsGroup) == PrimeMap::LayerState::Off, "group toggled off");
+    CHECK(LayerRules::State(tLayers, MapLayer::AirportsGroup) == prime::LayerState::Off, "group toggled off");
     // Sadece verilenler
     const std::array<MapLayer, 2> tOnly = {MapLayer::TaxiRoutes, MapLayer::SurfacesBoundary};
     LayerRules::ShowOnly(tLayers, tTheme, tOnly.data(), tOnly.data() + tOnly.size());

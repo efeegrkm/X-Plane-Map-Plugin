@@ -76,6 +76,7 @@ public:
     // Pencereyi verilen yer, stil ve anahtarlarla olusturur
     void Create(const MapWindowOptions& pOptions);
     void Destroy();
+    bool IsCreated() const;  // Create sonrasi true; Destroy (ya da Shutdown) sonrasi false
 
     bool IsVisible() const;
     void SetVisible(bool pVisible);

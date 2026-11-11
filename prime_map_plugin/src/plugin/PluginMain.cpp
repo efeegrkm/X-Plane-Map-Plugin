@@ -94,15 +94,15 @@ private:
     void ToggleDiagnostics();
     void SaveSettings();
     void SaveDrawings();
-    PrimeMap::Geometry WindowGeometry() const;
-    static PrimeMap::Geometry DefaultGeometry();
-    static bool IsGeometryUsable(const PrimeMap::Geometry& pGeometry);
+    prime::Geometry WindowGeometry() const;
+    static prime::Geometry DefaultGeometry();
+    static bool IsGeometryUsable(const prime::Geometry& pGeometry);
     static std::string FindPluginDirectory();
 
     std::string mDirectory;
     Settings mSettings;  // map_settings.ini
-    std::unique_ptr<PrimeMap::Map> mMap;
-    PrimeMap::Geometry mFloatingGeometry;  // X-Plane icindeyken son yer (pop-out'ta degismez)
+    std::unique_ptr<prime::Map> mMap;
+    prime::Geometry mFloatingGeometry;  // X-Plane icindeyken son yer (pop-out'ta degismez)
     uint64_t mSavedSettings = 0;
     uint64_t mSavedDrawings = 0;
     bool mWasVisible = false;
@@ -124,18 +124,18 @@ void PrimeMapPlugin::Start()
     mDirectory = FindPluginDirectory();
     const bool tHasSettings = mSettings.Load(mDirectory + kSettingsFileName);
 
-    PrimeMap::InitConfig tInit;
+    prime::InitConfig tInit;
     tInit.mCacheDirectory = mDirectory + "cache/";
     tInit.mLogPrefix = "[prime-map-plugin]";  // Log.txt satirlari 0.19 ile ayni
     tInit.mTerrainCacheMb = std::max(0, mSettings.GetInt(kCacheSection, "terrain_mb", 1024));
     tInit.mPrefetchTiles = std::max(0, mSettings.GetInt(kCacheSection, "prefetch_tiles", 20));
     mSettings.SetInt(kCacheSection, "terrain_mb", tInit.mTerrainCacheMb);  // dosyada gorunsun
     mSettings.SetInt(kCacheSection, "prefetch_tiles", tInit.mPrefetchTiles);
-    PrimeMap::Init(tInit);
+    prime::MapLibrary::Get().Init(tInit);
     XPLMDebugString(tHasSettings ? "[prime-map-plugin] settings loaded\n"
                                  : "[prime-map-plugin] no settings file yet, using defaults\n");
 
-    PrimeMap::OpenConfig tOpen;
+    prime::OpenConfig tOpen;
     tOpen.mGeometry.mLeft = mSettings.GetInt(kWindowSection, "left", 0);
     tOpen.mGeometry.mTop = mSettings.GetInt(kWindowSection, "top", 0);
     tOpen.mGeometry.mWidth = mSettings.GetInt(kWindowSection, "right", 0) - tOpen.mGeometry.mLeft;
@@ -145,7 +145,7 @@ void PrimeMapPlugin::Start()
         tOpen.mGeometry = DefaultGeometry();
     }
     mFloatingGeometry = tOpen.mGeometry;
-    tOpen.mStyle = PrimeMap::WindowStyle::Standalone;
+    tOpen.mStyle = prime::WindowStyle::Standalone;
     tOpen.mUiVisible = mSettings.GetBool(kViewSection, "show_controls", true);
     tOpen.mMouseInput = true;
     tOpen.mVisible = mSettings.GetBool(kWindowSection, "visible", false);
@@ -155,7 +155,7 @@ void PrimeMapPlugin::Start()
     mSettings.SetBool(kRenderSection, "cache", tOpen.mImageCache);
     mSettings.SetInt(kRenderSection, "max_fps", tOpen.mMaxRenderFps);
     mSettings.SetString(kTextSection, "renderer", tOpen.mXPlaneFont ? "xplane" : "atlas");
-    mMap = PrimeMap::Map::Open(tOpen);
+    mMap = prime::Map::Open(tOpen);
     if (mMap)
     {
         LoadTerrainColors();
@@ -175,7 +175,7 @@ void PrimeMapPlugin::Start()
     CreateMenu();
     XPLMRegisterFlightLoopCallback(FlightLoopCallback, -1.0f, this);
     XPLMDebugString(("[prime-map-plugin] loaded (version " + std::string(kVersion) + ", API " +
-                     PrimeMap::VersionString() + ")\n").c_str());
+                     prime::VersionString() + ")\n").c_str());
 }
 
 void PrimeMapPlugin::Stop()
@@ -193,7 +193,7 @@ void PrimeMapPlugin::Stop()
         SaveDrawings();
         mMap.reset();
     }
-    PrimeMap::Shutdown();
+    prime::MapLibrary::Get().Shutdown();
     if (mMenu)
     {
         XPLMDestroyMenu(mMenu);
@@ -224,7 +224,7 @@ void PrimeMapPlugin::LoadTerrainColors()
     }
 }
 
-PrimeMap::Geometry PrimeMapPlugin::WindowGeometry() const
+prime::Geometry PrimeMapPlugin::WindowGeometry() const
 {
     return mMap && !mMap->IsPoppedOut() ? mMap->GetGeometry() : mFloatingGeometry;
 }
@@ -236,7 +236,7 @@ void PrimeMapPlugin::SaveSettings()
         return;
     }
     mSettings.MergeText(mMap->ExportSettings());
-    const PrimeMap::Geometry tGeometry = WindowGeometry();
+    const prime::Geometry tGeometry = WindowGeometry();
     mSettings.SetInt(kWindowSection, "left", tGeometry.mLeft);
     mSettings.SetInt(kWindowSection, "top", tGeometry.mTop);
     mSettings.SetInt(kWindowSection, "right", tGeometry.mLeft + tGeometry.mWidth);
@@ -263,7 +263,7 @@ void PrimeMapPlugin::SaveDrawings()
     mSavedDrawings = mMap->GetDrawingsRevision();
 }
 
-PrimeMap::Geometry PrimeMapPlugin::DefaultGeometry()
+prime::Geometry PrimeMapPlugin::DefaultGeometry()
 {
     // Ana X-Plane penceresinin ortasinda, ekranin %70'i (en fazla 1000x700)
     int tLeft = 0;
@@ -271,7 +271,7 @@ PrimeMap::Geometry PrimeMapPlugin::DefaultGeometry()
     int tRight = 0;
     int tBottom = 0;
     XPLMGetScreenBoundsGlobal(&tLeft, &tTop, &tRight, &tBottom);
-    PrimeMap::Geometry tGeometry;
+    prime::Geometry tGeometry;
     tGeometry.mWidth = std::clamp((tRight - tLeft) * 7 / 10, kMinWidth, std::max(kMinWidth, 1000));
     tGeometry.mHeight = std::clamp((tTop - tBottom) * 7 / 10, kMinHeight, std::max(kMinHeight, 700));
     tGeometry.mLeft = (tLeft + tRight) / 2 - tGeometry.mWidth / 2;
@@ -279,7 +279,7 @@ PrimeMap::Geometry PrimeMapPlugin::DefaultGeometry()
     return tGeometry;
 }
 
-bool PrimeMapPlugin::IsGeometryUsable(const PrimeMap::Geometry& pGeometry)
+bool PrimeMapPlugin::IsGeometryUsable(const prime::Geometry& pGeometry)
 {
     if (pGeometry.mWidth < kMinWidth || pGeometry.mHeight < kMinHeight)
     {

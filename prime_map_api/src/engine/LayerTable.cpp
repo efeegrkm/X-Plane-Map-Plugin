@@ -10,8 +10,8 @@
 namespace
 {
 
-using PrimeMap::LayerKind;
-using PrimeMap::MapLayer;
+using prime::LayerKind;
+using prime::MapLayer;
 
 struct LayerEntry
 {
@@ -139,7 +139,7 @@ bool ThemeDefaultOf(const MapTheme& pTheme, std::string_view pKey)
 // Genel API'nin serbest fonksiyonlari (PrimeMap.h)
 // ============================================================================
 
-namespace PrimeMap
+namespace prime
 {
 
 std::optional<MapLayer> ParentOf(MapLayer pLayer)
@@ -230,7 +230,7 @@ bool IsLayerDefaultVisible(MapLayer pLayer, MapMode pMode)
     return ThemeDefaultOf(tTheme, tEntry->mKey);
 }
 
-}  // namespace PrimeMap
+}  // namespace prime
 
 // ============================================================================
 // Kurallar
@@ -247,7 +247,7 @@ Layer* FindLayer(const LayerManager& pLayers, MapLayer pLayer)
         return nullptr;
     }
     const MapLayer tOwner = tEntry->mKind == LayerKind::SubLayer ? tEntry->mParent : pLayer;
-    const std::string_view tId = PrimeMap::LayerKey(tOwner);
+    const std::string_view tId = prime::LayerKey(tOwner);
     for (int tIndex = 0; tIndex < pLayers.Count(); ++tIndex)
     {
         if (pLayers.At(tIndex)->Id() == tId)
@@ -287,7 +287,7 @@ bool IsVisible(const LayerManager& pLayers, MapLayer pLayer)
     }
     if (tEntry->mKind == LayerKind::Group)
     {
-        return State(pLayers, pLayer) != PrimeMap::LayerState::Off;
+        return State(pLayers, pLayer) != prime::LayerState::Off;
     }
     const Layer* tLayer = FindLayer(pLayers, pLayer);
     if (!tLayer)
@@ -301,9 +301,9 @@ bool IsVisible(const LayerManager& pLayers, MapLayer pLayer)
     return tLayer->IsVisible();
 }
 
-PrimeMap::LayerState State(const LayerManager& pLayers, MapLayer pLayer)
+prime::LayerState State(const LayerManager& pLayers, MapLayer pLayer)
 {
-    using PrimeMap::LayerState;
+    using prime::LayerState;
     const LayerEntry* tEntry = EntryOf(pLayer);
     if (!tEntry)
     {
@@ -314,7 +314,7 @@ PrimeMap::LayerState State(const LayerManager& pLayers, MapLayer pLayer)
         // Panelle ayni: gruptaki katmanlarin kac tanesi acik (alt katmanlara bakilmaz)
         int tOn = 0;
         int tAll = 0;
-        for (MapLayer tChild : PrimeMap::ChildrenOf(pLayer))
+        for (MapLayer tChild : prime::ChildrenOf(pLayer))
         {
             const Layer* tLayer = FindLayer(pLayers, tChild);
             if (tLayer)
@@ -396,7 +396,7 @@ std::vector<Layer*> GroupDefaultLayers(const LayerManager& pLayers, const MapThe
 {
     std::vector<Layer*> tAll;
     std::vector<Layer*> tDefaultOn;
-    for (MapLayer tChild : PrimeMap::ChildrenOf(pGroup))
+    for (MapLayer tChild : prime::ChildrenOf(pGroup))
     {
         Layer* tLayer = FindLayer(pLayers, tChild);
         if (!tLayer)
@@ -433,7 +433,7 @@ bool SetVisible(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer, 
         }
         else
         {
-            for (MapLayer tChild : PrimeMap::ChildrenOf(pLayer))
+            for (MapLayer tChild : prime::ChildrenOf(pLayer))
             {
                 Layer* tLayer = FindLayer(pLayers, tChild);
                 if (tLayer)
@@ -484,7 +484,7 @@ void ShowOnly(LayerManager& pLayers, const MapTheme& pTheme, const MapLayer* pBe
     }
     for (const MapLayer* tItem = pBegin; tItem != pEnd; ++tItem)
     {
-        if (PrimeMap::KindOf(*tItem) == LayerKind::Layer)
+        if (prime::KindOf(*tItem) == LayerKind::Layer)
         {
             // Acikca istenen katman: butun alt katmanlariyla
             Layer* tLayer = FindLayer(pLayers, *tItem);

@@ -70,7 +70,7 @@ private:
     }
     void ToggleAirways()
     {
-        mCalls.ToggleLayer(PrimeMap::MapLayer::AirwaysGroup);
+        mCalls.ToggleLayer(prime::MapLayer::AirwaysGroup);
     }
     void ToggleUi()
     {
@@ -82,13 +82,13 @@ private:
     }
     void MoveRight()
     {
-        PrimeMap::Geometry tGeometry = mCalls.GetGeometry();
+        prime::Geometry tGeometry = mCalls.GetGeometry();
         tGeometry.mLeft += 100;
         mCalls.SetGeometry(tGeometry);
     }
     void Grow()
     {
-        PrimeMap::Geometry tGeometry = mCalls.GetGeometry();
+        prime::Geometry tGeometry = mCalls.GetGeometry();
         tGeometry.mWidth += 100;
         tGeometry.mHeight += 60;
         mCalls.SetGeometry(tGeometry);
@@ -107,7 +107,7 @@ private:
 void TestPlugin::Enable()
 {
     mCalls.InitLibrary("[map-api-test-lib]");
-    mCalls.OpenMap({150, 750, 640, 420}, PrimeMap::WindowStyle::Embedded, false, false);
+    mCalls.OpenMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, false, false);
     mTest.Start(XPLMGetElapsedTime());
 
     mActions = {

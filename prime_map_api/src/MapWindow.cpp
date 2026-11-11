@@ -134,6 +134,11 @@ void MapWindow::Create(const MapWindowOptions& pOptions)
     }
 }
 
+bool MapWindow::IsCreated() const
+{
+    return mWindow != nullptr;
+}
+
 void MapWindow::Destroy()
 {
     if (mText)
@@ -897,17 +902,17 @@ void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
         return;
     }
     // Paneldeki satiri API ogesine cevir; kurallar engine/LayerTable'da (API ile ayni yol)
-    std::optional<PrimeMap::MapLayer> tItem;
+    std::optional<prime::MapLayer> tItem;
     if (pHit.mSubLayerOwner >= 0)
     {
-        tItem = PrimeMap::LayerFromKey(LayerManager::SubLayerKey(*mLayers.At(pHit.mSubLayerOwner), pHit.mSubLayer));
+        tItem = prime::LayerFromKey(LayerManager::SubLayerKey(*mLayers.At(pHit.mSubLayerOwner), pHit.mSubLayer));
     }
     else if (!pHit.mToggle.empty())
     {
-        tItem = PrimeMap::LayerFromKey(mLayers.At(pHit.mToggle.front())->Id());
+        tItem = prime::LayerFromKey(mLayers.At(pHit.mToggle.front())->Id());
         if (tItem && pHit.mIsGroupBox)
         {
-            tItem = PrimeMap::ParentOf(*tItem);
+            tItem = prime::ParentOf(*tItem);
         }
     }
     if (!tItem)
@@ -916,7 +921,7 @@ void MapWindow::ApplyLayerPanelHit(const LayerPanel::Hit& pHit)
     }
     if (LayerRules::Toggle(mLayers, ThemeFor(mMapMode), *tItem))
     {
-        Log("layer '{}': {}", PrimeMap::LayerKey(*tItem), LayerRules::IsVisible(mLayers, *tItem) ? "on" : "off");
+        Log("layer '{}': {}", prime::LayerKey(*tItem), LayerRules::IsVisible(mLayers, *tItem) ? "on" : "off");
         SaveSettings();
     }
 }
