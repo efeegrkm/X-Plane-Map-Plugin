@@ -58,3 +58,6 @@ compile_commands.json
 # Bu proje: Qt Creator kullanici ayarlari ve yerel klasoru
 *.user
 .qtcreator/
+
+# AI asistani kurallari: repoya girmez, yerel kalir
+AGENTS.md

@@ -21,6 +21,13 @@ Kütüphane sunumu ekibin kalıbına (prime-utils / prime-dbmanager / prime-buil
   `prime_map_plugin` derlemesi ikisini de X-Plane'e kurar.
 - Windows sürüm kaynağı (`primemap.rc.in` → `prime_map.dll`, `prime_map_plugin.rc.in` →
   `win.xpl`): CMake `PROJECT_VERSION` dosya özelliklerine gömülür (Ayrintilar sekmesi).
+- **Sürüm birleştirildi:** `PrimeMap.h`'deki `kVersionMajor/Minor/Patch` (ve
+  `VersionString()`) 1.0.0 → **0.22.0**; artık CMake `project(VERSION)` ile aynıdır ve
+  configure sırasında denetlenir (uyusmazlıkta configure hata verir).
+- Dokümantasyon yeni tüketim modeline göre adım adım yenilendi: README "kendi
+  eklentine kurma" rehberi, `prime_map_plugin` README'sinde iki-repo kurulumu ve
+  çalıştırma adımları, `plugin-api-test` README'si, bu belge (Adım 2'de
+  `PRIME_MAP_DIR` denetimi, POST_BUILD kopyası, VC_redist, sorun giderme tablosu).
 - Dev fark (bilinçli): `map_tests` / `map_preview` kütüphane kaynaklarını hâlâ
   doğrudan derler (iç sınıflar DLL dışına export edilmez, testler iç sınıfları
   test eder). Testler: 30.659 kontrol, 0 hata.

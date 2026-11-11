@@ -55,14 +55,23 @@ bağlıdır.</p>
 <a href="https://developer.x-plane.com/sdk/">developer.x-plane.com/sdk</a> adresinden indirilir
 (geliştirme ortamına göre <code>C:\workspace\cots\X-Plane-SDK</code> altına kurulur; repoda tutulmaz).
 Kütüphane aynı CMake oturumuna katılır ve hedef adına bağlanır:</p>
-<pre>add_subdirectory(${CMAKE_SOURCE_DIR}/../prime_map_api prime_map_build)
+<pre>set(PRIME_MAP_DIR "${CMAKE_SOURCE_DIR}/../prime_map_api" CACHE PATH "prime_map_api klasoru")
+if(NOT EXISTS "${PRIME_MAP_DIR}/PrimeMap.h")
+    message(FATAL_ERROR "prime_map_api bulunamadi: ${PRIME_MAP_DIR} (kardes klasor olarak klonlayin)")
+endif()
+add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
 target_link_libraries(host PRIVATE prime_map          # include yolu transitif gelir
                       ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
 target_compile_definitions(host PRIVATE
     XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1   # SDK 3.0 seviyesi
     IBM=1 APL=0 LIN=0                          # Windows; APL/LIN diger platformlar</pre>
 <p>Host kodunda başlık: <code>#include &lt;prime_map_api/PrimeMap.h&gt;</code>. Derleme sonrası <code>prime_map.dll</code>,
-host eklentinin (<code>win.xpl</code>) yanına kopyalanmalıdır; DLL'i yükleyen host'un kendisidir.</p>
+host eklentinin (<code>win.xpl</code>) yanına kopyalanmalıdır (Windows DLL arama kuralı; X-Plane'de
+<code>Resources/plugins/&lt;host&gt;/64/</code>); kopyayı POST_BUILD ile otomatikleştirin:</p>
+<pre>add_custom_command(TARGET host POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $&lt;TARGET_FILE:prime_map&gt; $&lt;TARGET_FILE_DIR:host&gt;)</pre>
+<p><code>/MD</code> nedeniyle hedef makinede MSVC 2022 redistributable (<code>VC_redist.x64</code>) kurulu olmalıdır.</p>
 
 <h3>Adım 3 &mdash; Yaşam döngüsünü bağlayın</h3>
 <p>Kütüphane <code>XPluginEnable</code>'da başlatılır ve harita açılır; <code>XPluginDisable</code>'da kapatılır. En küçük çalışan
@@ -175,7 +184,7 @@ ilk kareden önce verilirse tam etkilidir; sonradan verilen zemin ayarı bir son
 <tr><td><code>Shutdown()</code></td><td>Arka plan işlerini durdurur; açık harita varsa kapatır</td><td></td></tr>
 <tr><td><code>IsInitialized()</code></td><td>Kütüphane başlatıldı mı</td><td><code>bool</code></td></tr>
 <tr><td><code>GetStatus()</code></td><td>Yükleme durumu: nav, havalimanı, hava yolu, sahne indeksi hazır mı; bekleyen zemin görüntüsü; ön önbellek ilerlemesi; durum metni; teşhis açıksa performans metni</td><td><code>Status</code></td></tr>
-<tr><td><code>VersionString()</code>, <code>kVersionMajor/Minor/Patch</code></td><td>API sürümü</td><td>"1.0.0"; uyumsuz değişiklikte major artar</td></tr>
+<tr><td><code>VersionString()</code>, <code>kVersionMajor/Minor/Patch</code></td><td>Kütüphane sürümü (CMake <code>project(VERSION)</code> ile aynıdır; configure'da denetlenir)</td><td>"0.22.0"; uyumsuz değişiklikte major artar</td></tr>
 
 <tr class="group"><td colspan="3">Harita penceresi</td></tr>
 <tr><td><code>Map::Open(OpenConfig)</code></td><td>Haritayı açar. <code>mGeometry</code>, <code>mStyle</code> (Embedded), <code>mMode</code> (Scenery), <code>mUiVisible</code> (false), <code>mMouseInput</code> (false), <code>mVisible</code> (true), <code>mImageCache</code> (true), <code>mMaxRenderFps</code> (15), <code>mXPlaneFont</code> (false)</td><td><code>unique_ptr&lt;Map&gt;</code>; Init yoksa veya harita açıksa nullptr</td></tr>
@@ -319,6 +328,8 @@ bool MapApiCalls::OpenMap(const PrimeMap::Geometry&amp; pGeometry, PrimeMap::Win
 </table>
 
 <h2>11. Sürüm</h2>
-<p>1.0.0 &mdash; ilk sürüm (prime-map-plugin 0.20).</p>
+<p>0.22 &mdash; ekip kalıbına geçiş: SHARED DLL (<code>MapFactory</code>, <code>PRIME_MAP_EXPORT</code>),
+sürüm sabitleri CMake <code>project(VERSION)</code> ile birleştirildi ve configure'da denetlenir.
+0.20 &mdash; ilk sürüm (o dönem API sürümü 1.0.0 diye etiketlenmişti).</p>
 </body>
 </html>

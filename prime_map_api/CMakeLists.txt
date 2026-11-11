@@ -3,6 +3,35 @@ cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
 project(prime_map_api VERSION 0.22 LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
+# Surum denetimi: genel basliktaki kVersionMajor/Minor/Patch sabitleri
+# project(VERSION) ile ayni olmalidir; uyusmazlik configure hatasidir.
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/PrimeMap.h" _pm_ver REGEX "constexpr int kVersion(Major|Minor|Patch) *= *[0-9]+")
+set(_pm_h "")
+foreach(_m IN ITEMS Major Minor Patch)
+    string(REGEX MATCH "kVersion${_m} *= *([0-9]+)" _pm_m "${_pm_ver}")
+    if(NOT _pm_m)
+        message(FATAL_ERROR "PrimeMap.h icinde kVersion${_m} sabiti bulunamadi")
+    endif()
+    list(APPEND _pm_h "${CMAKE_MATCH_1}")
+endforeach()
+string(JOIN "." _pm_h_d ${_pm_h})
+set(_pm_patch "${PROJECT_VERSION_PATCH}")
+if(_pm_patch STREQUAL "")
+    set(_pm_patch "0")  # project(VERSION x.y) -> patch belirtilmemis
+endif()
+set(_pm_cm "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${_pm_patch}")
+if(NOT _pm_h_d STREQUAL _pm_cm)
+    message(FATAL_ERROR "Surum uyusmazligi: PrimeMap.h kVersion = ${_pm_h_d}, "
+                        "CMake project(VERSION) = ${_pm_cm}. Ikisini birlikte guncelleyin.")
+endif()
+unset(_pm_ver)
+unset(_pm_h)
+unset(_pm_h_d)
+unset(_pm_cm)
+unset(_pm_patch)
+unset(_pm_m)
+
+# ---------------------------------------------------------------------------
 # COTS: ucuncu taraf bileşenler repoda TUTULMAZ; C:\workspace\cots altindan okunur.
 # Kurulum ve indirme linkleri: README.md -> "Ucuncu Taraf Bilesenler"
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")

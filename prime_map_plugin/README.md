@@ -52,11 +52,47 @@ açıklamalar `docs/PrimeMap_API.pdf`'tedir.
 |---|---|---|---|---|
 | X-Plane SDK | 3.0 (XPLM301) | X-Plane eklenti arayüzü: başlıklar + `XPLM_64.lib` | https://developer.x-plane.com/sdk/ | `C:\workspace\cots\X-Plane-SDK` |
 
-## Gereksinim: prime_map_api
+## Gereksinim: prime_map_api (bu repo tek başına derlenemez)
 
-Derlemeden önce kütüphane reposu gerekir (SDK paketi **yoktur**; tüketim
-`add_subdirectory` + hedef adına link yoluyladır). Varsayılan beklenti: bu klasörün
-kardeşi olan `../prime_map_api`. Farklı yerdeyse: `-DPRIME_MAP_DIR=<klasor>`.
+Bu repo yalnızca **ince kabuktur**; haritanın motoru kütüphanededir ve o ayrı
+repoda durur. Depoyu tek başına çeken biri doğrudan derleyemez — önce kütüphane
+reposu gerekir (SDK paketi yoktur; tüketim `add_subdirectory` + hedef adına
+link yoluyladır).
+
+**Adım 1 — İki repoyu yan yana alın.** Varsayılan beklenti kardeşlik:
+
+```
+C:\workspace\projects\
+├── prime_map_api\        <- kutuphane (github: ayni organizasyon)
+└── prime_map_plugin\     <- bu repo
+```
+
+```bat
+git clone https://gobitbucket.havelsan.com.tr/scm/eps/prime-map-api.git    C:\workspace\projects\prime_map_api
+git clone https://gobitbucket.havelsan.com.tr/scm/eps/prime-map-plugin.git C:\workspace\projects\prime_map_plugin
+```
+
+Kütüphane farklı yerdeyse CMake'e `-DPRIME_MAP_DIR=<klasor>` verin; CMake
+ayrıca kendisi `../prime_map_api`'yi algılayıp önerir.
+
+**Adım 2 — COTS bileşenleri.** `C:\workspace\cots` altına X-Plane SDK 3.0
+kurulmalı (tablo yukarıda). Kütüphane derlenirken ayrıca LZMA, earcut, stb
+gerekir — hepsi kütüphanenin içine gömülür, tablo ve indirme linkleri:
+`../prime_map_api/README.md` ("Üçüncü Taraf Bileşenler").
+
+**Adım 3 — Derleyin.** Aşağıdaki "Derleme" bölümündeki komut; Qt Creator
+kullanıyorsanız projeyi açmanız yeterli (kit: Desktop Qt 6.10.1 MSVC2022
+64bit). CMake, kütüphaneyi `add_subdirectory` ile aynı oturumda derler;
+ayrıca bir şey derlemeniz gerekmez.
+
+**Adım 4 — X-Plane'e kurun ve çalıştırın.** `MAP_DEPLOY=ON` (varsayılan)
+derleme sonrası **`win.xpl` + `prime_map.dll`**'yi birlikte
+`<X-Plane>/Resources/plugins/prime-map-plugin/64/` altına kopyalar (X-Plane
+açıkken dosya kilitli; önce kapatın). X-Plane'i açın: harita
+**Plugins → Prime Map Plugin** ile açılır; komutlar Settings → Keyboard'da
+`prime/map/` önekiyle bulunur (liste yukarıda). Log: `C:\X-Plane 11\Log.txt`
+içinde `[prime-map-plugin]` satırları — sağlıklı açılışta
+`Prime Map API 0.22 ready` geçer.
 
 ## Derleme
 
@@ -67,12 +103,17 @@ cmake -S . -B build_cmd -G Ninja -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.ex
 ninja -C build_cmd
 ```
 
-`MAP_DEPLOY=ON` (varsayılan) derleme sonrası `win.xpl`'yi **ve** `prime_map.dll`'yi
-`<X-Plane>/Resources/plugins/prime-map-plugin/64/` altına kopyalar
-(X-Plane açıkken dosya kilitli; önce kapat).
-
-CRT: `/MD` (kütüphaneyle aynı). Hedef makinede MSVC 2022
+Ön koşullar yukarıdaki "Gereksinim" bölümündedir (kardeş `prime_map_api`
+reposu + COTS). `/MD` (kütüphaneyle aynı); hedef makinede MSVC 2022
 redistributable kurulu olmalıdır.
+
+**Sorun giderme:**
+
+| Belirti | Neden / çözüm |
+|---|---|
+| CMake: `prime_map_api bulunamadi` | Kardeş repo klonlanmamış; Adım 1 ya da `-DPRIME_MAP_DIR` |
+| X-Plane'de harita yok, Log'da DLL hatası | `prime_map.dll` `64/` klasöründe yok ya da bayat; yeniden derleyin (deploy iki DLL'i birlikte kopyalar) |
+| Başka makinede eklenti yüklenmiyor | VC_redist.x64 eksik |
 
 ## Dosyalar (eklenti klasöründe)
 

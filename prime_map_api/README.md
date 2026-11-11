@@ -8,15 +8,17 @@ gelir. Bu yüzden haritada görünen her şey simülatördekiyle aynıdır; yeni
 kurulunca harita da kendiliğinden güncellenir. Hedef kullanım: simülatörlerin
 eğitmen istasyonu (IOS) ekranları ve herhangi bir X-Plane 11 eklentisine gömme.
 
-> Not: Bu repo **kütüphane + API'dir**. Resmi X-Plane eklentisi
-> (ince kabuk) ayrı repodadır: `prime_map_plugin`.
+> Not: Bu repo **kütüphane + API'dir** (Bitbucket:
+> <https://gobitbucket.havelsan.com.tr/scm/eps/prime-map-api.git>). Resmî
+> X-Plane eklentisi (ince kabuk) ayrı repodadır:
+> <https://gobitbucket.havelsan.com.tr/scm/eps/prime-map-plugin.git>.
 
 | Belge | Kimin için |
 |---|---|
 | `README.md` (bu dosya) | Kurulum, tüketim, üçüncü taraf bileşenler, testler, araçlar |
 | `docs/PrimeMap_API.pdf` (kaynağı `docs/PrimeMap_API.html`) | API'yi kullanacak host geliştirici: hızlı başlangıç, fonksiyon referansı |
-| `MIMARI.pdf` (kaynağı `docs/MIMARI.html`) | Kodu anlamak isteyen geliştirici: mimari, veri akışı şemaları, dosya görevleri |
-| `AGENTS.md` | Projede çalışacak yapay zekâ asistanı: kurallar, kod standardı, derleme, doğrulanmış gerçekler, durum |
+| `docs/MIMARI.pdf` (kaynağı `docs/MIMARI.html`) | Kodu anlamak isteyen geliştirici: mimari, veri akışı şemaları, dosya görevleri |
+| `AGENTS.md` (repoya girmez; yerel) | Projede çalışacak yapay zekâ asistanı: kurallar, kod standardı, derleme, doğrulanmış gerçekler, durum |
 
 ## Prime Map API (0.22)
 
@@ -70,24 +72,103 @@ ninja -C build
 - CRT: `/MD` (`CMAKE_MSVC_RUNTIME_LIBRARY` sabittir, seçenek yoktur).
   Tüketiciler de `/MD` ile derlenmek zorundadır.
 
-### Tüketim (SDK paketi yok)
+### Prime Map API'yi kendi eklentine kurma (adım adım)
 
-Kütüphane paket üretilmez; tüketici aynı CMake oturumuna katar ve hedef adına
-linkler (prime-builder'ın `primesceneryparser` tarafından tüketilmesiyle aynı mantık):
+SDK paketi yoktur; kütüphane, tüketicinin **aynı CMake oturumuna** katılır ve
+hedef adına linklenir (prime-builder'ın `primesceneryparser` tarafından
+tüketilmesiyle aynı mantık). Sıfırdan bir host için bütün akış:
+
+**Adım 0 — Ön koşullar.** Visual Studio 2022 (MSVC v143), CMake 3.16+, Ninja
+(Qt Creator kuruluysa `C:\Qt\Tools\Ninja\ninja.exe` hazırdir) ve
+`C:\workspace\cots` altında X-Plane SDK 3.0 (aşağıda "Üçüncü Taraf
+Bileşenler"). CRT sabit `/MD`'dir; host da `/MD` ile derlenir.
+
+**Adım 1 — Repo yerleşimi.** Bu repoyu, kendi eklenti projenin **kardeş
+klasörü** olarak al (klasör adı include öneki olur, değiştirmeyin):
+
+```
+C:\workspace\projects\
+├── prime_map_api\        <- bu repo (kutuphane)
+└── benim-eklentim\       <- senin projen
+```
+
+```bat
+git clone https://gobitbucket.havelsan.com.tr/scm/eps/prime-map-api.git C:\workspace\projects\prime_map_api
+```
+
+Farklı bir yer de mümkündür; 2. adımda yolu vermek yeterli.
+
+**Adım 2 — CMakeLists.txt'ye üç şey** (tam örnek: `prime_map_plugin/CMakeLists.txt`):
 
 ```cmake
-# Tuketici CMakeLists.txt (ornek: prime_map_plugin)
-add_subdirectory(${CMAKE_SOURCE_DIR}/../prime_map_api prime_map_build)
-target_link_libraries(host PRIVATE prime_map ${XPSDK}/Libraries/Win/XPLM_64.lib)
+# (a) Kutuphane klasoru (cache degiskeni; -DPRIME_MAP_DIR ile devralinabilir)
+set(PRIME_MAP_DIR "${CMAKE_SOURCE_DIR}/../prime_map_api" CACHE PATH "prime_map_api klasoru")
+if(NOT EXISTS "${PRIME_MAP_DIR}/PrimeMap.h")
+    message(FATAL_ERROR "prime_map_api bulunamadi: ${PRIME_MAP_DIR}\n"
+                        "Reponun eklenti projenin KARDESI olarak klonlanmis olmasi gerekir.")
+endif()
+
+# (b) Kutuphaneyi derleme oturumuna kat (ikinci arguman build klasorudur)
+add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
+
+# (c) Hedefine linkle: include dizini ve /MD otomatik gelir
+target_link_libraries(benim-eklentim PRIVATE prime_map)
 ```
+
+`target_link_libraries` tek satır yeter: `prime_map` hedefi include
+dizinini (`<prime_map_api/PrimeMap.h>` yazabilmek için gereken) ve CRT
+ayarını kendisi yayınlar. `prime_map.dll` derlendiğinde senin
+`CMAKE_RUNTIME_OUTPUT_DIRECTORY`'ne düşmez — 4. adımdaki kopya gerekir.
+
+**Adım 3 — İlk kod.** Giriş noktası `MapFactory::CreateMap`'tir
+(`Map::Open` geriye uyumluluk için durur ve fabrikaya yönlendirir):
 
 ```cpp
 #include <prime_map_api/PrimeMap.h>   // klasor adi onekli (prime-utils/utils.h mantigi)
+
+PrimeMap::Map* map = PrimeMap::MapFactory::CreateMap("benim-eklentim", *host);
+if (!map) return;                      // olusmadiysa Log'a bakinin
+map->SetGeometry(50, 50, 900, 600);    // sol-ust 50,50; 900x600 (boxel)
+map->SetVisible(true);                 // ilk karede gorunur olur
 ```
 
-Dağıtım: `prime_map.dll` host eklentinin yanına kopyalanır (X-Plane'de
-`Resources/plugins/<host>/64/` klasörüne). `/MD` olduğu için hedef makinede
-MSVC 2022 redistributable (`VC_redist.x64`) kurulu olmalıdır.
+Kurallar: bütün çağrılar X-Plane ana thread'inden; pencere `XPLMCreateWindow`
+ile host'a değil kütüphaneye ait olur; istisna yoktur — geçersiz değer
+işlem görmez, `false`/boş döner, Log'a tek satır yazar (tam fonksiyon
+listesi: `docs/PrimeMap_API.pdf`).
+
+**Adım 4 — Derleme ve dağıtım.** `ninja`, `prime_map.dll`'yi API build
+klasöründe üretir; host eklentinin **yanına kopyalanması gerekir** (Windows
+DLL arama kuralı + X-Plane eklenti klasörü yapısı). POST_BUILD ile otomatikleştir:
+
+```cmake
+add_custom_command(TARGET benim-eklentim POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:prime_map> $<TARGET_FILE_DIR:benim-eklentim>)
+```
+
+X-Plane kurulumunda **ikisi birlikte** gider:
+`Resources/plugins/<host>/64/win.xpl` + `64/prime_map.dll` (X-Plane, eklenti
+klasörünü DLL arama yoluna aldığı için oradan yüklenir). `/MD` nedeniyle hedef
+makinede MSVC 2022 redistributable (`VC_redist.x64`) kurulu olmalıdır.
+
+**Adım 5 — Doğrulama.** X-Plane'i aç; Log.txt'de
+`[prime-map-plugin] Prime Map API 0.22 ready` benzeri satırı gör. Kod
+tarafında `PrimeMap::VersionString()` de `"0.22.0"` döner. Sürüm sabitleri
+(`PrimeMap.h` içindeki `kVersionMajor/Minor/Patch`) CMake'in
+`project(VERSION)`'u ile configure sırasında denetlenir; biri
+güncellenmezse configure **hata verir** (sürüm attırırken ikisini birlikte
+değiştir).
+
+**Sorun giderme:**
+
+| Belirti | Neden / çözüm |
+|---|---|
+| `prime_map_api bulunamadi` | Kardeş klasör yok veya `-DPRIME_MAP_DIR` yanlış |
+| `PrimeMap.h: No such file` | `target_link_libraries` eksik ya da add_subdirectory çağrılmadan include kullanıldı |
+| Linkte `unresolved external symbol` (PRIME_MAP_EXPORT'lu) | Host `/MT` ile derleniyor; `/MD`'ye geçir (kütüphane `/MD` sabittir) |
+| X-Plane'de eklenti yüklenmiyor, Log'da DLL hatası | `prime_map.dll` `64/` klasöründe değil, ya da eski sürüm (yeniden kopyala) |
+| Hedef makinede çalışmıyor, geliştiricide çalışıyor | VC_redist.x64 eksik |
 
 ## Üçüncü Taraf Bileşenler
 

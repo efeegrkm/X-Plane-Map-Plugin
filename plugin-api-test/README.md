@@ -6,6 +6,10 @@ Bütün API çağrıları `src/MapApiCalls.cpp` içindedir; liste: `docs/API_LIS
 
 Kütüphane tüketimi: `prime_map_api` aynı CMake oturumuna
 `add_subdirectory` ile katılır, hedef adına (`prime_map`) linklenir; SDK paketi yoktur.
+**Ön koşul:** kütüphane reposu bu projenin kardeşi olarak klonlanmalıdır
+(`../prime_map_api`); farklı yerdeyse `-DPRIME_MAP_DIR=<klasor>`. Kütüphane
+derlenirken gerekli COTS bileşenleri (X-Plane SDK, LZMA, earcut, stb) ve
+adım adım akış: `../prime_map_api/README.md`.
 Derleme sonrası `prime_map.dll` otomatik olarak `win.xpl`'nin yanına kopyalanır;
 X-Plane'e kurarken ikisini de `<X-Plane>\Resources\plugins\plugin-api-test\64\`
 altına koyun.

@@ -42,12 +42,13 @@ namespace PrimeMap
 {
 
 // --- Surum --------------------------------------------------------------------
-// API sozlesme surumu: kirilirse major artar; yeni fonksiyon minor, duzeltme patch.
-// (Repodaki surumden bagimsizdir; CMake PROJECT_VERSION dosya surumune yazilir.)
-constexpr int kVersionMajor = 1;
-constexpr int kVersionMinor = 0;
+// Kutuphane surumu: CMake project(VERSION) ile AYNI olmali; CMakeLists bunu
+// configure sirasinda denetler (uyusmazsa hata verir). Kirilirse major artar;
+// yeni fonksiyon minor, duzeltme patch.
+constexpr int kVersionMajor = 0;
+constexpr int kVersionMinor = 22;
 constexpr int kVersionPatch = 0;
-PRIME_MAP_EXPORT std::string VersionString();  // "1.0.0"
+PRIME_MAP_EXPORT std::string VersionString();  // "0.22.0"
 
 // --- Basit tipler -------------------------------------------------------------
 struct LatLon
