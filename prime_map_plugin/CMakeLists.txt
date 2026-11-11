@@ -49,12 +49,13 @@ add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
 
 # Ince kabuk: X-Plane giris noktasi + ayar dosyasi yardimcisi.
 # Butun harita islevi prime_map DLL'indedir (prime_map_api projesi).
+# API'nin genel basliklari (PrimeMap.h, primemapglobal.h) bu listede YOK:
+# prime_map_api alt projesi agacta kendinde gosterir; buraya almak Qt'te
+# "<Other Locations>" gurultusu yaratirdi.
 add_library(prime-map-plugin SHARED
     src/plugin/PluginMain.cpp
     src/Settings.cpp
-    src/Settings.h
-    ${PRIME_MAP_DIR}/PrimeMap.h       # Qt Creator proje agacinda gorunsun
-    ${PRIME_MAP_DIR}/primemapglobal.h)
+    src/Settings.h)
 
 target_include_directories(prime-map-plugin PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(prime-map-plugin SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
