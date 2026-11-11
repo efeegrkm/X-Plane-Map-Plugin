@@ -18,6 +18,7 @@
 #include <cmath>
 #include <format>
 #include <sstream>
+#include <vector>
 
 #include "XPLMPlugin.h"
 #include "XPLMUtilities.h"
@@ -40,8 +41,8 @@ namespace
 {
 
 std::unique_ptr<MapData> gData;
-MapWindow* gOpenWindow = nullptr;  // acik haritanin penceresi (tek harita kurali)
-int gHostCount = 0;                // kutuphaneyi kullanan host sayisi (Init/Shutdown dengesi)
+std::vector<MapWindow*> gOpenWindows;  // acik harita pencereleri (coklu host / coklu harita)
+int gHostCount = 0;                    // kutuphaneyi kullanan host sayisi (Init/Shutdown dengesi)
 
 // Shape kimligi: tur * kShapeIdBase + etiket numarasi (oturum icinde sabit)
 const int kShapeIdBase = 1000000;
@@ -142,13 +143,13 @@ void Shutdown()
         return;
     }
     gHostCount = 0;
-    if (gOpenWindow)
+    for (MapWindow* tWindow : gOpenWindows)
     {
-        // Host haritayi kapatmayi unuttu: pencereyi burada kapat (Map nesnesi bos kalir)
-        Log("WARNING: PrimeMap::Shutdown with an open map; closing the map window");
-        gOpenWindow->Destroy();
-        gOpenWindow = nullptr;
+        // Host haritayi kapatmayi unuttu: pencereleri burada kapat (Map nesnesi bos kalir)
+        Log("WARNING: PrimeMap::Shutdown with open map(s); closing the map window(s)");
+        tWindow->Destroy();
     }
+    gOpenWindows.clear();
     gData->Stop();
     gData.reset();
     Log("Prime Map API stopped");
@@ -176,9 +177,18 @@ Status GetStatus()
     tStatus.mPrecacheDone = tData.mPrecacheDone;
     tStatus.mPrecacheTotal = tData.mPrecacheTotal;
     tStatus.mText = tData.mText;
-    if (gOpenWindow && gOpenWindow->IsDiagnosticsOn())
+    MapWindow* tDiag = nullptr;
+    for (MapWindow* tWindow : gOpenWindows)
     {
-        tStatus.mPerformanceText = gOpenWindow->PerformanceText();
+        if (tWindow->IsDiagnosticsOn())
+        {
+            tDiag = tWindow;
+            break;
+        }
+    }
+    if (tDiag)
+    {
+        tStatus.mPerformanceText = tDiag->PerformanceText();
     }
     return tStatus;
 }
@@ -196,7 +206,12 @@ struct Map::Impl
     // Shutdown haritayi once kapattiysa nullptr
     MapWindow* Window() const
     {
-        return (gData && gOpenWindow == mWindow.get()) ? mWindow.get() : nullptr;
+        if (!gData)
+        {
+            return nullptr;
+        }
+        const auto tIt = std::find(gOpenWindows.begin(), gOpenWindows.end(), mWindow.get());
+        return tIt != gOpenWindows.end() ? mWindow.get() : nullptr;
     }
 };
 
@@ -210,11 +225,6 @@ std::unique_ptr<Map> MapFactory::CreateMap(const OpenConfig& pConfig)
     if (!gData)
     {
         Log("WARNING: CreateMap before PrimeMap::Init");
-        return nullptr;
-    }
-    if (gOpenWindow)
-    {
-        Log("WARNING: CreateMap: only one map per plugin; close the first one");
         return nullptr;
     }
     std::unique_ptr<Map> tMap(new Map());
@@ -234,8 +244,8 @@ std::unique_ptr<Map> MapFactory::CreateMap(const OpenConfig& pConfig)
     tOptions.mMaxRenderFps = pConfig.mMaxRenderFps;
     tOptions.mXPlaneFont = pConfig.mXPlaneFont;
     tMap->mImpl->mWindow->Create(tOptions);
-    gOpenWindow = tMap->mImpl->mWindow.get();
-    gData->AttachWindow(gOpenWindow);
+    gOpenWindows.push_back(tMap->mImpl->mWindow.get());
+    gData->AddWindow(tMap->mImpl->mWindow.get());
     return tMap;
 }
 
@@ -248,9 +258,10 @@ Map::~Map()
 {
     if (MapWindow* tWindow = mImpl->Window())
     {
-        gData->AttachWindow(nullptr);
+        gData->RemoveWindow(tWindow);
+        gOpenWindows.erase(std::remove(gOpenWindows.begin(), gOpenWindows.end(), tWindow),
+                           gOpenWindows.end());
         tWindow->Destroy();
-        gOpenWindow = nullptr;
     }
 }
 

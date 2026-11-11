@@ -5,14 +5,15 @@
 //   zemin (DSF -> doku, arka plan iscisi), zemin paleti, ucak (dataref ya da host),
 //   katmanlar (LayerManager), kullanici cizimleri, onceden yukleme, bolge onbellegi.
 //
-// Kendi flight loop'unu kaydeder (refcon = this). Harita penceresi (MapWindow) varsa
-// durum metnini ve "veri geliyor" bilgisini ona verir. XPLM komutu / menusu YOK: onlar
+// Kendi flight loop'unu kaydeder (refcon = this). Acik harita pencerelerine (coklu)
+// durum metnini ve "veri geliyor" bilgisini verir. XPLM komutu / menusu YOK: onlar
 // sadece eklentinin kabugunda (plugin/PluginMain.cpp). Dosya yazmaz; sadece host'un verdigi
 // onbellek klasorune (zemin / havalimani onbellegi).
 #pragma once
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "Drawings.h"
 #include "LayerManager.h"
@@ -66,7 +67,8 @@ public:
     void Stop();   // isciler durur (Shutdown)
 
     // Harita penceresi acilinca / kapaninca
-    void AttachWindow(MapWindow* pWindow);
+    void AddWindow(MapWindow* pWindow);     // harita penceresini cari listesine ekle
+void RemoveWindow(MapWindow* pWindow);  // cikar (yoksa hicbir sey yapmaz)
 
     LayerManager& Layers();
     Drawings& UserDrawings();
@@ -113,7 +115,7 @@ private:
     TrackLayer* mTrackLayer = nullptr;      // sahibi mLayers
     FmsLayer* mFmsLayer = nullptr;
     TerrainLayer* mTerrainLayer = nullptr;
-    MapWindow* mWindow = nullptr;
+    std::vector<MapWindow*> mWindows;  // acik harita pencereleri (coklu host / coklu harita)
     float mLastPrefetch = -100.0f;
     bool mPrecacheRunning = false;
     std::string mNotice;

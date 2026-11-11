@@ -95,9 +95,17 @@ void MapData::Stop()
     mAirportDetails->Stop();
 }
 
-void MapData::AttachWindow(MapWindow* pWindow)
+void MapData::AddWindow(MapWindow* pWindow)
 {
-    mWindow = pWindow;
+    if (pWindow && std::find(mWindows.begin(), mWindows.end(), pWindow) == mWindows.end())
+    {
+        mWindows.push_back(pWindow);
+    }
+}
+
+void MapData::RemoveWindow(MapWindow* pWindow)
+{
+    mWindows.erase(std::remove(mWindows.begin(), mWindows.end(), pWindow), mWindows.end());
 }
 
 LayerManager& MapData::Layers()
@@ -252,9 +260,9 @@ float MapData::OnFlightLoop()
     mLayers.UpdateAll(tNow);
     UpdatePrefetch(tNow);
     UpdateStatus();
-    if (mWindow)
+    for (MapWindow* tWindow : mWindows)
     {
-        mWindow->Update(tNow);
+        tWindow->Update(tNow);
     }
     return -1.0f;  // her karede tekrar cagir
 }
@@ -328,7 +336,10 @@ void MapData::UpdateStatus()
     // Zemin: ekranda istenen kalitede olmayan (kaba yedek / bos) doku oldugu surece yaz.
     // Isci bosta ise bekleyen bir sey yoktur (uretilemeyen parca): yazma, takili kalmasin.
     std::string tTerrainStatus = mTerrainStore.StatusText();
-    const int tPending = (mTerrainLayer && mTerrainLayer->IsVisible() && mWindow && mWindow->IsVisible())
+    // Coklu pencere: herhangi bir gorunur harita bekliyorsa yukleme durumunu yaz.
+    const bool tAnyVisible = std::any_of(mWindows.begin(), mWindows.end(),
+                                         [](const MapWindow* pW) { return pW->IsVisible(); });
+    const int tPending = (mTerrainLayer && mTerrainLayer->IsVisible() && tAnyVisible)
                              ? mTerrainLayer->PendingTextureCount()
                              : 0;
     if (tPending > 0 && !mTerrainStore.IsIdle())
@@ -358,13 +369,13 @@ void MapData::UpdateStatus()
     tStatus.mText = tMessage;
     mStatus = tStatus;
 
-    if (mWindow)
+    for (MapWindow* tWindow : mWindows)
     {
-        mWindow->SetStatusMessage(tMessage);
+        tWindow->SetStatusMessage(tMessage);
         // Harita resmi onbellegi: veri gelirken resim hiz sinirinda yenilensin (MapImageCache)
         const bool tBusy = !mNavLoader.IsDone() || mAirportGeometry->IsLoading() ||
                            mAirportDetails->PendingCount() > 0 || mAirways.IsLoading() || !mTerrainStore.IsIdle();
-        mWindow->SetDataBusy(tBusy);
+        tWindow->SetDataBusy(tBusy);
     }
 }
 
