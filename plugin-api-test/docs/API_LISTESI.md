@@ -1,4 +1,13 @@
-# Prime Map API — Çağrı Listesi (v0.22.0)
+# Prime Map API — Çağrı Listesi (v0.23.0)
+
+> **0.23 ekleri** (tam açıklama ve örnekler: `prime_map_api/docs/PrimeMap_API.pdf`):
+> fabrika `MapLibrary::CreateMap()` + `Map::SetName / SetStyle / SetTitle / SetPersistence / Open / Close / IsOpen /
+> GetId / GetName / GetSettingsDirectory / SaveSettings`; `MapLibrary::GetMaps / FindMap / GetOpenMapCount /
+> GetSettings / SetSettings / GetDataDirectory / GetSettingsFilePath / GetMapsDirectory / GetCacheDirectory`;
+> `Map::SetZoomLimits / GetMinZoomLimit / GetMaxZoomLimit / HardMaxZoom / GetZoomStep / GetPanStep /
+> SetLayerZoomRange / GetLayerZoomRange / ClearLayerZoomRange / ClearAllLayerZoomRanges / SetImageCache /
+> SetMaxRenderFps / SetXPlaneFont / GetStatusText / GetTerrainPendingImages`. Her harita bağımsızdır;
+> ayar dosyalarını kütüphane yazar (`maps/<ad>/`), merkezi ayarlar `prime_map.ini`'dedir.
 
 Tek genel başlık: `PrimeMap.h`. İstisna yok: geçersiz değer → işlem yapılmaz,
 Log'a tek satır uyarı, dönüş `false` / boş. Tüm çağrılar X-Plane **ana thread**'inde.

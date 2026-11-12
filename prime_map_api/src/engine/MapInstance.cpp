@@ -422,7 +422,9 @@ RectI MapInstance::SavedGeometry() const
 
 uint64_t MapInstance::StateSignature() const
 {
-    // Kullanicinin fareyle yaptigi, revizyon sayacini artirmayan degisiklikler: pencere yeri ve gorunum
+    // Kullanicinin fareyle yaptigi, revizyon sayacini artirmayan degisiklik: pencerenin yeri / boyutu.
+    // Gorunum (merkez, zoom) bilerek YOK: ucak takibinde her karede degisir, dosya surekli yazilirdi.
+    // Gorunum, baska bir ayar degistiginde ve harita kapanirken yazilir.
     uint64_t tHash = 1469598103934665603ull;
     auto tMix = [&tHash](uint64_t pValue)
     {
@@ -433,10 +435,6 @@ uint64_t MapInstance::StateSignature() const
     tMix(static_cast<uint64_t>(static_cast<int64_t>(tGeometry.mTop)));
     tMix(static_cast<uint64_t>(static_cast<int64_t>(tGeometry.mRight)));
     tMix(static_cast<uint64_t>(static_cast<int64_t>(tGeometry.mBottom)));
-    const LatLon tCenter = mWindow.View().Center();
-    tMix(static_cast<uint64_t>(static_cast<int64_t>(tCenter.mLat * 1e5)));
-    tMix(static_cast<uint64_t>(static_cast<int64_t>(tCenter.mLon * 1e5)));
-    tMix(static_cast<uint64_t>(mWindow.View().Zoom() * 100.0));
     return tHash;
 }
 
@@ -531,6 +529,7 @@ void MapInstance::ImportTerrainSettings(const std::string& pText)
     {
         mTerrainLayer->SetPalette(mPalette, mPaletteId);  // yeni dokular yeni paletle istenir (hemen)
     }
+    mWindow.InvalidateImage();  // onbellekteki harita resmi eski renklerle: hemen yeniden ciz
     MarkChanged();
     if (mWindow.IsCreated() && mPersistence != MapPersistence::Off)
     {

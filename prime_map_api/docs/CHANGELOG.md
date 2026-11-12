@@ -1,5 +1,36 @@
 # Prime Map API — CHANGELOG
 
+## 0.23 (harita fabrikası, bağımsız çoklu harita, 2026-11-12)
+
+Eski kod değişmeden derlenir (`CreateMap(OpenConfig)`, `Map::Open`, `Export/ImportSettings`).
+X-Plane'de **denenmedi** (derlendi, 30.682 test, önizleme).
+
+- **Fabrika**: `MapLibrary::CreateMap()` pencere açmadan harita nesnesi verir; bütün ayarlar
+  nesne üzerinden `Open()`'dan önce de sonra da verilir. `Open()` / `Close()` / `IsOpen()`;
+  `Close` nesneyi ve ayarlarını korur.
+- **Bağımsız haritalar**: her haritanın kendi katmanları, çizimleri, uçak / rota kaynağı, uçuş
+  izi, zemin ayarları, durum metni var (yeni `engine/MapInstance`). Ortak: veri ve önbellek.
+- **Harita başına dosyalar** (kütüphane yazar): `<veri>/maps/<ad ya da map_<kimlik>>/`
+  `map_settings.ini`, `map_drawings.txt`, `terrain_colors.ini`. `SetName`, `GetSettingsDirectory`,
+  `SetPersistence(Off | SaveOnly | LoadAndSave)`, `SaveSettings`.
+- **Merkezi ayarlar** `prime_map.ini` (`LibrarySettings`, `MapLibrary::GetSettings/SetSettings`):
+  ortak önbelleğin disk sınırı ve doku bütçesi açık harita sayısıyla büyür
+  (`growth_percent_per_map`, tavanlar), önceden yükleme, otomatik kayıt.
+  `InitConfig::mDataDirectory`; `Status`'ta `mOpenMaps`, `mTerrainCacheLimitMb`, `mTextureLimitMb`.
+- **Ortak zemin merkezi** (`layers/TerrainHub`): dokular ve vektörler tek kopya, bütün haritalar
+  paylaşır; istek önceliği isteyen haritanın merkezine göre.
+- **Zemin ayarları harita başına ve anında**: `SetTerrainSettings` artık X-Plane'i yeniden
+  başlatmadan uygulanır (palet numarası zemin anahtarında).
+- Yeni: `SetZoomLimits` (harita başına 3…18), `SetLayerZoomRange` (katman / alt katman / grup),
+  `GetZoomStep`, `GetPanStep`, `SetStyle`, `SetTitle`, `SetImageCache`, `SetMaxRenderFps`,
+  `SetXPlaneFont`, `GetStatusText`, `GetTerrainPendingImages`, `GetMaps`, `FindMap`,
+  `GetOpenMapCount`, klasör sorguları.
+- Düzeltme: yazı çizici süreçte tek işaretçiydi, son açılan pencere alıyordu (çoklu haritada
+  yazılar yanlış pencereye gidebiliyordu); her pencere çizerken kendisininkini seçer.
+- Zemin: dokusu henüz gelmemiş karo Scenery'de siyah yerine ortalama kara tonu; işçinin aşama
+  süreleri Diagnostics modunda loglanır (`TerrainProfile`). Araştırma: `docs/ZEMIN_HIZ_RAPORU.md`.
+- Davranış farkı: `[cache]` anahtarları artık harita ayarında değil `prime_map.ini`'de.
+
 ## 0.22 (ekip kalıbına geçiş, 2026-11-11)
 
 Kütüphane sunumu ekibin kalıbına (prime-utils / prime-dbmanager / prime-builder)

@@ -106,3 +106,17 @@ if(MAP_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> "${DEPLOY_DIR}/64/"
         COMMENT "Plugin X-Plane'e kuruluyor: ${DEPLOY_DIR}")
 endif()
+
+# prime_map.dll'nin kopyalari HER derlemede yenilenir. Ustteki POST_BUILD adimlari sadece win.xpl
+# yeniden baglaninca calisir; yalnizca kutuphane degistiginde (import kutuphanesi ayni kalir, win.xpl
+# yeniden baglanmaz) 64/ klasorunde ve X-Plane'de BAYAT prime_map.dll kalirdi.
+add_custom_target(prime-map-plugin-dll ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> "${OUT_DIR}/64/"
+    DEPENDS prime_map prime-map-plugin
+    COMMENT "prime_map.dll guncelleniyor (derleme klasoru)")
+if(MAP_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
+    add_custom_command(TARGET prime-map-plugin-dll POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}/64"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> "${DEPLOY_DIR}/64/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime-map-plugin> "${DEPLOY_DIR}/64/")
+endif()

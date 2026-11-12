@@ -232,6 +232,14 @@ void TerrainLayer::Draw(const DrawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     Gfx::Mesh tOcean;
     Gfx::Mesh tNoData;
+    // Yer tutucu (0.23): sahnesi kurulu ama dokusu henuz hic gelmemis karo siyah kalmasin. Scenery'de
+    // ortalama kara tonuyla doldurulur; ilk (kaba) doku gelince onun altinda kalir. Diger modlarda
+    // arka plan rengi zaten duz zemin rengidir.
+    const bool tPlaceholder = tTheme.mTerrainStyle == TerrainStyle::Classes;
+    const TerrainColor tLandColor = mPalette.ReferenceLandColor();
+    const Rgba tLand = {tLandColor.mR / 255.0f, tLandColor.mG / 255.0f, tLandColor.mB / 255.0f, 1.0f};
+    Gfx::Mesh tLoading;
+    bool tHasLoading = false;
     std::vector<Gfx::TexturedVertex> tStrips;
     for (int tLat = tSouth; tLat <= tNorth; ++tLat)
     {
@@ -282,6 +290,12 @@ void TerrainLayer::Draw(const DrawContext& pContext)
                 AddLatLonStrips(tStrips, tView, tTileWest, tLat, tTileEast, tLat + 1.0, kFullTileStrips);
                 tCanvas.DrawTextured(*tTexture, tStrips);
             }
+            else if (tPlaceholder)
+            {
+                tLoading.AddQuad(tSouthWest, {tNorthEast.mX, tSouthWest.mY}, tNorthEast,
+                                 {tSouthWest.mX, tNorthEast.mY}, tLand);
+                tHasLoading = true;
+            }
 
             // En ince seviye: sadece ekrana giren 0.25 derecelik parcalar
             if (tLevel >= 3)
@@ -326,5 +340,9 @@ void TerrainLayer::Draw(const DrawContext& pContext)
     }
     tCanvas.Draw(tOcean);
     tCanvas.Draw(tNoData);
+    if (tHasLoading)
+    {
+        tCanvas.Draw(tLoading);  // dokulu karolardan sonra cizilir ama onlarla ortusmez (ayri karolar)
+    }
     mHub.EvictUnusedTextures();
 }

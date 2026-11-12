@@ -45,7 +45,9 @@ add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
 add_library(plugin_api_test SHARED
     src/MapUiTestMain.cpp
     src/MapApiCalls.h
-    src/MapApiCalls.cpp)
+    src/MapApiCalls.cpp
+    src/MultiMapSelfTest.h
+    src/MultiMapSelfTest.cpp)
 
 target_include_directories(plugin_api_test SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
 target_compile_definitions(plugin_api_test PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1
@@ -61,3 +63,29 @@ set_target_properties(plugin_api_test PROPERTIES PREFIX "" OUTPUT_NAME win SUFFI
 # prime_map.dll pluginin yanina kopyalanmali
 add_custom_command(TARGET plugin_api_test POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> ${CMAKE_BINARY_DIR}/plugin_api_test/64/)
+
+# Istege bagli: derleme bitince X-Plane'e kur (-DMAP_DEPLOY=ON; X-Plane aciksa dosya kilitlidir).
+# Varsayilan KAPALI: test eklentisi sadece istenince kurulur.
+set(XPLANE_DIR "C:/X-Plane 11" CACHE PATH "X-Plane 11 klasoru")
+option(MAP_DEPLOY "Derlemeden sonra test eklentisini X-Plane'e kopyala" OFF)
+if(MAP_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
+    set(DEPLOY_DIR "${XPLANE_DIR}/Resources/plugins/plugin-api-test")
+    add_custom_command(TARGET plugin_api_test POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}/64"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:plugin_api_test> "${DEPLOY_DIR}/64/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> "${DEPLOY_DIR}/64/"
+        COMMENT "Test eklentisi X-Plane'e kuruluyor: ${DEPLOY_DIR}")
+endif()
+
+# prime_map.dll'nin kopyalari HER derlemede yenilenir (POST_BUILD sadece win.xpl yeniden baglaninca
+# calisir; yalnizca kutuphane degistiginde bayat DLL kalirdi).
+add_custom_target(plugin_api_test_dll ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> ${CMAKE_BINARY_DIR}/plugin_api_test/64/
+    DEPENDS prime_map plugin_api_test
+    COMMENT "prime_map.dll guncelleniyor (derleme klasoru)")
+if(MAP_DEPLOY AND EXISTS "${XPLANE_DIR}/Resources/plugins")
+    add_custom_command(TARGET plugin_api_test_dll POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DEPLOY_DIR}/64"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:prime_map> "${DEPLOY_DIR}/64/"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:plugin_api_test> "${DEPLOY_DIR}/64/")
+endif()

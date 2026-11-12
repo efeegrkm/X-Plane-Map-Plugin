@@ -1,4 +1,4 @@
-# Prime Map API 0.22 — X-Plane 11 harita kütüphanesi ve gömme API'si
+# Prime Map API 0.23 — X-Plane 11 harita kütüphanesi ve gömme API'si
 
 X-Plane içinde, **kendi penceresinde** çalışan, katmanları tek tek açılıp
 kapatılabilen haritanın motoru ve gömme API'si (`prime_map` SHARED DLL'i).
@@ -20,7 +20,33 @@ eğitmen istasyonu (IOS) ekranları ve herhangi bir X-Plane 11 eklentisine gömm
 | `docs/MIMARI.pdf` (kaynağı `docs/MIMARI.html`) | Kodu anlamak isteyen geliştirici: mimari, veri akışı şemaları, dosya görevleri |
 | `AGENTS.md` (repoya girmez; yerel) | Projede çalışacak yapay zekâ asistanı: kurallar, kod standardı, derleme, doğrulanmış gerçekler, durum |
 
-## Prime Map API (0.22)
+## 0.23'te yeni: harita fabrikası ve bağımsız çoklu harita
+
+```cpp
+auto& lib = prime::MapLibrary::Get();
+lib.Init({});
+auto map = lib.CreateMap();          // fabrika: nesne var, pencere yok
+map->SetName("ios_left");            // ayar klasoru: <veri>/maps/ios_left/
+map->SetGeometry({100, 800, 900, 600});
+map->SetMode(prime::MapMode::Vfr);   // butun ayarlar Open'dan once de sonra da verilebilir
+map->Open();
+auto second = lib.CreateMap();       // ikinci harita: tamamen bagimsiz, onbellek ortak
+second->SetName("overview");
+second->Open();
+```
+
+| Dosya (veri klasörü = varsayılan host eklenti klasörü) | Ne |
+|---|---|
+| `prime_map.ini` | Merkezi ayarlar: ortak önbellek sınırları (açık harita sayısıyla büyür), önceden yükleme, otomatik kayıt |
+| `maps/<ad>/map_settings.ini`, `map_drawings.txt`, `terrain_colors.ini` | Harita başına ayarlar (`<ad>`: `SetName`; verilmezse `map_<kimlik>`) |
+| `cache/terrain/`, `cache/airports/` | Bütün haritaların ortak önbelleği |
+
+Bütün fonksiyonlar, dosya anahtarları, öncelik kuralları ve örnekler: **`docs/PrimeMap_API.pdf`**.
+Sürüm notları: `docs/CHANGELOG.md`. Zemin hızı araştırması: `docs/ZEMIN_HIZ_RAPORU.md`.
+
+Bu bilgisayarda COTS: `C:\workspace\cots` yoksa CMake kardeş `..\cots` klasörünü kullanır.
+
+## Prime Map API (0.23)
 
 Harita başka bir X-Plane eklentisine gömülebilir bir C++ kütüphanesi: `prime_map`
 (SHARED DLL; tek genel başlık `PrimeMap.h`, repo kökünde; include
@@ -42,13 +68,14 @@ yeni bir host bu fonksiyonlarla aynı davranışı kurabilir:
 
 | Neyi | API |
 |---|---|
-| Pencere | `MapLibrary::Get().CreateMap` (veya `Map::Open`), `SetGeometry`, `SetVisible`, `SetPoppedOut`, `SetUiVisible`, `SetMouseInput` |
+| Fabrika / yaşam | `MapLibrary::Get().CreateMap()`, `SetName`, `SetPersistence`, `Open`, `Close`, `FindMap`, `GetMaps` |
+| Pencere | `SetStyle`, `SetTitle`, `SetGeometry`, `SetVisible`, `SetPoppedOut`, `SetUiVisible`, `SetMouseInput` |
 | Görünüm | `SetCenter`, `SetZoom`, `ZoomIn/Out`, `Pan*`, `FitBounds`, `SetFollowAircraft`, `GoToAirport`, `FindAirports` |
 | Mod | `SetMode(mode)`, `NextMode()`, `GetMode()` |
 | **Katmanlar** | `SetLayerVisible(MapLayer, bool)`, `ToggleLayer`, `ShowOnlyLayers`, `SetLayersVisible`, `ResetLayersToDefaults`, `GetLayerState` (ağaç: `TopLevelLayers`, `ParentOf`, `ChildrenOf`) |
 | Çizimler | `SetDrawTool`, `AddDrawingPoint`, `FinishDrawing`, `UndoDrawing`, `Export/ImportDrawings` |
 | Uçak / rota | `SetAircraftSource`, `SetAircraft`, `SetRouteSource`, `SetRoute`, `ClearTrack` |
-| Ayarlar | `ExportSettings` / `ImportSettings`, `Get/SetTerrainSettings`, revizyon sayaçları |
+| Ayarlar | `ExportSettings` / `ImportSettings`, `Get/SetTerrainSettings` (harita başına, anında), `SetZoomLimits`, `SetLayerZoomRange`, `MapLibrary::GetSettings/SetSettings` |
 
 ## Kurulum ve derleme
 
@@ -132,10 +159,10 @@ uyumluluk için durur ve `CreateMap`'e yönlendirir):
 // XPluginEnable (ana thread):
 auto& lib = prime::MapLibrary::Get();
 lib.Init({});                                       // veri yuklemesi arka planda baslar
-auto map = lib.CreateMap({});                       // istersen ayni anda baska haritalar da acabilirsin
+auto map = lib.CreateMap();                         // fabrika; istersen ayni anda baska haritalar da
 if (!map) return;                                   // Init yapilmadiysa nullptr; Log'a bak
 map->SetGeometry({50, 650, 900, 600});              // sol-ust 50,650; 900x600 (boxel)
-map->SetVisible(true);
+map->Open();                                        // pencere acilir
 
 // XPluginDisable:
 map.reset();                                        // once pencereler
@@ -165,8 +192,8 @@ klasörünü DLL arama yoluna aldığı için oradan yüklenir). `/MD` nedeniyle
 makinede MSVC 2022 redistributable (`VC_redist.x64`) kurulu olmalıdır.
 
 **Adım 5 — Doğrulama.** X-Plane'i aç; Log.txt'de
-`[prime-map-plugin] Prime Map API 0.22 ready` benzeri satırı gör. Kod
-tarafında `prime::VersionString()` de `"0.22.0"` döner. Sürüm sabitleri
+`[prime-map-plugin] Prime Map API 0.23.0 ready` benzeri satırı gör. Kod
+tarafında `prime::VersionString()` de `"0.23.0"` döner. Sürüm sabitleri
 (`PrimeMap.h` içindeki `kVersionMajor/Minor/Patch`) CMake'in
 `project(VERSION)`'u ile configure sırasında denetlenir; biri
 güncellenmezse configure **hata verir** (sürüm attırırken ikisini birlikte
@@ -339,18 +366,37 @@ binmez, sığmayan etiket zoom yapınca görünür.
 
   Dosyayı silersen varsayılan renkler geri gelir.
 
-## Eklenti klasöründeki dosyalar
+## Eklenti klasöründeki dosyalar (0.23)
 
 | Dosya | Ne |
 |---|---|
-| `64/win.xpl` | Eklenti |
-| `map_settings.ini` | Pencere yeri/boyutu, görünüm, seçili mod, çizim paleti, mod başına katman ve alt katmanlar; `[cache] terrain_mb` (zemin önbelleği sınırı, varsayılan 1024; 0 = sınırsız), `[cache] prefetch_tiles` (önceden yükleme: uçağın önü + FMS rotası, en çok 20 karo; 0 = kapalı); `[render] cache` (1: harita resmi önbelleği / FBO, 0: her karede doğrudan çizim), `[render] max_fps` (resmin en çok yeniden çizilme hızı, 15); `[text] renderer` (`atlas`: kendi yazı çizicimiz, `xplane`: X-Plane'in yazısı) |
-| `map_drawings.txt` | Kullanıcı çizimleri (metin; elle düzenlenebilir) |
-| `terrain_colors.ini` | Zemin renkleri ve ayarları (yukarıda) |
+| `64/win.xpl`, `64/prime_map.dll` | Eklenti + kütüphane |
+| `prime_map.ini` | Merkezi ayarlar: `[cache] terrain_mb` (tek harita için disk sınırı, 1024; 0 = sınırsız), `growth_percent_per_map` (25), `max_terrain_mb` (0), `prefetch_tiles` (20); `[memory] texture_mb` (512), `growth_percent_per_map` (50), `max_texture_mb` (2048); `[maps] autosave` (1), `autosave_seconds` (2) |
+| `maps/main/map_settings.ini` | Ana haritanın ayarları: `[window] [view] [render] [text] [tools] [layers.<mod>] [layer_zoom] [sources]` (anahtarlar: `docs/PrimeMap_API.pdf` bölüm 8) |
+| `maps/main/map_drawings.txt` | Ana haritanın çizimleri (metin; elle düzenlenebilir) |
+| `maps/main/terrain_colors.ini` | Ana haritanın zemin renkleri ve ayarları (yukarıda) |
+| `maps/second/...` | İkinci haritanın dosyaları (menüden açılırsa) |
+| kökteki eski `map_settings.ini` vb. | 0.22 ve öncesinden kalma; ilk açılışta `maps/main/` altına kopyalanır, artık okunmaz |
 | `cache/terrain/` | Zemin önbelleği (silinebilir): `*.terrain` sınıflar ve alanlar, `*.elevation` rakım, `*.vectors` DSF vektörleri, `xplane_palette.txt`. Karo başına ~3–4 MB; `terrain_mb` aşılınca en uzun süredir kullanılmayan karolar (tüm dosyalarıyla) silinir, toplam sınırın %90'ına iner |
 | `cache/airports/` | apt.dat indeks önbelleği (silinebilir) |
 
-## Test listesi (0.19) — X-Plane'de denenecek
+## Test listesi (0.23) — X-Plane'de denenecek
+
+| # | Ne yap | Beklenen |
+|---|---|---|
+| 1 | X-Plane'i aç | Log'da `Prime Map API 0.23.0 ready (data: ..., cache: ...)`, `central settings created: ...prime_map.ini`, `map 1 'main' opened`, `loaded (version 0.23, API 0.23.0)`; hata yok |
+| 2 | Plugins → Prime Map Plugin → Show / hide map | Harita eski yerinde ve eski ayarlarıyla açılır (`maps/main/` eski dosyalardan kopyalandı) |
+| 3 | Open / close second map | İkinci pencere (VFR) açılır; Log'da `cache limits for 2 open map(s): terrain disk 1280 MB, terrain textures 768 MB` |
+| 4 | Bir haritayı KSEA'ya götür, diğerini başka yere; birinde mod ve katman değiştir | Diğer harita hiç değişmez; yazılar her pencerede doğru yerde |
+| 5 | İki harita aynı yere baksın | İkincisi zemini hemen gösterir (ortak doku) |
+| 6 | Birinde çizim yap | Diğerinde görünmez; `maps/<ad>/map_drawings.txt` yazılır |
+| 7 | İkinci haritayı kapat, yeniden aç | Aynı yer, mod, katmanlarla açılır; Log'da sınırlar 1 haritaya iner |
+| 8 | Hızlı kaydır (Scenery) | Dokusu gelmemiş karolar siyah değil kara tonu |
+| 9 | X-Plane'i kapat, aç | İki haritanın ayarları ayrı ayrı geri gelir |
+| 10 | Diagnostics mode, zoom 10–13'te gezin | Log'da `terrain profile stages / reloads / waits` satırları (hız raporu için gönder) |
+| 11 | (isteğe bağlı) `plugin-api-test` kur, klasörüne boş `selftest.flag` koy, X-Plane'i aç | Log'da `SELFTEST DONE: N passed, 0 failed` |
+
+## Test listesi (0.19)
 
 Önce 0.18'de (şu anki kurulu sürüm değilse atla) Diagnostics mode açıp aynı yerde FPS ve `draw ... ms` değerini not et; sonra 0.19 ile karşılaştır.
 

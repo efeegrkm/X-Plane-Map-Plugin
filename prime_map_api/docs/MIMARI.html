@@ -917,7 +917,68 @@ hedef-adına link (<code>prime_map_plugin</code>, <code>plugin-api-test</code>, 
 <code>map_tests</code>/<code>map_preview</code> iç sınıfları test ettiği için kaynakla derlemeye devam eder.</li>
 </ul>
 
+<!-- ================================================================== -->
+<h2>13c. Çoklu harita: fabrika, MapInstance, TerrainHub (0.23)</h2>
+<p>0.22'de birden çok pencere açılabiliyordu ama hepsi aynı katmanlara, çizimlere ve uçağa bakıyordu. 0.23'te
+"harita başına" olan her şey ayrıldı; ortak kalan sadece veri ve önbellek.</p>
+<pre>
+prime::MapLibrary (surecte tek)                 prime::Map (host'ta unique_ptr)
+        |                                               |
+   engine/MapData  &lt;------- referans -------  engine/MapInstance  (harita basina)
+   - NavDatabase, AirportGeometryStore          - LayerManager + 18 katman nesnesi
+   - AirportDetailStore, AirwayDatabase         - Drawings, AircraftData (kaynak: X-Plane / host)
+   - TerrainStore (isci) + TerrainHub           - TerrainPalette + palet numarasi
+   - prime_map.ini -> sinirlar (ApplyLimits)    - MapWindow (gorunum, mod, UI; XPLM penceresi acik ya da degil)
+   - flight loop: her karede haritalari gezer   - ayar dosyalari: &lt;veri&gt;/maps/&lt;ad&gt;/
+</pre>
+<h3>Neden böyle</h3>
+<ul>
+<li><b>Katmanlar harita başına nesne:</b> katmanın görünürlüğü, alt katmanları, zoom aralığı ve çizim önbelleği (GPU mesh'leri)
+kendi içinde. Paylaşılsaydı bir haritada kapatılan katman diğerinde de kapanırdı. Veri depoları ise <code>const&amp;</code> ile
+paylaşılır: aynı havalimanı iki kez okunmaz.</li>
+<li><b>Fabrika (pencere olmadan nesne):</b> <code>MapWindow</code> XPLM penceresi olmadan da bütün durumu tutar; <code>Create()</code>
+pencereyi o durumla açar, <code>Destroy()</code> kapatır ama durum kalır. Böylece API'nin her fonksiyonu açılmadan önce de çalışır.</li>
+<li><b>Dosya önceliği:</b> <code>Open</code> sırasında önce o anki durum belleğe yazılır (<code>SaveSettings</code>), sonra dosya üstüne
+okunur (<code>MergeText</code>), sonra uygulanır. Dosyada olmayan anahtar için varsayılan = o anki değer (kodla verilen).</li>
+</ul>
+<h3>TerrainHub: zeminin ortak kullanımı</h3>
+<pre>
+TerrainStore (isci) --PopImage----&gt; TerrainHub: dokular (GPU, tek kopya)   &lt;-- TerrainLayer (harita 1, 2 ...)
+                    --PopVectors--&gt; TerrainHub: vektorler (bellek)         &lt;-- RoadLayer    (harita 1, 2 ...)
+</pre>
+<ul>
+<li>İşçinin sonuç kuyruğunu "ilk alan" sahiplenseydi iki harita birbirinin dokusunu çalardı. Hub sonuçları tek yerde toplar;
+her doku onu son çiziminde kullanan haritaların bitleriyle işaretlidir (<code>BeginDraw</code> siler, <code>UseTexture</code> koyar);
+bütçe aşılınca sadece işaretsiz dokular, en eskiden başlayarak silinir.</li>
+<li>Doku yükleme hakkı (karede 3) bütün haritalar için ortaktır; flight loop <code>BeginFrame</code> ile yeniler.
+Katmanlar "yeni doku geldi mi"yi <code>TextureGeneration</code> sayacından anlar (başka haritanın yüklediği doku da sayılır).</li>
+<li><b>Palet numarası</b> zemin anahtarındadır (<code>TerrainImageKey::mPalette</code>): her farklı zemin ayarı
+<code>TerrainStore::AddPalette</code> ile bir kez tanıtılır (<code>MapData::RegisterPalette</code> aynı içeriğe aynı numarayı verir).
+Ayar değişince yeni numarayla yeni dokular istenir: X-Plane'i yeniden başlatmak gerekmez; aynı ayarlı haritalar dokuları paylaşır.</li>
+<li>İstek önceliği isteğin yapıldığı andaki odağa (isteyen haritanın merkezi) göre hesaplanıp istekle saklanır.</li>
+<li>Sınırlar (<code>MapData::ApplyLimits</code>): <code>sınır(n) = taban × (1 + artış% × (n − 1) / 100)</code>; disk sınırı
+(<code>TerrainStore::SetCacheLimit</code>, çalışırken değişir, işçi boş anında kırpar), doku bütçesi
+(<code>TerrainHub::SetTextureBudget</code>), işçinin bellek listeleri (<code>SetMemoryScale</code>), yüklü havalimanı sayısı.</li>
+</ul>
+<h3>Diğer</h3>
+<ul>
+<li><b>Yazı çizici:</b> <code>Ui</code>'nin yazı çizicisi süreçte tek işaretçi; her pencere çizim / tıklama işinin başında
+kendisininkini seçer (<code>MapWindow::UseOwnText</code>). Yoksa son açılan pencerenin atlası hepsinin yazısını alırdı.</li>
+<li><b>Zoom aralığı:</b> <code>Layer::SetZoomRange</code> / <code>SetSubLayerZoomRange</code>; <code>LayerManager::DrawAll</code> her çizimde
+o anki zoom'u katmanlara verir. Katmanlar <code>Draw</code> içinde <code>IsSubLayerDrawn</code> (kutu + zoom) kullanır;
+<code>IsSubLayerVisible</code> sadece kutudur (panel, kurallar, dosya).</li>
+<li><b>Otomatik kayıt:</b> <code>MapInstance::Update</code> revizyon sayaçlarına ve pencere yerine bakar; en sık
+<code>autosave_seconds</code> arayla yazar. Görünüm (merkez / zoom) tek başına yazmayı tetiklemez (uçak takibinde her karede değişir).</li>
+<li><b>Yer tutucu:</b> dokusu hiç gelmemiş kurulu karo Scenery'de ortalama kara tonuyla doldurulur (siyah yerine).</li>
+<li><b>Yok etme sırası:</b> katman yıkıcıları hub'a haber verir; hub katmanlardan sonra yok olmalı (<code>MapData</code> haritalardan
+sonra durur; önizlemede <code>TerrainHub</code> <code>LayerManager</code>'dan önce tanımlı).</li>
+</ul>
+
 <h2>14. Ayar ve önbellek dosyaları</h2>
+<p><b>0.23:</b> dosyaları kütüphane yönetir: <code>prime_map.ini</code> (merkezi), <code>maps/&lt;ad&gt;/map_settings.ini</code>,
+<code>map_drawings.txt</code>, <code>terrain_colors.ini</code> (harita başına), <code>cache/</code> (ortak). Anahtarlar:
+<code>docs/PrimeMap_API.pdf</code> bölüm 8&ndash;9. Aşağıdaki tablo 0.22 ve öncesinin kökteki dosyalarını anlatır; anahtar adları aynıdır
+(<code>[cache]</code> hariç: o artık <code>prime_map.ini</code>'de).</p>
 <p>Hepsi <code>C:\X-Plane 11\Resources\plugins\prime-map-plugin\</code> altında (eklenti X-Plane klasöründe başka hiçbir yere
 yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
 <table>

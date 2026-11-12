@@ -23,6 +23,7 @@
 
 // SDK_BOUND: Prime Map API sarmalayicisi (butun harita cagrilari bu siniftan gecer)
 #include "MapApiCalls.h"
+#include "MultiMapSelfTest.h"
 
 namespace
 {
@@ -108,6 +109,9 @@ private:
     Rect mButtons[static_cast<int>(Button::Count)];
     // SDK_BOUND: harita erisimi (Init / Open / Pan / Zoom ... hepsi bu siniftan)
     MapApiCalls mApi;
+    // 0.23: coklu harita / fabrika ozelliklerinin X-Plane icindeki otomatik testi; sadece eklenti
+    // klasorunde "selftest.flag" dosyasi varsa calisir (sonuclar Log.txt: "SELFTEST PASS / FAIL")
+    std::unique_ptr<MultiMapSelfTest> mSelfTest;
     // SDK_BOUND: pencere boyutlanirsa haritayi yeniden yerlestirmek icin son gonderilen yer
     prime::Geometry mSentGeometry;
     bool mHasSentGeometry = false;
@@ -170,6 +174,12 @@ void UiPlugin::Enable()
             mHasSentGeometry = true;
             mStatus = "Map embedded: Scenery mode, zoom 11, centered on KSEA";
         }
+        // Veri klasoru = bu eklentinin klasoru (InitConfig::mDataDirectory bos birakildi)
+        mSelfTest = std::make_unique<MultiMapSelfTest>();
+        if (!mSelfTest->StartIfRequested(prime::MapLibrary::Get().GetDataDirectory()))
+        {
+            mSelfTest.reset();
+        }
         else
         {
             mStatus = "Map open FAILED (see Log.txt)";
@@ -183,7 +193,8 @@ void UiPlugin::Enable()
 
 void UiPlugin::Disable()
 {
-    // SDK_BOUND: once harita penceresi kapanir, sonra kutuphane durdurulur (siralama onemli)
+    // SDK_BOUND: once harita pencereleri kapanir, sonra kutuphane durdurulur (siralama onemli)
+    mSelfTest.reset();
     mApi.CloseMap();
     mApi.ShutdownLibrary();
     if (mWindow)

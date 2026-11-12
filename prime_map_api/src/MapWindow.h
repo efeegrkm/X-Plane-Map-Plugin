@@ -105,6 +105,7 @@ public:
     double PanStep() const;
     void SetZoomLimits(double pMinZoom, double pMaxZoom);
     Settings& SettingsStore();                 // bellekteki ayarlar (MapInstance [window] / [sources] ekler)
+    void InvalidateImage();                    // harita resmi onbellegi bir sonraki karede yeniden cizilsin
 
     bool IsVisible() const;
     void SetVisible(bool pVisible);

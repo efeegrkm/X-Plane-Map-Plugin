@@ -1,123 +1,95 @@
-# AGENTS — Prime Map (ajana görev devri)
+# AGENTS — Prime Map (asistanlar için durum ve kurallar)
 
-> Bu dosya sonraki otomatik çalışma için **görev devri** belgesidir (2026-11-11).
-> Eski kurallar temizlendi; aşağıda projenin durumu, çalıştırma komutları ve
-> yapılacak işler var.
+Durum tarihi: **2026-11-12**, sürüm **0.23.0**. Kullanıcıyla **Türkçe** konuş; kısa ve somut ol
+(gereksiz deneme / uzun rapor istemiyor). Kod yorumları Türkçe + ASCII, arayüz / log / commit İngilizce.
 
-## Proje nedir
+## Proje
 
-**Prime Map**, X-Plane 11 haritasını başka bir X-Plane eklentisinin içine gömen
-C++20 kütüphanesidir (`prime_map.dll`, SHARED, namespace `prime`).
+**Prime Map**, X-Plane 11 haritasını başka bir X-Plane eklentisinin içine gömen C++20 kütüphanesidir
+(`prime_map.dll`, SHARED, namespace `prime`). Veri sadece X-Plane'den (DSF, apt.dat, nav, earth_awy, dataref).
 
-- `prime_map_api/` — kütüphane (bu repo). Tek genel başlık: `PrimeMap.h`
-  (repo kökü). Giriş noktası: `prime::MapLibrary::Get()` — `Init(config)`,
-  `CreateMap(openConfig)` (birden çok harita açılabilir), `Shutdown()`
-  (referans sayaçlı), `GetStatus()`.
-- `prime_map_plugin/` — resmi X-Plane eklentisi (haritaya sadece API ile erişir).
-- `plugin-api-test/` — tüm API çağrılarını deneyen test eklentisi.
-- Tüketim modeli: `add_subdirectory(<prime_map_api> prime_map_build)` +
-  `target_link_libraries(<hedef> PRIVATE prime_map)`; `prime_map.dll` host'un
-  `win.xpl` dosyasının yanına kopyalanır (`POST_BUILD` kopya kuralı var).
-- Dokümanlar: `prime_map_api/docs/` (README.md, PrimeMap_API.html/pdf,
-  MIMARI.html/pdf, CHANGELOG.md).
+- `prime_map_api/` — kütüphane. Tek genel başlık `PrimeMap.h` (kök). Giriş: `prime::MapLibrary::Get()`.
+- `prime_map_plugin/` — resmî eklenti (ince kabuk; haritaya sadece API ile erişir).
+- `plugin-api-test/` — API test eklentisi (+ `MultiMapSelfTest`: X-Plane içi otomatik test).
+- Belgeler: `docs/PrimeMap_API.html/pdf` (API, eksiksiz tutulmalı), `docs/MIMARI.html/pdf` (mimari; yeni iş
+  13c bölümünde), `docs/CHANGELOG.md`, `README.md`, `docs/ZEMIN_HIZ_RAPORU.md`.
 
-## Versiyon kontrolü (kesin kural)
+## 0.23'te yapılan (görev tamam, X-Plane'de DENENMEDİ)
 
-- `C:\workspace\projects\*` klasörleri **hiçbir repoya bağlı değildir**; git
-  yalnızca `%TEMP%\opencode\vc\X-Plane-Map-Plugin` klonunda yaşar
-  (GitHub: `https://github.com/efeegrkm/X-Plane-Map-Plugin`, `main` dalı).
-- Her anlamlı değişiklik: `stage22.ps1` ile üç projeyi
-  `%TEMP%\opencode\sdk22`'ye kopyala → klonda `git checkout main` →
-  `git rm -r -q .` → `robocopy %TEMP%\opencode\sdk22 <klon> /E` →
-  `git add -A` → `git commit -F <mesaj-dosyasi.txt>` (çok satırlı mesaj
-  dosyasından; PS `-m` çok satırı bozar) → `git push origin main`.
-- Repo kök dizin yapısı: `prime_map_api/`, `prime_map_plugin/`,
-  `plugin-api-test/`, `AGENTS.md` (bu dosya).
+Harita fabrikası + tamamen bağımsız çoklu harita + harita başına ayar dosyaları + merkezi ayarlar +
+ortak önbellek. Özet (ayrıntı MIMARI 13c, API belgesi):
 
-## Derleme / test
+- `MapLibrary::CreateMap()` pencere açmadan nesne verir; her ayar `Open()`'dan önce de sonra da verilir.
+- `engine/MapData` = ortak veri / önbellek / flight loop; `engine/MapInstance` = bir haritanın her şeyi
+  (LayerManager + katmanlar, Drawings, AircraftData, palet, MapWindow, dosyalar).
+- `layers/TerrainHub` = dokular ve vektörler haritalar arası ortak (tek GPU kopyası).
+- Dosyalar: `<veri>/prime_map.ini`, `<veri>/maps/<ad | map_<kimlik>>/{map_settings.ini, map_drawings.txt,
+  terrain_colors.ini}`, `<veri>/cache/`. Veri klasörü varsayılan host eklenti klasörü.
+- Öncelik: `LoadAndSave`'de `Open` dosyayı kodla verilenin üstüne okur; `SaveOnly` okumaz; `Off` dosyasız.
+- Sınır: `taban × (1 + artış% × (açık harita − 1) / 100)`, `prime_map.ini [cache] / [memory]`.
+
+Kullanıcı X-Plane testini kendisi yapacak: liste `README.md` "Test listesi (0.23)". Sonuç gelmeden
+"çalışıyor" deme.
+
+## Sıradaki olası işler (kullanıcı seçmeden başlama)
+
+1. Zemin hızı: `docs/ZEMIN_HIZ_RAPORU.md` bölüm 5'teki sıra (işçi önceliği, önce seviye 1, rakım
+   sıkıştırmasını erteleme; hazır görüntü önbelleği; paralel karo üretimi; su şekilleri / dünya özeti).
+2. `examples/map_api_test` eski (0.20 testi; sürüm ve tek harita beklentileri bayat): güncelle ya da kaldır.
+3. Katman paneline zoom aralığı arayüzü yok (sadece API / dosya).
+
+## Kod standardı (kesin)
+
+Önekler `m` üye, `p` parametre, `t` yerel, `k` sabit, `g` global. Süslü parantez her zaman alt satırda
+(lambda dahil), tek satır `if` de parantezli. Tür / fonksiyon PascalCase, satır ≤ 120. C++20, `/W4` uyarısız.
+XPLM callback'lerine refcon `this`; global durum yok. Çekirdek (`CORE_SOURCES`) X-Plane'e bağımlı değil
+(testlerde çalışır). GL çağrısı sadece `src/gfx/`. Arka plan thread'inde XPLM / `Log` yok.
+
+## Bu bilgisayarda yerleşim ve git (ev: `C:\Projects\QT`)
+
+```
+C:\Projects\QT\prime_map_api      C:\Projects\QT\prime_map_plugin      C:\Projects\QT\plugin-api-test
+C:\Projects\QT\cots               üçüncü taraf (X-Plane-SDK, lzma, earcut, stb); CMake C:\workspace\cots yoksa burayı bulur
+C:\Projects\QT\README.md, .gitignore   deponun kök dosyaları
+```
+
+- Depo: `https://github.com/efeegrkm/X-Plane-Map-Plugin` (`main`). `.git` klasörü
+  `prime_map_plugin\.git`'tedir ve `core.worktree = C:/Projects/QT`; `prime_map_api` ve `plugin-api-test`
+  içinde ona işaret eden `.git` dosyası var. Üç klasörün herhangi birinden normal `git` komutları çalışır.
+- **DİKKAT:** çalışma ağacı `C:\Projects\QT` olduğu için oradaki diğer projeler `.git/info/exclude` ile
+  yok sayılır. **`git clean` ÇALIŞTIRMA** (`-x` / `-fd` diğer projeleri silebilir); `git add -A` yerine
+  `git add -A :/prime_map_api :/prime_map_plugin :/plugin-api-test :/README.md` kullan.
+- Kullanıcı bu depoya doğrudan push'a izin verdi (iş bilgisayarındaki stage22 / robocopy akışı burada geçerli değil).
+- `prime_map_plugin\build\` ve `.qtcreator\` kullanıcınındır: dokunma. `prime_map_plugin\Claude outputs\` izlenmez.
+
+## Derleme / test (bu bilgisayar)
 
 ```bat
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" >nul 2>&1
-set PATH=C:\Qt\Tools\Ninja;%PATH%
-
-cmake --build C:\workspace\projects\prime_map_api\build\a22
-C:\workspace\projects\prime_map_api\build\a22\map_tests.exe     REM 30.659 kontrol / 0 hata beklenir
-cmake --build C:\workspace\projects\plugin-api-test\build\t22
-cmake --build C:\workspace\projects\prime_map_plugin\build\p22
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+C:\Qt\Tools\CMake_64\bin\cmake.exe -S C:\Projects\QT\prime_map_api -B <derleme> -G Ninja ^
+  -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.exe -DCMAKE_BUILD_TYPE=Release -DMAP_TESTS=ON -DMAP_PREVIEW=ON
+C:\Qt\Tools\Ninja\ninja.exe -C <derleme>
+<derleme>\map_tests.exe        REM 30682 checks passed, 0 failed
+<derleme>\map_preview.exe --lat 47.45 --lon -122.30 --zoom 11 --mode scenery --cache <klasor>\ --out ksea.ppm
 ```
 
-X-Plane kurulumu (X-Plane KAPALIYKEN; `win.xpl` + `prime_map.dll` birlikte):
+Eklentiler aynı şekilde (`-S ...\prime_map_plugin`, `-S ...\plugin-api-test`); `-DMAP_DEPLOY=ON`
+`win.xpl` + `prime_map.dll`'yi X-Plane'e kopyalar (resmî eklentide varsayılan AÇIK, test eklentisinde KAPALI;
+X-Plane açıkken dosya kilitli). Kendi derlemeni geçici klasörde yap. PDF:
+`chrome --headless=new --disable-gpu --no-pdf-header-footer --print-to-pdf=docs\X.pdf docs\X.html`.
+Bash heredoc kaynak dizgilerini bozabiliyor: çok satırlı düzenlemeyi dosyaya yazılmış Python betiğiyle yap.
 
-```
-C:\workspace\projects\plugin-api-test\build\t22\prime_map_build\prime_map.dll
-     -> C:\X-Plane 11\Resources\plugins\plugin-api-test\64\prime_map.dll
-C:\workspace\projects\plugin-api-test\build\t22\plugin_api_test\64\win.xpl
-     -> C:\X-Plane 11\Resources\plugins\plugin-api-test\64\win.xpl
-C:\workspace\projects\prime_map_plugin\build\p22\prime_map_build\prime_map.dll
-     -> C:\X-Plane 11\Resources\plugins\prime-map-plugin\64\prime_map.dll
-C:\workspace\projects\prime_map_plugin\build\p22\prime-map-plugin\64\win.xpl
-     -> C:\X-Plane 11\Resources\plugins\prime-map-plugin\64\win.xpl
-```
+## Tuzaklar
 
-**Tuzaklar (iki kez yakıldık):**
-- Derleme ağacındaki `64\` ara kopyası bayat kalabilir; kurulumu **daima**
-  `prime_map_build\prime_map.dll` (bağlama çıktısı) üzerinden yap ve binary
-  içinde beklenen dizenin olup olmadığını doğrula.
-- `prime_map_api\build\a22` CMake cache'i bayatlayabilir (örn. `MAP_TESTS=OFF`
-  kalabilir); şüphede taze dizine configure et.
-- `rebuild_all.bat` hataları `findstr /V` ile gizler; gerçek hatayı görmek için
-  doğrudan `cmake --build` çalıştır.
-
-## Yapılacak iş (görev)
-
-### Görev 1 — Çoklu harita: her harita bağımsız gezilebilmeli (ASIL İŞ)
-
-**Durum (0.22, güncel):** "tek harita" kuralı kaldırıldı; `MapLibrary::CreateMap`
-ile aynı anda birden çok `Map` penceresi açılabiliyor. Ama tüm pencereler
-**ortak** `MapData` üzerinde çalışıyor ve her pencere aynı `MapView`'ı değil,
-**kendi** `MapView`'ını kullanıyor (bkz. `MapWindow::mView`) — yani kamera
-pencere başına. ORTAK olanlar: katmanlar (`LayerManager`), uçak verisi,
-kullanıcı çizimleri, havalimanı indeksi, zemin paleti, durum metni.
-
-**İstenen davranış:** her haritada farklı yere gidilebilmeli — bir haritada
-KSEA'ya zoom yaparken diğerinin görünümü değişmemeli; `SetCenter` / `SetZoom` /
-pan / `GoToAirport` / `SetFollowAircraft` pencereye özel olmalı.
-
-**Mevcut kodda neye bakılmalı:**
-- `prime_map_api/src/api/PrimeMap.cpp` — `Map::Impl` artık kendi `MapWindow`'unu
-  tutuyor (`mWindow`); görünümlü tüm çağrılar pencere üzerinden gider.
-- `prime_map_api/src/engine/MapData.cpp` — `mWindows` listesi (çoklu pencereyi
-  besler); `AddWindow/RemoveWindow`, `Update` döngüsü, `UpdateStatus` (yayın),
-  `UpdatePrefetch` (herhangi bir pencere görünürse).
-- Kamera durumu `MapWindow::mView`'da (`MapView`); pencere başına zaten var.
-  Paylaşımı bozan noktalar: pencere içi ayarlar `Settings mSettings` (mod
-  başına katmanlar, görünüm) — ikinci pencere açılırken varsayılanlarla mı
-  başlıyor, ilk pencereden mi kopyalanıyor kontrol et.
-- `plugin-api-test`'in `OpenSecondMap` düğmesi ikinci haritayı açar (10,300
-  konumunda 200x150): bağımsız gezinmeyi bununla doğrula.
-- Test senaryosu: iki harita aç → harita 1'i KSEA'ya götür → harita 2'nin
-  görünümü DEĞİŞMEMELİ → harita 2'yi Paris'e götür → harita 1 aynı kalmalı.
-
-### Görev 2 — Runway/zoom (bitti, doğrula)
-
-Pistler artık zoom 11'de görünüyor (pavement eşiğiyle aynı; eskiden 9'du).
-`RunwayLayer.cpp` `kMinZoom` + `RunwayLayer.h` yorumu. X-Plane'de uzak zoom'da
-pistlerin kaplamalarla birlikte kaybolduğunu görsel olarak doğrula.
-
-### Görev 3 — Yapılmış olanları teyit et (kısa)
-
-- Namespace `prime` (eski `PrimeMap` yerine) — kod + doküman tamam.
-- `Init` artık nesne üstünde: `prime::MapLibrary::Get().Init(...)` (mentor
-  geri bildirimi; serbest `Init/Shutdown` fonksiyonları kaldırıldı).
-- Çoklu host: `Init` idempotent + referans sayaçlı (`hosts: N` log'u).
-- Log'da görülmesi gerekenler: `Prime Map API 0.22.0 ready (cache: ...)`,
-  iki hostta `Init: library already running (hosts: 2)`,
-  `loaded (version 0.22, API 0.22.0)`; `called twice` / `only one map` / tek
-  harita uyarıları YOK.
-
-## Sürüm kuralları
-
-- `PrimeMap.h` içindeki `kVersionMajor/Minor/Patch` (0.22.0) ile CMake
-  `project(VERSION 0.22)` configure sırasında denetlenir; değiştirirken ikisini
-  birlikte güncelle. Davranış değişikliği bitince patch yükseltmeyi düşün
-  (ör. 0.22.1) ve `docs/CHANGELOG.md`'ye madde ekle.
+- Derleme ağacındaki `64\` ara kopyası bayat kalabilir; kurulumu `prime_map_build\prime_map.dll` üzerinden doğrula.
+- Sürüm: `PrimeMap.h` `kVersion*` ile CMake `project(VERSION)` configure'da denetlenir; birlikte değiştir.
+  Eklentinin `kVersion` sabiti ve CMake sürümü de aynı olmalı.
+- Pop-out penceresi ayrı GL bağlamıdır: VAO paylaşılmaz (`gfx/ContextVertexArray`), doku / buffer paylaşılır
+  (TerrainHub buna dayanır).
+- Yeni bir "harita başına" durum eklersen: `MapInstance` + `map_settings.ini` (MapWindow::SaveSettings /
+  ApplySettings ya da MapInstance::StoreExtraSections) + API belgesi bölüm 8.
+- Yeni görünürlük durumu: `LayerManager::VisibilitySignature` / `MapWindow::SceneSignature`'a kat.
+- Zemin önbellek biçimi değişirse `TerrainRaster.cpp` / `TerrainElevation.cpp` `kFileVersion`'ı artır.
+- `TerrainStore`'un bellek LRU'ları sadece işçi thread'inindir (kilitsiz); ana thread'den dokunma.
+- Kaspersky taze derlenmiş exe'leri (dsf_info, map_preview) yanlış alarmla karantinaya alabilir: yeniden derle.
+- Doğrulanmış veri biçimi gerçekleri (apt.dat, DSF, earth_awy) kodda `GERCEK VERI` notlarıyla; MIMARI'de özet.

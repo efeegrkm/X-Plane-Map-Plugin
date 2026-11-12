@@ -278,6 +278,11 @@ Settings& MapWindow::SettingsStore()
     return mSettings;
 }
 
+void MapWindow::InvalidateImage()
+{
+    mImageCache.Invalidate();
+}
+
 bool MapWindow::IsCreated() const
 {
     return mWindow != nullptr;

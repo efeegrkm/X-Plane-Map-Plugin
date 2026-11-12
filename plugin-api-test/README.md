@@ -14,6 +14,19 @@ Derleme sonrası `prime_map.dll` otomatik olarak `win.xpl`'nin yanına kopyalan�
 X-Plane'e kurarken ikisini de `<X-Plane>\Resources\plugins\plugin-api-test\64\`
 altına koyun.
 
+## 0.23: çoklu harita otomatik testi
+
+`src/MultiMapSelfTest.cpp`, fabrika / bağımsız harita / ayar dosyası / ortak önbellek sınırı
+özelliklerini X-Plane **içinde** kendi kendine dener. Çalıştırmak için eklenti klasörüne
+(`<X-Plane>\Resources\plugins\plugin-api-test\`) boş bir `selftest.flag` dosyası koyun ve
+X-Plane'i açın; Log.txt'de `[plugin-api-test] SELFTEST PASS/FAIL ...` satırları ve sonunda
+`SELFTEST DONE: N passed, M failed` çıkar. Dosyayı silince test çalışmaz. Aynı süreçte resmî
+eklenti de kuruluysa kütüphaneyi ilk başlatan host'un klasörü veri klasörü olur; bayrak dosyasını
+o klasöre koyun (Log'daki `Prime Map API ... ready (data: ...)` satırı hangisi olduğunu söyler).
+
+Kurulum: `-DMAP_DEPLOY=ON` ile derleme sonrası `win.xpl` + `prime_map.dll` X-Plane'e kopyalanır
+(varsayılan kapalı).
+
 ## Derleme
 
 ```bat

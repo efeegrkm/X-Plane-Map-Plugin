@@ -30,6 +30,7 @@ API'de de vardır (yeni bir host aynı eşleşmeyi kendi UI'ına kurabilir):
 | `prime/map/next_mode` | Next map mode | `map->NextMode()` |
 | `prime/map/precache_view` | Pre-cache terrain | `map->PrecacheVisibleArea()` |
 | `prime/map/precache_cancel` | Cancel pre-cache | `map->CancelPrecache()` |
+| `prime/map/second_map` | Open / close second map | `CreateMap()` → `SetName("second")` → … → `Open()`; kapatırken nesne bırakılır |
 
 Haritanın geri kalan kontrolü de API'dedir (eklenti menüsünde ayrı öğe olarak
 dursun dursun API'de karşılığı vardır): görünüm için `SetCenter`, `SetZoom`,
@@ -92,7 +93,7 @@ açıkken dosya kilitli; önce kapatın). X-Plane'i açın: harita
 **Plugins → Prime Map Plugin** ile açılır; komutlar Settings → Keyboard'da
 `prime/map/` önekiyle bulunur (liste yukarıda). Log: `C:\X-Plane 11\Log.txt`
 içinde `[prime-map-plugin]` satırları — sağlıklı açılışta
-`Prime Map API 0.22 ready` geçer.
+`Prime Map API 0.23.0 ready` geçer.
 
 ## Derleme
 
@@ -117,9 +118,15 @@ redistributable kurulu olmalıdır.
 
 ## Dosyalar (eklenti klasöründe)
 
+0.23'ten beri dosyaları **kütüphane** yönetir (eklenti dosya okumaz / yazmaz):
+
 | Dosya | İçerik |
 |---|---|
-| `map_settings.ini` | pencere, görünüm, önbellek, katmanlar (host yazar) |
-| `map_drawings.txt` | kullanıcı çizimleri |
-| `terrain_colors.ini` | zemin renk ayarları |
-| `cache/` | zemin/havalimanı önbelleği |
+| `prime_map.ini` | merkezi ayarlar: ortak önbellek sınırları, önceden yükleme, otomatik kayıt |
+| `maps/main/map_settings.ini`, `map_drawings.txt`, `terrain_colors.ini` | ana haritanın ayarları, çizimleri, zemin renkleri |
+| `maps/second/...` | ikinci haritanın dosyaları (menüden açılırsa) |
+| `cache/` | bütün haritaların ortak zemin / havalimanı önbelleği |
+| kökteki eski `map_settings.ini`, `map_drawings.txt`, `terrain_colors.ini` | 0.22 ve öncesi; ilk açılışta `maps/main/` altına kopyalanır, sonra okunmaz |
+
+`src/Settings.*` yalnızca eski `map_settings.ini`'nin `[cache]` değerlerini ilk `prime_map.ini`'ye
+taşımak için kullanılır.
