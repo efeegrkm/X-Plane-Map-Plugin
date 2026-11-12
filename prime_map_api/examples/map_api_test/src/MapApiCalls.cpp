@@ -28,10 +28,25 @@ bool MapApiCalls::OpenMap(const prime::Geometry& pGeometry, prime::WindowStyle p
 
 bool MapApiCalls::OpenSecondMap()
 {
-    prime::OpenConfig tConfig;
-    tConfig.mGeometry = {10, 300, 200, 150};
-    std::unique_ptr<prime::Map> tSecond = prime::Map::Open(tConfig);
-    return tSecond != nullptr;
+    if (mSecondMap)
+    {
+        mSecondMap.reset();  // ayarlari maps/second/ altina yazilir, pencere kapanir
+        return false;
+    }
+    // Fabrika: once nesne, sonra ayarlar, en son Open (PrimeMap.h basindaki akis)
+    mSecondMap = prime::MapLibrary::Get().CreateMap();
+    if (!mSecondMap)
+    {
+        return false;
+    }
+    mSecondMap->SetName("second");
+    mSecondMap->SetStyle(prime::WindowStyle::Standalone);
+    mSecondMap->SetTitle("Second map");
+    mSecondMap->SetGeometry({900, 700, 500, 360});
+    mSecondMap->SetMode(prime::MapMode::Vfr);
+    mSecondMap->SetUiVisible(true);
+    mSecondMap->SetMouseInput(true);
+    return mSecondMap->Open();
 }
 
 void MapApiCalls::CloseMap()

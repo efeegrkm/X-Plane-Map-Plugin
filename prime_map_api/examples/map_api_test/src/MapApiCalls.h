@@ -25,7 +25,8 @@ public:
 
     // --- Harita penceresi ---
     bool OpenMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse);
-    bool OpenSecondMap();  // tek harita kurali: false beklenir
+    // 0.23 fabrika ornegi: ikinci, bagimsiz harita (ayar klasoru maps/second/). Aciksa kapatir.
+    bool OpenSecondMap();
     void CloseMap();
     bool IsOpen() const;
     void SetGeometry(const prime::Geometry& pGeometry);
@@ -135,4 +136,5 @@ public:
 
 private:
     std::unique_ptr<prime::Map> mMap;
+    std::unique_ptr<prime::Map> mSecondMap;
 };

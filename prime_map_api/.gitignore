@@ -58,3 +58,11 @@ compile_commands.json
 # Bu proje: Qt Creator kullanici ayarlari ve yerel klasoru
 *.user
 .qtcreator/
+
+# Windows derleme kalintilari (build/ disina duserse)
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.exe

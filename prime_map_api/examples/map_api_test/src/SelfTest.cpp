@@ -75,11 +75,12 @@ void SelfTest::Check(bool pCondition, const std::string& pName, const std::strin
 
 void SelfTest::RunImmediate()
 {
-    // --- Kutuphane ve tek harita kurali
+    // --- Kutuphane ve coklu harita (0.23 fabrika)
     Check(mCalls.IsInitialized(), "IsInitialized");
-    Check(mCalls.VersionString() == "1.0.0", "VersionString", mCalls.VersionString());
+    Check(mCalls.VersionString() == "0.23.0", "VersionString", mCalls.VersionString());
     Check(mCalls.IsOpen(), "Map::Open (embedded)");
-    Check(!mCalls.OpenSecondMap(), "Map::Open second map returns nullptr");
+    Check(mCalls.OpenSecondMap(), "OpenSecondMap opens an independent second map");
+    Check(!mCalls.OpenSecondMap(), "OpenSecondMap again closes the second map");
 
     // --- Pencere
     const prime::Geometry tGeometry = {150, 750, 640, 420};
@@ -358,7 +359,7 @@ void SelfTest::RunAfterDraw()
     Check(tStatus.mNavReady && tStatus.mAirportsReady, "GetStatus after load",
           std::format("airways {} terrain index {}", tStatus.mAirwaysReady, tStatus.mTerrainIndexReady));
 
-    // --- Kapat / yeniden ac (tek harita kurali serbest kalir)
+    // --- Kapat / yeniden ac
     mCalls.CloseMap();
     Check(!mCalls.IsOpen(), "CloseMap");
     const bool tReopened = mCalls.OpenMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, true, true);

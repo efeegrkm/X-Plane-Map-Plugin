@@ -1,0 +1,6 @@
+# Build ciktilari ve IDE dosyalari
+build/
+.qtcreator/
+CMakeLists.txt.user
+*.user
+*.autosave
