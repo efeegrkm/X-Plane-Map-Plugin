@@ -41,6 +41,10 @@ class MapView
 public:
     static constexpr double kMinZoom = 3.0;
     static constexpr double kMaxZoom = 16.5;  // son 3 tekerlek kademesi kapali (18 - 3 x 0.5): gereksiz yakin bakis
+    // 0.23: zoom sinirlari harita basina daraltilabilir / genisletilebilir (SetZoomLimits). Mutlak
+    // sinirlar: kMinZoom'dan uzak olamaz (dunya pencereden kucuk kalir), kHardMaxZoom'dan yakin olamaz
+    // (zemin dokulari ~0,85 m/piksel: daha yakini sadece bulaniklik).
+    static constexpr double kHardMaxZoom = 18.0;
     static constexpr double kTileSize = 256.0;  // zoom 0'da dunyanin kenari (boxel)
 
     // Haritanin cizildigi alan (global boxel). Her cizimde pencereden alinir.
@@ -54,8 +58,12 @@ public:
     double CenterMercatorY() const;
     void SetCenterMercator(double pX, double pY);
 
-    void SetZoom(double pZoom);  // kMinZoom..kMaxZoom araligina kirpilir
+    void SetZoom(double pZoom);  // MinZoomLimit..MaxZoomLimit araligina kirpilir (varsayilan kMinZoom..kMaxZoom)
     double Zoom() const;
+    // Bu gorunumun zoom sinirlari; kMinZoom..kHardMaxZoom disina tasmaz, gecerli zoom yeni araliga kirpilir
+    void SetZoomLimits(double pMinZoom, double pMaxZoom);
+    double MinZoomLimit() const;
+    double MaxZoomLimit() const;
 
     // Zoom'daki dunyanin kenar uzunlugu (boxel): 256 * 2^zoom
     double WorldSize() const;
@@ -97,4 +105,6 @@ private:
     double mCenterX = 0.5;  // Mercator birimi
     double mCenterY = 0.5;  // Mercator birimi
     double mZoom = 6.0;
+    double mMinZoom = kMinZoom;
+    double mMaxZoom = kMaxZoom;
 };

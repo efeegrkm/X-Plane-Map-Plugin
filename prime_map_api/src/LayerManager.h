@@ -67,6 +67,14 @@ public:
     // Alt katmanin ayar anahtari: "<katman>.<alt katman>" (ornek "airport_surfaces.boundary")
     static std::string SubLayerKey(const Layer& pLayer, int pSubLayer);
 
+    // Zoom araliklari (0.23): [layer_zoom] bolumu, anahtar = katman / alt katman kimligi,
+    // deger = "<en az> <en cok>". Moddan bagimsiz. Dosyada olmayan katmanin siniri yoktur.
+    void LoadZoomRanges(const Settings& pSettings);
+    void SaveZoomRanges(Settings& pSettings) const;
+    void ResetZoomRanges();
+    // Katmanlara o anki zoom'u verir (DrawAll kendisi cagirir; sorgu / onizleme icin ayrica)
+    void SetCurrentZoom(double pZoom);
+
 private:
     std::vector<std::unique_ptr<Layer>> mLayers;
 };

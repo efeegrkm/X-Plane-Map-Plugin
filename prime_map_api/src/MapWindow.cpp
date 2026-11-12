@@ -31,13 +31,14 @@ namespace
 
 const char* kViewSection = "view";
 const char* kToolsSection = "tools";
+const char* kRenderSection = "render";
+const char* kTextSection = "text";
 const char* kFontFile = "Resources/fonts/DejaVuSans.ttf";  // X-Plane kurulumunda var (lisans: Bitstream Vera)
 
 const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
 const int kMaxSize = 8192;
 const int kEmbeddedMinSize = 50;     // Embedded pencere: host kucuk bir alan verebilir
-const double kWheelZoomStep = 0.5;   // tekerlegin her "tik"i bu kadar zoom
 const float kMouseTimeout = 0.25f;   // pop-out'ta imlec bu sureden eski ise pencere disinda say
 const float kDiagnosticsPeriod = 2.0f;
 const int kClickSlop = 4;            // basip birakmada bundan az hareket: tiklama (boxel)
@@ -57,6 +58,10 @@ MapWindow::MapWindow(LayerManager& pLayers, AircraftData& pAircraft, Drawings& p
     , mAirports(pAirports)
     , mSearchPanel(pAirports)
 {
+    // Baslangic durumu (pencere acilmadan da gecerli): varsayilan gorunum ve modun varsayilan katmanlari
+    mView.SetCenter(kDefaultCenter);
+    mView.SetZoom(kDefaultZoom);
+    mLayers.ResetToDefaults(ThemeFor(mMapMode));
 }
 
 MapWindow::~MapWindow()
@@ -68,22 +73,40 @@ MapWindow::~MapWindow()
 // Olusturma, gorunurluk
 // ============================================================================
 
+void MapWindow::ApplyOptions(const MapWindowOptions& pOptions)
+{
+    if (!mWindow)
+    {
+        mEmbedded = pOptions.mEmbedded;
+    }
+    mShowControls = pOptions.mUiVisible;
+    mMouseInput = pOptions.mMouseInput;
+    SetXPlaneFont(pOptions.mXPlaneFont);
+    mUseImageCache = pOptions.mImageCache;
+    SetMaxRenderFps(pOptions.mMaxRenderFps);
+    SetGeometry(pOptions.mGeometry);
+    SetMapMode(pOptions.mMode);
+    mWantVisible = pOptions.mVisible;
+}
+
 void MapWindow::Create(const MapWindowOptions& pOptions)
 {
     if (mWindow)
     {
         return;
     }
-    mEmbedded = pOptions.mEmbedded;
-    mShowControls = pOptions.mUiVisible;
-    mMouseInput = pOptions.mMouseInput;
-    mXPlaneFont = pOptions.mXPlaneFont;
-    mUseImageCache = pOptions.mImageCache;
-    mImageCache.SetMaxRate(pOptions.mMaxRenderFps);
-    mFloatingGeometry = pOptions.mGeometry;
-    mHasFloatingGeometry = true;
-    mMapMode = pOptions.mMode;
-    ApplySettings();  // bos ayar: varsayilan gorunum ve modun varsayilan katmanlari
+    ApplyOptions(pOptions);
+    Create();
+}
+
+void MapWindow::Create()
+{
+    if (mWindow)
+    {
+        return;
+    }
+    mImageCache.SetMaxRate(mMaxRenderFps);
+    mImageCache.Invalidate();
 
     XPLMCreateWindow_t tParams;
     std::memset(&tParams, 0, sizeof(tParams));
@@ -122,16 +145,137 @@ void MapWindow::Create(const MapWindowOptions& pOptions)
     {
         XPLMSetWindowResizingLimits(mWindow, kMinWidth, kMinHeight, kMaxSize, kMaxSize);
     }
-    std::string tTitle = "Map";  // SDK degistirilebilir char* istiyor
+    std::string tTitle = mTitle;  // SDK degistirilebilir char* istiyor
     XPLMSetWindowTitle(mWindow, tTitle.data());
     mFramePeriodRef = XPLMFindDataRef("sim/operation/misc/frame_rate_period");  // saniye/kare
     Log("map window created ({}, {},{} - {},{})", mEmbedded ? "embedded" : "standalone", mFloatingGeometry.mLeft,
         mFloatingGeometry.mTop, mFloatingGeometry.mRight, mFloatingGeometry.mBottom);
 
-    if (pOptions.mVisible)
+    if (mWantVisible)
     {
         SetVisible(true);
     }
+}
+
+void MapWindow::UseOwnText()
+{
+    // Ui'nin yazi cizicisi surecte tek bir isaretci: her pencere kendi cizim / tiklama isinin
+    // basinda kendisininkini secer (yoksa baska haritanin atlasi, baska Canvas'a yazardi)
+    Ui::SetTextRenderer(mText.get());
+}
+
+bool MapWindow::IsEmbedded() const
+{
+    return mEmbedded;
+}
+
+void MapWindow::SetEmbedded(bool pEmbedded)
+{
+    if (mWindow)
+    {
+        Log("WARNING: window style cannot change while the map is open (close it first)");
+        return;
+    }
+    mEmbedded = pEmbedded;
+}
+
+bool MapWindow::WantsVisible() const
+{
+    return mWantVisible;
+}
+
+void MapWindow::SetTitle(const std::string& pTitle)
+{
+    mTitle = pTitle.empty() ? "Map" : pTitle;
+    if (mWindow)
+    {
+        std::string tTitle = mTitle;
+        XPLMSetWindowTitle(mWindow, tTitle.data());
+    }
+}
+
+const std::string& MapWindow::Title() const
+{
+    return mTitle;
+}
+
+void MapWindow::SetImageCacheEnabled(bool pEnabled)
+{
+    mUseImageCache = pEnabled;
+    mImageCache.Invalidate();
+    ++mSettingsRevision;
+}
+
+bool MapWindow::IsImageCacheEnabled() const
+{
+    return mUseImageCache;
+}
+
+void MapWindow::SetMaxRenderFps(int pFps)
+{
+    mMaxRenderFps = pFps < 1 ? 1 : (pFps > 240 ? 240 : pFps);
+    mImageCache.SetMaxRate(mMaxRenderFps);
+    ++mSettingsRevision;
+}
+
+int MapWindow::MaxRenderFps() const
+{
+    return mMaxRenderFps;
+}
+
+void MapWindow::SetXPlaneFont(bool pXPlaneFont)
+{
+    if (mXPlaneFont == pXPlaneFont)
+    {
+        return;
+    }
+    mXPlaneFont = pXPlaneFont;
+    ++mSettingsRevision;
+    if (mCanvasChecked)
+    {
+        // Pencere zaten ciziyor: yazi cizici bir sonraki karede yeniden kurulur
+        Ui::SetTextRenderer(nullptr);
+        mText.reset();
+        mTextPending = true;
+    }
+}
+
+bool MapWindow::UsesXPlaneFont() const
+{
+    return mXPlaneFont;
+}
+
+void MapWindow::SetZoomStep(double pStep)
+{
+    mZoomStep = pStep;
+    ++mSettingsRevision;
+}
+
+double MapWindow::ZoomStep() const
+{
+    return mZoomStep;
+}
+
+void MapWindow::SetPanStep(double pFraction)
+{
+    mPanStep = pFraction;
+    ++mSettingsRevision;
+}
+
+double MapWindow::PanStep() const
+{
+    return mPanStep;
+}
+
+void MapWindow::SetZoomLimits(double pMinZoom, double pMaxZoom)
+{
+    mView.SetZoomLimits(pMinZoom, pMaxZoom);
+    ++mSettingsRevision;
+}
+
+Settings& MapWindow::SettingsStore()
+{
+    return mSettings;
 }
 
 bool MapWindow::IsCreated() const
@@ -141,15 +285,23 @@ bool MapWindow::IsCreated() const
 
 void MapWindow::Destroy()
 {
-    if (mText)
-    {
-        Ui::SetTextRenderer(nullptr);  // Ui artik bu nesneyi gostermesin
-        mText.reset();
-    }
     if (mWindow)
     {
+        mWantVisible = XPLMGetWindowIsVisible(mWindow) != 0;  // yeniden acilirsa ayni gorunurlukle
+        if (HasKeyboardFocus())
+        {
+            XPLMTakeKeyboardFocus(nullptr);  // kapanan pencere klavyeyi tutmasin
+        }
+        mSearchPanel.SetOpen(false);
         XPLMDestroyWindow(mWindow);
         mWindow = nullptr;
+        mPressOnMap = false;
+    }
+    // Yazi atlasi ve Canvas nesnede kalir (pencere yeniden acilabilir); Ui baska pencereninkini
+    // gosteriyor olabilir: sadece bizimkiyse birak
+    if (mText && Ui::CurrentTextRenderer() == mText.get())
+    {
+        Ui::SetTextRenderer(nullptr);
     }
 }
 
@@ -160,8 +312,10 @@ bool MapWindow::IsVisible() const
 
 void MapWindow::SetVisible(bool pVisible)
 {
+    mWantVisible = pVisible;
     if (!mWindow)
     {
+        ++mSettingsRevision;  // pencere acilinca bu gorunurlukle acilir
         return;
     }
     XPLMSetWindowIsVisible(mWindow, pVisible ? 1 : 0);
@@ -283,6 +437,7 @@ void MapWindow::OnDraw()
 {
     const std::chrono::steady_clock::time_point tDrawStart = std::chrono::steady_clock::now();
     const float tNow = XPLMGetElapsedTime();
+    UseOwnText();  // coklu harita: yazilar bu pencerenin atlasina / Canvas'ina
 
     int tLeft = 0;
     int tTop = 0;
@@ -318,6 +473,11 @@ void MapWindow::OnDraw()
     if (!PrepareCanvas())
     {
         return;
+    }
+    if (mTextPending)
+    {
+        mTextPending = false;
+        CreateTextRenderer();  // SetXPlaneFont acik pencerede cagrildi
     }
     mCanvas.BeginFrame();
     if (!mCanvas.IsContextUsable())
@@ -462,6 +622,8 @@ void MapWindow::CreateTextRenderer()
 {
     if (mXPlaneFont)
     {
+        mText.reset();
+        Ui::SetTextRenderer(nullptr);
         Log("text: X-Plane font (XPLMDrawString), [text] renderer = xplane");
         return;
     }
@@ -682,6 +844,7 @@ void MapWindow::RememberMouse(int pX, int pY)
 int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
 {
     RememberMouse(pX, pY);
+    UseOwnText();  // dugme genislikleri bu pencerenin yazisiyla olculur
 
     if (pStatus == xplm_MouseDown)
     {
@@ -762,6 +925,7 @@ int MapWindow::OnClick(int pX, int pY, XPLMMouseStatus pStatus)
 int MapWindow::OnRightClick(int pX, int pY, XPLMMouseStatus pStatus)
 {
     RememberMouse(pX, pY);
+    UseOwnText();
     if (!mMouseInput)
     {
         return IsOverControls(pX, pY) ? 1 : 0;  // fare kapali: haritadaki sag tik alttaki pencereye
@@ -791,6 +955,7 @@ void MapWindow::HandleMapClick(int pX, int pY)
 int MapWindow::OnWheel(int pX, int pY, int pWheel, int pClicks)
 {
     RememberMouse(pX, pY);
+    UseOwnText();
     if (pWheel != 0)
     {
         return 1;  // yatay tekerlek: kullanmiyoruz
@@ -807,7 +972,7 @@ int MapWindow::OnWheel(int pX, int pY, int pWheel, int pClicks)
     {
         return IsOverControls(pX, pY) ? 1 : 0;  // fare kapali: tekerlek alttaki pencereye
     }
-    const double tDelta = pClicks * kWheelZoomStep;
+    const double tDelta = pClicks * mZoomStep;
     if (mFollowAircraft && mAircraft.State().mValid)
     {
         // Takipteyken merkez ucakta kalmali: ucagin etrafinda zoom
@@ -1148,20 +1313,44 @@ void MapWindow::CenterOnAircraft()
 
 void MapWindow::ApplySettings()
 {
+    // Dosyada olmayan anahtar icin varsayilan = SU ANKI deger: boylece pencere acilmadan once
+    // API ile verilen ayarlar, dosyada karsiligi yoksa oldugu gibi kalir (0.23).
+    const LatLon tCurrent = mView.Center();
+    // Once sinirlar: zoom yeni sinirlara gore kirpilsin
+    mView.SetZoomLimits(mSettings.GetDouble(kViewSection, "min_zoom", mView.MinZoomLimit()),
+                        mSettings.GetDouble(kViewSection, "max_zoom", mView.MaxZoomLimit()));
     LatLon tCenter;
-    tCenter.mLat = mSettings.GetDouble(kViewSection, "center_lat", kDefaultCenter.mLat);
-    tCenter.mLon = mSettings.GetDouble(kViewSection, "center_lon", kDefaultCenter.mLon);
+    tCenter.mLat = mSettings.GetDouble(kViewSection, "center_lat", tCurrent.mLat);
+    tCenter.mLon = mSettings.GetDouble(kViewSection, "center_lon", tCurrent.mLon);
     mView.SetCenter(tCenter);
-    mView.SetZoom(mSettings.GetDouble(kViewSection, "zoom", kDefaultZoom));
-    mFollowAircraft = mSettings.GetBool(kViewSection, "follow_aircraft", true);
+    mView.SetZoom(mSettings.GetDouble(kViewSection, "zoom", mView.Zoom()));
+    mFollowAircraft = mSettings.GetBool(kViewSection, "follow_aircraft", mFollowAircraft);
     mMapMode = ModeFromId(mSettings.GetString(kViewSection, "mode", ThemeFor(mMapMode).mId), mMapMode);
+    mShowControls = mSettings.GetBool(kViewSection, "show_controls", mShowControls);
+    mMouseInput = mSettings.GetBool(kViewSection, "mouse_input", mMouseInput);
+    const double tZoomStep = mSettings.GetDouble(kViewSection, "zoom_step", mZoomStep);
+    if (tZoomStep > 0.0 && tZoomStep <= 5.0)
+    {
+        mZoomStep = tZoomStep;
+    }
+    const double tPanStep = mSettings.GetDouble(kViewSection, "pan_step", mPanStep);
+    if (tPanStep > 0.0 && tPanStep <= 1.0)
+    {
+        mPanStep = tPanStep;
+    }
 
-    mToolPalette.SetVisible(mSettings.GetBool(kToolsSection, "visible", true));
-    mToolPalette.SetCollapsed(mSettings.GetBool(kToolsSection, "collapsed", false));
-    mToolPalette.SetOffset(mSettings.GetInt(kToolsSection, "offset_right", 8),
-                           mSettings.GetInt(kToolsSection, "offset_top", 8));
+    mUseImageCache = mSettings.GetBool(kRenderSection, "cache", mUseImageCache);
+    SetMaxRenderFps(mSettings.GetInt(kRenderSection, "max_fps", mMaxRenderFps));
+    SetXPlaneFont(mSettings.GetString(kTextSection, "renderer", mXPlaneFont ? "xplane" : "atlas") == "xplane");
+
+    mToolPalette.SetVisible(mSettings.GetBool(kToolsSection, "visible", mToolPalette.IsVisible()));
+    mToolPalette.SetCollapsed(mSettings.GetBool(kToolsSection, "collapsed", mToolPalette.IsCollapsed()));
+    mToolPalette.SetOffset(mSettings.GetInt(kToolsSection, "offset_right", mToolPalette.OffsetRight()),
+                           mSettings.GetInt(kToolsSection, "offset_top", mToolPalette.OffsetTop()));
 
     mLayers.LoadVisibility(mSettings, ThemeFor(mMapMode));
+    mLayers.LoadZoomRanges(mSettings);
+    mImageCache.Invalidate();
 }
 
 void MapWindow::SaveSettings()
@@ -1172,6 +1361,16 @@ void MapWindow::SaveSettings()
     mSettings.SetDouble(kViewSection, "zoom", mView.Zoom());
     mSettings.SetBool(kViewSection, "follow_aircraft", mFollowAircraft);
     mSettings.SetString(kViewSection, "mode", ThemeFor(mMapMode).mId);
+    mSettings.SetBool(kViewSection, "show_controls", mShowControls);
+    mSettings.SetBool(kViewSection, "mouse_input", mMouseInput);
+    mSettings.SetDouble(kViewSection, "min_zoom", mView.MinZoomLimit());
+    mSettings.SetDouble(kViewSection, "max_zoom", mView.MaxZoomLimit());
+    mSettings.SetDouble(kViewSection, "zoom_step", mZoomStep);
+    mSettings.SetDouble(kViewSection, "pan_step", mPanStep);
+
+    mSettings.SetBool(kRenderSection, "cache", mUseImageCache);
+    mSettings.SetInt(kRenderSection, "max_fps", mMaxRenderFps);
+    mSettings.SetString(kTextSection, "renderer", mXPlaneFont ? "xplane" : "atlas");
 
     mSettings.SetBool(kToolsSection, "visible", mToolPalette.IsVisible());
     mSettings.SetBool(kToolsSection, "collapsed", mToolPalette.IsCollapsed());
@@ -1179,7 +1378,8 @@ void MapWindow::SaveSettings()
     mSettings.SetInt(kToolsSection, "offset_top", mToolPalette.OffsetTop());
 
     mLayers.SaveVisibility(mSettings, ThemeFor(mMapMode));
-    ++mSettingsRevision;  // host bunu gorup dosyaya yazar
+    mLayers.SaveZoomRanges(mSettings);
+    ++mSettingsRevision;  // degisti: MapInstance ayar dosyasini yazar (host da bu sayaca bakabilir)
 }
 
 void MapWindow::SaveDrawings()
@@ -1190,12 +1390,15 @@ void MapWindow::SaveDrawings()
 std::string MapWindow::ExportSettings()
 {
     SaveSettings();
-    return mSettings.ToText({kViewSection, kToolsSection, "layers*"});
+    return mSettings.ToText({kViewSection, kToolsSection, "layers*", "layer_zoom", kRenderSection, kTextSection});
 }
 
 void MapWindow::ImportSettings(const std::string& pText)
 {
-    // Eski map_settings.ini aynen okunur ([window] gibi baska bolumler zararsiz)
+    // Once su anki durum bellege (API ile yapilip henuz yazilmamis degisiklikler kaybolmasin),
+    // sonra metindeki anahtarlar ustune; metinde olmayan anahtar oldugu gibi kalir.
+    // Eski map_settings.ini aynen okunur (bilinmeyen bolumler zararsiz).
+    SaveSettings();
     mSettings.MergeText(pText);
     ApplySettings();
     ++mSettingsRevision;
@@ -1206,6 +1409,11 @@ void MapWindow::ImportSettings(const std::string& pText)
 // ============================================================================
 
 MapView& MapWindow::View()
+{
+    return mView;
+}
+
+const MapView& MapWindow::View() const
 {
     return mView;
 }
@@ -1271,6 +1479,7 @@ void MapWindow::SetMouseInput(bool pEnabled)
 {
     mMouseInput = pEnabled;
     mPressOnMap = false;
+    ++mSettingsRevision;
 }
 
 bool MapWindow::IsMouseInputEnabled() const
@@ -1305,6 +1514,8 @@ void MapWindow::DrawingsChanged()
 
 std::vector<std::pair<std::string, std::string>> MapWindow::DescribeAt(int pX, int pY)
 {
+    UseOwnText();
+    mLayers.SetCurrentZoom(mView.Zoom());
     DrawContext tContext;
     tContext.mView = &mView;
     tContext.mCanvas = &mCanvas;

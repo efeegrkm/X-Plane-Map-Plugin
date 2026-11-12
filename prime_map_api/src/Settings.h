@@ -45,6 +45,8 @@ public:
     void SetDouble(const std::string& pSection, const std::string& pKey, double pValue);
     void SetInt(const std::string& pSection, const std::string& pKey, int pValue);
     void SetBool(const std::string& pSection, const std::string& pKey, bool pValue);
+    // Bolumu butun anahtarlariyla siler (bastan yazilacak bolumler icin: [layer_zoom])
+    void ClearSection(const std::string& pSection);
 
 private:
     std::string mPath;

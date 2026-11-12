@@ -49,6 +49,10 @@ public:
     AirportDetailStore(const AirportDetailStore&) = delete;
     AirportDetailStore& operator=(const AirportDetailStore&) = delete;
 
+    // Bellekte tutulan en fazla havalimani (varsayilan kMaxLoaded). 0.23: acik harita sayisina
+    // gore buyutulur (iki harita farkli yerlere bakarken birbirinin havalimanlarini atmasin).
+    void SetMaxLoaded(size_t pCount);
+
     void Start();  // isci thread'ini baslatir (bir kez)
     void Stop();   // o anki isi bitirip durur
 
@@ -100,6 +104,7 @@ private:
     std::unordered_set<int> mWantedSet;
     uint64_t mFrame = 0;
     int mPendingCount = 0;
+    size_t mMaxLoaded = kMaxLoaded;
 
     // Ana thread <-> isci (mMutex ile)
     mutable std::mutex mMutex;

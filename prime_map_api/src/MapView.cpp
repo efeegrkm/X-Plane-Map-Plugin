@@ -103,7 +103,24 @@ LatLon MapView::Center() const
 
 void MapView::SetZoom(double pZoom)
 {
-    mZoom = Clamp(pZoom, kMinZoom, kMaxZoom);
+    mZoom = Clamp(pZoom, mMinZoom, mMaxZoom);
+}
+
+void MapView::SetZoomLimits(double pMinZoom, double pMaxZoom)
+{
+    mMinZoom = Clamp(pMinZoom, kMinZoom, kHardMaxZoom);
+    mMaxZoom = Clamp(pMaxZoom, mMinZoom, kHardMaxZoom);
+    SetZoom(mZoom);
+}
+
+double MapView::MinZoomLimit() const
+{
+    return mMinZoom;
+}
+
+double MapView::MaxZoomLimit() const
+{
+    return mMaxZoom;
 }
 
 double MapView::Zoom() const

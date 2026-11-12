@@ -1,23 +1,29 @@
 // PluginMain.cpp
-// Prime Map Plugin'in ince kabugu (0.20): X-Plane'in cagirdigi 5 giris fonksiyonu, menu,
-// prime/map/* komutlari ve ayar dosyalari. Haritaya SADECE genel API (PrimeMap.h)
-// uzerinden erisir; bu yuzden eklentide yapilabilen her sey API'de de vardir.
+// Prime Map Plugin'in ince kabugu: X-Plane'in cagirdigi 5 giris fonksiyonu, menu ve
+// prime/map/* komutlari. Haritaya SADECE genel API (PrimeMap.h) uzerinden erisir; bu
+// yuzden eklentide yapilabilen her sey API'de de vardir.
 //
-//   map_settings.ini   : [window] (yer, gorunurluk), [view] show_controls, [cache], [render], [text]
-//                        eklentinin; [view] mode/center/zoom/follow, [tools], [layers.*] haritanin
-//                        (ExportSettings / ImportSettings). Anahtarlar 0.19 ile ayni.
-//   map_drawings.txt   : ExportDrawings / ImportDrawings
-//   terrain_colors.ini : ExportTerrainSettings / ImportTerrainSettings
+// 0.23: ayar dosyalarini artik KUTUPHANE yonetir (eklenti dosya okumaz / yazmaz):
 //
-// Dosyalar degisince (API'nin Get...Revision sayaclari) flight loop'ta yazilir.
-#include <algorithm>
+//   <eklenti klasoru>/prime_map.ini                  merkezi ayarlar (onbellek sinirlari ...)
+//   <eklenti klasoru>/maps/main/map_settings.ini     ana haritanin ayarlari
+//   <eklenti klasoru>/maps/main/map_drawings.txt     ana haritanin cizimleri
+//   <eklenti klasoru>/maps/main/terrain_colors.ini   ana haritanin zemin renkleri
+//   <eklenti klasoru>/maps/second/...                ikinci haritanin dosyalari (menuden acilirsa)
+//   <eklenti klasoru>/cache/                         ortak onbellek
+//
+// Eski surumlerin (0.22 ve oncesi) eklenti klasorundeki map_settings.ini / map_drawings.txt /
+// terrain_colors.ini dosyalari ilk acilista maps/main/ altina KOPYALANIR (eskiler silinmez).
+//
+// Akis (fabrika): CreateMap() -> SetName / SetStyle / ... -> Open(). Ikinci harita ayni
+// yolla, baska bir adla acilir: iki harita birbirinden bagimsiz gezilir ve ayarlanir.
 #include <array>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
+#include <filesystem>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <system_error>
 
 #include "XPLMDefs.h"
 #include "XPLMDisplay.h"
@@ -32,40 +38,15 @@
 namespace
 {
 
-const char* kVersion = "0.22";  // CMake project(VERSION) ile ayni olmali
-const char* kSettingsFileName = "map_settings.ini";
-const char* kDrawingsFileName = "map_drawings.txt";
-const char* kTerrainColorsFileName = "terrain_colors.ini";
-const char* kWindowSection = "window";
-const char* kViewSection = "view";
-const char* kCacheSection = "cache";
-const char* kRenderSection = "render";
-const char* kTextSection = "text";
-const int kMinWidth = 400;  // pencere en kucuk boyutu (boxel)
-const int kMinHeight = 260;
+const char* kVersion = "0.23";  // CMake project(VERSION) ile ayni olmali
+const char* kMainMapName = "main";      // ayar klasoru: maps/main/
+const char* kSecondMapName = "second";  // ayar klasoru: maps/second/
+const char* kLegacySettingsFile = "map_settings.ini";  // 0.22 ve oncesi: eklenti klasorunun kokunde
+const char* kLegacyFiles[] = {"map_settings.ini", "map_drawings.txt", "terrain_colors.ini"};
 
-bool ReadFile(const std::string& pPath, std::string* pText)
+void DebugLine(const std::string& pText)
 {
-    std::ifstream tFile(pPath);
-    if (!tFile)
-    {
-        return false;
-    }
-    std::ostringstream tText;
-    tText << tFile.rdbuf();
-    *pText = tText.str();
-    return true;
-}
-
-bool WriteFile(const std::string& pPath, const std::string& pText)
-{
-    std::ofstream tFile(pPath, std::ios::trunc);
-    if (!tFile)
-    {
-        return false;
-    }
-    tFile << pText;
-    return static_cast<bool>(tFile);
+    XPLMDebugString(("[prime-map-plugin] " + pText + "\n").c_str());
 }
 
 class PrimeMapPlugin
@@ -83,30 +64,20 @@ private:
 
     static void MenuCallback(void* pMenuRef, void* pItemRef);
     static int CommandCallback(XPLMCommandRef pCommand, XPLMCommandPhase pPhase, void* pRefcon);
-    static float FlightLoopCallback(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
 
     void OnMenu(int pItem);
     int OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase);
-    float OnFlightLoop();
-    void LoadTerrainColors();
+    void MigrateLegacyFiles() const;
+    void OpenMainMap();
+    void ToggleSecondMap();
     void CreateCommands();
     void CreateMenu();
     void ToggleDiagnostics();
-    void SaveSettings();
-    void SaveDrawings();
-    prime::Geometry WindowGeometry() const;
-    static prime::Geometry DefaultGeometry();
-    static bool IsGeometryUsable(const prime::Geometry& pGeometry);
     static std::string FindPluginDirectory();
 
     std::string mDirectory;
-    Settings mSettings;  // map_settings.ini
-    std::unique_ptr<prime::Map> mMap;
-    prime::Geometry mFloatingGeometry;  // X-Plane icindeyken son yer (pop-out'ta degismez)
-    uint64_t mSavedSettings = 0;
-    uint64_t mSavedDrawings = 0;
-    bool mWasVisible = false;
-    bool mWasUiVisible = false;
+    std::unique_ptr<prime::Map> mMap;        // ana harita (maps/main)
+    std::unique_ptr<prime::Map> mSecondMap;  // istege bagli ikinci harita (maps/second)
 
     XPLMMenuID mMenu = nullptr;
     int mDiagnosticsItem = -1;
@@ -116,83 +87,43 @@ private:
     XPLMCommandRef mNextModeCommand = nullptr;
     XPLMCommandRef mPrecacheCommand = nullptr;
     XPLMCommandRef mCancelPrecacheCommand = nullptr;
+    XPLMCommandRef mSecondMapCommand = nullptr;
 };
 
 void PrimeMapPlugin::Start()
 {
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
     mDirectory = FindPluginDirectory();
-    const bool tHasSettings = mSettings.Load(mDirectory + kSettingsFileName);
+    MigrateLegacyFiles();
 
     prime::InitConfig tInit;
-    tInit.mCacheDirectory = mDirectory + "cache/";
-    tInit.mLogPrefix = "[prime-map-plugin]";  // Log.txt satirlari 0.19 ile ayni
-    tInit.mTerrainCacheMb = std::max(0, mSettings.GetInt(kCacheSection, "terrain_mb", 1024));
-    tInit.mPrefetchTiles = std::max(0, mSettings.GetInt(kCacheSection, "prefetch_tiles", 20));
-    mSettings.SetInt(kCacheSection, "terrain_mb", tInit.mTerrainCacheMb);  // dosyada gorunsun
-    mSettings.SetInt(kCacheSection, "prefetch_tiles", tInit.mPrefetchTiles);
+    tInit.mDataDirectory = mDirectory;           // prime_map.ini, maps/, cache/ eklenti klasorunde
+    tInit.mLogPrefix = "[prime-map-plugin]";     // Log.txt satirlari eskisiyle ayni
+    // prime_map.ini henuz yoksa eski map_settings.ini'nin [cache] degerleri ilk deger olur
+    Settings tLegacy;
+    if (tLegacy.Load(mDirectory + kLegacySettingsFile))
+    {
+        tInit.mTerrainCacheMb = tLegacy.GetInt("cache", "terrain_mb", tInit.mTerrainCacheMb);
+        tInit.mPrefetchTiles = tLegacy.GetInt("cache", "prefetch_tiles", tInit.mPrefetchTiles);
+    }
     prime::MapLibrary::Get().Init(tInit);
-    XPLMDebugString(tHasSettings ? "[prime-map-plugin] settings loaded\n"
-                                 : "[prime-map-plugin] no settings file yet, using defaults\n");
 
-    prime::OpenConfig tOpen;
-    tOpen.mGeometry.mLeft = mSettings.GetInt(kWindowSection, "left", 0);
-    tOpen.mGeometry.mTop = mSettings.GetInt(kWindowSection, "top", 0);
-    tOpen.mGeometry.mWidth = mSettings.GetInt(kWindowSection, "right", 0) - tOpen.mGeometry.mLeft;
-    tOpen.mGeometry.mHeight = tOpen.mGeometry.mTop - mSettings.GetInt(kWindowSection, "bottom", 0);
-    if (!IsGeometryUsable(tOpen.mGeometry))
-    {
-        tOpen.mGeometry = DefaultGeometry();
-    }
-    mFloatingGeometry = tOpen.mGeometry;
-    tOpen.mStyle = prime::WindowStyle::Standalone;
-    tOpen.mUiVisible = mSettings.GetBool(kViewSection, "show_controls", true);
-    tOpen.mMouseInput = true;
-    tOpen.mVisible = mSettings.GetBool(kWindowSection, "visible", false);
-    tOpen.mImageCache = mSettings.GetBool(kRenderSection, "cache", true);
-    tOpen.mMaxRenderFps = mSettings.GetInt(kRenderSection, "max_fps", 15);
-    tOpen.mXPlaneFont = mSettings.GetString(kTextSection, "renderer", "atlas") == "xplane";
-    mSettings.SetBool(kRenderSection, "cache", tOpen.mImageCache);
-    mSettings.SetInt(kRenderSection, "max_fps", tOpen.mMaxRenderFps);
-    mSettings.SetString(kTextSection, "renderer", tOpen.mXPlaneFont ? "xplane" : "atlas");
-    mMap = prime::Map::Open(tOpen);
-    if (mMap)
-    {
-        LoadTerrainColors();
-        mMap->ImportSettings(mSettings.ToText({}));  // mod, gorunum, palet, katmanlar
-        std::string tDrawings;
-        if (ReadFile(mDirectory + kDrawingsFileName, &tDrawings))
-        {
-            mMap->ImportDrawings(tDrawings);
-        }
-        mSavedSettings = mMap->GetSettingsRevision();
-        mSavedDrawings = mMap->GetDrawingsRevision();
-        mWasVisible = mMap->IsVisible();
-        mWasUiVisible = mMap->IsUiVisible();
-    }
-
+    OpenMainMap();
     CreateCommands();
     CreateMenu();
-    XPLMRegisterFlightLoopCallback(FlightLoopCallback, -1.0f, this);
-    XPLMDebugString(("[prime-map-plugin] loaded (version " + std::string(kVersion) + ", API " +
-                     prime::VersionString() + ")\n").c_str());
+    DebugLine("loaded (version " + std::string(kVersion) + ", API " + prime::VersionString() + ")");
 }
 
 void PrimeMapPlugin::Stop()
 {
-    XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);
-    XPLMUnregisterCommandHandler(mToggleCommand, CommandCallback, 1, this);
-    XPLMUnregisterCommandHandler(mControlsCommand, CommandCallback, 1, this);
-    XPLMUnregisterCommandHandler(mDiagnosticsCommand, CommandCallback, 1, this);
-    XPLMUnregisterCommandHandler(mNextModeCommand, CommandCallback, 1, this);
-    XPLMUnregisterCommandHandler(mPrecacheCommand, CommandCallback, 1, this);
-    XPLMUnregisterCommandHandler(mCancelPrecacheCommand, CommandCallback, 1, this);
-    if (mMap)
+    for (XPLMCommandRef tCommand : {mToggleCommand, mControlsCommand, mDiagnosticsCommand, mNextModeCommand,
+                                    mPrecacheCommand, mCancelPrecacheCommand, mSecondMapCommand})
     {
-        SaveSettings();
-        SaveDrawings();
-        mMap.reset();
+        XPLMUnregisterCommandHandler(tCommand, CommandCallback, 1, this);
     }
+    // Haritalar birakilinca ayarlari kutuphane tarafindan yazilir ve pencereleri kapanir
+    mSecondMap.reset();
+    mMap.reset();
     prime::MapLibrary::Get().Shutdown();
     if (mMenu)
     {
@@ -201,101 +132,76 @@ void PrimeMapPlugin::Stop()
     }
 }
 
-void PrimeMapPlugin::LoadTerrainColors()
+void PrimeMapPlugin::MigrateLegacyFiles() const
 {
-    // Harita acildiktan hemen sonra, ilk kareden once: zemin iscisi henuz baslamadi, ayar tam etkili.
-    // Dosya yoksa ya da eski palet surumundeyse yeniden yaz: kullanici acip degistirebilsin.
-    const std::string tPath = mDirectory + kTerrainColorsFileName;
-    std::string tText;
-    const bool tExists = ReadFile(tPath, &tText);
-    if (tExists)
+    // 0.22 ve oncesi dosyalar eklenti klasorunun kokundeydi; 0.23'te harita basina maps/<ad>/ altinda.
+    // Yeni klasor henuz yoksa eski dosyalar oraya kopyalanir (eskiler yerinde kalir: geri donus icin).
+    const std::filesystem::path tNewDirectory = std::filesystem::path(mDirectory) / "maps" / kMainMapName;
+    std::error_code tError;
+    if (std::filesystem::exists(tNewDirectory / kLegacySettingsFile, tError) ||
+        !std::filesystem::exists(std::filesystem::path(mDirectory) / kLegacySettingsFile, tError))
     {
-        mMap->ImportTerrainSettings(tText);
+        return;
     }
-    Settings tFile;
-    tFile.LoadText(tText);
-    Settings tCurrent;
-    const std::string tExported = mMap->ExportTerrainSettings();
-    tCurrent.LoadText(tExported);
-    if (!tExists || tFile.GetInt("palette", "version", 0) != tCurrent.GetInt("palette", "version", 0))
+    std::filesystem::create_directories(tNewDirectory, tError);
+    for (const char* tName : kLegacyFiles)
     {
-        WriteFile(tPath, tExported);
-        XPLMDebugString(("[prime-map-plugin] terrain colors file written: " + tPath + "\n").c_str());
+        const std::filesystem::path tOld = std::filesystem::path(mDirectory) / tName;
+        if (std::filesystem::exists(tOld, tError))
+        {
+            std::filesystem::copy_file(tOld, tNewDirectory / tName,
+                                       std::filesystem::copy_options::skip_existing, tError);
+        }
     }
+    DebugLine("settings of an older version copied to " + tNewDirectory.string());
 }
 
-prime::Geometry PrimeMapPlugin::WindowGeometry() const
+void PrimeMapPlugin::OpenMainMap()
 {
-    return mMap && !mMap->IsPoppedOut() ? mMap->GetGeometry() : mFloatingGeometry;
-}
-
-void PrimeMapPlugin::SaveSettings()
-{
+    // Fabrika: once nesne, sonra ayarlar, en son Open. Burada verilenler ILK acilisin
+    // varsayilanlaridir; maps/main/map_settings.ini varsa Open onu okur (kullanicinin son hali).
+    mMap = prime::MapLibrary::Get().CreateMap();
     if (!mMap)
     {
         return;
     }
-    mSettings.MergeText(mMap->ExportSettings());
-    const prime::Geometry tGeometry = WindowGeometry();
-    mSettings.SetInt(kWindowSection, "left", tGeometry.mLeft);
-    mSettings.SetInt(kWindowSection, "top", tGeometry.mTop);
-    mSettings.SetInt(kWindowSection, "right", tGeometry.mLeft + tGeometry.mWidth);
-    mSettings.SetInt(kWindowSection, "bottom", tGeometry.mTop - tGeometry.mHeight);
-    mSettings.SetBool(kWindowSection, "visible", mMap->IsVisible());
-    mSettings.SetBool(kViewSection, "show_controls", mMap->IsUiVisible());
-    if (!mSettings.Save())
-    {
-        XPLMDebugString("[prime-map-plugin] WARNING: could not write the settings file\n");
-    }
-    mSavedSettings = mMap->GetSettingsRevision();  // ExportSettings sayaci artirir: sonra oku
+    mMap->SetName(kMainMapName);
+    mMap->SetStyle(prime::WindowStyle::Standalone);
+    mMap->SetTitle("Prime Map");
+    mMap->SetUiVisible(true);
+    mMap->SetMouseInput(true);
+    mMap->SetVisible(false);  // ilk kurulumda gizli: menuden / komutla acilir
+    mMap->Open();             // yer verilmedi: kutuphane ekranin ortasina, %70 boyutunda acar
 }
 
-void PrimeMapPlugin::SaveDrawings()
+void PrimeMapPlugin::ToggleSecondMap()
 {
-    if (!mMap)
+    // Coklu harita ornegi: ikinci harita ilkinden bagimsizdir (gorunum, mod, katmanlar, cizimler,
+    // zemin ayarlari, dosyalar); onbellek ortaktir. Kapatilinca nesne birakilir (ayarlari yazilir).
+    if (mSecondMap)
+    {
+        mSecondMap.reset();
+        return;
+    }
+    mSecondMap = prime::MapLibrary::Get().CreateMap();
+    if (!mSecondMap)
     {
         return;
     }
-    if (!WriteFile(mDirectory + kDrawingsFileName, mMap->ExportDrawings()))
+    mSecondMap->SetName(kSecondMapName);
+    mSecondMap->SetStyle(prime::WindowStyle::Standalone);
+    mSecondMap->SetTitle("Prime Map 2");
+    mSecondMap->SetUiVisible(true);
+    mSecondMap->SetMouseInput(true);
+    mSecondMap->SetMode(prime::MapMode::Vfr);  // ilk acilista ana haritadan farkli gorunsun
+    if (mMap)
     {
-        XPLMDebugString("[prime-map-plugin] WARNING: could not write the drawings file\n");
+        // Ilk acilista ana haritanin yaninda, yari boyutta (sonraki acilislarda dosyadaki yer)
+        const prime::Geometry tMain = mMap->GetGeometry();
+        mSecondMap->SetGeometry({tMain.mLeft + 40, tMain.mTop - 40, tMain.mWidth * 2 / 3, tMain.mHeight * 2 / 3});
     }
-    mSavedDrawings = mMap->GetDrawingsRevision();
-}
-
-prime::Geometry PrimeMapPlugin::DefaultGeometry()
-{
-    // Ana X-Plane penceresinin ortasinda, ekranin %70'i (en fazla 1000x700)
-    int tLeft = 0;
-    int tTop = 0;
-    int tRight = 0;
-    int tBottom = 0;
-    XPLMGetScreenBoundsGlobal(&tLeft, &tTop, &tRight, &tBottom);
-    prime::Geometry tGeometry;
-    tGeometry.mWidth = std::clamp((tRight - tLeft) * 7 / 10, kMinWidth, std::max(kMinWidth, 1000));
-    tGeometry.mHeight = std::clamp((tTop - tBottom) * 7 / 10, kMinHeight, std::max(kMinHeight, 700));
-    tGeometry.mLeft = (tLeft + tRight) / 2 - tGeometry.mWidth / 2;
-    tGeometry.mTop = (tTop + tBottom) / 2 + tGeometry.mHeight / 2;
-    return tGeometry;
-}
-
-bool PrimeMapPlugin::IsGeometryUsable(const prime::Geometry& pGeometry)
-{
-    if (pGeometry.mWidth < kMinWidth || pGeometry.mHeight < kMinHeight)
-    {
-        return false;
-    }
-    // Pencerenin baslik cubugu ekranda kalmali (monitor sokulmus / cozunurluk degismis olabilir)
-    int tLeft = 0;
-    int tTop = 0;
-    int tRight = 0;
-    int tBottom = 0;
-    XPLMGetScreenBoundsGlobal(&tLeft, &tTop, &tRight, &tBottom);
-    const int tTitleBar = 30;
-    const int tRightEdge = pGeometry.mLeft + pGeometry.mWidth;
-    const bool tTitleVisible = pGeometry.mTop + tTitleBar <= tTop && pGeometry.mTop >= tBottom + 20;
-    const bool tHorizontalVisible = tRightEdge >= tLeft + 100 && pGeometry.mLeft <= tRight - 100;
-    return tTitleVisible && tHorizontalVisible;
+    mSecondMap->Open();
+    mSecondMap->SetVisible(true);  // dosyada gizli kaydedilmis olsa da menuden acilinca gorunsun
 }
 
 void PrimeMapPlugin::CreateCommands()
@@ -307,8 +213,9 @@ void PrimeMapPlugin::CreateCommands()
     mNextModeCommand = XPLMCreateCommand("prime/map/next_mode", "Map: next map mode (Scenery / VFR / IFR)");
     mPrecacheCommand = XPLMCreateCommand("prime/map/precache_view", "Map: pre-cache terrain of the visible area");
     mCancelPrecacheCommand = XPLMCreateCommand("prime/map/precache_cancel", "Map: cancel terrain pre-cache");
+    mSecondMapCommand = XPLMCreateCommand("prime/map/second_map", "Map: open / close the second map window");
     for (XPLMCommandRef tCommand : {mToggleCommand, mControlsCommand, mDiagnosticsCommand, mNextModeCommand,
-                                    mPrecacheCommand, mCancelPrecacheCommand})
+                                    mPrecacheCommand, mCancelPrecacheCommand, mSecondMapCommand})
     {
         XPLMRegisterCommandHandler(tCommand, CommandCallback, 1, this);
     }
@@ -323,6 +230,7 @@ void PrimeMapPlugin::CreateMenu()
     XPLMAppendMenuItemWithCommand(mMenu, "Show / hide map", mToggleCommand);
     XPLMAppendMenuItemWithCommand(mMenu, "Show / hide controls", mControlsCommand);
     XPLMAppendMenuItemWithCommand(mMenu, "Next map mode", mNextModeCommand);
+    XPLMAppendMenuItemWithCommand(mMenu, "Open / close second map", mSecondMapCommand);
     // Karsilastirma icin X-Plane'in kendi haritasi (X-Plane'in hazir komutu)
     XPLMCommandRef tXPlaneMapCommand = XPLMFindCommand("sim/map/show_current");
     if (tXPlaneMapCommand)
@@ -381,12 +289,6 @@ int PrimeMapPlugin::CommandCallback(XPLMCommandRef pCommand, XPLMCommandPhase pP
     return static_cast<PrimeMapPlugin*>(pRefcon)->OnCommand(pCommand, pPhase);
 }
 
-float PrimeMapPlugin::FlightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
-                                         void* pRefcon)
-{
-    return static_cast<PrimeMapPlugin*>(pRefcon)->OnFlightLoop();
-}
-
 void PrimeMapPlugin::OnMenu(int pItem)
 {
     if (pItem == kMenuDiagnostics)
@@ -429,33 +331,11 @@ int PrimeMapPlugin::OnCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     {
         mMap->CancelPrecache();
     }
+    else if (pCommand == mSecondMapCommand)
+    {
+        ToggleSecondMap();
+    }
     return 0;  // komut bizim; baska kimse islemesin
-}
-
-float PrimeMapPlugin::OnFlightLoop()
-{
-    if (!mMap)
-    {
-        return -1.0f;
-    }
-    if (!mMap->IsPoppedOut())
-    {
-        mFloatingGeometry = mMap->GetGeometry();
-    }
-    // Harita ayari degistiyse ya da pencere / kontroller acilip kapandiysa ayar dosyasini yaz
-    const bool tVisible = mMap->IsVisible();
-    const bool tUiVisible = mMap->IsUiVisible();
-    if (mMap->GetSettingsRevision() != mSavedSettings || tVisible != mWasVisible || tUiVisible != mWasUiVisible)
-    {
-        mWasVisible = tVisible;
-        mWasUiVisible = tUiVisible;
-        SaveSettings();
-    }
-    if (mMap->GetDrawingsRevision() != mSavedDrawings)
-    {
-        SaveDrawings();
-    }
-    return -1.0f;
 }
 
 std::unique_ptr<PrimeMapPlugin> gPlugin;

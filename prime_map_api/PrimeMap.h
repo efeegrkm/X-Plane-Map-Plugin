@@ -10,14 +10,31 @@
 //
 // Yasam dongusu (hepsi X-Plane ana thread'inde):
 //
-//   XPluginEnable  : prime::MapLibrary::Get().Init(tConfig)  kutuphane nesnesi baslar (arka planda yukler)
-//                    tMap = lib.CreateMap(..)               harita penceresi (ayni anda birden cok harita acilabilir)
-//   ...            : tMap->ZoomIn(), tMap->SetMode(...) ... (host'un dugmeleri)
-//   XPluginDisable : tMap.reset()                      pencere kapanir
-//                    lib.Shutdown()              arka plan isleri durur
+//   XPluginEnable  : auto& tLib = prime::MapLibrary::Get();
+//                    tLib.Init(tConfig)            kutuphane baslar (veri arka planda yuklenir)
+//                    tMap = tLib.CreateMap()       FABRIKA: harita nesnesi (pencere henuz YOK)
+//                    tMap->SetName("ios_left")     istege bagli: ayar klasorunun adi
+//                    tMap->SetGeometry(...)        yer, stil, mod, katmanlar, zoom sinirlari ... :
+//                    tMap->SetMode(...)            butun ayarlar pencere acilmadan verilebilir
+//                    tMap->Open()                  pencere bu ayarlarla acilir
+//   ...            : tMap->ZoomIn(), tMap->SetLayerVisible(...) ...   acikken de ayni fonksiyonlar
+//                    tMap2 = tLib.CreateMap(); ... tMap2->Open()      ikinci, ucuncu ... harita
+//   XPluginDisable : tMap.reset()                  ayarlar yazilir, pencere kapanir
+//                    tLib.Shutdown()               arka plan isleri durur
+//
+// Her harita BAGIMSIZDIR: kendi gorunumu, modu, katmanlari, cizimleri, ucak / rota kaynagi,
+// zemin ayarlari ve ayar dosyalari vardir. ORTAK olan sadece veri ve onbellektir (nav,
+// havalimanlari, hava yollari, zemin onbellegi): bir haritanin yukledigi karo digerine de yarar.
+//
+// Dosyalar (hepsi veri klasorunde; varsayilan: host eklentisinin klasoru):
+//   prime_map.ini                       merkezi ayarlar (LibrarySettings): onbellek sinirlari ...
+//   maps/<ad>/map_settings.ini          haritanin ayarlari   (<ad>: SetName ile verilen ad,
+//   maps/<ad>/map_drawings.txt          haritanin cizimleri   verilmediyse "map_<kimlik>")
+//   maps/<ad>/terrain_colors.ini        haritanin zemin renkleri / ayarlari
+//   cache/terrain/, cache/airports/     ORTAK onbellek (silinebilir)
 //
 // Harita kendi XPLM penceresinde, kendi flight loop'uyla kendisi cizer. Host sadece
-// acar, yerini / boyutunu soyler ve fonksiyonlari kendi dugmelerine baglar.
+// olusturur, ayarlar, acar ve fonksiyonlari kendi dugmelerine baglar.
 //
 // Koordinatlar: X-Plane "global ekran birimi" (boxel; XPLMGetWindowGeometry ile ayni).
 // x saga, y YUKARI artar; Geometry sol-ust kose + genislik / yukseklik verir.
@@ -46,9 +63,9 @@ namespace prime
 // configure sirasinda denetler (uyusmazsa hata verir). Kirilirse major artar;
 // yeni fonksiyon minor, duzeltme patch.
 constexpr int kVersionMajor = 0;
-constexpr int kVersionMinor = 22;
+constexpr int kVersionMinor = 23;
 constexpr int kVersionPatch = 0;
-PRIME_MAP_EXPORT std::string VersionString();  // "0.22.0"
+PRIME_MAP_EXPORT std::string VersionString();  // "0.23.0"
 
 // --- Basit tipler -------------------------------------------------------------
 struct LatLon
@@ -103,15 +120,52 @@ enum class DataSource
     Host,    // host SetAircraft / SetRoute ile verir
 };
 
+// Haritanin ayar dosyalari (maps/<ad>/ altinda) nasil kullanilsin
+enum class Persistence
+{
+    Off,          // dosya okunmaz / yazilmaz (host isterse Export... / Import... ile kendi saklar)
+    SaveOnly,     // dosya okunmaz: kodla verilen ayarlar her acilista gecerli; degisiklikler yine yazilir
+    LoadAndSave,  // varsayilan: Open() dosyalari okur (son oturum geri gelir), degisince yazilir
+};
+
 // --- Baslatma ------------------------------------------------------------------
 struct InitConfig
 {
-    std::string mCacheDirectory;            // zemin / havalimani onbellegi; bos = <host eklenti klasoru>/cache/
+    // Veri klasoru: prime_map.ini, maps/<ad>/ ve (mCacheDirectory bossa) cache/ bunun altindadir.
+    // Bos = host eklentisinin klasoru (.../Resources/plugins/<host>/). Ayni surecteki birden cok
+    // host kutuphaneyi paylasir: ILK Init eden host'un klasorleri gecerlidir.
+    std::string mDataDirectory;
+    std::string mCacheDirectory;            // zemin / havalimani onbellegi; bos = <veri klasoru>/cache/
     std::string mLogPrefix = "[prime-map]";
     // Verilirse log satirlari X-Plane Log.txt yerine buraya gider (onek eklenmis halde, ana thread)
     std::function<void(std::string_view pLine)> mLogCallback;
-    int mTerrainCacheMb = 1024;             // zemin disk onbellegi siniri (0 = sinirsiz); bugun [cache] terrain_mb
-    int mPrefetchTiles = 20;                // onceden yukleme karo sayisi (0 = kapali); bugun [cache] prefetch_tiles
+    // prime_map.ini'nin ILK degerleri: dosyada [cache] terrain_mb / prefetch_tiles yoksa bunlar yazilir.
+    // Dosyada varsa DOSYA kazanir (kullanicinin ayari). Calisirken degistirmek: MapLibrary::SetSettings.
+    int mTerrainCacheMb = 1024;             // zemin disk onbellegi siniri, TEK harita icin (0 = sinirsiz)
+    int mPrefetchTiles = 20;                // onceden yukleme karo sayisi (0 = kapali)
+};
+
+// Merkezi ayarlar: veri klasorundeki prime_map.ini (butun haritalar icin ortak).
+// Onbellek ortaktir; sinirlari ACIK harita sayisina (n) gore buyur:
+//     sinir(n) = taban x (1 + artis% x (n - 1) / 100)      (tavan verilmisse onu gecmez)
+// Ornek: mTerrainCacheMb 1024, mCacheGrowthPercentPerMap 25 -> 1 harita 1024 MB, 2 harita 1280 MB,
+// 3 harita 1536 MB. Harita kapaninca sinir geri iner, fazlasi (en uzun suredir kullanilmayan
+// karolar) silinir.
+struct LibrarySettings
+{
+    // [cache]
+    int mTerrainCacheMb = 1024;           // terrain_mb: zemin disk onbellegi, TEK harita icin MB (0 = sinirsiz)
+    int mCacheGrowthPercentPerMap = 25;   // growth_percent_per_map: her EK acik harita icin tabanin yuzdesi
+    int mTerrainCacheMaxMb = 0;           // max_terrain_mb: buyumus disk sinirinin tavani (0 = tavan yok)
+    int mPrefetchTiles = 20;              // prefetch_tiles: ucagin onu + FMS rotasi icin onceden hazirlanan karo (0 = kapali)
+    // [memory]
+    int mTextureMemoryMb = 512;           // texture_mb: zemin dokulari icin video bellegi, TEK harita icin MB
+    int mMemoryGrowthPercentPerMap = 50;  // growth_percent_per_map: her EK acik harita icin (dokular, iscinin
+                                          // bellekte tuttugu karolar, yuklu havalimani ayrintilari)
+    int mTextureMemoryMaxMb = 2048;       // max_texture_mb: buyumus doku butcesinin tavani (0 = tavan yok)
+    // [maps]
+    bool mAutoSave = true;                // autosave: harita ayar dosyalari degisince kendiliginden yazilsin
+    double mAutoSaveSeconds = 2.0;        // autosave_seconds: ayni haritanin iki yazimi arasi en kisa sure
 };
 
 struct Status
@@ -120,12 +174,16 @@ struct Status
     bool mAirportsReady = false;
     bool mAirwaysReady = false;
     bool mTerrainIndexReady = false;
-    int mTerrainPendingImages = 0;   // "Loading terrain: N images"
+    int mTerrainPendingImages = 0;   // "Loading terrain: N images" (butun gorunur haritalarin toplami)
     bool mPrecacheRunning = false;
     int mPrecacheDone = 0;
     int mPrecacheTotal = 0;
-    std::string mText;               // alt seritteki birlesik durum metni (bugunku ile ayni); bos = yok
-    std::string mPerformanceText;    // teshis modunda "FPS .. draw .. ms"; degilse bos
+    std::string mText;               // birlesik durum metni (ortak yukleme + toplam zemin); bos = yok
+    std::string mPerformanceText;    // teshis modundaki ilk haritanin "FPS .. draw .. ms"; yoksa bos
+    // 0.23: ortak onbellegin su an gecerli sinirlari (acik harita sayisina gore buyumus)
+    int mOpenMaps = 0;               // acik harita sayisi
+    int mTerrainCacheLimitMb = 0;    // zemin disk onbellegi siniri (0 = sinirsiz)
+    int mTextureLimitMb = 0;         // zemin dokulari icin video bellegi butcesi
 };
 
 // --- Kutuphane (baslatma) -------------------------------------------------------
@@ -159,9 +217,36 @@ public:
     bool IsInitialized() const;
     Status GetStatus() const;
 
-    // Yeni bir harita penceresi acar. Ayni anda birden cok Map nesnesi yasayabilir;
-    // her harita kendi penceresiyle bagimsizdir. Init yapilmadiysa nullptr + log.
+    // --- Harita fabrikasi (0.23) ---
+    // Yeni bir harita NESNESI olusturur; pencere henuz acilmaz. Butun ayarlar nesne uzerinden
+    // verilir (SetName, SetGeometry, SetMode, SetLayerVisible ...), sonra Map::Open() cagrilir.
+    // Ayni anda istenildigi kadar harita yasayabilir; her biri bagimsizdir. Nesnenin sahibi
+    // host'tur (unique_ptr): birakilinca ayarlari yazilir ve penceresi kapanir.
+    // Init yapilmadiysa nullptr + log.
+    std::unique_ptr<Map> CreateMap();
+    // Kisa yol (0.22 ile uyumlu): olusturur, pConfig'i uygular ve HEMEN acar. Bu yolla acilan
+    // haritanin ayar dosyalari kapalidir (Persistence::Off): dosyalari host yonetir
+    // (ExportSettings / ImportSettings). Sonradan SetPersistence ile acilabilir.
     std::unique_ptr<Map> CreateMap(const OpenConfig& pConfig);
+
+    // Yasayan haritalar (olusturulma sirasiyla; acik ya da degil). Isaretciler, host ilgili
+    // unique_ptr'i birakana kadar gecerlidir.
+    std::vector<Map*> GetMaps() const;
+    Map* FindMap(int pId) const;                    // kimlikle; yoksa nullptr
+    Map* FindMap(const std::string& pName) const;   // SetName ile verilen adla; yoksa nullptr
+    int GetOpenMapCount() const;
+
+    // --- Merkezi ayarlar (prime_map.ini) ---
+    LibrarySettings GetSettings() const;
+    // Hemen uygulanir (sinirlar yeniden hesaplanir) ve prime_map.ini'ye yazilir. Gecersiz
+    // degerler en yakin gecerli degere cekilir. Init yapilmadiysa false.
+    bool SetSettings(const LibrarySettings& pSettings);
+
+    // --- Klasorler (hepsi sonunda ayirici ile; Init yapilmadiysa bos) ---
+    std::string GetDataDirectory() const;      // prime_map.ini ve maps/ burada
+    std::string GetSettingsFilePath() const;   // .../prime_map.ini
+    std::string GetMapsDirectory() const;      // .../maps/
+    std::string GetCacheDirectory() const;     // ORTAK onbellek: .../cache/
 
 private:
     MapLibrary();
@@ -171,7 +256,7 @@ private:
     struct Impl;
     std::unique_ptr<Impl> mImpl;
 
-    friend class Map;  // Map, kendi penceresini kutuphanenin acik pencere listesinden dusurebilir
+    friend class Map;  // Map, yok olurken kendini kutuphanenin harita listesinden dusurur
 };
 #if defined(_MSC_VER)
     #pragma warning(pop)
@@ -337,19 +422,47 @@ struct OpenConfig
 class PRIME_MAP_EXPORT Map
 {
 public:
-    // Init yapilmadiysa nullptr + log. Tercih edilen giris MapLibrary::CreateMap;
-    // Open geriye uyumluluk icin korunur.
+    // Geriye uyumluluk (0.22): MapLibrary::Get().CreateMap(pConfig) ile ayni (olusturur + hemen acar).
     static std::unique_ptr<Map> Open(const OpenConfig& pConfig);
-    ~Map();  // pencereyi kapatir
+    ~Map();  // ayarlari yazar (Persistence Off degilse), pencereyi kapatir
 
     Map(const Map&) = delete;
     Map& operator=(const Map&) = delete;
 
+    // KURAL: asagidaki butun Set... / Get... fonksiyonlari pencere acilmadan ONCE de, acikken de
+    // calisir (aksi yazilmadikca). Acilmadan once verilen deger nesnede durur, Open() ile gecerli olur.
+
+    // --- Kimlik, ad, ayar dosyalari (0.23) ---
+    int GetId() const;                       // surec icinde tekil, 1'den baslar (olusturulma sirasi)
+    // Haritanin adi = ayar klasorunun adi: <veri>/maps/<ad>/. Verilmezse klasor "map_<kimlik>".
+    // Harf, rakam, '-', '_', '.' disindaki karakterler klasor adinda '_' olur. Sadece harita
+    // KAPALIYKEN degisir; baska bir haritanin kullandigi ad reddedilir (false + log).
+    bool SetName(const std::string& pName);
+    std::string GetName() const;
+    std::string GetSettingsDirectory() const;   // .../maps/<ad>/ (sonunda ayirici)
+    void SetPersistence(Persistence pPersistence);  // varsayilan LoadAndSave (CreateMap(OpenConfig): Off)
+    Persistence GetPersistence() const;
+    bool SaveSettings();                     // dosyalari simdi yazar (Persistence::Off ise false)
+
+    // --- Acma / kapama (0.23) ---
+    // Pencereyi nesnedeki ayarlarla acar. Persistence::LoadAndSave ise once ayar dosyalari okunur:
+    // dosyadaki deger, Open'dan ONCE kodla verilen degerin yerine gecer (son oturum geri gelir);
+    // dosyada olmayan ayar icin kodla verilen deger kalir. Kodun her zaman kazanmasi isteniyorsa:
+    // ayari Open'dan SONRA ver ya da Persistence::SaveOnly kullan. Zaten aciksa true.
+    bool Open();
+    // Ayarlari yazar ve pencereyi kapatir. Nesne ve ayarlari kalir; Open() ile yeniden acilir.
+    void Close();
+    bool IsOpen() const;
+
     // --- Pencere ---
+    void SetStyle(WindowStyle pStyle);       // sadece harita KAPALIYKEN (acik pencerenin stili degismez)
+    WindowStyle GetStyle() const;
+    void SetTitle(const std::string& pTitle);  // Standalone pencerenin basligi (varsayilan "Map")
+    std::string GetTitle() const;
     void SetGeometry(const Geometry& pGeometry);
     Geometry GetGeometry() const;
-    void SetVisible(bool pVisible);
-    bool IsVisible() const;
+    void SetVisible(bool pVisible);          // kapaliyken: Open() bu gorunurlukle acar
+    bool IsVisible() const;                  // pencere acik VE gorunur
     void BringToFront();
     void SetPoppedOut(bool pPoppedOut);  // sadece Standalone (UI'daki "Pop out" dugmesi)
     bool IsPoppedOut() const;
@@ -362,18 +475,26 @@ public:
     // --- Gorunum ---
     void SetCenter(double pLat, double pLon);
     LatLon GetCenter() const;
-    void SetZoom(double pZoom);          // MinZoom..MaxZoom'a kirpilir (3..16.5)
+    void SetZoom(double pZoom);          // bu haritanin zoom sinirlarina kirpilir (varsayilan 3..16.5)
     double GetZoom() const;
-    static double MinZoom();
-    static double MaxZoom();
+    static double MinZoom();             // varsayilan alt sinir (3) = mutlak alt sinir
+    static double MaxZoom();             // varsayilan ust sinir (16.5)
+    static double HardMaxZoom();         // mutlak ust sinir (18)
+    // Bu haritanin zoom sinirlari ("en uzak / en yakin bakis"). MinZoom()..HardMaxZoom() disina
+    // tasan deger kirpilir; pMinZoom > pMaxZoom ise false + log. Gecerli zoom yeni araliga cekilir.
+    bool SetZoomLimits(double pMinZoom, double pMaxZoom);
+    double GetMinZoomLimit() const;
+    double GetMaxZoomLimit() const;
     void ZoomIn();                       // bir kademe (varsayilan 0.5 = bir tekerlek tiki)
     void ZoomOut();
-    void SetZoomStep(double pStep);
+    void SetZoomStep(double pStep);      // ZoomIn / ZoomOut ve fare tekerlegi adimi, (0, 5]
+    double GetZoomStep() const;
     void PanLeft();
     void PanRight();
     void PanUp();
     void PanDown();
-    void SetPanStep(double pFractionOfView);  // varsayilan 0.25
+    void SetPanStep(double pFractionOfView);  // varsayilan 0.25; (0, 1]
+    double GetPanStep() const;
     void PanBy(double pDeltaX, double pDeltaY);  // boxel; harita bu kadar kayar (surukleme ile ayni yon)
     void FitBounds(const GeoBounds& pBounds);
     GeoBounds GetVisibleBounds() const;
@@ -399,6 +520,15 @@ public:
     void ShowOnlyLayers(std::initializer_list<MapLayer> pLayers);
     void ResetLayersToDefaults();
     LayerState GetLayerState(MapLayer pLayer) const;
+    // Zoom araligi (0.23): katman / alt katman sadece pMinZoom..pMaxZoom arasinda cizilir ("su
+    // uzakliktan itibaren gorunsun"). Katmanin kendi esikleri gecerli kalir (ornek: pistler 11+);
+    // aralik onlari DARALTIR, erkene alamaz. Kutu durumu (IsLayerVisible) degismez. Grup verilirse
+    // gruptaki butun katmanlara uygulanir. pMinZoom > pMaxZoom ise false + log.
+    bool SetLayerZoomRange(MapLayer pLayer, double pMinZoom, double pMaxZoom);
+    // Katmanin araligi (grup icin: ilk katmaninki). Sinir yoksa 0 ve 99 doner.
+    void GetLayerZoomRange(MapLayer pLayer, double* pMinZoom, double* pMaxZoom) const;
+    void ClearLayerZoomRange(MapLayer pLayer);
+    void ClearAllLayerZoomRanges();
 
     // --- Cizimler ---
     void SetDrawTool(DrawTool pTool);
@@ -427,16 +557,35 @@ public:
     std::vector<MapObject> QueryAt(double pLat, double pLon) const;
     std::vector<MapObject> QueryAtScreen(int pX, int pY) const;
 
-    // --- Ayarlar (disa / ice aktarma; dosyayi host yazar) ---
-    std::string ExportSettings() const;  // [view] mode/center/zoom/follow, [layers.<mod>] x5, [tools]
+    // --- Cizim secenekleri (0.23: acikken de degisir) ---
+    void SetImageCache(bool pEnabled);    // harita resmi onbellegi (FBO); [render] cache
+    bool IsImageCacheEnabled() const;
+    void SetMaxRenderFps(int pFps);       // harita resminin en cok yeniden cizilme hizi, 1..240; [render] max_fps
+    int GetMaxRenderFps() const;
+    void SetXPlaneFont(bool pXPlaneFont); // true: XPLMDrawString (yedek); false: kendi yazi atlasimiz; [text] renderer
+    bool IsXPlaneFont() const;
+
+    // --- Ayarlar (metin olarak disa / ice aktarma) ---
+    // Kutuphane dosyalari kendisi yonetir (Persistence); bu fonksiyonlar ayni metni host'a da verir
+    // (ornek: kendi profil sistemi olan host, bir haritanin ayarini baskasina kopyalamak).
+    // [window] [view] [render] [text] [tools] [layers.<mod>] x5 [layer_zoom] [sources]
+    std::string ExportSettings() const;
+    // Metindeki anahtarlar uygulanir, metinde olmayanlar oldugu gibi kalir. [window] sadece
+    // Standalone haritada uygulanir.
     bool ImportSettings(const std::string& pText);
+    // Zemin ayarlari BU haritaya aittir (0.23) ve hemen uygulanir: yeni dokular yeni ayarla uretilir,
+    // X-Plane'i yeniden baslatmak gerekmez. Ayni ayarli haritalar dokulari paylasir.
     TerrainSettings GetTerrainSettings() const;
     void SetTerrainSettings(const TerrainSettings& pSettings);
     std::string ExportTerrainSettings() const;  // terrain_colors.ini metni (yorumlariyla)
     bool ImportTerrainSettings(const std::string& pText);
-    // Ne zaman kaydetmeli: degisince artan sayaclar (host her karede bakip degistiyse yazar)
+    // Degisince artan sayaclar (dosyalarini kendi yoneten host: her karede bakip degistiyse yazar)
     uint64_t GetSettingsRevision() const;
     uint64_t GetDrawingsRevision() const;
+
+    // --- Durum (0.23) ---
+    std::string GetStatusText() const;        // bu haritanin alt seridindeki yazi (bos = yok)
+    int GetTerrainPendingImages() const;      // bu haritada bekleyen zemin dokusu
 
     // --- Zemin on onbellegi ve teshis ---
     bool PrecacheVisibleArea();

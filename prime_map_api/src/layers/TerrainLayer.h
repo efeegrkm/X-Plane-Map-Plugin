@@ -16,6 +16,11 @@
 // temanin notr mNoData rengiyle doldurulur (0.16; SceneryIndex, dsf_files).
 // Komsu karonun rakimi henuz yokken uretilmis doku, komsu hazir olunca yeniden
 // istenir ve gelince eskisinin yerine konur (karo sinirinda golge dikisi kalmaz).
+//
+// 0.23 (coklu harita): dokular bu katmanda degil, haritalarin ORTAK TerrainHub'inda durur
+// (ayni yere bakan iki harita ayni dokuyu kullanir). Zemin ayarlari (palet) harita basinadir:
+// SetPalette ile verilen palet numarasi isteklerin anahtarina girer; ayar degisince yeni
+// numarayla yeni dokular istenir (X-Plane'i yeniden baslatmak gerekmez).
 #pragma once
 
 #include <cstdint>
@@ -28,11 +33,18 @@
 #include "gfx/Texture.h"
 #include "data/TerrainClasses.h"
 #include "data/TerrainStore.h"
+#include "layers/TerrainHub.h"
 
 class TerrainLayer : public Layer
 {
 public:
-    TerrainLayer(TerrainStore& pStore, const TerrainPalette& pPalette);
+    // pPaletteId: paletin TerrainStore'daki numarasi (TerrainStore::AddPalette; Start'a verilen 0)
+    TerrainLayer(TerrainHub& pHub, const TerrainPalette& pPalette, int pPaletteId = 0);
+    ~TerrainLayer() override;
+
+    // Bu haritanin zemin ayarlari degisti: yeni dokular bu paletle istenir
+    void SetPalette(const TerrainPalette& pPalette, int pPaletteId);
+    int PaletteId() const;
 
     void Draw(const DrawContext& pContext) override;
     bool PrepareFrame() override;  // hazir dokulari yukler; yuklediyse true
@@ -44,33 +56,25 @@ public:
     int PendingTextureCount() const;
 
 private:
-    struct CachedTexture
-    {
-        Gfx::Texture mTexture;
-        size_t mBytes = 0;
-        uint64_t mLastFrame = 0;
-        std::vector<int> mMissingNeighbors;  // uretilirken rakimi olmayan komsular (TerrainImage)
-    };
-
-    bool UploadReadyImages();  // en az bir doku yuklendiyse true
-    // Varsa dokuyu verir ve bu karede kullanildi diye isaretler; yoksa nullptr.
-    // Eksik komsularindan biri artik hazirsa dokuyu yeniden ister (eskisi o gelene kadar kullanilir).
+    // Varsa dokuyu (ortak TerrainHub'dan) verir ve bu harita icin isaretler; yoksa nullptr
     const Gfx::Texture* UseTexture(const TerrainImageKey& pKey);
-    void EvictUnused();
     static int DesiredLevel(double pPixelsPerDegree);
     // Seviye 4: karonun ekrana giren 1/32 derecelik parcalarini ister ve cizer
     // pLevel: TerrainStore::kDetailLevel (1/32 derece) veya kFineLevel (1/128 derece)
     void DrawDetailChunks(Gfx::Canvas& pCanvas, const MapView& pView, const GeoBounds& pBounds, int pLevel, int pLon,
                           int pLat, double pTileWest, int pStyle, int pAreas,
                           std::vector<Gfx::TexturedVertex>& pStrips);
+    // Anahtar: bu haritanin palet numarasiyla
+    TerrainImageKey KeyOf(int pLon, int pLat, int pLevel, int pChunk, int pStyle, int pAreas) const;
 
     int mForestPart = -1;   // alt katman: DSF orman poligonlari (Scenery)
     int mBuiltUpPart = -1;  // alt katman: yerlesim alanlari (Scenery: sinif rengi, VFR: sari)
-    TerrainStore& mStore;
+    TerrainHub& mHub;        // ortak dokular (haritalar arasi)
+    TerrainStore& mStore;    // mHub.Store(): istekler ve karo durumu
     TerrainPalette mPalette;
-    std::unordered_map<TerrainImageKey, CachedTexture, TerrainImageKeyHash> mTextures;
-    size_t mTextureBytes = 0;
-    uint64_t mFrame = 0;
+    int mPaletteId = 0;
+    int mUser = 0;           // bu haritanin TerrainHub numarasi
+    uint64_t mSeenGeneration = 0;  // en son gorulen TerrainHub::TextureGeneration
     int mPendingThisFrame = 0;  // bu karede eksik bulunan (istenen) dokular
     int mPendingLastFrame = 0;
 };

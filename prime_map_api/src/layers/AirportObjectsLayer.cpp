@@ -332,7 +332,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         const AirportDetail& tDetail = tLoaded->mDetail;
 
         // Isik dizileri: lambalar GPU'daki sekillerle ayni donusumle (kaydirma + olcek)
-        if (tZoom >= kLampMinZoom && IsSubLayerVisible(kPartLighting))
+        if (tZoom >= kLampMinZoom && IsSubLayerDrawn(kPartLighting))
         {
             const AirportShapes& tShapes = tLoaded->mShapes;
             const PointF tOffset = tView.MercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
@@ -360,7 +360,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         for (const AptHelipad& tPad : tDetail.mHelipads)
         {
             const PointF tCenter = tView.ToScreen(tPad.mCenter);
-            if (!IsSubLayerVisible(kPartHelipads) || !tOnScreen(tCenter))
+            if (!IsSubLayerDrawn(kPartHelipads) || !tOnScreen(tCenter))
             {
                 continue;
             }
@@ -397,7 +397,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         for (const AptBeacon& tBeacon : tDetail.mBeacons)
         {
             const PointF tCenter = tView.ToScreen(tBeacon.mPosition);
-            if (tBeacon.mType == 0 || !IsSubLayerVisible(kPartBeacons) || !tOnScreen(tCenter))
+            if (tBeacon.mType == 0 || !IsSubLayerDrawn(kPartBeacons) || !tOnScreen(tCenter))
             {
                 continue;
             }
@@ -412,7 +412,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         }
 
         // Ruzgar tulumu: direk + turuncu/beyaz seritli koni
-        if (tZoom >= kWindsockMinZoom && IsSubLayerVisible(kPartWindsocks))
+        if (tZoom >= kWindsockMinZoom && IsSubLayerDrawn(kPartWindsocks))
         {
             for (const AptWindsock& tSock : tDetail.mWindsocks)
             {
@@ -444,7 +444,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
             for (const AptStartLocation& tStart : tDetail.mStartLocations)
             {
                 const PointF tCenter = tView.ToScreen(tStart.mPosition);
-                if (!IsSubLayerVisible(StartPartOf(tStart.mType)) || !tOnScreen(tCenter))
+                if (!IsSubLayerDrawn(StartPartOf(tStart.mType)) || !tOnScreen(tCenter))
                 {
                     continue;
                 }
@@ -482,12 +482,12 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
                 {
                     tText += ": " + ReadableList(tStart.mAirlines, true);
                 }
-                mMarkers.push_back({tCenter, 6.0f, tText, IsSubLayerVisible(kPartStartNames) ? tStart.mName : ""});
+                mMarkers.push_back({tCenter, 6.0f, tText, IsSubLayerDrawn(kPartStartNames) ? tStart.mName : ""});
             }
         }
 
         // PAPI / VASI / wig-wag: yaklasma yonune dik isik sirasi
-        if (tZoom >= kLightMinZoom && IsSubLayerVisible(kPartApproachLights))
+        if (tZoom >= kLightMinZoom && IsSubLayerDrawn(kPartApproachLights))
         {
             for (const AptLightObject& tLight : tDetail.mLightObjects)
             {
@@ -517,7 +517,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         }
 
         // Tabelalar: rengine gore kucuk dikdortgen; metin fareyle
-        if (tZoom >= kSignMinZoom && IsSubLayerVisible(kPartSigns))
+        if (tZoom >= kSignMinZoom && IsSubLayerDrawn(kPartSigns))
         {
             for (const AptSign& tSign : tDetail.mSigns)
             {

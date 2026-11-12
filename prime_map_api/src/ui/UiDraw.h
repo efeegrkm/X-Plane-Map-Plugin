@@ -44,6 +44,8 @@ void Line(Gfx::Canvas& pCanvas, const PointF& pFrom, const PointF& pTo, float pW
 // Etkin yazi cizici. nullptr: X-Plane'in XPLMDrawString'i (yedek). Sahibi MapWindow / onizleme;
 // X-Plane'in yazi fonksiyonlari gibi surec genelinde tektir.
 void SetTextRenderer(TextRenderer* pRenderer);
+// Su an secili olan (coklu harita: her pencere cizerken kendisininkini secer)
+TextRenderer* CurrentTextRenderer();
 
 // pX, pY: yazinin sol alt kosesi (taban cizgisi). Yedek yolda saydamlik desteklenmez.
 void Text(int pX, int pY, std::string_view pText, const Rgba& pColor);

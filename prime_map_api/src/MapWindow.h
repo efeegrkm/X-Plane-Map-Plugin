@@ -14,6 +14,12 @@
 // kontrollerde "Controls" dugmesi). Embedded = cercevesiz, yeri sadece SetGeometry ile.
 // UI (seritler, paneller) ve fare (surukle / tekerlek / tooltip / cizim) ayri anahtarlar:
 // fare kapaliyken haritaya tiklama alttaki pencereye gecirilir (0 dondurulur).
+//
+// 0.23 (coklu harita): nesne, XPLM penceresi ACILMADAN once de tam calisir. Butun ayarlar
+// (yer, stil, mod, gorunum, katmanlar, zoom sinirlari ...) once nesneye verilir; Create()
+// pencereyi o ayarlarla acar. Destroy() pencereyi kapatir ama ayarlar nesnede kalir: Create()
+// ile ayni haliyle yeniden acilir. Her harita kendi LayerManager / Drawings / AircraftData
+// nesnelerine bakar (engine/MapInstance); ortak olan sadece veri depolaridir.
 #pragma once
 
 #include <cstdint>
@@ -73,10 +79,32 @@ public:
     MapWindow(const MapWindow&) = delete;
     MapWindow& operator=(const MapWindow&) = delete;
 
-    // Pencereyi verilen yer, stil ve anahtarlarla olusturur
+    // Pencereyi nesnedeki ayarlarla (yer, stil, gorunurluk ...) olusturur
+    void Create();
+    // Eski yol (0.22 OpenConfig): once ayarlari uygular, sonra olusturur
     void Create(const MapWindowOptions& pOptions);
+    void ApplyOptions(const MapWindowOptions& pOptions);
     void Destroy();
     bool IsCreated() const;  // Create sonrasi true; Destroy (ya da Shutdown) sonrasi false
+
+    // --- Pencere acilmadan once de verilebilen ayarlar (0.23) ---
+    void SetEmbedded(bool pEmbedded);  // sadece pencere acik DEGILKEN (stil acik pencerede degismez); degistiyse true doner
+    bool IsEmbedded() const;
+    bool WantsVisible() const;         // pencere acilinca gorunur olacak mi (SetVisible ile verilen)
+    void SetTitle(const std::string& pTitle);  // Standalone pencerenin baslik yazisi
+    const std::string& Title() const;
+    void SetImageCacheEnabled(bool pEnabled);  // [render] cache
+    bool IsImageCacheEnabled() const;
+    void SetMaxRenderFps(int pFps);            // [render] max_fps
+    int MaxRenderFps() const;
+    void SetXPlaneFont(bool pXPlaneFont);      // [text] renderer = xplane; acik pencerede de degisir
+    bool UsesXPlaneFont() const;
+    void SetZoomStep(double pStep);            // tekerlek tiki ve ZoomIn / ZoomOut adimi
+    double ZoomStep() const;
+    void SetPanStep(double pFraction);         // PanLeft ... adimi (gorunen alanin orani)
+    double PanStep() const;
+    void SetZoomLimits(double pMinZoom, double pMaxZoom);
+    Settings& SettingsStore();                 // bellekteki ayarlar (MapInstance [window] / [sources] ekler)
 
     bool IsVisible() const;
     void SetVisible(bool pVisible);
@@ -109,6 +137,7 @@ public:
 
     // --- API (api/PrimeMap.cpp) ---
     MapView& View();
+    const MapView& View() const;
     void SetGeometry(const RectI& pGeometry);
     RectI GetGeometry() const;
     void BringToFront();
@@ -174,8 +203,9 @@ private:
     void LogDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor);
     uint64_t SceneSignature() const;  // degisince harita resmi hemen yeniden cizilir (mod, katman, cizim)
 
-    void ApplySettings();  // bellekteki [view] [tools] [layers.*] ayarlarini uygular
+    void ApplySettings();  // bellekteki [view] [tools] [layers.*] ... ayarlarini uygular
     void SaveDrawings();
+    void UseOwnText();     // Ui yazi cizicisi olarak bu pencereninkini sec (her cizim / tiklama basinda)
 
     LayerManager& mLayers;
     AircraftData& mAircraft;
@@ -186,6 +216,12 @@ private:
     bool mEmbedded = true;
     bool mMouseInput = false;
     bool mXPlaneFont = false;
+    bool mTextPending = false;   // yazi cizici degisti: bir sonraki cizimde yeniden kur
+    bool mWantVisible = true;    // pencere acilinca gorunsun mu
+    std::string mTitle = "Map";
+    int mMaxRenderFps = 15;
+    double mZoomStep = 0.5;      // bir tekerlek tiki
+    double mPanStep = 0.25;      // gorunen alanin orani
     bool mPassClick = false;  // fare kapali: bu basma alttaki pencereye gecirildi
     double mLastPixelsPerBoxel = 1.0;
 

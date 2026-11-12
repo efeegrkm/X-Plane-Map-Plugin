@@ -11,6 +11,7 @@
 #include "data/LandColorField.h"
 #include "data/TerrainElevation.h"
 #include "data/TerrainNoise.h"
+#include "data/TerrainProfile.h"
 #include "data/TerrainRelief.h"
 #include "data/TerrainTriangles.h"
 #include "data/TerrainVectors.h"
@@ -372,6 +373,8 @@ void ComposeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
     const TerrainWaterParams& tWater = pPalette.Water();
     const bool tWaterTone = pStyle.mStyle != TerrainStyle::LandWater;  // IFR: duz su, sadece kiyi cizgisi
 
+    std::optional<TerrainProfile::ScopedStage> tProfileStage;  // olcum (TerrainProfile)
+    tProfileStage.emplace(TerrainProfile::Stage::ImageCoast);
     // 1) Kiyi cizgisi gucu ve kiyiya uzaklik (payli alanda: dokunun kenarinda da dogru)
     std::vector<float> tLine;
     if (tWater.mCoastline && tWater.mCoastlineStrength > 0.0)
@@ -390,6 +393,7 @@ void ComposeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
         DistanceToLand(tLand, pBuffers.mPadded, static_cast<float>(tBandPixels) + 1.0f, &tDistance);
     }
 
+    tProfileStage.emplace(TerrainProfile::Stage::ImageCompose);
     // 2) Rakim: piksel boyuna uygun piramit seviyesi (uzakta kaba seviye: ortusme / parazit yok)
     std::optional<ElevationSampler> tSampler;
     double tExaggeration = 0.0;
@@ -579,6 +583,8 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
     tBuffers.mDu = tBlockX / kSize;
     tBuffers.mDv = tBlockY / kSize;
 
+    std::optional<TerrainProfile::ScopedStage> tProfileStage;  // olcum (TerrainProfile)
+    tProfileStage.emplace(TerrainProfile::Stage::ImageClasses);
     // 1) Payli alanin her pikseli: ornekleri say (karonun disi veri yok); kara renklerini topla.
     // Kara ornekleri yumusatma alanina da eklenir (su ve None eklenmez).
     std::vector<int> tLandCounts(static_cast<size_t>(pOutSize) * pOutSize, 0);
@@ -648,6 +654,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
         }
     }
 
+    tProfileStage.emplace(TerrainProfile::Stage::ImageBlur);
     // 2) Kara rengi: ornek ortalamasi; yumusatma plani doluysa alandan
     if (tPlan.mPad > 0)
     {
@@ -676,6 +683,7 @@ void TerrainRaster::BuildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
         }
     }
 
+    tProfileStage.reset();
     // 3-4) Kabartma, VFR bantlari, su, kiyi cizgisi
     ComposeImage(tBuffers, pPalette, pStyle, pElevation, pRgba);
 }
@@ -699,6 +707,8 @@ void TerrainRaster::BuildDetailImage(const TerrainTriangles& pTriangles, int pCh
     const int tPad = tPlan.mPad + tWarpPlan.mPad + CoastPad(pPalette, pStyle, tMppY);
     const int tPadded = pOutSize + 2 * tPad;
 
+    std::optional<TerrainProfile::ScopedStage> tProfileStage;  // olcum (TerrainProfile)
+    tProfileStage.emplace(TerrainProfile::Stage::ImageDetail);
     // 1) Ucgen listesi: pay, komsu 1/32 derece parcalara tasidigi icin payli dikdortgenin
     // kapsadigi tum ebeveyn parcalar toplanir (ayni ucgen birden cok parcade olabilir: tekrarlar atilir)
     const double tPadDegrees = tPad * tDegreesPerPixel;
@@ -825,6 +835,7 @@ void TerrainRaster::BuildDetailImage(const TerrainTriangles& pTriangles, int pCh
         tWarped = tCells;  // bukme kapali: ayni tampon
     }
 
+    tProfileStage.emplace(TerrainProfile::Stage::ImageBlur);
     // 4) Kara renkleri alana ekle ve yumusat (su ve None eklenmez; plan bossa alan yok)
     const auto tColors = pPalette.MixedColors(pPalette.CloseupMixAt(tMppY));
     LandColorField tField;
@@ -894,6 +905,7 @@ void TerrainRaster::BuildDetailImage(const TerrainTriangles& pTriangles, int pCh
         }
     }
 
+    tProfileStage.reset();
     // 6) Kabartma, VFR bantlari, su, kiyi cizgisi
     ComposeImage(tBuffers, pPalette, pStyle, pElevation, pRgba);
 }

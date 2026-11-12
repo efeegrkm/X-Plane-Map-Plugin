@@ -6,10 +6,17 @@
 #   ninja -C <derleme>   ->  <derleme>/prime-map-plugin/64/win.xpl (+ prime_map.dll)
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_plugin VERSION 0.22 LANGUAGES CXX)
+project(prime_map_plugin VERSION 0.23 LANGUAGES CXX)
 
 # COTS: ucuncu taraf bileşenler repoda tutulmaz; C:\workspace\cots altindan okunur.
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")
+# COTS klasoru varsayilan yerde yoksa kardes "cots" klasorune bak (ornek: C:/Projects/QT/cots).
+# Sirket bilgisayarinda C:/workspace/cots vardir ve bu blok hicbir sey yapmaz.
+if(NOT EXISTS "${COTS_DIR}/X-Plane-SDK" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../cots/X-Plane-SDK")
+    get_filename_component(_pm_cots "${CMAKE_CURRENT_SOURCE_DIR}/../cots" ABSOLUTE)
+    set(COTS_DIR "${_pm_cots}" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)" FORCE)
+    unset(_pm_cots)
+endif()
 # X-Plane SDK: <COTS>/X-Plane-SDK (kurulum: README -> Ucuncu Taraf Bilesenler)
 set(XPSDK "${COTS_DIR}/X-Plane-SDK" CACHE PATH "X-Plane SDK klasoru")
 # Prime Map kutuphanesinin reposu

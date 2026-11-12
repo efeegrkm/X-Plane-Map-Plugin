@@ -53,6 +53,11 @@ void SetTextRenderer(TextRenderer* pRenderer)
     gTextRenderer = pRenderer;
 }
 
+TextRenderer* CurrentTextRenderer()
+{
+    return gTextRenderer;
+}
+
 void Text(int pX, int pY, std::string_view pText, const Rgba& pColor)
 {
     if (gTextRenderer)

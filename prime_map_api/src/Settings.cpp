@@ -261,3 +261,8 @@ void Settings::SetBool(const std::string& pSection, const std::string& pKey, boo
 {
     SetString(pSection, pKey, pValue ? "1" : "0");
 }
+
+void Settings::ClearSection(const std::string& pSection)
+{
+    mValues.erase(pSection);
+}

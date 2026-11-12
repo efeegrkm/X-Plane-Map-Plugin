@@ -48,6 +48,7 @@
 #include "layers/GridLayer.h"
 #include "layers/NavaidLayer.h"
 #include "layers/RunwayLayer.h"
+#include "layers/TerrainHub.h"
 #include "layers/TerrainLayer.h"
 #include "layers/RoadLayer.h"
 #include "data/TerrainPaletteSource.h"
@@ -409,9 +410,12 @@ int main(int pArgc, char** pArgv)
     }
     TerrainStore tTerrain;
     tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette, AllTerrainStyles());
+    // 0.23: dokular / vektorler haritalarin ortak merkezinde. Katmanlardan ONCE tanimli olmali
+    // (katman yikicilari merkeze haber verir: merkez onlardan sonra yok olmali).
+    TerrainHub tTerrainHub(tTerrain);
     LayerManager tLayers;
-    tLayers.Add(std::make_unique<TerrainLayer>(tTerrain, tPalette));
-    Layer* tRoadLayer = tLayers.Add(std::make_unique<RoadLayer>(tTerrain));
+    tLayers.Add(std::make_unique<TerrainLayer>(tTerrainHub, tPalette));
+    Layer* tRoadLayer = tLayers.Add(std::make_unique<RoadLayer>(tTerrainHub));
     AirportDetailStore tAirportDetails(tRunways);
     tAirportDetails.Start();
     Layer* tSurfaceLayer = tLayers.Add(std::make_unique<AirportSurfaceLayer>(tRunways, tAirportDetails));
@@ -475,6 +479,7 @@ int main(int pArgc, char** pArgv)
         tWarmup.mTheme = &tTheme;
         tWarmup.mArea = ToRectD(tArea);
         tWarmup.mClearArea = tWarmup.mArea;
+        tTerrainHub.BeginFrame();  // karedeki doku yukleme hakki (eklentide flight loop yapar)
         tLayers.At(0)->Draw(tWarmup);
         tRoadLayer->Draw(tWarmup);  // yol vektorlerini de iste
         tSurfaceLayer->Draw(tWarmup);  // havalimani ayrintilarini da iste

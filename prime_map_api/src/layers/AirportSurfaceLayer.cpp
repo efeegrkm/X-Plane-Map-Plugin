@@ -287,19 +287,19 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
         for (GpuAirport* tGpu : tReady)
         {
             const PointF tOffset = tView.MercatorToScreen(tGpu->mOriginX, tGpu->mOriginY);
-            if (tPass == 0 && tZoom >= kSurfaceMinZoom && IsSubLayerVisible(kPartPavement))
+            if (tPass == 0 && tZoom >= kSurfaceMinZoom && IsSubLayerDrawn(kPartPavement))
             {
                 tCanvas.DrawStatic(tGpu->mFills, tOffset, tScale);
             }
-            else if (tPass == 1 && tZoom >= kSurfaceMinZoom && IsSubLayerVisible(kPartPavementEdges))
+            else if (tPass == 1 && tZoom >= kSurfaceMinZoom && IsSubLayerDrawn(kPartPavementEdges))
             {
                 tCanvas.DrawStatic(tGpu->mEdges, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 2 && IsSubLayerVisible(kPartBoundary))
+            else if (tPass == 2 && IsSubLayerDrawn(kPartBoundary))
             {
                 tCanvas.DrawStatic(tGpu->mBoundaries, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 3 && tZoom >= kLineMinZoom && IsSubLayerVisible(kPartMarkings))
+            else if (tPass == 3 && tZoom >= kLineMinZoom && IsSubLayerDrawn(kPartMarkings))
             {
                 tCanvas.DrawStatic(tGpu->mLines, tOffset, tScale);
             }
@@ -312,7 +312,7 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
 std::string AirportSurfaceLayer::Describe(const DrawContext& pContext, double pX, double pY) const
 {
     const MapView& tView = *pContext.mView;
-    if (tView.Zoom() < kSurfaceMinZoom || !IsSubLayerVisible(kPartPavement))
+    if (tView.Zoom() < kSurfaceMinZoom || !IsSubLayerDrawn(kPartPavement))
     {
         return "";
     }

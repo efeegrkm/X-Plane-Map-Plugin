@@ -12,6 +12,12 @@
 // IsSubLayerVisible(indeks) ile o parcayi cizip cizmeyecegine bakar.
 // Panelde katmanin altinda acilir liste olarak cikar, ayar dosyasina
 // "<katman>.<alt katman>" anahtariyla kaydedilir.
+//
+// Zoom araligi (0.23, harita basina; API SetLayerZoomRange): her katmana ve alt katmana
+// "sadece su zoom araliginda ciz" siniri konabilir. Katmanin kendi esikleri (ornek: pistler
+// zoom 11+) yerinde kalir; aralik onlari DARALTIR. Kutu (gorunurluk) durumu degismez:
+//   IsVisible / IsSubLayerVisible : kullanicinin kutusu (panel, ayar dosyasi, kurallar)
+//   IsInZoomRange / IsSubLayerDrawn : su anki zoom'da gercekten cizilecek mi (Draw icinde bu kullanilir)
 #pragma once
 
 #include <string>
@@ -159,6 +165,8 @@ public:
         std::string mName;  // panelde gorunen ad
         bool mVisible = true;
         bool mDefaultVisible = true;
+        double mMinZoom = 0.0;   // kNoMinZoom
+        double mMaxZoom = 99.0;  // kNoMaxZoom
     };
 
     int SubLayerCount() const
@@ -199,6 +207,59 @@ public:
         return tCount;
     }
 
+    // --- Zoom araligi (0.23) ---
+    static constexpr double kNoMinZoom = 0.0;    // alt sinir yok
+    static constexpr double kNoMaxZoom = 99.0;   // ust sinir yok
+
+    void SetZoomRange(double pMinZoom, double pMaxZoom)
+    {
+        mMinZoom = pMinZoom;
+        mMaxZoom = pMaxZoom;
+    }
+
+    double MinZoom() const
+    {
+        return mMinZoom;
+    }
+
+    double MaxZoom() const
+    {
+        return mMaxZoom;
+    }
+
+    void SetSubLayerZoomRange(int pIndex, double pMinZoom, double pMaxZoom)
+    {
+        if (pIndex >= 0 && pIndex < SubLayerCount())
+        {
+            mSubLayers[static_cast<size_t>(pIndex)].mMinZoom = pMinZoom;
+            mSubLayers[static_cast<size_t>(pIndex)].mMaxZoom = pMaxZoom;
+        }
+    }
+
+    // LayerManager her cizimden once haritanin o anki zoom'unu verir
+    void SetCurrentZoom(double pZoom)
+    {
+        mCurrentZoom = pZoom;
+    }
+
+    // Katman su anki zoom'da ciziliyor mu (kendi kutusundan bagimsiz)
+    bool IsInZoomRange() const
+    {
+        return mCurrentZoom >= mMinZoom && mCurrentZoom <= mMaxZoom;
+    }
+
+    // Draw icinde kullanilir: alt katmanin kutusu acik VE su anki zoom araliginda.
+    // Gecersiz indeks: cizilir say (IsSubLayerVisible ile ayni kural).
+    bool IsSubLayerDrawn(int pIndex) const
+    {
+        if (pIndex < 0 || pIndex >= SubLayerCount())
+        {
+            return true;
+        }
+        const SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
+        return tSub.mVisible && mCurrentZoom >= tSub.mMinZoom && mCurrentZoom <= tSub.mMaxZoom;
+    }
+
 protected:
     // Yapicida sirayla cagrilir; donen indeks IsSubLayerVisible icin
     int AddSubLayer(std::string_view pId, std::string_view pName, bool pDefaultVisible = true)
@@ -217,5 +278,8 @@ private:
     std::string mName;
     bool mVisible;
     bool mDefaultVisible;
+    double mMinZoom = kNoMinZoom;
+    double mMaxZoom = kNoMaxZoom;
+    double mCurrentZoom = 10.0;  // SetCurrentZoom gelene kadar: her aralikta sayilmasin diye ortalama bir deger
     std::vector<SubLayer> mSubLayers;
 };

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)  # MSVC runtime secimi icin
-project(prime_map_api VERSION 0.22 LANGUAGES C CXX)
+project(prime_map_api VERSION 0.23 LANGUAGES C CXX)
 
 # ---------------------------------------------------------------------------
 # Surum denetimi: genel basliktaki kVersionMajor/Minor/Patch sabitleri
@@ -35,6 +35,14 @@ unset(_pm_m)
 # COTS: ucuncu taraf bileşenler repoda TUTULMAZ; C:\workspace\cots altindan okunur.
 # Kurulum ve indirme linkleri: README.md -> "Ucuncu Taraf Bilesenler"
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")
+
+# COTS klasoru varsayilan yerde yoksa kardes "cots" klasorune bak (ornek: C:/Projects/QT/cots).
+# Sirket bilgisayarinda C:/workspace/cots vardir ve bu blok hicbir sey yapmaz.
+if(NOT EXISTS "${COTS_DIR}/X-Plane-SDK" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../cots/X-Plane-SDK")
+    get_filename_component(_pm_cots "${CMAKE_CURRENT_SOURCE_DIR}/../cots" ABSOLUTE)
+    set(COTS_DIR "${_pm_cots}" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)" FORCE)
+    unset(_pm_cots)
+endif()
 
 # X-Plane SDK: <COTS>/X-Plane-SDK
 # (baska bir SDK kullanmak icin: -DXPSDK=<klasor>)
@@ -100,6 +108,7 @@ set(CORE_SOURCES
     src/data/TerrainTriangles.cpp
     src/data/CacheTrim.cpp
     src/data/TerrainStore.cpp
+    src/data/TerrainProfile.cpp
     src/data/AptLine.cpp
     src/data/AptDatParser.cpp
     src/data/AptDatIndexer.cpp
@@ -111,6 +120,7 @@ set(CORE_SOURCES
 set(PLUGIN_SOURCES
     src/api/PrimeMap.cpp
     src/engine/MapData.cpp
+    src/engine/MapInstance.cpp
     src/MapWindow.cpp
     src/Log.cpp
     src/data/AircraftData.cpp
@@ -124,6 +134,7 @@ set(PLUGIN_SOURCES
     src/gfx/RenderTarget.cpp
     src/MapImageCache.cpp
     src/layers/MapSymbols.cpp
+    src/layers/TerrainHub.cpp
     src/layers/TerrainLayer.cpp
     src/layers/RoadLayer.cpp
     src/layers/AirportSurfaceLayer.cpp
@@ -271,6 +282,7 @@ if(MAP_PREVIEW AND WIN32)
         src/gfx/RenderTarget.cpp
         src/MapImageCache.cpp
         src/layers/MapSymbols.cpp
+        src/layers/TerrainHub.cpp
         src/layers/TerrainLayer.cpp
         src/layers/RoadLayer.cpp
         src/layers/AirportSurfaceLayer.cpp

@@ -26,6 +26,11 @@ AirportDetailStore::~AirportDetailStore()
     Stop();
 }
 
+void AirportDetailStore::SetMaxLoaded(size_t pCount)
+{
+    mMaxLoaded = pCount < kMaxLoaded ? kMaxLoaded : pCount;
+}
+
 void AirportDetailStore::Start()
 {
     if (mThread.joinable())
@@ -174,7 +179,7 @@ std::string AirportDetailStore::TakeLogLines()
 
 void AirportDetailStore::EvictUnused()
 {
-    while (mLoaded.size() > kMaxLoaded)
+    while (mLoaded.size() > mMaxLoaded)
     {
         auto tOldest = mLoaded.end();
         for (auto tIterator = mLoaded.begin(); tIterator != mLoaded.end(); ++tIterator)

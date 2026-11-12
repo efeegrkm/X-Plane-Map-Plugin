@@ -95,7 +95,7 @@ std::vector<Gfx::Point> DrawingLayer::ProjectPath(const MapView& pView, const st
 
 void DrawingLayer::AddLabel(const DrawContext& pContext, const std::string& pText, const Gfx::Point& pAnchor)
 {
-    if (!IsSubLayerVisible(kPartLabels))
+    if (!IsSubLayerDrawn(kPartLabels))
     {
         return;
     }
@@ -147,7 +147,7 @@ void DrawingLayer::Draw(const DrawContext& pContext)
 
     for (const Drawings::Shape& tShape : mDrawings.Shapes())
     {
-        if (!IsSubLayerVisible(PartOf(tShape.mKind)))
+        if (!IsSubLayerDrawn(PartOf(tShape.mKind)))
         {
             continue;
         }

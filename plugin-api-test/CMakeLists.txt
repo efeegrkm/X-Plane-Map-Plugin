@@ -10,6 +10,13 @@ cmake_policy(SET CMP0091 NEW)
 project(plugin_api_test LANGUAGES CXX)
 
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)")
+# COTS klasoru varsayilan yerde yoksa kardes "cots" klasorune bak (ornek: C:/Projects/QT/cots).
+# Sirket bilgisayarinda C:/workspace/cots vardir ve bu blok hicbir sey yapmaz.
+if(NOT EXISTS "${COTS_DIR}/X-Plane-SDK" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../cots/X-Plane-SDK")
+    get_filename_component(_pm_cots "${CMAKE_CURRENT_SOURCE_DIR}/../cots" ABSOLUTE)
+    set(COTS_DIR "${_pm_cots}" CACHE PATH "Ucuncu taraf bileşen klasoru (COTS)" FORCE)
+    unset(_pm_cots)
+endif()
 set(XPSDK "${COTS_DIR}/X-Plane-SDK" CACHE PATH "X-Plane SDK klasoru")
 # Prime Map kutuphanesinin reposu (kardes klasor)
 set(PRIME_MAP_DIR "" CACHE PATH "prime_map_api klasoru (PrimeMap.h + CMakeLists.txt)")

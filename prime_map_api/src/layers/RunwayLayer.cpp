@@ -110,7 +110,7 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
     {
         for (const Runway& tRunway : mStore.At(tAirportIndex).mRunways)
         {
-            if (!IsSubLayerVisible(PartOf(tRunway)))
+            if (!IsSubLayerDrawn(PartOf(tRunway)))
             {
                 continue;  // bu tur pist (kara / su) panelden kapatildi
             }
@@ -176,7 +176,7 @@ void RunwayLayer::Draw(const DrawContext& pContext)
     Gfx::Mesh tMesh;
 
     // Blast pad / overrun: pistin iki ucundan disari
-    if (tZoom >= kOverrunMinZoom && IsSubLayerVisible(kPartOverruns))
+    if (tZoom >= kOverrunMinZoom && IsSubLayerDrawn(kPartOverruns))
     {
         for (const ScreenRunway& tRunway : mVisible)
         {
@@ -219,7 +219,7 @@ void RunwayLayer::Draw(const DrawContext& pContext)
         }
     }
 
-    if (tZoom >= kMarkingMinZoom && IsSubLayerVisible(kPartMarkings))
+    if (tZoom >= kMarkingMinZoom && IsSubLayerDrawn(kPartMarkings))
     {
         for (const ScreenRunway& tRunway : mVisible)
         {
@@ -254,7 +254,7 @@ void RunwayLayer::AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
 
 void RunwayLayer::DrawLabels(const DrawContext& pContext)
 {
-    if (!pContext.mLabels || pContext.mView->Zoom() < kLabelMinZoom || !IsSubLayerVisible(kPartNumbers))
+    if (!pContext.mLabels || pContext.mView->Zoom() < kLabelMinZoom || !IsSubLayerDrawn(kPartNumbers))
     {
         return;
     }

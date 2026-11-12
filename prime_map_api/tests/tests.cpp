@@ -3653,9 +3653,110 @@ void TestApiLayers()
     CHECK(Drawings::LabelOf(tDrawings.Shapes()[0]) == "P2", "remaining label");
 }
 
+// 0.23 (coklu harita): harita basina zoom sinirlari, katman zoom araliklari, palet anahtari
+void TestMultiMapCore()
+{
+    // 1) MapView zoom sinirlari: varsayilan 3..16.5; daraltilir / 18'e kadar genisletilir
+    MapView tView;
+    tView.SetZoom(20.0);
+    CHECK(std::abs(tView.Zoom() - MapView::kMaxZoom) < 1e-9, "varsayilan ust sinir 16.5");
+    tView.SetZoomLimits(6.0, 12.0);
+    CHECK(std::abs(tView.Zoom() - 12.0) < 1e-9, "sinir daralinca gecerli zoom kirpilir: %.2f", tView.Zoom());
+    tView.SetZoom(1.0);
+    CHECK(std::abs(tView.Zoom() - 6.0) < 1e-9, "alt sinir uygulanir");
+    tView.SetZoomLimits(0.0, 30.0);
+    CHECK(std::abs(tView.MinZoomLimit() - MapView::kMinZoom) < 1e-9 &&
+              std::abs(tView.MaxZoomLimit() - MapView::kHardMaxZoom) < 1e-9,
+          "mutlak sinirlar: %.1f..%.1f", tView.MinZoomLimit(), tView.MaxZoomLimit());
+    tView.SetZoom(17.5);
+    CHECK(std::abs(tView.Zoom() - 17.5) < 1e-9, "genisletilmis ust sinirda 17.5'e cikilir");
+
+    // 2) Katman zoom araligi: aralik disinda cizilmez, kutu durumu degismez
+    std::string tTrace;
+    LayerManager tLayers;
+    tLayers.Add(std::make_unique<CountingLayer>("a", true, &tTrace));
+    tLayers.Add(std::make_unique<CountingLayer>("b", true, &tTrace));
+    tLayers.Add(std::make_unique<PartedLayer>());
+    tLayers.At(0)->SetZoomRange(8.0, 12.0);
+    MapView tDrawView;
+    tDrawView.SetViewport({0.0, 100.0, 100.0, 0.0});
+    DrawContext tContext;
+    tContext.mView = &tDrawView;
+    tDrawView.SetZoom(6.0);
+    tLayers.DrawAll(tContext);
+    CHECK(tTrace == "Db Lb ", "zoom 6: araligi 8..12 olan katman cizilmez: '%s'", tTrace.c_str());
+    CHECK(tLayers.At(0)->IsVisible() && !tLayers.At(0)->IsInZoomRange(), "kutu acik kalir, aralik disi");
+    tTrace.clear();
+    tDrawView.SetZoom(10.0);
+    tLayers.DrawAll(tContext);
+    CHECK(tTrace == "Da Db La Lb ", "zoom 10: aralik icinde cizilir: '%s'", tTrace.c_str());
+    tTrace.clear();
+    tDrawView.SetZoom(13.0);
+    tLayers.DrawAll(tContext);
+    CHECK(tTrace == "Db Lb ", "zoom 13: ust sinirin disinda: '%s'", tTrace.c_str());
+
+    // 3) Alt katman araligi: IsSubLayerDrawn zoom'a bakar, IsSubLayerVisible bakmaz
+    Layer& tParted = *tLayers.At(2);
+    tParted.SetSubLayerZoomRange(0, 11.0, Layer::kNoMaxZoom);
+    tLayers.SetCurrentZoom(9.0);
+    CHECK(tParted.IsSubLayerVisible(0) && !tParted.IsSubLayerDrawn(0), "alt katman zoom 9'da cizilmez");
+    tLayers.SetCurrentZoom(11.5);
+    CHECK(tParted.IsSubLayerDrawn(0) && !tParted.IsSubLayerDrawn(1), "zoom 11.5: acik olan cizilir, kapali cizilmez");
+    CHECK(tParted.IsSubLayerDrawn(9), "gecersiz indeks cizilir sayilir");
+
+    // 4) Ayar dosyasi: [layer_zoom] sadece sinirli katmanlari tasir, geri okunur, kaldirilan satir silinir
+    const uint64_t tSignature = tLayers.VisibilitySignature();
+    Settings tSettings;
+    tLayers.SaveZoomRanges(tSettings);
+    CHECK(tSettings.Has("layer_zoom", "a") && !tSettings.Has("layer_zoom", "b") &&
+              tSettings.Has("layer_zoom", "parted.one") && !tSettings.Has("layer_zoom", "parted.two"),
+          "sadece sinirli katmanlar yazilir");
+    tLayers.ResetZoomRanges();
+    CHECK(tLayers.VisibilitySignature() != tSignature, "aralik degisince imza degisir (resim yeniden cizilir)");
+    CHECK(tLayers.At(0)->MinZoom() == Layer::kNoMinZoom && tLayers.At(0)->MaxZoom() == Layer::kNoMaxZoom,
+          "sifirlama");
+    tLayers.LoadZoomRanges(tSettings);
+    CHECK(std::abs(tLayers.At(0)->MinZoom() - 8.0) < 1e-9 && std::abs(tLayers.At(0)->MaxZoom() - 12.0) < 1e-9 &&
+              std::abs(tParted.SubLayerAt(0).mMinZoom - 11.0) < 1e-9,
+          "araliklar geri okunur");
+    CHECK(tLayers.VisibilitySignature() == tSignature, "geri okununca imza ayni");
+    tLayers.At(0)->SetZoomRange(Layer::kNoMinZoom, Layer::kNoMaxZoom);
+    tLayers.SaveZoomRanges(tSettings);
+    CHECK(!tSettings.Has("layer_zoom", "a") && tSettings.Has("layer_zoom", "parted.one"),
+          "siniri kaldirilan katmanin satiri silinir");
+    tSettings.SetString("layer_zoom", "b", "12 9");  // ters aralik: yok sayilir
+    tLayers.LoadZoomRanges(tSettings);
+    CHECK(tLayers.At(1)->MinZoom() == Layer::kNoMinZoom, "gecersiz aralik yok sayilir");
+
+    // 5) Settings::ClearSection
+    Settings tClear;
+    tClear.SetInt("one", "x", 1);
+    tClear.SetInt("two", "y", 2);
+    tClear.ClearSection("one");
+    CHECK(!tClear.Has("one", "x") && tClear.Has("two", "y"), "bolum silme");
+
+    // 6) Zemin anahtari: palet numarasi farkli = farkli doku (haritalar arasi karismaz)
+    TerrainImageKey tFirst = {-123, 47, 2, 0, 0, 0};
+    TerrainImageKey tSecond = tFirst;
+    tSecond.mPalette = 1;
+    CHECK(!(tFirst == tSecond) && TerrainImageKeyHash()(tFirst) != TerrainImageKeyHash()(tSecond),
+          "palet anahtara ve ozete girer");
+    tSecond.mPalette = 0;
+    CHECK(tFirst == tSecond, "ayni palet = ayni doku (paylasilir)");
+
+    // 7) Depo: palet ekleme (Start'tan once de), bellek olcegi ve sinir cagrilari guvenli
+    TerrainStore tStore;
+    TerrainPalette tPalette;
+    CHECK(tStore.AddPalette(tPalette) == 0 && tStore.AddPalette(tPalette) == 1, "palet numaralari sirayla");
+    tStore.SetMemoryScale(0.2);  // 1'in altina inmez
+    tStore.SetMemoryScale(2.5);
+    tStore.SetCacheLimit(123u << 20);
+}
+
 int main()
 {
     TestApiLayers();
+    TestMultiMapCore();
     TestScreenMath();
     TestMercator();
     TestMapView();

@@ -7,7 +7,7 @@
 
 #include "MapView.h"
 #include "data/SceneryIndex.h"
-#include "data/TerrainStore.h"
+#include "layers/TerrainHub.h"
 #include "gfx/Canvas.h"
 
 namespace
@@ -29,9 +29,10 @@ double MinVisibleZoom()
 
 }  // namespace
 
-RoadLayer::RoadLayer(TerrainStore& pStore)
+RoadLayer::RoadLayer(TerrainHub& pHub)
     : Layer("roads", "Roads and railways", true)
-    , mStore(pStore)
+    , mHub(pHub)
+    , mUser(pHub.AddUser())
 {
     mParts[static_cast<int>(VectorLineKind::Motorway)] = AddSubLayer("motorways", "Motorways");
     mParts[static_cast<int>(VectorLineKind::Primary)] = AddSubLayer("primary", "Primary roads");
@@ -41,26 +42,18 @@ RoadLayer::RoadLayer(TerrainStore& pStore)
     mParts[static_cast<int>(VectorLineKind::PowerLine)] = AddSubLayer("power_lines", "Power lines", false);
 }
 
-bool RoadLayer::PrepareFrame()
+RoadLayer::~RoadLayer()
 {
-    return TakeReadyVectors();
+    mHub.RemoveUser(mUser);  // bu haritanin vektor isaretleri kalkar
 }
 
-bool RoadLayer::TakeReadyVectors()
+bool RoadLayer::PrepareFrame()
 {
-    bool tTaken = false;
-    std::shared_ptr<const TerrainVectors> tVectors;
-    while (mStore.PopVectors(&tVectors))
-    {
-        GpuTile& tTile = mTiles[SceneryIndex::TileKey(tVectors->West(), tVectors->South())];
-        tTile.mWest = tVectors->West();
-        tTile.mSouth = tVectors->South();
-        tTile.mVectors = tVectors;
-        tTile.mUploadedTheme = nullptr;  // (yeniden) yuklenecek
-        tTile.mLastFrame = mFrame;
-        tTaken = true;
-    }
-    return tTaken;
+    // Vektorler ortak: baska bir haritanin aldigi karolar da bu harita icin "yeni veri"dir
+    mHub.TakeReadyVectors();
+    const bool tChanged = mHub.VectorGeneration() != mSeenGeneration;
+    mSeenGeneration = mHub.VectorGeneration();
+    return tChanged;
 }
 
 void RoadLayer::Upload(GpuTile& pTile, const MapTheme& pTheme)
@@ -117,7 +110,7 @@ void RoadLayer::EvictUnused()
         {
             return;  // hepsi yakinda kullanildi
         }
-        mStore.ForgetVectors(tOldest->second.mWest, tOldest->second.mSouth);  // tekrar istenebilsin
+        mHub.ReleaseVectors(tOldest->second.mWest, tOldest->second.mSouth, mUser);  // kimse tutmuyorsa atilir
         mTiles.erase(tOldest);
     }
 }
@@ -125,7 +118,8 @@ void RoadLayer::EvictUnused()
 void RoadLayer::Draw(const DrawContext& pContext)
 {
     ++mFrame;
-    TakeReadyVectors();
+    mHub.TakeReadyVectors();
+    mSeenGeneration = mHub.VectorGeneration();
     const MapView& tView = *pContext.mView;
     if (tView.Zoom() < MinVisibleZoom())
     {
@@ -147,11 +141,20 @@ void RoadLayer::Draw(const DrawContext& pContext)
         for (int tColumn = tWest; tColumn <= tEast; ++tColumn)
         {
             const int tLon = ((tColumn + 180) % 360 + 360) % 360 - 180;
-            const auto tFound = mTiles.find(SceneryIndex::TileKey(tLon, tLat));
+            auto tFound = mTiles.find(SceneryIndex::TileKey(tLon, tLat));
             if (tFound == mTiles.end())
             {
-                mStore.RequestVectors(tLon, tLat);  // deniz / veri yok karoda sonuc hic gelmez (zararsiz)
-                continue;
+                // Ortak depoda varsa al (GPU kopyasi bu haritanin); yoksa isciden istenir
+                const std::shared_ptr<const TerrainVectors> tVectors = mHub.UseVectors(tLon, tLat, mUser);
+                if (!tVectors)
+                {
+                    continue;
+                }
+                GpuTile tNew;
+                tNew.mWest = tLon;
+                tNew.mSouth = tLat;
+                tNew.mVectors = tVectors;
+                tFound = mTiles.emplace(SceneryIndex::TileKey(tLon, tLat), std::move(tNew)).first;
             }
             GpuTile& tTile = tFound->second;
             tTile.mLastFrame = mFrame;
@@ -165,7 +168,7 @@ void RoadLayer::Draw(const DrawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     for (const int tKind : kDrawOrder)
     {
-        if (!IsSubLayerVisible(mParts[tKind]) || tView.Zoom() < kMinZoom[tKind])
+        if (!IsSubLayerDrawn(mParts[tKind]) || tView.Zoom() < kMinZoom[tKind])
         {
             continue;
         }

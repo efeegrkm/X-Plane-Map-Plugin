@@ -19,12 +19,14 @@
 #include "data/TerrainVectors.h"
 #include "gfx/StaticMesh.h"
 
-class TerrainStore;
+class TerrainHub;
 
 class RoadLayer : public Layer
 {
 public:
-    explicit RoadLayer(TerrainStore& pStore);
+    // 0.23: vektorler haritalarin ortak TerrainHub'indan (her harita kendi GPU kopyasini tutar)
+    explicit RoadLayer(TerrainHub& pHub);
+    ~RoadLayer() override;
 
     void Draw(const DrawContext& pContext) override;
     bool PrepareFrame() override;  // hazir vektorleri alir; aldiysa true
@@ -42,11 +44,12 @@ private:
         uint64_t mLastFrame = 0;
     };
 
-    bool TakeReadyVectors();  // en az bir karo geldiyse true
     void Upload(GpuTile& pTile, const MapTheme& pTheme);
     void EvictUnused();
 
-    TerrainStore& mStore;
+    TerrainHub& mHub;
+    int mUser = 0;                 // bu haritanin TerrainHub numarasi
+    uint64_t mSeenGeneration = 0;  // en son gorulen TerrainHub::VectorGeneration
     std::unordered_map<int, GpuTile> mTiles;  // SceneryIndex::TileKey
     std::array<int, kVectorLineKindCount> mParts = {};
     uint64_t mFrame = 0;
