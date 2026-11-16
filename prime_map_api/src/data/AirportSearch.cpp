@@ -5,7 +5,7 @@
 #include <cmath>
 #include <string>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportGeometryStore.h"
 
 namespace

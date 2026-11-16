@@ -8,7 +8,7 @@
 
 class LabelPlacer;
 
-namespace MapSymbols
+namespace XMapSymbols
 {
 
 const float kLineWidth = 1.5f;     // sembol cizgisi (boxel)

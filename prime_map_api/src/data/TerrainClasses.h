@@ -44,7 +44,7 @@ struct TerrainColor
     uint8_t mB;
 };
 
-// Zemin goruntusunun bicimi (harita moduna gore, MapTheme)
+// Zemin goruntusunun bicimi (harita moduna gore, XMapTheme)
 enum class TerrainStyle
 {
     Classes,    // arazi sinifi renkleri (su, orman, sehir ...) + kabartma

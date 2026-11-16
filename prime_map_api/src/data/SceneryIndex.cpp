@@ -94,11 +94,11 @@ void SceneryIndex::build(const std::string& pXPlaneDirectory)
     buildFromPacks(readSceneryPacks(pXPlaneDirectory), tGlobalPacks);
 
     // Dunya tablosu: deniz / veri yok ayrimi (yoksa yedek kural)
-    WorldTileMap tMap;
+    WorldTileMap tXMap;
     const std::string tMapPath = (Fs::path(pXPlaneDirectory) / "Resources" / "dsf_files").string();
-    if (tMap.load(tMapPath))
+    if (tXMap.load(tMapPath))
     {
-        setWorldMap(tMap);
+        setWorldMap(tXMap);
     }
     else
     {
@@ -198,10 +198,10 @@ TileCoverage SceneryIndex::noBaseCoverage(int pWest, int pSouth) const
     return isRegionInstalled(pWest, pSouth) ? TileCoverage::Ocean : TileCoverage::NoData;
 }
 
-void SceneryIndex::setWorldMap(const WorldTileMap& pMap)
+void SceneryIndex::setWorldMap(const WorldTileMap& pXMap)
 {
     mWorldMap.clear();
-    if (!pMap.isLoaded())
+    if (!pXMap.isLoaded())
     {
         mWorldMapReport = "world tile map not used";
         return;
@@ -212,7 +212,7 @@ void SceneryIndex::setWorldMap(const WorldTileMap& pMap)
     {
         const int tWest = tKey % 360 - 180;
         const int tSouth = tKey / 360 - 90;
-        tMismatches += pMap.hasDsf(tWest, tSouth) ? 0 : 1;
+        tMismatches += pXMap.hasDsf(tWest, tSouth) ? 0 : 1;
     }
     const int tChecked = static_cast<int>(mGlobalTiles.size());
     const int tAllowed = std::max(1, tChecked / 50);  // %2 (ozel bolge paketleri icin pay)
@@ -223,10 +223,10 @@ void SceneryIndex::setWorldMap(const WorldTileMap& pMap)
                                       tMismatches, tChecked);
         return;
     }
-    mWorldMap = pMap;
+    mWorldMap = pXMap;
     mWorldMapReport = std::format("world tile map: {} land tiles, checked against {} installed global tiles "
                                   "({} mismatches)",
-                                  pMap.landTileCount(), tChecked, tMismatches);
+                                  pXMap.landTileCount(), tChecked, tMismatches);
 }
 
 bool SceneryIndex::usesWorldMap() const

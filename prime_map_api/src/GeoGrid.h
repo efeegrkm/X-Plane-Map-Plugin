@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "MapView.h"
+#include "XMapView.h"
 
 struct GridItem
 {

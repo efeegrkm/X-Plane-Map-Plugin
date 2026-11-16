@@ -5,13 +5,13 @@
 #include <format>
 
 #include "LabelPlacer.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportDetailStore.h"
 #include "data/AirportShapes.h"
 #include "data/AirportGeometryStore.h"
 #include "gfx/Canvas.h"
 #include "layers/AirportVisibility.h"
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 namespace
 {
@@ -307,7 +307,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
     findVisibleAirports(tView, mSummaries, mQuery, mVisible, false);  // dugumsuz heliport'lar da
 
     Gfx::Mesh tFills;
-    Gfx::OutlinedLines tLines(MapSymbols::kOutlineExtra);
+    Gfx::OutlinedLines tLines(XMapSymbols::kOutlineExtra);
     tLines.setOutlineColor(pContext.mTheme->mHalo);
     Gfx::Mesh tThin;
     Gfx::Mesh tLamps;  // isik noktalari (en altta: semboller ustune binsin)
@@ -552,7 +552,7 @@ void AirportObjectsLayer::drawLabels(const drawContext& pContext)
     {
         if (!tMarker.mLabel.empty())
         {
-            MapSymbols::drawLabelNear(*pContext.mLabels, tMarker.mPoint.mX, tMarker.mPoint.mY, tMarker.mRadius + 3.0f,
+            XMapSymbols::drawLabelNear(*pContext.mLabels, tMarker.mPoint.mX, tMarker.mPoint.mY, tMarker.mRadius + 3.0f,
                                       tMarker.mLabel, pContext.mTheme->mLight ? pContext.mTheme->mRunwayLabel : kLabel,
                                       pContext.labelShadow());
         }

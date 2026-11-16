@@ -3,10 +3,10 @@
 #include <cmath>
 
 #include "LabelPlacer.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirwayDatabase.h"
 #include "gfx/Canvas.h"
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 namespace
 {
@@ -49,7 +49,7 @@ void AirwayLayer::draw(const drawContext& pContext)
     mQuery.clear();
     mAirways.query(tBounds, mQuery);
 
-    const MapTheme& tTheme = *pContext.mTheme;
+    const XMapTheme& tTheme = *pContext.mTheme;
     const Rgba& tColor = mHigh ? tTheme.mAirwayHigh : tTheme.mAirwayLow;
     const bool tArrows = tView.zoom() >= kArrowMinZoom;
     Gfx::Mesh tLines;
@@ -129,7 +129,7 @@ void AirwayLayer::drawLabels(const drawContext& pContext)
             continue;
         }
         const AirwaySegment& tSegment = mAirways.at(tVisible.mIndex);
-        MapSymbols::drawLabelCentered(*pContext.mLabels, (tVisible.mFromX + tVisible.mToX) * 0.5f,
+        XMapSymbols::drawLabelCentered(*pContext.mLabels, (tVisible.mFromX + tVisible.mToX) * 0.5f,
                                       (tVisible.mFromY + tVisible.mToY) * 0.5f + 8.0f, tSegment.mNames,
                                       tColor, pContext.labelShadow());
     }

@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)
 project(prime-map-api VERSION 0.24.0 LANGUAGES C CXX)
 
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/PrimeMap.h" _pm_ver REGEX "constexpr int kVersion(Major|Minor|Patch) *= *[0-9]+")
+file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/src/api/XMapTypes.h" _pm_ver REGEX "constexpr int kVersion(Major|Minor|Patch) *= *[0-9]+")
 foreach(_pm_m IN ITEMS Major Minor Patch)
     string(REGEX MATCH "kVersion${_pm_m} *= *([0-9]+)" _pm_v "${_pm_ver}")
     if(NOT _pm_v)
-        message(FATAL_ERROR "PrimeMap.h icinde kVersion${_pm_m} sabiti bulunamadi")
+        message(FATAL_ERROR "XMapTypes.h icinde kVersion${_pm_m} sabiti bulunamadi")
     endif()
     list(APPEND _pm_h "${CMAKE_MATCH_1}")
 endforeach()
@@ -14,7 +14,7 @@ string(JOIN "." _pm_h_d ${_pm_h})
 string(JOIN "." _pm_h_d ${_pm_h})
 set(_pm_cm "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 if(NOT _pm_h_d STREQUAL _pm_cm)
-    message(FATAL_ERROR "Surum uyusmazligi: PrimeMap.h kVersion = ${_pm_h_d}, CMake project(VERSION) = ${_pm_cm}")
+    message(FATAL_ERROR "Surum uyusmazligi: XMapTypes.h kVersion = ${_pm_h_d}, CMake project(VERSION) = ${_pm_cm}")
 endif()
 unset(_pm_ver)
 unset(_pm_h)
@@ -46,7 +46,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 set(CORE_SOURCES
-    src/Geo.cpp src/Drawings.cpp src/ScreenMath.cpp src/MapTheme.cpp src/MapView.cpp src/MapFormat.cpp
+    src/Geo.cpp src/Drawings.cpp src/ScreenMath.cpp src/XMapTheme.cpp src/XMapView.cpp src/XMapFormat.cpp
     src/Settings.cpp src/LayerManager.cpp src/LabelPlacer.cpp src/GeoGrid.cpp src/BackgroundJob.cpp
     src/engine/LayerTable.cpp
     src/gfx/FontAtlas.cpp src/gfx/Mesh.cpp
@@ -63,14 +63,14 @@ set(CORE_SOURCES
 )
 
 set(PLUGIN_SOURCES
-    src/api/xmap.cpp src/api/xmapmanager.cpp
-    src/engine/MapData.cpp src/engine/MapInstance.cpp
-    src/MapWindow.cpp src/Log.cpp
+    src/api/XMap.cpp src/api/XMapManager.cpp src/api/XMapManagerFactory.cpp
+    src/engine/XMapData.cpp
+    src/XMapWindow.cpp src/Log.cpp
     src/data/AircraftData.cpp src/data/NavLoader.cpp
     src/gfx/GlApi.cpp src/gfx/GlScreen.cpp src/gfx/Canvas.cpp src/gfx/ContextVertexArray.cpp
     src/gfx/StaticMesh.cpp src/gfx/Texture.cpp src/gfx/RenderTarget.cpp
-    src/MapImageCache.cpp
-    src/layers/MapSymbols.cpp src/layers/TerrainHub.cpp src/layers/TerrainLayer.cpp
+    src/XMapImageCache.cpp
+    src/layers/XMapSymbols.cpp src/layers/TerrainHub.cpp src/layers/TerrainLayer.cpp
     src/layers/RoadLayer.cpp src/layers/AirportSurfaceLayer.cpp src/layers/AirportObjectsLayer.cpp
     src/layers/TaxiRouteLayer.cpp src/layers/AirportVisibility.cpp src/layers/GridLayer.cpp
     src/layers/RunwayLayer.cpp src/layers/AirwayLayer.cpp src/layers/AirportLayer.cpp
@@ -95,7 +95,7 @@ else()
 endif()
 
 add_library(${PROJECT_NAME} SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${COTS_DIR}/earcut ${COTS_DIR})
 target_include_directories(${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
@@ -149,8 +149,8 @@ if(MAP_PREVIEW AND WIN32)
         src/Log.cpp src/data/AircraftData.cpp
         src/gfx/GlApi.cpp src/gfx/GlScreen.cpp src/gfx/Canvas.cpp src/gfx/ContextVertexArray.cpp
         src/gfx/StaticMesh.cpp src/gfx/Texture.cpp src/gfx/RenderTarget.cpp
-        src/MapImageCache.cpp
-        src/layers/MapSymbols.cpp src/layers/TerrainHub.cpp src/layers/TerrainLayer.cpp
+        src/XMapImageCache.cpp
+        src/layers/XMapSymbols.cpp src/layers/TerrainHub.cpp src/layers/TerrainLayer.cpp
         src/layers/RoadLayer.cpp src/layers/AirportSurfaceLayer.cpp src/layers/AirportObjectsLayer.cpp
         src/layers/TaxiRouteLayer.cpp src/layers/AirportVisibility.cpp src/layers/GridLayer.cpp
         src/layers/RunwayLayer.cpp src/layers/AirwayLayer.cpp src/layers/AirportLayer.cpp

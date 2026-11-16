@@ -4,7 +4,7 @@
 #include <cmath>
 #include <vector>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/TerrainRaster.h"
 #include "gfx/Canvas.h"
 
@@ -210,7 +210,7 @@ void TerrainLayer::draw(const drawContext& pContext)
     }
     const double tPixelsPerDegree = tView.worldSize() / 360.0 * pContext.mPixelsPerBoxel;
     const int tLevel = desiredLevel(tPixelsPerDegree);
-    const MapTheme& tTheme = *pContext.mTheme;
+    const XMapTheme& tTheme = *pContext.mTheme;
     const int tStyle = static_cast<int>(tTheme.mMode);
     // Asama 2: DSF vektor alanlari zemine islenir (orman sadece sinif renklerinde anlamli)
     int tAreas = 0;

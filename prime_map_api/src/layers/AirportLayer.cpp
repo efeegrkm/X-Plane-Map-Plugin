@@ -4,11 +4,11 @@
 #include <cmath>
 #include <string>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportGeometryStore.h"
 #include "data/NavDatabase.h"
 #include "gfx/Canvas.h"
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 namespace
 {
@@ -24,7 +24,7 @@ struct CategoryStyle
 // Sira AirportLayer::Category ile ayni olmali. Liste ayni zamanda oncelik
 // sirasidir: seyreltmede once buyukler yer alir.
 const auto kCategoryStyles = std::to_array<CategoryStyle>({
-    {4.0, 6.0, 11.0, 6.0f},    // buyuk      (renkler MapTheme::mAirport)
+    {4.0, 6.0, 11.0, 6.0f},    // buyuk      (renkler XMapTheme::mAirport)
     {8.0, 9.0, 12.0, 4.0f},    // kucuk
     {9.0, 10.5, 13.0, 4.0f},   // deniz ussu
     {11.0, 12.5, 14.0, 4.5f},  // heliport
@@ -84,7 +84,7 @@ void AirportLayer::collectVisible(const drawContext& pContext)
     mSymbolPlacer.reset(tArea);
 
     // Kategori kategori, onemliden onemsize: yer kalirsa sonrakiler eklenir
-    const MapTheme& tTheme = *pContext.mTheme;
+    const XMapTheme& tTheme = *pContext.mTheme;
     const bool tByTower = tTheme.mAirportByTower && mGeometry && mGeometry->isReady();
     for (int tCategoryIndex = 0; tCategoryIndex < static_cast<int>(kCategoryStyles.size()); ++tCategoryIndex)
     {
@@ -151,10 +151,10 @@ void AirportLayer::draw(const drawContext& pContext)
     }
 
     // Semboller: halka (kapalilarda carpi), heliportta "H"; koyu konturlu
-    Gfx::OutlinedLines tSymbols(MapSymbols::kOutlineExtra);
+    Gfx::OutlinedLines tSymbols(XMapSymbols::kOutlineExtra);
     tSymbols.setOutlineColor(pContext.mTheme->mHalo);
     Gfx::Mesh tDots;
-    const float tWidth = MapSymbols::kLineWidth;
+    const float tWidth = XMapSymbols::kLineWidth;
     for (const VisibleAirport& tAirport : mVisible)
     {
         const CategoryStyle& tStyle = styleOf(tAirport.mCategory);
@@ -213,7 +213,7 @@ void AirportLayer::drawLabels(const drawContext& pContext)
         {
             tText += "  " + tRecord.mName;
         }
-        MapSymbols::drawLabelNear(*pContext.mLabels, tAirport.mX, tAirport.mY, tStyle.mRadius + 4.0f, tText,
+        XMapSymbols::drawLabelNear(*pContext.mLabels, tAirport.mX, tAirport.mY, tStyle.mRadius + 4.0f, tText,
                                   tAirport.mLabelColor, pContext.labelShadow());
     }
 }

@@ -6,7 +6,7 @@
 #include "Drawings.h"
 #include "Geo.h"
 #include "LabelPlacer.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "gfx/Canvas.h"
 #include "ui/UiDraw.h"
 

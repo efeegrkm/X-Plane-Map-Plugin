@@ -1,4 +1,4 @@
-#include "MapImageCache.h"
+#include "XMapImageCache.h"
 
 #include <algorithm>
 #include <cmath>

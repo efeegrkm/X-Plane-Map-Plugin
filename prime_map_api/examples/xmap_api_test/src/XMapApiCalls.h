@@ -1,4 +1,4 @@
-// MapApiCalls.h
+// XMapApiCalls.h
 // Prime XMap API'nin her cagrisi ayri bir metotta. Test eklentisinin geri kalani (otomatik test,
 // menu komutlari) haritaya SADECE bu sinif uzerinden erisir. Bir host eklentisi kendi
 // dugmelerini bu metotlara (ya da dogrudan API'ye) baglar.
@@ -13,7 +13,7 @@
 
 #include <prime_map_api/PrimeMap.h>
 
-class MapApiCalls
+class XMapApiCalls
 {
 public:
     // --- Kutuphane ---
@@ -25,10 +25,10 @@ public:
     std::string versionString() const;
 
     // --- Harita penceresi ---
-    bool openMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse);
+    bool openXMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse);
     // 0.23 fabrika ornegi: ikinci, bagimsiz harita (ayar klasoru maps/second/). Aciksa kapatir.
-    bool openSecondMap();
-    void closeMap();
+    bool openSecondXMap();
+    void closeXMap();
     bool isOpen() const;
     void setGeometry(const prime::Geometry& pGeometry);
     prime::Geometry getGeometry() const;
@@ -70,26 +70,26 @@ public:
     bool geoToScreen(double pLat, double pLon, int* pX, int* pY) const;
 
     // --- Mod ---
-    void setMode(prime::MapMode pMode);
-    prime::MapMode getMode() const;
+    void setMode(prime::XMapMode pMode);
+    prime::XMapMode getMode() const;
     void nextMode();
 
     // --- Katmanlar ---
-    void setLayerVisible(prime::MapLayer pLayer, bool pVisible);
-    bool isLayerVisible(prime::MapLayer pLayer) const;
-    void toggleLayer(prime::MapLayer pLayer);
-    void setLayersVisible(std::initializer_list<prime::MapLayer> pLayers, bool pVisible);
-    void showOnlyLayers(std::initializer_list<prime::MapLayer> pLayers);
+    void setLayerVisible(prime::XMapLayer pLayer, bool pVisible);
+    bool isLayerVisible(prime::XMapLayer pLayer) const;
+    void toggleLayer(prime::XMapLayer pLayer);
+    void setLayersVisible(std::initializer_list<prime::XMapLayer> pLayers, bool pVisible);
+    void showOnlyLayers(std::initializer_list<prime::XMapLayer> pLayers);
     void resetLayersToDefaults();
-    prime::LayerState getLayerState(prime::MapLayer pLayer) const;
-    std::optional<prime::MapLayer> parentOf(prime::MapLayer pLayer) const;
-    std::vector<prime::MapLayer> childrenOf(prime::MapLayer pLayer) const;
-    std::vector<prime::MapLayer> topLevelLayers() const;
-    prime::LayerKind kindOf(prime::MapLayer pLayer) const;
-    std::string layerName(prime::MapLayer pLayer) const;
-    std::string layerKey(prime::MapLayer pLayer) const;
-    std::optional<prime::MapLayer> layerFromKey(const std::string& pKey) const;
-    bool isLayerDefaultVisible(prime::MapLayer pLayer, prime::MapMode pMode) const;
+    prime::LayerState getLayerState(prime::XMapLayer pLayer) const;
+    std::optional<prime::XMapLayer> parentOf(prime::XMapLayer pLayer) const;
+    std::vector<prime::XMapLayer> childrenOf(prime::XMapLayer pLayer) const;
+    std::vector<prime::XMapLayer> topLevelLayers() const;
+    prime::LayerKind kindOf(prime::XMapLayer pLayer) const;
+    std::string layerName(prime::XMapLayer pLayer) const;
+    std::string layerKey(prime::XMapLayer pLayer) const;
+    std::optional<prime::XMapLayer> layerFromKey(const std::string& pKey) const;
+    bool isLayerDefaultVisible(prime::XMapLayer pLayer, prime::XMapMode pMode) const;
 
     // --- Cizimler ---
     void setDrawTool(prime::DrawTool pTool);
@@ -115,8 +115,8 @@ public:
     void setRoute(const std::vector<prime::RouteWaypoint>& pWaypoints, int pActive);
 
     // --- Sorgu ---
-    std::vector<prime::MapObject> queryAt(double pLat, double pLon) const;
-    std::vector<prime::MapObject> queryAtScreen(int pX, int pY) const;
+    std::vector<prime::XMapObject> queryAt(double pLat, double pLon) const;
+    std::vector<prime::XMapObject> queryAtScreen(int pX, int pY) const;
 
     // --- Ayarlar ---
     std::string exportSettings() const;
@@ -136,7 +136,7 @@ public:
     bool isDiagnosticsOn() const;
 
 private:
-    prime::XMap* mMap = nullptr;
-    prime::XMap* mSecondMap = nullptr;
+    prime::XMap* mXMap = nullptr;
+    prime::XMap* mSecondXMap = nullptr;
     prime::XMapManager* mManager = nullptr;  // sahibi; destroyXMapManager ile birakilir
 };

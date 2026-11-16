@@ -11,7 +11,7 @@ const int kGroupGap = 14;   // dugme gruplari arasi
 
 // Dugme gruplari (soldan saga). ToolbarAction::None = gruplar arasi ayirici.
 const std::vector<ToolbarAction> kGeneralGroup = {
-    ToolbarAction::Layers,         ToolbarAction::MapMode, ToolbarAction::None, ToolbarAction::FollowAircraft,
+    ToolbarAction::Layers,         ToolbarAction::XMapMode, ToolbarAction::None, ToolbarAction::FollowAircraft,
     ToolbarAction::CenterAircraft, ToolbarAction::goToAirport, ToolbarAction::None, ToolbarAction::drawTools};
 const std::vector<ToolbarAction> kWindowGroup = {ToolbarAction::HideControls, ToolbarAction::popOut};  // sagdan sola
 
@@ -149,7 +149,7 @@ bool Toolbar::isActive(ToolbarAction pAction, const ToolbarState& pState)
     {
         case ToolbarAction::Layers:
             return pState.mLayersOpen;
-        case ToolbarAction::MapMode:
+        case ToolbarAction::XMapMode:
             return pState.mModesOpen;
         case ToolbarAction::goToAirport:
             return pState.mSearchOpen;
@@ -180,7 +180,7 @@ const char* Toolbar::labelFor(ToolbarAction pAction, const ToolbarState& pState)
     {
         case ToolbarAction::Layers:
             return "Layers";
-        case ToolbarAction::MapMode:
+        case ToolbarAction::XMapMode:
             return pState.mModeLabel;
         case ToolbarAction::FollowAircraft:
             return "Follow aircraft";

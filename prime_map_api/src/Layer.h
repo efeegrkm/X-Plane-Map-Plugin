@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "MapTheme.h"
+#include "XMapTheme.h"
 #include "ScreenMath.h"
 
 class LabelPlacer;
@@ -35,7 +35,7 @@ struct drawContext
     // Tum katmanlarin ortak etiket yerlestiricisi (drawLabels icinde kullanilir)
     LabelPlacer* mLabels = nullptr;
 
-    const MapTheme* mTheme = &themeFor(MapMode::Scenery);
+    const XMapTheme* mTheme = &themeFor(XMapMode::Scenery);
 
     // Yazi golgesi: temanin halesi, tam opak
     Rgba labelShadow() const

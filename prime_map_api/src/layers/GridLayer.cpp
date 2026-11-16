@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-#include "MapFormat.h"
-#include "MapView.h"
+#include "XMapFormat.h"
+#include "XMapView.h"
 #include "gfx/Canvas.h"
 #include "ui/UiDraw.h"
 

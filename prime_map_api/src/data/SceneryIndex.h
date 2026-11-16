@@ -59,7 +59,7 @@ public:
 
     // Dunya tablosunu verir ve Global Scenery karolariyla dogrular (buildFromPacks'ten SONRA).
     // Dogrulama tutmazsa tablo kullanilmaz (yedek kural). Sonuc: worldMapReport().
-    void setWorldMap(const WorldTileMap& pMap);
+    void setWorldMap(const WorldTileMap& pXMap);
     bool usesWorldMap() const;
     const std::string& worldMapReport() const;
 

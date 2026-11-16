@@ -5,7 +5,7 @@
 // Ayar dosyalarini kutuphane yonetir (eklenti dosya okumaz / yazmaz). 0.22 ve oncesi
 // eklenti klasorundeki eski dosyalar ilk acilista haritanin ayar klasorune kopyalanir.
 //
-// akis(fabrika): addMap() -> setName / setStyle / ... -> initialize(). Ikinci harita ayni
+// akis(fabrika): addXMap() -> setName / setStyle / ... -> initialize(). Ikinci harita ayni
 // yolla, baska bir adla acilir: iki harita birbirinden bagimsiz gezilir ve ayarlanir.
 #include <array>
 #include <cstdint>
@@ -22,7 +22,7 @@
 #include "XPLMProcessing.h"
 #include "XPLMUtilities.h"
 
-#include "Settings.h"
+#include "PluginSettings.h"
 #include <prime_map_api/PrimeMap.h>
 
 namespace
@@ -66,8 +66,8 @@ private:
     static std::string findPluginDirectory();
 
     std::string mDirectory;
-    prime::XMap* mMap = nullptr;              // ana harita (maps/main)
-    prime::XMap* mSecondMap = nullptr;        // istege bagli ikinci harita (maps/second)
+    prime::XMap* mXMap = nullptr;              // ana harita (maps/main)
+    prime::XMap* mSecondXMap = nullptr;        // istege bagli ikinci harita (maps/second)
     prime::XMapManager* mManager = nullptr;   // sahibi; destroyXMapManager ile birakilir
 
     XPLMMenuID mMenu = nullptr;
@@ -94,7 +94,7 @@ void PrimeMapPlugin::start()
     mManager->setLogPrefix("[prime-map-plugin]");  // Log.txt satirlari eskisiyle ayni
     // Veri klasoru verilmedi: kutuphane varsayilanini kullanir (%LOCALAPPDATA%/prime/prime-xmap).
     // prime_map.ini henuz yoksa eski map_settings.ini'nin [cache] degerleri ilk deger olur
-    Settings tLegacy;
+    PluginSettings tLegacy;
     if (tLegacy.load(mDirectory + kLegacySettingsFile))
     {
         mManager->setTerrainCacheMb(tLegacy.getInt("cache", "terrain_mb", 0));
@@ -116,15 +116,15 @@ void PrimeMapPlugin::stop()
         XPLMUnregisterCommandHandler(tCommand, commandCallback, 1, this);
     }
     // Haritalar birakilinca ayarlari kutuphane tarafindan yazilir ve pencereleri kapanir
-    if (mSecondMap)
+    if (mSecondXMap)
     {
-        mManager->removeMap(mSecondMap);
-        mSecondMap = nullptr;
+        mManager->removeXMap(mSecondXMap);
+        mSecondXMap = nullptr;
     }
-    if (mMap)
+    if (mXMap)
     {
-        mManager->removeMap(mMap);
-        mMap = nullptr;
+        mManager->removeXMap(mXMap);
+        mXMap = nullptr;
     }
     if (mManager)
     {
@@ -171,56 +171,56 @@ void PrimeMapPlugin::openMainMap()
     {
         return;
     }
-    mMap = mManager->addMap();
-    if (!mMap)
+    mXMap = mManager->addXMap();
+    if (!mXMap)
     {
         return;
     }
-    mMap->setName(kMainMapName);
-    mMap->setStyle(prime::WindowStyle::Standalone);
-    mMap->setTitle("Prime XMap");
-    mMap->setIsUiVisible(true);
-    mMap->setIsMouseInputEnabled(true);
-    mMap->setVisible(false);  // ilk kurulumda gizli: menuden / komutla acilir
-    mMap->initialize();       // yer verilmedi: kutuphane ekranin ortasina, %70 boyutunda acar
+    mXMap->setName(kMainMapName);
+    mXMap->setStyle(prime::WindowStyle::Standalone);
+    mXMap->setTitle("Prime XMap");
+    mXMap->setIsUiVisible(true);
+    mXMap->setIsMouseInputEnabled(true);
+    mXMap->setVisible(false);  // ilk kurulumda gizli: menuden / komutla acilir
+    mXMap->initialize();       // yer verilmedi: kutuphane ekranin ortasina, %70 boyutunda acar
 }
 
 void PrimeMapPlugin::toggleSecondMap()
 {
     // Coklu harita ornegi: ikinci harita ilkinden bagimsizdir (gorunum, mod, katmanlar, cizimler,
     // zemin ayarlari, dosyalar); onbellek ortaktir. Kapatilinca nesne birakilir (ayarlari yazilir).
-    if (mSecondMap)
+    if (mSecondXMap)
     {
         if (mManager)
         {
-            mManager->removeMap(mSecondMap);  // ayarlari yazilir, pencere kapanir
+            mManager->removeXMap(mSecondXMap);  // ayarlari yazilir, pencere kapanir
         }
-        mSecondMap = nullptr;
+        mSecondXMap = nullptr;
         return;
     }
     if (!mManager)
     {
         return;
     }
-    mSecondMap = mManager->addMap();
-    if (!mSecondMap)
+    mSecondXMap = mManager->addXMap();
+    if (!mSecondXMap)
     {
         return;
     }
-    mSecondMap->setName(kSecondMapName);
-    mSecondMap->setStyle(prime::WindowStyle::Standalone);
-    mSecondMap->setTitle("Prime XMap 2");
-    mSecondMap->setIsUiVisible(true);
-    mSecondMap->setIsMouseInputEnabled(true);
-    mSecondMap->setMode(prime::MapMode::Vfr);  // ilk acilista ana haritadan farkli gorunsun
-    if (mMap)
+    mSecondXMap->setName(kSecondMapName);
+    mSecondXMap->setStyle(prime::WindowStyle::Standalone);
+    mSecondXMap->setTitle("Prime XMap 2");
+    mSecondXMap->setIsUiVisible(true);
+    mSecondXMap->setIsMouseInputEnabled(true);
+    mSecondXMap->setMode(prime::XMapMode::Vfr);  // ilk acilista ana haritadan farkli gorunsun
+    if (mXMap)
     {
         // Ilk acilista ana haritanin yaninda, yari boyutta (sonraki acilislarda dosyadaki yer)
-        const prime::Geometry tMain = mMap->getGeometry();
-        mSecondMap->setGeometry({tMain.mLeft + 40, tMain.mTop - 40, tMain.mWidth * 2 / 3, tMain.mHeight * 2 / 3});
+        const prime::Geometry tMain = mXMap->getGeometry();
+        mSecondXMap->setGeometry({tMain.mLeft + 40, tMain.mTop - 40, tMain.mWidth * 2 / 3, tMain.mHeight * 2 / 3});
     }
-    mSecondMap->initialize();
-    mSecondMap->setVisible(true);  // dosyada gizli kaydedilmis olsa da menuden acilinca gorunsun
+    mSecondXMap->initialize();
+    mSecondXMap->setVisible(true);  // dosyada gizli kaydedilmis olsa da menuden acilinca gorunsun
 }
 
 void PrimeMapPlugin::createCommands()
@@ -268,14 +268,14 @@ void PrimeMapPlugin::createMenu()
 
 void PrimeMapPlugin::toggleDiagnostics()
 {
-    if (!mMap)
+    if (!mXMap)
     {
         return;
     }
-    mMap->setDiagnostics(!mMap->isDiagnosticsOn());
+    mXMap->setDiagnostics(!mXMap->isDiagnosticsOn());
     if (mMenu && mDiagnosticsItem >= 0)
     {
-        XPLMCheckMenuItem(mMenu, mDiagnosticsItem, mMap->isDiagnosticsOn() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
+        XPLMCheckMenuItem(mMenu, mDiagnosticsItem, mXMap->isDiagnosticsOn() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     }
 }
 
@@ -314,25 +314,25 @@ void PrimeMapPlugin::onMenu(int pItem)
     {
         toggleDiagnostics();
     }
-    else if (pItem == kMenuClearTrack && mMap)
+    else if (pItem == kMenuClearTrack && mXMap)
     {
-        mMap->clearTrack();
+        mXMap->clearTrack();
     }
 }
 
 int PrimeMapPlugin::onCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
 {
-    if (pPhase != xplm_CommandBegin || !mMap)
+    if (pPhase != xplm_CommandBegin || !mXMap)
     {
         return 0;
     }
     if (pCommand == mToggleCommand)
     {
-        mMap->setVisible(!mMap->isVisible());
+        mXMap->setVisible(!mXMap->isVisible());
     }
     else if (pCommand == mControlsCommand)
     {
-        mMap->setIsUiVisible(!mMap->isUiVisible());
+        mXMap->setIsUiVisible(!mXMap->isUiVisible());
     }
     else if (pCommand == mDiagnosticsCommand)
     {
@@ -340,15 +340,15 @@ int PrimeMapPlugin::onCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     }
     else if (pCommand == mNextModeCommand)
     {
-        mMap->nextMode();
+        mXMap->nextMode();
     }
     else if (pCommand == mPrecacheCommand)
     {
-        mMap->precacheVisibleArea();
+        mXMap->precacheVisibleArea();
     }
     else if (pCommand == mCancelPrecacheCommand)
     {
-        mMap->cancelPrecache();
+        mXMap->cancelPrecache();
     }
     else if (pCommand == mSecondMapCommand)
     {

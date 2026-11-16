@@ -4,7 +4,7 @@
 
 #include <optional>
 
-#include "MapTheme.h"
+#include "XMapTheme.h"
 #include "ScreenMath.h"
 
 namespace Gfx
@@ -21,10 +21,10 @@ public:
 
     // pAnchor: "XMap: ..." dugmesi; panel onun altina acilir
     void layout(const RectI& pAnchor);
-    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCurrent) const;
+    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, XMapMode pCurrent) const;
 
     // (pX, pY) panelin ustundeyse true; bir moda denk geldiyse pOutMode dolar
-    bool hitTest(int pX, int pY, std::optional<MapMode>* pOutMode) const;
+    bool hitTest(int pX, int pY, std::optional<XMapMode>* pOutMode) const;
 
 private:
     RectI rowRect(int pIndex) const;

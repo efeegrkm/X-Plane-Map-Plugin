@@ -17,10 +17,10 @@
 #include "LabelPlacer.h"
 #include "LayerManager.h"
 #include "engine/LayerTable.h"
-#include "MapTheme.h"
+#include "XMapTheme.h"
 #include "Log.h"
-#include "MapFormat.h"
-#include "MapView.h"
+#include "XMapFormat.h"
+#include "XMapView.h"
 #include "ScreenMath.h"
 #include "Settings.h"
 #include "data/AirportGeometryStore.h"
@@ -653,7 +653,7 @@ void testSubLayers()
     CHECK(tLayer.isSubLayerVisible(7) && tLayer.visibleSubLayerCount() == 1, "gecersiz indeks gorunur sayilir");
     CHECK(LayerManager::subLayerKey(tLayer, 1) == "parted.two", "alt katman anahtari");
 
-    const MapTheme& tScenery = themeFor(MapMode::Scenery);
+    const XMapTheme& tScenery = themeFor(XMapMode::Scenery);
     Settings tSettings;
     tLayer.setSubLayerVisible(0, false);
     tLayer.setSubLayerVisible(1, true);
@@ -682,7 +682,7 @@ void testLayerManager()
     tLayers.drawAll(tContext);
     CHECK(tTrace == "Da Dc La Lc ", "cizim sirasi: once geometri sonra yazi, kapali atlanir: '%s'", tTrace.c_str());
 
-    const MapTheme& tScenery = themeFor(MapMode::Scenery);
+    const XMapTheme& tScenery = themeFor(XMapMode::Scenery);
     Settings tSettings;
     tLayers.at(0)->setVisible(false);
     tLayers.saveVisibility(tSettings, tScenery);
@@ -704,7 +704,7 @@ void testLayerManager()
     tLegacy.setBool("layers", "a", false);
     tLayers.loadVisibility(tLegacy, tScenery);
     CHECK(!tLayers.at(0)->isVisible(), "eski [layers] bolumu Scenery'de okunur");
-    tLayers.loadVisibility(tLegacy, themeFor(MapMode::Vfr));
+    tLayers.loadVisibility(tLegacy, themeFor(XMapMode::Vfr));
     CHECK(tLayers.at(0)->isVisible(), "eski bolum diger modlari etkilemez");
     tLegacy.setBool("layers", "b", true);  // varsayilan kapali katman (Taxi routes gibi)
     tLayers.loadVisibility(tLegacy, tScenery);
@@ -715,28 +715,28 @@ void testLayerManager()
     // Mod varsayilani: VFR'de ILS kapali
     LayerManager tModeLayers;
     tModeLayers.add(std::make_unique<CountingLayer>("ils", true, &tTrace));
-    tModeLayers.loadVisibility(tEmpty, themeFor(MapMode::Vfr));
+    tModeLayers.loadVisibility(tEmpty, themeFor(XMapMode::Vfr));
     CHECK(!tModeLayers.at(0)->isVisible(), "VFR temasi ILS'i varsayilan kapatir");
-    tModeLayers.loadVisibility(tEmpty, themeFor(MapMode::Dark));
+    tModeLayers.loadVisibility(tEmpty, themeFor(XMapMode::Dark));
     CHECK(tModeLayers.at(0)->isVisible(), "Dark'ta ILS acik");
 }
 
 void testMapTheme()
 {
-    CHECK(modeFromId("vfr", MapMode::Scenery) == MapMode::Vfr && modeFromId("ifr_high", MapMode::Scenery) ==
-              MapMode::IfrHigh && modeFromId("xyz", MapMode::IfrLow) == MapMode::IfrLow,
+    CHECK(modeFromId("vfr", XMapMode::Scenery) == XMapMode::Vfr && modeFromId("ifr_high", XMapMode::Scenery) ==
+              XMapMode::IfrHigh && modeFromId("xyz", XMapMode::IfrLow) == XMapMode::IfrLow,
           "mod kimligi okuma");
-    CHECK(nextMode(MapMode::IfrHigh) == MapMode::Dark && nextMode(MapMode::Dark) == MapMode::Scenery &&
-              nextMode(MapMode::Scenery) == MapMode::Vfr,
+    CHECK(nextMode(XMapMode::IfrHigh) == XMapMode::Dark && nextMode(XMapMode::Dark) == XMapMode::Scenery &&
+              nextMode(XMapMode::Scenery) == XMapMode::Vfr,
           "siradaki mod donguseldir");
-    CHECK(layerSectionFor(MapMode::IfrLow) == "layers.ifr_low", "mod bolumu adi");
-    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    CHECK(layerSectionFor(XMapMode::IfrLow) == "layers.ifr_low", "mod bolumu adi");
+    for (int tIndex = 0; tIndex < kXMapModeCount; ++tIndex)
     {
-        const MapTheme& tTheme = themeFor(static_cast<MapMode>(tIndex));
+        const XMapTheme& tTheme = themeFor(static_cast<XMapMode>(tIndex));
         CHECK(static_cast<int>(tTheme.mMode) == tIndex, "tema sirasi: %s", tTheme.mId);
     }
-    CHECK(allTerrainStyles().size() == static_cast<size_t>(kMapModeCount) &&
-              allTerrainStyles()[static_cast<int>(MapMode::Vfr)].mStyle == TerrainStyle::Elevation,
+    CHECK(allTerrainStyles().size() == static_cast<size_t>(kXMapModeCount) &&
+              allTerrainStyles()[static_cast<int>(XMapMode::Vfr)].mStyle == TerrainStyle::Elevation,
           "zemin bicimleri mod sirasiyla");
 
     // Rakim rampasi: alcakta yesil baskin, yuksekte kahverengi (kirmizi > mavi, koyulasir)
@@ -3208,15 +3208,15 @@ void testWorldTileMap()
     tBytes[WorldTileMap::kHeaderSize + WorldTileMap::indexOf(32, 39)] = 255;    // Ankara
     tBytes[WorldTileMap::kHeaderSize + WorldTileMap::indexOf(-123, 47)] = 255;  // Seattle
     tBytes[WorldTileMap::kHeaderSize + WorldTileMap::indexOf(-124, 46)] = 255;
-    WorldTileMap tMap;
-    CHECK(!tMap.loadBytes(std::vector<uint8_t>(100, 255)) && !tMap.isLoaded(), "yanlis boyut reddedilir");
-    CHECK(tMap.loadBytes(tBytes) && tMap.hasDsf(32, 39) && !tMap.hasDsf(33, 39) && !tMap.hasDsf(32, 40) &&
-              tMap.landTileCount() == 3,
+    WorldTileMap tXMap;
+    CHECK(!tXMap.loadBytes(std::vector<uint8_t>(100, 255)) && !tXMap.isLoaded(), "yanlis boyut reddedilir");
+    CHECK(tXMap.loadBytes(tBytes) && tXMap.hasDsf(32, 39) && !tXMap.hasDsf(33, 39) && !tXMap.hasDsf(32, 40) &&
+              tXMap.landTileCount() == 3,
           "boylam oncelikli indeks");
     CHECK(WorldTileMap::indexOf(-180, -90) == 0 && WorldTileMap::indexOf(179, 89) == 360 * 180 - 1 &&
               WorldTileMap::indexOf(-179, -90) == 180,
           "indeks: (boylam + 180) * 180 + (enlem + 90)");
-    CHECK(!tMap.hasDsf(180, 0) && !tMap.hasDsf(0, 90), "aralik disi karo: yok");
+    CHECK(!tXMap.hasDsf(180, 0) && !tXMap.hasDsf(0, 90), "aralik disi karo: yok");
 
     // Gercek dosya (bu bilgisayarda varsa): bilinen kara ve deniz karolari
     WorldTileMap tReal;
@@ -3241,7 +3241,7 @@ void testWorldTileMap()
     std::ofstream(tRoot / "Global" / "Earth nav data" / "+40-130" / "+46-124.dsf") << "global";
     SceneryIndex tIndex;
     tIndex.buildFromPacks({}, {(tRoot / "Global").string() + "/"});
-    tIndex.setWorldMap(tMap);
+    tIndex.setWorldMap(tXMap);
     CHECK(tIndex.usesWorldMap() && tIndex.worldMapReport().find("0 mismatches") != std::string::npos,
           "tablo kurulu karolarla dogrulandi: %s", tIndex.worldMapReport().c_str());
     CHECK(tIndex.coverageOf(32, 39) == TileCoverage::NoData, "Ankara: kara ama kurulu degil -> veri yok");
@@ -3520,14 +3520,14 @@ public:
 
 void testApiLayers()
 {
-    using prime::MapLayer;
+    using prime::XMapLayer;
     // 1) Tablo: her enum ogesinin anahtari geri ayni ogeye doner; ust ogeler tutarli
-    for (int tIndex = 0; tIndex < static_cast<int>(MapLayer::Count); ++tIndex)
+    for (int tIndex = 0; tIndex < static_cast<int>(XMapLayer::Count); ++tIndex)
     {
-        const MapLayer tLayer = static_cast<MapLayer>(tIndex);
-        const std::optional<MapLayer> tBack = LayerRules::layerFromKey(LayerRules::layerKey(tLayer));
+        const XMapLayer tLayer = static_cast<XMapLayer>(tIndex);
+        const std::optional<XMapLayer> tBack = LayerRules::layerFromKey(LayerRules::layerKey(tLayer));
         CHECK(tBack && *tBack == tLayer, "layer key round trip %d (%s)", tIndex, LayerRules::layerKey(tLayer));
-        const std::optional<MapLayer> tParent = LayerRules::parentOf(tLayer);
+        const std::optional<XMapLayer> tParent = LayerRules::parentOf(tLayer);
         switch (LayerRules::kindOf(tLayer))
         {
             case prime::LayerKind::Group:
@@ -3542,15 +3542,15 @@ void testApiLayers()
         }
     }
     CHECK(LayerRules::topLevelLayers().size() == 6, "6 top level items (5 groups + drawings)");
-    CHECK(LayerRules::childrenOf(MapLayer::AirportsGroup).size() == 5, "airports group has 5 layers");
-    CHECK(LayerRules::childrenOf(MapLayer::Runways).size() == 6, "runways has 6 sub layers");
-    CHECK(std::string(LayerRules::layerKey(MapLayer::RunwaysWater)) == "runways.water", "runways.water key");
-    CHECK(std::string(LayerRules::layerName(MapLayer::RunwaysWater)) == "Water runways", "runways.water name");
+    CHECK(LayerRules::childrenOf(XMapLayer::AirportsGroup).size() == 5, "airports group has 5 layers");
+    CHECK(LayerRules::childrenOf(XMapLayer::Runways).size() == 6, "runways has 6 sub layers");
+    CHECK(std::string(LayerRules::layerKey(XMapLayer::RunwaysWater)) == "runways.water", "runways.water key");
+    CHECK(std::string(LayerRules::layerName(XMapLayer::RunwaysWater)) == "Water runways", "runways.water name");
     CHECK(!LayerRules::layerFromKey("nonsense"), "unknown key");
-    CHECK(!LayerRules::isLayerDefaultVisible(MapLayer::TaxiRoutes, prime::MapMode::Scenery), "taxi off");
-    CHECK(LayerRules::isLayerDefaultVisible(MapLayer::Terrain, prime::MapMode::Scenery), "terrain on");
-    CHECK(!LayerRules::isLayerDefaultVisible(MapLayer::Fixes, prime::MapMode::Scenery), "fixes off (scenery)");
-    CHECK(LayerRules::isLayerDefaultVisible(MapLayer::Fixes, prime::MapMode::IfrHigh), "fixes on (ifr high)");
+    CHECK(!LayerRules::isLayerDefaultVisible(XMapLayer::TaxiRoutes, prime::XMapMode::Scenery), "taxi off");
+    CHECK(LayerRules::isLayerDefaultVisible(XMapLayer::Terrain, prime::XMapMode::Scenery), "terrain on");
+    CHECK(!LayerRules::isLayerDefaultVisible(XMapLayer::Fixes, prime::XMapMode::Scenery), "fixes off (scenery)");
+    CHECK(LayerRules::isLayerDefaultVisible(XMapLayer::Fixes, prime::XMapMode::IfrHigh), "fixes on (ifr high)");
 
     // 2) kurallar(katman paneliyle ayni)
     LayerManager tLayers;
@@ -3562,42 +3562,42 @@ void testApiLayers()
                                                std::initializer_list<const char*>{"pavement", "boundary"}));
     tLayers.add(std::make_unique<ApiFakeLayer>("airport_objects", false, std::initializer_list<const char*>{}));
     tLayers.add(std::make_unique<ApiFakeLayer>("taxi_routes", false, std::initializer_list<const char*>{}));
-    const MapTheme& tTheme = themeFor(MapMode::Scenery);
+    const XMapTheme& tTheme = themeFor(XMapMode::Scenery);
     tLayers.resetToDefaults(tTheme);
 
     // Kapali katmanin alt katmani: sadece o acilir, katman "yarim"
-    LayerRules::setVisible(tLayers, tTheme, MapLayer::Runways, false);
-    CHECK(LayerRules::state(tLayers, MapLayer::Runways) == prime::LayerState::Off, "runways off");
-    CHECK(!LayerRules::isVisible(tLayers, MapLayer::RunwaysWater), "sub hidden with parent");
-    LayerRules::setVisible(tLayers, tTheme, MapLayer::RunwaysWater, true);
-    CHECK(LayerRules::isVisible(tLayers, MapLayer::RunwaysWater), "water on");
-    CHECK(!LayerRules::isVisible(tLayers, MapLayer::RunwaysPaved), "paved stays off");
-    CHECK(LayerRules::state(tLayers, MapLayer::Runways) == prime::LayerState::Mixed, "runways mixed");
+    LayerRules::setVisible(tLayers, tTheme, XMapLayer::Runways, false);
+    CHECK(LayerRules::state(tLayers, XMapLayer::Runways) == prime::LayerState::Off, "runways off");
+    CHECK(!LayerRules::isVisible(tLayers, XMapLayer::RunwaysWater), "sub hidden with parent");
+    LayerRules::setVisible(tLayers, tTheme, XMapLayer::RunwaysWater, true);
+    CHECK(LayerRules::isVisible(tLayers, XMapLayer::RunwaysWater), "water on");
+    CHECK(!LayerRules::isVisible(tLayers, XMapLayer::RunwaysPaved), "paved stays off");
+    CHECK(LayerRules::state(tLayers, XMapLayer::Runways) == prime::LayerState::Mixed, "runways mixed");
     // Son alt katman kapaninca katman da kapanir
-    LayerRules::toggle(tLayers, tTheme, MapLayer::RunwaysWater);
-    CHECK(LayerRules::state(tLayers, MapLayer::Runways) == prime::LayerState::Off, "last sub closes layer");
+    LayerRules::toggle(tLayers, tTheme, XMapLayer::RunwaysWater);
+    CHECK(LayerRules::state(tLayers, XMapLayer::Runways) == prime::LayerState::Off, "last sub closes layer");
     // Butun alt katmanlari kapali katman acilinca hepsi acilir
-    LayerRules::setVisible(tLayers, tTheme, MapLayer::Runways, true);
-    CHECK(LayerRules::state(tLayers, MapLayer::Runways) == prime::LayerState::On, "layer opens all subs");
+    LayerRules::setVisible(tLayers, tTheme, XMapLayer::Runways, true);
+    CHECK(LayerRules::state(tLayers, XMapLayer::Runways) == prime::LayerState::On, "layer opens all subs");
 
     // Grup: kapat -> hepsi kapali; ac -> sadece varsayilan acik olanlar (taxi routes / objects kapali kalir)
-    LayerRules::setVisible(tLayers, tTheme, MapLayer::AirportsGroup, false);
-    CHECK(LayerRules::state(tLayers, MapLayer::AirportsGroup) == prime::LayerState::Off, "group off");
-    LayerRules::toggle(tLayers, tTheme, MapLayer::AirportsGroup);
-    CHECK(LayerRules::isVisible(tLayers, MapLayer::AirportSymbols), "group on: symbols");
-    CHECK(!LayerRules::isVisible(tLayers, MapLayer::TaxiRoutes), "group on: taxi routes stay off");
-    CHECK(LayerRules::state(tLayers, MapLayer::AirportsGroup) == prime::LayerState::Mixed, "group mixed");
+    LayerRules::setVisible(tLayers, tTheme, XMapLayer::AirportsGroup, false);
+    CHECK(LayerRules::state(tLayers, XMapLayer::AirportsGroup) == prime::LayerState::Off, "group off");
+    LayerRules::toggle(tLayers, tTheme, XMapLayer::AirportsGroup);
+    CHECK(LayerRules::isVisible(tLayers, XMapLayer::AirportSymbols), "group on: symbols");
+    CHECK(!LayerRules::isVisible(tLayers, XMapLayer::TaxiRoutes), "group on: taxi routes stay off");
+    CHECK(LayerRules::state(tLayers, XMapLayer::AirportsGroup) == prime::LayerState::Mixed, "group mixed");
     // Ikinci tiklama: varsayilanlar acik -> hepsi kapanir
-    LayerRules::toggle(tLayers, tTheme, MapLayer::AirportsGroup);
-    CHECK(LayerRules::state(tLayers, MapLayer::AirportsGroup) == prime::LayerState::Off, "group toggled off");
+    LayerRules::toggle(tLayers, tTheme, XMapLayer::AirportsGroup);
+    CHECK(LayerRules::state(tLayers, XMapLayer::AirportsGroup) == prime::LayerState::Off, "group toggled off");
     // Sadece verilenler
-    const std::array<MapLayer, 2> tOnly = {MapLayer::TaxiRoutes, MapLayer::SurfacesBoundary};
+    const std::array<XMapLayer, 2> tOnly = {XMapLayer::TaxiRoutes, XMapLayer::SurfacesBoundary};
     LayerRules::showOnly(tLayers, tTheme, tOnly.data(), tOnly.data() + tOnly.size());
-    CHECK(LayerRules::isVisible(tLayers, MapLayer::TaxiRoutes), "show only: taxi");
-    CHECK(LayerRules::isVisible(tLayers, MapLayer::SurfacesBoundary), "show only: boundary");
-    CHECK(!LayerRules::isVisible(tLayers, MapLayer::SurfacesPavement), "show only: pavement off");
-    CHECK(!LayerRules::isVisible(tLayers, MapLayer::Runways), "show only: runways off");
-    CHECK(LayerRules::groupFromPanelName("Airports") == MapLayer::AirportsGroup, "panel group name");
+    CHECK(LayerRules::isVisible(tLayers, XMapLayer::TaxiRoutes), "show only: taxi");
+    CHECK(LayerRules::isVisible(tLayers, XMapLayer::SurfacesBoundary), "show only: boundary");
+    CHECK(!LayerRules::isVisible(tLayers, XMapLayer::SurfacesPavement), "show only: pavement off");
+    CHECK(!LayerRules::isVisible(tLayers, XMapLayer::Runways), "show only: runways off");
+    CHECK(LayerRules::groupFromPanelName("Airports") == XMapLayer::AirportsGroup, "panel group name");
 
     // 3) Ayar metni: ToText / loadText / mergeText ve bolum suzgeci (eski anahtarlar aynen)
     Settings tSettings;

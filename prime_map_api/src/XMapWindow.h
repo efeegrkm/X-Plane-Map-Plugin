@@ -13,12 +13,12 @@
 #include "Color.h"
 #include "Geo.h"
 #include "LabelPlacer.h"
-#include "MapImageCache.h"
-#include "MapView.h"
-#include "PrimeMap.h"
+#include "XMapImageCache.h"
+#include "XMapView.h"
+#include "api/XMapTypes.h"
 #include "ScreenMath.h"
 #include "gfx/Canvas.h"
-#include "MapTheme.h"
+#include "XMapTheme.h"
 #include "Settings.h"
 #include "ui/AirportSearchPanel.h"
 #include "ui/AtlasTextRenderer.h"
@@ -35,15 +35,15 @@ class LayerManager;
 
 struct drawContext;
 
-// Pencereyi acarken verilenler (API MapConfig'in ic karsiligi)
-struct MapWindowOptions
+// Pencereyi acarken verilenler (API XMapConfig'in ic karsiligi)
+struct XMapWindowOptions
 {
     RectI mGeometry;           // global boxel
     bool mEmbedded = true;     // false: Standalone
     bool mVisible = true;
     bool mUiVisible = false;
     bool mMouseInput = false;
-    MapMode mMode = MapMode::Scenery;
+    XMapMode mMode = XMapMode::Scenery;
     bool mImageCache = true;   // [render] cache
     int mMaxRenderFps = 15;    // [render] max_fps
     bool mXPlaneFont = false;  // [text] renderer = xplane
@@ -63,8 +63,8 @@ public:
     // Pencereyi nesnedeki ayarlarla (yer, stil, gorunurluk ...) olusturur
     void create();
     // Eski yol: once ayarlari uygular, sonra olusturur
-    void create(const MapWindowOptions& pOptions);
-    void applyOptions(const MapWindowOptions& pOptions);
+    void create(const XMapWindowOptions& pOptions);
+    void applyOptions(const XMapWindowOptions& pOptions);
     void destroy();
     bool isCreated() const;
 
@@ -95,9 +95,9 @@ public:
 
     // Harita modu: katman gorunurlugu mod basina saklanir (gecerli mod kaydedilip
     // yenisininki yuklenir)
-    void setMapMode(MapMode pMode);
+    void setMapMode(XMapMode pMode);
     void nextMapMode();
-    MapMode getMapMode() const;
+    XMapMode getMapMode() const;
 
     // Haritada gorunen alan (bolge onbellegi komutu icin)
     GeoBounds visibleBounds() const;
@@ -142,12 +142,12 @@ public:
     uint64_t settingsRevision() const;
     uint64_t drawingsRevision() const;
 
-    bool setLayerColor(prime::MapLayer pLayer, const Rgba& pColor);  // yazilamiyorsa false
-    Rgba layerColor(prime::MapLayer pLayer) const;  // yazma yoksa mR < 0 doner
-    void clearLayerColor(prime::MapLayer pLayer);
+    bool setLayerColor(prime::XMapLayer pLayer, const Rgba& pColor);  // yazilamiyorsa false
+    Rgba layerColor(prime::XMapLayer pLayer) const;  // yazma yoksa mR < 0 doner
+    void clearLayerColor(prime::XMapLayer pLayer);
     void clearLayerColors();
-    void setLayerColors(const std::map<prime::MapLayer, Rgba>& pColors);  // ayar dosyasindan toplu yukleme
-    const std::map<prime::MapLayer, Rgba>& layerColors() const;
+    void setLayerColors(const std::map<prime::XMapLayer, Rgba>& pColors);  // ayar dosyasindan toplu yukleme
+    const std::map<prime::XMapLayer, Rgba>& layerColors() const;
 
     // API onRender: bir kare cizer (XPLM cizim callback'iyle ayni yol)
     void render();
@@ -229,9 +229,9 @@ private:
     const AirportGeometryStore& mAirports;
     AirportSearchPanel mSearchPanel;
     ToolPalette mToolPalette;          // yuzen cizim araclari paneli
-    MapMode mMapMode = MapMode::Scenery;
-    MapTheme mTheme = themeFor(MapMode::Scenery);  // etkin tema (katman renk yazmalari uygulanmis)
-    std::map<prime::MapLayer, Rgba> mLayerColors;  // API setColor yazmalari (ayar dosyasina da yazilir)
+    XMapMode mMapMode = XMapMode::Scenery;
+    XMapTheme mTheme = themeFor(XMapMode::Scenery);  // etkin tema (katman renk yazmalari uygulanmis)
+    std::map<prime::XMapLayer, Rgba> mLayerColors;  // API setColor yazmalari (ayar dosyasina da yazilir)
     StatusBar mStatusBar;
     LabelPlacer mLabelPlacer;          // tum katmanlarin ortak etiket seyreltmesi
     XMapImageCache mImageCache;         // 0.18: harita resmi (FBO); [render] cache = 0 ile kapatilir

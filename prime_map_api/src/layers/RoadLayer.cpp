@@ -4,7 +4,7 @@
 #include <cmath>
 #include <vector>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/SceneryIndex.h"
 #include "layers/TerrainHub.h"
 #include "gfx/Canvas.h"
@@ -55,7 +55,7 @@ bool RoadLayer::prepareFrame()
     return tChanged;
 }
 
-void RoadLayer::upload(GpuTile& pTile, const MapTheme& pTheme)
+void RoadLayer::upload(GpuTile& pTile, const XMapTheme& pTheme)
 {
     pTile.mOriginX = Mercator::lonToX(pTile.mWest);
     pTile.mOriginY = Mercator::latToY(pTile.mSouth);

@@ -1,4 +1,4 @@
-#include "MapFormat.h"
+#include "XMapFormat.h"
 
 #include <array>
 #include <cmath>

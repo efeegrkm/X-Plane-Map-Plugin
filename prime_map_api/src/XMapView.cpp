@@ -1,4 +1,4 @@
-#include "MapView.h"
+#include "XMapView.h"
 
 #include <cmath>
 

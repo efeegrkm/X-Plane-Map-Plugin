@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportGeometryStore.h"
 
 namespace

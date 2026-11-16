@@ -2,8 +2,8 @@
 // Prime XMap API test eklentisi (ayri bir X-Plane eklentisi; kutuphaneyi CMake hedefi olarak kullanir).
 //
 //   XPluginEnable : kutuphane + Embedded harita (UI ve fare kapali), otomatik test baslar
-//   flight loop   : otomatik test adimlari (sonuclar Log.txt'de "[map-api-test]")
-//   menu          : Plugins > XMap API Test: ayni MapApiCalls metotlari disaridan, elle
+//   flight loop   : otomatik test adimlari (sonuclar Log.txt'de "[xmap-api-test]")
+//   menu          : Plugins > XMap API Test: ayni XMapApiCalls metotlari disaridan, elle
 //   XPluginDisable: harita kapanir, kutuphane durur
 #include <cstring>
 #include <memory>
@@ -14,7 +14,7 @@
 #include "XPLMProcessing.h"
 #include "XPLMUtilities.h"
 
-#include "MapApiCalls.h"
+#include "XMapApiCalls.h"
 #include "SelfTest.h"
 
 namespace
@@ -70,7 +70,7 @@ private:
     }
     void toggleAirways()
     {
-        mCalls.toggleLayer(prime::MapLayer::AirwaysGroup);
+        mCalls.toggleLayer(prime::XMapLayer::AirwaysGroup);
     }
     void toggleUi()
     {
@@ -98,7 +98,7 @@ private:
         mCalls.setVisible(!mCalls.isVisible());
     }
 
-    MapApiCalls mCalls;
+    XMapApiCalls mCalls;
     SelfTest mTest{mCalls};
     XPLMMenuID mMenu = nullptr;
     std::vector<MenuAction> mActions;
@@ -106,8 +106,8 @@ private:
 
 void TestPlugin::enable()
 {
-    mCalls.initLibrary("[map-api-test-lib]");
-    mCalls.openMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, false, false);
+    mCalls.initLibrary("[xmap-api-test-lib]");
+    mCalls.openXMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, false, false);
     mTest.start(XPLMGetElapsedTime());
 
     mActions = {
@@ -136,7 +136,7 @@ void TestPlugin::disable()
         XPLMDestroyMenu(mMenu);
         mMenu = nullptr;
     }
-    mCalls.closeMap();
+    mCalls.closeXMap();
     mCalls.shutdownLibrary();
 }
 
@@ -167,7 +167,7 @@ std::unique_ptr<TestPlugin> gPlugin;
 PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescription)
 {
     std::strcpy(pOutName, "XMap API Test");
-    std::strcpy(pOutSignature, "prime.map_api_test");
+    std::strcpy(pOutSignature, "prime.xmap_api_test");
     std::strcpy(pOutDescription, "Tests every Prime XMap API function");
     return 1;
 }

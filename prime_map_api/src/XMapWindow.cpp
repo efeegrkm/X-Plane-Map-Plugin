@@ -1,4 +1,4 @@
-#include "MapWindow.h"
+#include "XMapWindow.h"
 
 #include <array>
 #include <chrono>
@@ -67,7 +67,7 @@ XMapWindow::~XMapWindow()
     destroy();
 }
 
-void XMapWindow::applyOptions(const MapWindowOptions& pOptions)
+void XMapWindow::applyOptions(const XMapWindowOptions& pOptions)
 {
     if (!mWindow)
     {
@@ -83,7 +83,7 @@ void XMapWindow::applyOptions(const MapWindowOptions& pOptions)
     mWantVisible = pOptions.mVisible;
 }
 
-void XMapWindow::create(const MapWindowOptions& pOptions)
+void XMapWindow::create(const XMapWindowOptions& pOptions)
 {
     if (mWindow)
     {
@@ -502,7 +502,7 @@ void XMapWindow::onDraw()
         tScissor.emplace(*tBoxelToPixel, toRectD(mArea));  // pencere disina tasma
     }
 
-    const MapTheme& tTheme = mTheme;  // API katman renk yazmalari uygulanmis etkin tema
+    const XMapTheme& tTheme = mTheme;  // API katman renk yazmalari uygulanmis etkin tema
     Ui::fillRect(mCanvas, mArea, tTheme.mBackground);  // zemin verisi olmayan yer: duz renk
 
     int tMouseX = 0;
@@ -706,7 +706,7 @@ void XMapWindow::drawControls(int pMouseX, int pMouseY, bool pMouseInside)
     const ToolbarState tState = currentToolbarState();
     mLayerPanel.layout(mToolbar.buttonRect(ToolbarAction::Layers), mArea.mBottom + StatusBar::kHeight + 4, mLayers);
     mToolPalette.layout(paletteBounds(), tState);
-    mModePanel.layout(mToolbar.buttonRect(ToolbarAction::MapMode));
+    mModePanel.layout(mToolbar.buttonRect(ToolbarAction::XMapMode));
     mSearchPanel.layout(mToolbar.buttonRect(ToolbarAction::goToAirport));
 
     // Imlecin altindaki nokta: kontrollerin ustundeyse gosterme
@@ -772,7 +772,7 @@ ToolbarState XMapWindow::currentToolbarState() const
     tState.mLayersOpen = mLayerPanel.isOpen();
     tState.mModesOpen = mModePanel.isOpen();
     tState.mSearchOpen = mSearchPanel.isOpen();
-    static const char* const kModeLabels[kMapModeCount] = {"XMap: Scenery", "XMap: VFR", "XMap: IFR Low",
+    static const char* const kModeLabels[kXMapModeCount] = {"XMap: Scenery", "XMap: VFR", "XMap: IFR Low",
                                                            "XMap: IFR High", "XMap: Dark"};
     tState.mModeLabel = kModeLabels[static_cast<int>(mMapMode)];
     tState.mFollowing = mFollowAircraft;
@@ -805,7 +805,7 @@ bool XMapWindow::isOverControls(int pX, int pY) const
     {
         return false;
     }
-    std::optional<MapMode> tMode;
+    std::optional<XMapMode> tMode;
     return mToolbar.contains(pX, pY) || mStatusBar.contains(pX, pY) || mLayerPanel.hitTest(pX, pY, mLayers).mInside ||
            mModePanel.hitTest(pX, pY, &tMode) || mToolPalette.contains(pX, pY) ||
            mSearchPanel.hitTest(pX, pY).mInside;
@@ -1007,7 +1007,7 @@ bool XMapWindow::handleControlClick(int pX, int pY)
         }
         return true;
     }
-    std::optional<MapMode> tModeHit;
+    std::optional<XMapMode> tModeHit;
     if (mModePanel.hitTest(pX, pY, &tModeHit))
     {
         if (tModeHit)
@@ -1062,7 +1062,7 @@ void XMapWindow::applyLayerPanelHit(const LayerPanel::Hit& pHit)
         return;
     }
     // Paneldeki satiri API ogesine cevir; kurallar engine/LayerTable'da (API ile ayni yol)
-    std::optional<prime::MapLayer> tItem;
+    std::optional<prime::XMapLayer> tItem;
     if (pHit.mSubLayerOwner >= 0)
     {
         tItem = LayerRules::layerFromKey(LayerManager::subLayerKey(*mLayers.at(pHit.mSubLayerOwner), pHit.mSubLayer));
@@ -1093,7 +1093,7 @@ void XMapWindow::resetLayers()
     saveSettings();
 }
 
-void XMapWindow::setMapMode(MapMode pMode)
+void XMapWindow::setMapMode(XMapMode pMode)
 {
     if (pMode == mMapMode)
     {
@@ -1118,7 +1118,7 @@ GeoBounds XMapWindow::visibleBounds() const
     return mView.visibleBounds();
 }
 
-MapMode XMapWindow::getMapMode() const
+XMapMode XMapWindow::getMapMode() const
 {
     return mMapMode;
 }
@@ -1132,7 +1132,7 @@ void XMapWindow::performToolbarAction(ToolbarAction pAction)
             mModePanel.setOpen(false);
             setSearchOpen(false);
             break;
-        case ToolbarAction::MapMode:
+        case ToolbarAction::XMapMode:
             mModePanel.toggle();
             mLayerPanel.setOpen(false);
             setSearchOpen(false);
@@ -1410,7 +1410,7 @@ void XMapWindow::applyLayerColors()
     }
 }
 
-bool XMapWindow::setLayerColor(prime::MapLayer pLayer, const Rgba& pColor)
+bool XMapWindow::setLayerColor(prime::XMapLayer pLayer, const Rgba& pColor)
 {
     if (!themeLayerColor(mTheme, pLayer))
     {
@@ -1421,7 +1421,7 @@ bool XMapWindow::setLayerColor(prime::MapLayer pLayer, const Rgba& pColor)
     return true;
 }
 
-Rgba XMapWindow::layerColor(prime::MapLayer pLayer) const
+Rgba XMapWindow::layerColor(prime::XMapLayer pLayer) const
 {
     const auto tIt = mLayerColors.find(pLayer);
     if (tIt == mLayerColors.end())
@@ -1431,7 +1431,7 @@ Rgba XMapWindow::layerColor(prime::MapLayer pLayer) const
     return tIt->second;
 }
 
-void XMapWindow::clearLayerColor(prime::MapLayer pLayer)
+void XMapWindow::clearLayerColor(prime::XMapLayer pLayer)
 {
     mLayerColors.erase(pLayer);
     mTheme = themeFor(mMapMode);
@@ -1445,14 +1445,14 @@ void XMapWindow::clearLayerColors()
     applyLayerColors();
 }
 
-void XMapWindow::setLayerColors(const std::map<prime::MapLayer, Rgba>& pColors)
+void XMapWindow::setLayerColors(const std::map<prime::XMapLayer, Rgba>& pColors)
 {
     mLayerColors = pColors;
     mTheme = themeFor(mMapMode);
     applyLayerColors();
 }
 
-const std::map<prime::MapLayer, Rgba>& XMapWindow::layerColors() const
+const std::map<prime::XMapLayer, Rgba>& XMapWindow::layerColors() const
 {
     return mLayerColors;
 }

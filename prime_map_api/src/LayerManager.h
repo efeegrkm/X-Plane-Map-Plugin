@@ -33,7 +33,7 @@ public:
     bool prepareAll();
 
     // Bu modun varsayilan gorunurlugu (katmanlar ve alt katmanlar; ayar dosyasi yok sayilir)
-    void resetToDefaults(const MapTheme& pTheme);
+    void resetToDefaults(const XMapTheme& pTheme);
 
     // Durum imzasi: gorunurluk, alt katmanlar, ust katman (overlay) ayrimi. Degisirse harita
     // resmi hemen yeniden cizilir (XMapImageCache).
@@ -52,11 +52,11 @@ public:
     // Mod basina bolum ("layers.vfr" ...): anahtar = katman kimligi, deger = 1/0.
     // Scenery icin eski [layers] bolumu de okunur (0.12 ve oncesi); orada varsayilan
     // kapali katmanlar okunmaz, yeni kurulumda kapali gelsinler.
-    void loadVisibility(const Settings& pSettings, const MapTheme& pTheme);
+    void loadVisibility(const Settings& pSettings, const XMapTheme& pTheme);
 
     // Katmanin bu moddaki varsayilan gorunurlugu (temanin ayari, yoksa katmanin kendisi)
-    static bool themeDefault(const Layer& pLayer, const MapTheme& pTheme);
-    void saveVisibility(Settings& pSettings, const MapTheme& pTheme) const;
+    static bool themeDefault(const Layer& pLayer, const XMapTheme& pTheme);
+    void saveVisibility(Settings& pSettings, const XMapTheme& pTheme) const;
 
     // Alt katmanin ayar anahtari: "<katman>.<alt katman>" (ornek "airport_surfaces.boundary")
     static std::string subLayerKey(const Layer& pLayer, int pSubLayer);

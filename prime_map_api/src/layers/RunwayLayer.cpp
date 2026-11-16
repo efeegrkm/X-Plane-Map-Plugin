@@ -4,10 +4,10 @@
 #include <format>
 
 #include "Geo.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportGeometryStore.h"
 #include "gfx/Canvas.h"
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 namespace
 {
@@ -195,7 +195,7 @@ void RunwayLayer::draw(const drawContext& pContext)
     // birinin kenari digerinin yuzeyini cizmesin
     // Kenar rengi temadan (Scenery/VFR acik, IFR koyu). Uzaktan gorunen ince
     // pist: koyu zeminde acik cizgi, acik zeminde (VFR/IFR) koyu cizgi.
-    const MapTheme& tTheme = *pContext.mTheme;
+    const XMapTheme& tTheme = *pContext.mTheme;
     const Rgba& tEdgeColor = tTheme.mRunwayEdge;
     for (const ScreenRunway& tRunway : mVisible)
     {
@@ -266,7 +266,7 @@ void RunwayLayer::drawLabels(const drawContext& pContext)
             const float tOffset = kLabelGap + tOverrun;
             const float tX = tRunway.mEndX[tEnd] + tSign * tRunway.mDirX * tOffset;
             const float tY = tRunway.mEndY[tEnd] + tSign * tRunway.mDirY * tOffset;
-            MapSymbols::drawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName,
+            XMapSymbols::drawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName,
                                           pContext.mTheme->mRunwayLabel, pContext.labelShadow());
         }
     }

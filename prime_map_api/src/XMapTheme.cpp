@@ -1,5 +1,5 @@
 
-#include "MapTheme.h"
+#include "XMapTheme.h"
 
 namespace
 {
@@ -94,8 +94,8 @@ const LayerDefault kDarkLayers[] = {
     {"terrain.built_up", false}, {"terrain.forests", false}, {"track", true}, {"vor", true},
 };
 
-const MapTheme kScenery = {
-    MapMode::Scenery,
+const XMapTheme kScenery = {
+    XMapMode::Scenery,
     "scenery",
     "Scenery",
     {0.13f, 0.15f, 0.18f, 1.0f},  // arka plan
@@ -142,8 +142,8 @@ const MapTheme kScenery = {
 };
 
 // VFR: sectional benzeri. Kuleli mavi, kulesiz macenta; Victor yollari kalin acik mavi.
-const MapTheme kVfr = {
-    MapMode::Vfr,
+const XMapTheme kVfr = {
+    XMapMode::Vfr,
     "vfr",
     "VFR",
     {0.80f, 0.85f, 0.80f, 1.0f},
@@ -190,8 +190,8 @@ const MapTheme kVfr = {
 };
 
 // IFR Low: enroute low benzeri. IAP'li sayilan buyukler yesil, digerleri kahverengi.
-const MapTheme kIfrLow = {
-    MapMode::IfrLow,
+const XMapTheme kIfrLow = {
+    XMapMode::IfrLow,
     "ifr_low",
     "IFR Low",
     {0.95f, 0.95f, 0.92f, 1.0f},
@@ -238,8 +238,8 @@ const MapTheme kIfrLow = {
 };
 
 // IFR High: yuksek hava yollari, sadece buyuk havalimanlari, NDB yok
-const MapTheme kIfrHigh = {
-    MapMode::IfrHigh,
+const XMapTheme kIfrHigh = {
+    XMapMode::IfrHigh,
     "ifr_high",
     "IFR High",
     {0.93f, 0.95f, 0.97f, 1.0f},
@@ -278,8 +278,8 @@ const MapTheme kIfrHigh = {
 
 // dark: ucus kontrol / radar ekrani tarzi tam siyah minimal harita. Parlak ama
 // doygun olmayan renkler: karanlik IOS odasinda goz yormasin.
-const MapTheme kDark = {
-    MapMode::Dark,
+const XMapTheme kDark = {
+    XMapMode::Dark,
     "dark",
     "Dark",
     {0.0f, 0.0f, 0.0f, 1.0f},     // kara: siyah
@@ -329,58 +329,58 @@ const MapTheme kDark = {
 
 }  // namespace
 
-const MapTheme& themeFor(MapMode pMode)
+const XMapTheme& themeFor(XMapMode pMode)
 {
     switch (pMode)
     {
-        case MapMode::Vfr:
+        case XMapMode::Vfr:
             return kVfr;
-        case MapMode::IfrLow:
+        case XMapMode::IfrLow:
             return kIfrLow;
-        case MapMode::IfrHigh:
+        case XMapMode::IfrHigh:
             return kIfrHigh;
-        case MapMode::Dark:
+        case XMapMode::Dark:
             return kDark;
         default:
             return kScenery;
     }
 }
 
-Rgba* themeLayerColor(MapTheme& pTheme, prime::MapLayer pLayer)
+Rgba* themeLayerColor(XMapTheme& pTheme, prime::XMapLayer pLayer)
 {
-    using prime::MapLayer;
+    using prime::XMapLayer;
     switch (pLayer)
     {
-        case MapLayer::Grid:
+        case XMapLayer::Grid:
             return &pTheme.mGridLine;
-        case MapLayer::RoadsMotorways:
-        case MapLayer::RoadsPrimary:
-        case MapLayer::RoadsSecondary:
-        case MapLayer::RoadsLocal:
-        case MapLayer::RoadsRailways:
-        case MapLayer::RoadsPowerLines:
-            return &pTheme.mRoads[static_cast<int>(pLayer) - static_cast<int>(MapLayer::RoadsMotorways)];
-        case MapLayer::TerrainBuiltUp:
+        case XMapLayer::RoadsMotorways:
+        case XMapLayer::RoadsPrimary:
+        case XMapLayer::RoadsSecondary:
+        case XMapLayer::RoadsLocal:
+        case XMapLayer::RoadsRailways:
+        case XMapLayer::RoadsPowerLines:
+            return &pTheme.mRoads[static_cast<int>(pLayer) - static_cast<int>(XMapLayer::RoadsMotorways)];
+        case XMapLayer::TerrainBuiltUp:
             return &pTheme.mBuiltUp;
-        case MapLayer::Vor:
-        case MapLayer::Ndb:
-        case MapLayer::Ils:
-        case MapLayer::Fixes:
-            return &pTheme.mNavaid[static_cast<int>(pLayer) - static_cast<int>(MapLayer::Vor)];
-        case MapLayer::AirwaysLow:
+        case XMapLayer::Vor:
+        case XMapLayer::Ndb:
+        case XMapLayer::Ils:
+        case XMapLayer::Fixes:
+            return &pTheme.mNavaid[static_cast<int>(pLayer) - static_cast<int>(XMapLayer::Vor)];
+        case XMapLayer::AirwaysLow:
             return &pTheme.mAirwayLow;
-        case MapLayer::AirwaysHigh:
+        case XMapLayer::AirwaysHigh:
             return &pTheme.mAirwayHigh;
-        case MapLayer::Runways:
+        case XMapLayer::Runways:
             return &pTheme.mRunwayEdge;
         default:
             return nullptr;
     }
 }
 
-TerrainImageStyle terrainStyleFor(MapMode pMode)
+TerrainImageStyle terrainStyleFor(XMapMode pMode)
 {
-    const MapTheme& tTheme = themeFor(pMode);
+    const XMapTheme& tTheme = themeFor(pMode);
     auto tToByte = [](float pValue)
     {
         return static_cast<uint8_t>(pValue * 255.0f + 0.5f);
@@ -397,18 +397,18 @@ TerrainImageStyle terrainStyleFor(MapMode pMode)
 std::vector<TerrainImageStyle> allTerrainStyles()
 {
     std::vector<TerrainImageStyle> tStyles;
-    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    for (int tIndex = 0; tIndex < kXMapModeCount; ++tIndex)
     {
-        tStyles.push_back(terrainStyleFor(static_cast<MapMode>(tIndex)));
+        tStyles.push_back(terrainStyleFor(static_cast<XMapMode>(tIndex)));
     }
     return tStyles;
 }
 
-MapMode modeFromId(std::string_view pId, MapMode pFallback)
+XMapMode modeFromId(std::string_view pId, XMapMode pFallback)
 {
-    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    for (int tIndex = 0; tIndex < kXMapModeCount; ++tIndex)
     {
-        const MapMode tMode = static_cast<MapMode>(tIndex);
+        const XMapMode tMode = static_cast<XMapMode>(tIndex);
         if (pId == themeFor(tMode).mId)
         {
             return tMode;
@@ -417,22 +417,22 @@ MapMode modeFromId(std::string_view pId, MapMode pFallback)
     return pFallback;
 }
 
-MapMode nextMode(MapMode pMode)
+XMapMode nextMode(XMapMode pMode)
 {
-    return static_cast<MapMode>((static_cast<int>(pMode) + 1) % kMapModeCount);
+    return static_cast<XMapMode>((static_cast<int>(pMode) + 1) % kXMapModeCount);
 }
 
-std::string_view layerSectionFor(MapMode pMode)
+std::string_view layerSectionFor(XMapMode pMode)
 {
     switch (pMode)
     {
-        case MapMode::Vfr:
+        case XMapMode::Vfr:
             return "layers.vfr";
-        case MapMode::IfrLow:
+        case XMapMode::IfrLow:
             return "layers.ifr_low";
-        case MapMode::IfrHigh:
+        case XMapMode::IfrHigh:
             return "layers.ifr_high";
-        case MapMode::Dark:
+        case XMapMode::Dark:
             return "layers.dark";
         default:
             return "layers.scenery";

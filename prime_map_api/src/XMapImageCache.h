@@ -4,7 +4,7 @@
 
 #include <functional>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "ScreenMath.h"
 #include "gfx/renderTarget.h"
 

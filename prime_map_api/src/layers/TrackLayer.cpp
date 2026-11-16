@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstddef>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AircraftData.h"
 #include "gfx/Canvas.h"
 

@@ -6,12 +6,12 @@
 
 #include "XPLMUtilities.h"
 
-#include "MapApiCalls.h"
+#include "XMapApiCalls.h"
 
 namespace
 {
 
-using prime::MapLayer;
+using prime::XMapLayer;
 
 const float kDataTimeout = 300.0f;  // havalimani / nav verisi en cok bu kadar beklenir (s)
 const float kDrawWait = 2.0f;       // sorgudan once harita bu kadar cizilsin (s)
@@ -23,12 +23,12 @@ bool nearEqual(double pA, double pB, double pTolerance)
 
 void write(const std::string& pLine)
 {
-    XPLMDebugString(("[map-api-test] " + pLine + "\n").c_str());
+    XPLMDebugString(("[xmap-api-test] " + pLine + "\n").c_str());
 }
 
 }  // namespace
 
-SelfTest::SelfTest(MapApiCalls& pCalls)
+SelfTest::SelfTest(XMapApiCalls& pCalls)
     : mCalls(pCalls)
 {
 }
@@ -79,8 +79,8 @@ void SelfTest::runImmediate()
     Check(mCalls.isInitialized(), "isInitialized");
     Check(mCalls.versionString() == "0.24.0", "VersionString", mCalls.versionString());
     Check(mCalls.isOpen(), "XMap::open(embedded)");
-    Check(mCalls.openSecondMap(), "openSecondMap opens an independent second map");
-    Check(!mCalls.openSecondMap(), "openSecondMap again closes the second map");
+    Check(mCalls.openSecondXMap(), "openSecondXMap opens an independent second map");
+    Check(!mCalls.openSecondXMap(), "openSecondXMap again closes the second map");
 
     // --- Pencere
     const prime::Geometry tGeometry = {150, 750, 640, 420};
@@ -164,45 +164,45 @@ void SelfTest::runImmediate()
     Check(!mCalls.geoToScreen(-47.0, 60.0, &tX, &tY), "GeoToScreen outside the window returns false");
 
     // --- Mod
-    const prime::MapMode tModes[] = {prime::MapMode::Vfr, prime::MapMode::IfrLow, prime::MapMode::IfrHigh,
-                                        prime::MapMode::Dark, prime::MapMode::Scenery};
-    for (prime::MapMode tMode : tModes)
+    const prime::XMapMode tModes[] = {prime::XMapMode::Vfr, prime::XMapMode::IfrLow, prime::XMapMode::IfrHigh,
+                                        prime::XMapMode::Dark, prime::XMapMode::Scenery};
+    for (prime::XMapMode tMode : tModes)
     {
         mCalls.setMode(tMode);
         Check(mCalls.getMode() == tMode, std::format("setMode / getMode {}", static_cast<int>(tMode)));
     }
     mCalls.nextMode();
-    Check(mCalls.getMode() == prime::MapMode::Vfr, "nextMode Scenery -> Vfr");
-    mCalls.setMode(prime::MapMode::Scenery);
+    Check(mCalls.getMode() == prime::XMapMode::Vfr, "nextMode Scenery -> Vfr");
+    mCalls.setMode(prime::XMapMode::Scenery);
 
     // --- Katman yardimcilari
     Check(mCalls.topLevelLayers().size() == 6, "TopLevelLayers (5 groups + drawings)");
-    Check(mCalls.childrenOf(MapLayer::Runways).size() == 6, "ChildrenOf(Runways)");
-    Check(mCalls.parentOf(MapLayer::RunwaysWater) == MapLayer::Runways, "ParentOf(RunwaysWater)");
-    Check(!mCalls.parentOf(MapLayer::AirportsGroup), "ParentOf(group) = none");
-    Check(mCalls.kindOf(MapLayer::NavaidsGroup) == prime::LayerKind::Group, "KindOf");
-    Check(mCalls.layerName(MapLayer::RunwaysWater) == "Water runways", "LayerName");
-    Check(mCalls.layerKey(MapLayer::RunwaysWater) == "runways.water", "LayerKey");
-    Check(mCalls.layerFromKey("airport_objects.signs") == MapLayer::ObjectsSigns, "LayerFromKey");
-    Check(!mCalls.isLayerDefaultVisible(MapLayer::TaxiRoutes, prime::MapMode::Scenery), "isLayerDefaultVisible");
+    Check(mCalls.childrenOf(XMapLayer::Runways).size() == 6, "ChildrenOf(Runways)");
+    Check(mCalls.parentOf(XMapLayer::RunwaysWater) == XMapLayer::Runways, "ParentOf(RunwaysWater)");
+    Check(!mCalls.parentOf(XMapLayer::AirportsGroup), "ParentOf(group) = none");
+    Check(mCalls.kindOf(XMapLayer::NavaidsGroup) == prime::LayerKind::Group, "KindOf");
+    Check(mCalls.layerName(XMapLayer::RunwaysWater) == "Water runways", "LayerName");
+    Check(mCalls.layerKey(XMapLayer::RunwaysWater) == "runways.water", "LayerKey");
+    Check(mCalls.layerFromKey("airport_objects.signs") == XMapLayer::ObjectsSigns, "LayerFromKey");
+    Check(!mCalls.isLayerDefaultVisible(XMapLayer::TaxiRoutes, prime::XMapMode::Scenery), "isLayerDefaultVisible");
 
     // --- katmanlar(panel kurallari)
     mCalls.resetLayersToDefaults();
-    Check(mCalls.isLayerVisible(MapLayer::Runways), "resetLayersToDefaults / isLayerVisible");
-    mCalls.setLayerVisible(MapLayer::Runways, false);
-    Check(!mCalls.isLayerVisible(MapLayer::RunwaysPaved), "setLayerVisible(layer, false) hides sub layers");
-    mCalls.setLayerVisible(MapLayer::RunwaysWater, true);
-    Check(mCalls.getLayerState(MapLayer::Runways) == prime::LayerState::Mixed &&
-              !mCalls.isLayerVisible(MapLayer::RunwaysPaved),
+    Check(mCalls.isLayerVisible(XMapLayer::Runways), "resetLayersToDefaults / isLayerVisible");
+    mCalls.setLayerVisible(XMapLayer::Runways, false);
+    Check(!mCalls.isLayerVisible(XMapLayer::RunwaysPaved), "setLayerVisible(layer, false) hides sub layers");
+    mCalls.setLayerVisible(XMapLayer::RunwaysWater, true);
+    Check(mCalls.getLayerState(XMapLayer::Runways) == prime::LayerState::Mixed &&
+              !mCalls.isLayerVisible(XMapLayer::RunwaysPaved),
           "sub layer of a closed layer opens alone (getLayerState Mixed)");
-    mCalls.toggleLayer(MapLayer::AirwaysGroup);
-    Check(mCalls.getLayerState(MapLayer::AirwaysGroup) == prime::LayerState::Off, "toggleLayer(group) off");
-    mCalls.toggleLayer(MapLayer::AirwaysGroup);
-    Check(mCalls.getLayerState(MapLayer::AirwaysGroup) == prime::LayerState::On, "toggleLayer(group) on");
-    mCalls.setLayersVisible({MapLayer::Vor, MapLayer::Ndb}, false);
-    Check(!mCalls.isLayerVisible(MapLayer::Vor) && !mCalls.isLayerVisible(MapLayer::Ndb), "setLayersVisible");
-    mCalls.showOnlyLayers({MapLayer::Terrain, MapLayer::AirportSymbols});
-    Check(mCalls.isLayerVisible(MapLayer::Terrain) && !mCalls.isLayerVisible(MapLayer::Grid), "showOnlyLayers");
+    mCalls.toggleLayer(XMapLayer::AirwaysGroup);
+    Check(mCalls.getLayerState(XMapLayer::AirwaysGroup) == prime::LayerState::Off, "toggleLayer(group) off");
+    mCalls.toggleLayer(XMapLayer::AirwaysGroup);
+    Check(mCalls.getLayerState(XMapLayer::AirwaysGroup) == prime::LayerState::On, "toggleLayer(group) on");
+    mCalls.setLayersVisible({XMapLayer::Vor, XMapLayer::Ndb}, false);
+    Check(!mCalls.isLayerVisible(XMapLayer::Vor) && !mCalls.isLayerVisible(XMapLayer::Ndb), "setLayersVisible");
+    mCalls.showOnlyLayers({XMapLayer::Terrain, XMapLayer::AirportSymbols});
+    Check(mCalls.isLayerVisible(XMapLayer::Terrain) && !mCalls.isLayerVisible(XMapLayer::Grid), "showOnlyLayers");
     const uint64_t tRevision = mCalls.getSettingsRevision();
     mCalls.resetLayersToDefaults();
     Check(mCalls.getSettingsRevision() > tRevision, "getSettingsRevision increases on change");
@@ -238,13 +238,13 @@ void SelfTest::runImmediate()
     mCalls.setDrawTool(prime::DrawTool::Pan);
 
     // --- Ayarlar
-    mCalls.setMode(prime::MapMode::IfrHigh);
+    mCalls.setMode(prime::XMapMode::IfrHigh);
     const std::string tSettings = mCalls.exportSettings();
     Check(tSettings.find("[layers.ifr_high]") != std::string::npos && tSettings.find("mode=ifr_high") != std::string::npos,
           "exportSettings");
-    mCalls.setMode(prime::MapMode::Scenery);
-    Check(mCalls.importSettings(tSettings) && mCalls.getMode() == prime::MapMode::IfrHigh, "importSettings");
-    mCalls.setMode(prime::MapMode::Scenery);
+    mCalls.setMode(prime::XMapMode::Scenery);
+    Check(mCalls.importSettings(tSettings) && mCalls.getMode() == prime::XMapMode::IfrHigh, "importSettings");
+    mCalls.setMode(prime::XMapMode::Scenery);
     prime::TerrainSettings tTerrain = mCalls.getTerrainSettings();
     Check(tTerrain.mVfrBandsFeet.size() == 8 && !tTerrain.mClassColors.empty(), "getTerrainSettings");
     const double tShading = tTerrain.mShadingStrength;
@@ -332,7 +332,7 @@ void SelfTest::runAfterDraw()
     {
         for (int tDx = -40; tDx <= 40 && tFound.empty(); tDx += 4)
         {
-            const std::vector<prime::MapObject> tObjects = mCalls.queryAtScreen(tX + tDx, tY + tDy);
+            const std::vector<prime::XMapObject> tObjects = mCalls.queryAtScreen(tX + tDx, tY + tDy);
             if (!tObjects.empty())
             {
                 tFound = std::format("{}: {}", mCalls.layerKey(tObjects[0].mLayer), tObjects[0].mText);
@@ -340,7 +340,7 @@ void SelfTest::runAfterDraw()
         }
     }
     Check(!tFound.empty(), "queryAtScreen near KSEA", tFound);
-    const std::vector<prime::MapObject> tAtGeo = mCalls.queryAt(47.4490, -122.3093);
+    const std::vector<prime::XMapObject> tAtGeo = mCalls.queryAt(47.4490, -122.3093);
     Check(true, "queryAt (called)", std::format("{} objects", tAtGeo.size()));
 
     // --- On onbellek
@@ -360,9 +360,9 @@ void SelfTest::runAfterDraw()
           std::format("airways {} terrain index {}", tStatus.mAirwaysReady, tStatus.mTerrainIndexReady));
 
     // --- Kapat / yeniden ac
-    mCalls.closeMap();
-    Check(!mCalls.isOpen(), "closeMap");
-    const bool tReopened = mCalls.openMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, true, true);
+    mCalls.closeXMap();
+    Check(!mCalls.isOpen(), "closeXMap");
+    const bool tReopened = mCalls.openXMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, true, true);
     Check(tReopened, "XMap::Open again after close (UI and mouse on)");
     mCalls.goToAirport("KSEA");
 }

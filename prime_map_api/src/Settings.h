@@ -1,4 +1,5 @@
-// Basit ayar dosyasi (INI bicimi): "# yorum", [bolum], anahtar=deger.
+// Ayar dosyasi (JSON bicimi): { "bolum": { "anahtar": "deger" } }. Degerler tirnak icinde
+// saklanir; okurken JSON eski INI bicimini de kabul eder (0.23 ve oncesi dosyalari gocmek icin).
 // X-Plane'e bagimli DEGIL. Sayilar her zaman nokta ile yazilir/okunur
 // ("C" yerel ayari; Turkce Windows'ta da 41.5).
 #pragma once
@@ -12,20 +13,19 @@ class Settings
 public:
     // Dosyayi okur. Dosya yoksa false doner ve ayarlar bos kalir
     // (bu bir hata degil: ilk acilista dosya henuz yoktur).
+    // Eski INI bicimi de otomatik taninir (0.23 dosyalari gocsuz okunur).
     bool load(const std::string& pPath);
 
     // Metinden okuma (dosyasiz; API ice aktarma). loadText onceki her seyi siler, mergeText ustune yazar.
     void loadText(const std::string& pText);
     void mergeText(const std::string& pText);
-    // Metin olarak (dosya bicimiyle ayni). pSections bos: butun bolumler; "layers*" on ekle eslesir.
+    // Metin olarak (JSON). pSections bos: butun bolumler; "layers*" on ekle eslesir.
     std::string toText(const std::vector<std::string>& pSections) const;
 
     // Son Load edilen (veya setPath ile verilen) dosyaya yazar
     bool save() const;
 
     void setPath(const std::string& pPath);
-    // Dosyanin basina yazilacak aciklama (her satir '# ' ile baslar); bossa varsayilan
-    void setComment(const std::string& pComment);
     const std::string& path() const;
 
     bool has(const std::string& pSection, const std::string& pKey) const;
@@ -48,7 +48,6 @@ public:
 
 private:
     std::string mPath;
-    std::string mComment;
     // bolum -> (anahtar -> deger); std::map oldugu icin dosyada alfabetik sirada yazilir
     std::map<std::string, std::map<std::string, std::string>> mValues;
 };

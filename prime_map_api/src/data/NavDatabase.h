@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "GeoGrid.h"
-#include "MapView.h"
+#include "XMapView.h"
 
 enum class NavKind : unsigned char
 {

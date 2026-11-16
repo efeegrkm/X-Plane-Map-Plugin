@@ -37,7 +37,7 @@ add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
 
 add_library(${PROJECT_NAME} SHARED
     src/plugin/PluginMain.cpp
-    src/Settings.h src/Settings.cpp)
+    src/PluginSettings.h src/PluginSettings.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)

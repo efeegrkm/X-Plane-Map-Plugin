@@ -28,9 +28,9 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
 
 add_library(${PROJECT_NAME} SHARED
-    src/MapUiTestMain.cpp
-    src/MapApiCalls.h src/MapApiCalls.cpp
-    src/MultiMapSelfTest.h src/MultiMapSelfTest.cpp)
+    src/XMapUiTestMain.cpp
+    src/XMapApiCalls.h src/XMapApiCalls.cpp
+    src/MultiXMapSelfTest.h src/MultiXMapSelfTest.cpp)
 
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
 target_compile_definitions(${PROJECT_NAME} PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1

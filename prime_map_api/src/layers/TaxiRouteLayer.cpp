@@ -3,12 +3,12 @@
 #include <cmath>
 
 #include "LabelPlacer.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportDetailStore.h"
 #include "data/AirportGeometryStore.h"
 #include "gfx/Canvas.h"
 #include "layers/AirportVisibility.h"
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 namespace
 {
@@ -88,7 +88,7 @@ void TaxiRouteLayer::drawLabels(const drawContext& pContext)
             continue;
         }
         // Ayni adli komsu kenarlar ust uste binmesin: etiket yerlestirici eler
-        MapSymbols::drawLabelCentered(*pContext.mLabels, (tEdge.mFrom.mX + tEdge.mTo.mX) * 0.5f,
+        XMapSymbols::drawLabelCentered(*pContext.mLabels, (tEdge.mFrom.mX + tEdge.mTo.mX) * 0.5f,
                                       (tEdge.mFrom.mY + tEdge.mTo.mY) * 0.5f, *tEdge.mName, kLabel,
                                       pContext.labelShadow());
     }

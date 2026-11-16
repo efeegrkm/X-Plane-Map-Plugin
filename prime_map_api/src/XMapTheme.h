@@ -1,5 +1,6 @@
 // Harita modlari ve her modun gorunumu (renkler, zemin bicimi, varsayilan
 // katmanlar). X-Plane'e bagimli DEGIL.
+// Harita modlari: tek tanim prime::XMapMode'dur (api/XMapTypes.h); motor ayni tipi kullanir.
 #pragma once
 
 #include <array>
@@ -8,19 +9,12 @@
 #include <vector>
 
 #include "Color.h"
-#include "PrimeMap.h"
+#include "api/XMapTypes.h"
 #include "data/TerrainClasses.h"
 
-enum class MapMode
-{
-    Scenery,
-    Vfr,
-    IfrLow,
-    IfrHigh,
-    Dark,
-};
+using prime::XMapMode;  // motor kodu niteliksiz XMapMode yazar; ayni tip
 
-const int kMapModeCount = 5;
+const int kXMapModeCount = 5;
 
 // Bir katmanin bu moddaki varsayilan gorunurlugu (ayar dosyasinda yoksa)
 struct LayerDefault
@@ -29,9 +23,9 @@ struct LayerDefault
     bool mVisible;
 };
 
-struct MapTheme
+struct XMapTheme
 {
-    MapMode mMode;
+    XMapMode mMode;
     const char* mId;    // ayar degeri: "scenery", "vfr", "ifr_low", "ifr_high", "dark"
     const char* mName;  // arayuz: "Scenery", "VFR" ...
 
@@ -79,23 +73,23 @@ struct MapTheme
     Rgba mBuiltUp;
 };
 
-const MapTheme& themeFor(MapMode pMode);
+const XMapTheme& themeFor(XMapMode pMode);
 
 // API setColor: katmanin tema rengini temsilen yazma yuvasi (yoksa nullptr).
 // Sadece dogrudan tema rengi olan katmanlar eslenir; nullptr donen katmanin rengi degistirilemez.
-Rgba* themeLayerColor(MapTheme& pTheme, prime::MapLayer pLayer);
+Rgba* themeLayerColor(XMapTheme& pTheme, prime::XMapLayer pLayer);
 
 // Zemin iscisine verilecek goruntu bicimi (kara = arka plan, su = mWater)
-TerrainImageStyle terrainStyleFor(MapMode pMode);
+TerrainImageStyle terrainStyleFor(XMapMode pMode);
 
-// TerrainImageKey::mStyle = static_cast<int>(MapMode) eslesir
+// TerrainImageKey::mStyle = static_cast<int>(XMapMode) eslesir
 std::vector<TerrainImageStyle> allTerrainStyles();
 
-// "vfr" -> MapMode::Vfr; taninmayan deger pFallback
-MapMode modeFromId(std::string_view pId, MapMode pFallback);
+// "vfr" -> XMapMode::Vfr; taninmayan deger pFallback
+XMapMode modeFromId(std::string_view pId, XMapMode pFallback);
 
 // Siradaki mod (dongusel): komut prime/map/next_mode
-MapMode nextMode(MapMode pMode);
+XMapMode nextMode(XMapMode pMode);
 
 // Katman gorunurlugunun saklandigi ayar bolumu: "layers.vfr" ...
-std::string_view layerSectionFor(MapMode pMode);
+std::string_view layerSectionFor(XMapMode pMode);

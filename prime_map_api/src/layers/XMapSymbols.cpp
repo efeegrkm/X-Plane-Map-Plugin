@@ -1,4 +1,4 @@
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 #include <array>
 #include <cmath>
@@ -22,7 +22,7 @@ RectD textBox(int pTextX, int pBaseY, int pWidth, int pHeight)
 
 }
 
-namespace MapSymbols
+namespace XMapSymbols
 {
 
 bool drawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, std::string_view pText,

@@ -16,14 +16,14 @@
 #include "Drawings.h"
 #include "gfx/Canvas.h"
 #include "ui/AtlasTextRenderer.h"
-#include "MapImageCache.h"
+#include "XMapImageCache.h"
 #include "gfx/GlScreen.h"
 #include "XPLMGraphics.h"
 #include "gfx/GlInclude.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
-#include "MapTheme.h"
-#include "MapView.h"
+#include "XMapTheme.h"
+#include "XMapView.h"
 #include "Settings.h"
 #include "data/AircraftData.h"
 #include "data/AirportGeometryStore.h"
@@ -89,7 +89,7 @@ struct Options
     std::string mCache = "terrain_cache/";
     std::string mTerrainColors;  // --terrain-colors <ini>: eklentinin terrain_colors.ini'si (bossa varsayilan)
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
-    MapMode mMode = MapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
+    XMapMode mMode = XMapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
     bool mPaletteCollapsed = false;          // --palette-collapsed: cizim paleti katlanmis
     std::vector<std::string> mPanelGroups;  // --panel <grup>: katman panelini bu grup acik ciz
@@ -133,7 +133,7 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         }
         else if (tArg == "--fbo")
         {
-            pOut->mImageCache = true;  // harita resmi onbellegi (MapImageCache) uzerinden ciz
+            pOut->mImageCache = true;  // harita resmi onbellegi (XMapImageCache) uzerinden ciz
         }
         else if (tArg == "--xplm-text")
         {
@@ -161,7 +161,7 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         }
         else if (tArg == "--mode" && tHasValue)
         {
-            pOut->mMode = ModeFromId(pArgv[++tIndex], MapMode::Scenery);
+            pOut->mMode = ModeFromId(pArgv[++tIndex], XMapMode::Scenery);
         }
         else if (tArg == "--hide" && tHasValue)
         {
@@ -426,8 +426,8 @@ int main(int pArgc, char** pArgv)
     tFixLayer->SetVisible(tOptions.mFixes);
     tLayers.Add(std::make_unique<AircraftLayer>(tAircraft));
     tLayers.Add(std::make_unique<DrawingLayer>(tDrawings));
-    const MapTheme& tTheme = ThemeFor(tOptions.mMode);
-    if (tOptions.mMode != MapMode::Scenery)
+    const XMapTheme& tTheme = ThemeFor(tOptions.mMode);
+    if (tOptions.mMode != XMapMode::Scenery)
     {
         tLayers.LoadVisibility(Settings(), tTheme);  // modun varsayilan katmanlari
     }
@@ -452,7 +452,7 @@ int main(int pArgc, char** pArgv)
     tArea.mBottom = 0;
     tArea.mRight = tWidth;
     tArea.mTop = tHeight;
-    MapView tView;
+    XMapView tView;
     tView.SetViewport(ToRectD(tArea));
     tView.SetCenter({tOptions.mLat, tOptions.mLon});
     tView.SetZoom(tOptions.mZoom);
@@ -539,10 +539,10 @@ int main(int pArgc, char** pArgv)
     const std::optional<Affine2D> tBoxelToPixel = ReadBoxelToPixel();
     if (tOptions.mImageCache && tBoxelToPixel)
     {
-        MapImageCache tImageCache;
+        XMapImageCache tImageCache;
         tLayers.PrepareAll();
         tCachedDraw = tImageCache.Draw(tCanvas, tView, *tBoxelToPixel, 0.0f, true, false, false,
-                                       [&](const MapView& pView, const RectD& pArea)
+                                       [&](const XMapView& pView, const RectD& pArea)
                                        {
                                            DrawContext tImage = tContext;
                                            tImage.mView = &pView;

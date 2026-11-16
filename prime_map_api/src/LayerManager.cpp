@@ -6,7 +6,7 @@
 #include <sstream>
 #include <utility>
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "Settings.h"
 
 namespace
@@ -58,7 +58,7 @@ void LayerManager::updateAll(float pNow)
     }
 }
 
-void LayerManager::resetToDefaults(const MapTheme& pTheme)
+void LayerManager::resetToDefaults(const XMapTheme& pTheme)
 {
     const Settings tEmpty;  // bos ayar: her katman ve alt katman tema / katman varsayilanini alir
     loadVisibility(tEmpty, pTheme);
@@ -258,13 +258,13 @@ void LayerManager::drawAll(const drawContext& pContext, LayerPass pPass)
     }
 }
 
-void LayerManager::loadVisibility(const Settings& pSettings, const MapTheme& pTheme)
+void LayerManager::loadVisibility(const Settings& pSettings, const XMapTheme& pTheme)
 {
     const std::string tSection(layerSectionFor(pTheme.mMode));
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
         bool tDefault = themeDefault(*tLayer, pTheme);
-        if (pTheme.mMode == MapMode::Scenery && tDefault)
+        if (pTheme.mMode == XMapMode::Scenery && tDefault)
         {
             tDefault = pSettings.getBool(kLegacySection, tLayer->id(), tDefault);  // eski ayar
         }
@@ -287,7 +287,7 @@ void LayerManager::loadVisibility(const Settings& pSettings, const MapTheme& pTh
     }
 }
 
-bool LayerManager::themeDefault(const Layer& pLayer, const MapTheme& pTheme)
+bool LayerManager::themeDefault(const Layer& pLayer, const XMapTheme& pTheme)
 {
     bool tDefault = pLayer.defaultVisible();
     for (const LayerDefault& tOverride : pTheme.mLayerDefaults)
@@ -305,7 +305,7 @@ std::string LayerManager::subLayerKey(const Layer& pLayer, int pSubLayer)
     return pLayer.id() + "." + pLayer.subLayerAt(pSubLayer).mId;
 }
 
-void LayerManager::saveVisibility(Settings& pSettings, const MapTheme& pTheme) const
+void LayerManager::saveVisibility(Settings& pSettings, const XMapTheme& pTheme) const
 {
     const std::string tSection(layerSectionFor(pTheme.mMode));
     for (const std::unique_ptr<Layer>& tLayer : mLayers)

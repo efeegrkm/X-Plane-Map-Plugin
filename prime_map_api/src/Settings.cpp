@@ -1,5 +1,6 @@
 #include "Settings.h"
 
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <locale>
@@ -19,6 +20,215 @@ std::string trim(const std::string& pText)
     }
     const size_t tEnd = pText.find_last_not_of(tSpaces);
     return pText.substr(tBegin, tEnd - tBegin + 1);
+}
+
+// JSON dizgi kacisleri: "\\" ve '"' zorunlu, kontrol karakterleri \n \t \r biciminde
+std::string jsonEscape(const std::string& pText)
+{
+    std::string tOut;
+    tOut.reserve(pText.size() + 8);
+    for (const char tChar : pText)
+    {
+        switch (tChar)
+        {
+        case '"':
+            tOut += "\\\"";
+            break;
+        case '\\':
+            tOut += "\\\\";
+            break;
+        case '\n':
+            tOut += "\\n";
+            break;
+        case '\t':
+            tOut += "\\t";
+            break;
+        case '\r':
+            tOut += "\\r";
+            break;
+        default:
+            if (static_cast<unsigned char>(tChar) < 0x20)
+            {
+                char tBuffer[8];
+                std::snprintf(tBuffer, sizeof(tBuffer), "\\u%04x", tChar);
+                tOut += tBuffer;
+            }
+            else
+            {
+                tOut += tChar;
+            }
+            break;
+        }
+    }
+    return tOut;
+}
+
+// JSON string sabitini okur; pIndex tirnagi astiktan sonra cikar. Okuyamazsa false.
+bool readJsonString(const std::string& pText, size_t& pPos, std::string* pOut)
+{
+    if (pPos >= pText.size() || pText[pPos] != '"')
+    {
+        return false;
+    }
+    ++pPos;
+    std::string tOut;
+    while (pPos < pText.size())
+    {
+        const char tChar = pText[pPos++];
+        if (tChar == '"')
+        {
+            *pOut = tOut;
+            return true;
+        }
+        if (tChar != '\\')
+        {
+            tOut += tChar;
+            continue;
+        }
+        if (pPos >= pText.size())
+        {
+            return false;
+        }
+        const char tEscape = pText[pPos++];
+        switch (tEscape)
+        {
+        case '"':
+        case '\\':
+        case '/':
+            tOut += tEscape;
+            break;
+        case 'b':
+            tOut += '\b';
+            break;
+        case 'f':
+            tOut += '\f';
+            break;
+        case 'n':
+            tOut += '\n';
+            break;
+        case 'r':
+            tOut += '\r';
+            break;
+        case 't':
+            tOut += '\t';
+            break;
+        case 'u':
+        {
+            // \uXXXX -> UTF-8 (temel cokdilli duzlem yeterli; surrogat desteklenmez)
+            if (pPos + 4 > pText.size())
+            {
+                return false;
+            }
+            const int tCode = std::stoi(pText.substr(pPos, 4), nullptr, 16);
+            pPos += 4;
+            if (tCode < 0x80)
+            {
+                tOut += static_cast<char>(tCode);
+            }
+            else if (tCode < 0x800)
+            {
+                tOut += static_cast<char>(0xC0 | (tCode >> 6));
+                tOut += static_cast<char>(0x80 | (tCode & 0x3F));
+            }
+            else
+            {
+                tOut += static_cast<char>(0xE0 | (tCode >> 12));
+                tOut += static_cast<char>(0x80 | ((tCode >> 6) & 0x3F));
+                tOut += static_cast<char>(0x80 | (tCode & 0x3F));
+            }
+            break;
+        }
+        default:
+            return false;
+        }
+    }
+    return false;
+}
+
+// JSON'u iki seviyede okur: { "bolum": { "anahtar": deger } }. Deger metin/sayi/true/false olabilir;
+// sayi ve true/false ham metinleri saklanir (getInt/getBool aynen cozer). Bilinmeyen yapi atlanir.
+void parseJson(const std::string& pText,
+               std::map<std::string, std::map<std::string, std::string>>* pOut)
+{
+    size_t tPos = pText.find('{');
+    if (tPos == std::string::npos)
+    {
+        return;
+    }
+    ++tPos;
+    while (tPos < pText.size())
+    {
+        tPos = pText.find_first_not_of(" \t\r\n,", tPos);
+        if (tPos == std::string::npos || pText[tPos] == '}')
+        {
+            return;
+        }
+        std::string tSection;
+        if (!readJsonString(pText, tPos, &tSection))
+        {
+            return;
+        }
+        tPos = pText.find_first_not_of(" \t\r\n", tPos);
+        if (tPos == std::string::npos || pText[tPos] != ':')
+        {
+            return;
+        }
+        ++tPos;
+        tPos = pText.find_first_not_of(" \t\r\n", tPos);
+        if (tPos == std::string::npos || pText[tPos] != '{')
+        {
+            return;  // bolum olmayan deger: yok say
+        }
+        ++tPos;
+        while (tPos < pText.size())
+        {
+            tPos = pText.find_first_not_of(" \t\r\n,", tPos);
+            if (tPos == std::string::npos || pText[tPos] == '}')
+            {
+                break;
+            }
+            std::string tKey;
+            if (!readJsonString(pText, tPos, &tKey))
+            {
+                break;
+            }
+            tPos = pText.find_first_not_of(" \t\r\n", tPos);
+            if (tPos == std::string::npos || pText[tPos] != ':')
+            {
+                break;
+            }
+            ++tPos;
+            tPos = pText.find_first_not_of(" \t\r\n", tPos);
+            if (tPos == std::string::npos)
+            {
+                break;
+            }
+            if (pText[tPos] == '"')
+            {
+                std::string tValue;
+                if (readJsonString(pText, tPos, &tValue) && !tKey.empty())
+                {
+                    (*pOut)[tSection][tKey] = tValue;
+                }
+            }
+            else  // sayi / true / false / null: kapayiciya kadar ham metin
+            {
+                const size_t tEnd = pText.find_first_of(",} \t\r\n", tPos);
+                const size_t tStop = tEnd == std::string::npos ? pText.size() : tEnd;
+                if (!tKey.empty() && tStop > tPos)
+                {
+                    (*pOut)[tSection][tKey] = pText.substr(tPos, tStop - tPos);
+                }
+                tPos = tStop;
+            }
+        }
+        tPos = pText.find('}', tPos);
+        if (tPos == std::string::npos)
+        {
+            return;
+        }
+        ++tPos;
+    }
 }
 
 }  // namespace
@@ -45,8 +255,19 @@ void Settings::loadText(const std::string& pText)
     mergeText(pText);
 }
 
+// JSON (yeni bicim) ya da eski INI: metin '{' ile basliyorsa JSON say.
 void Settings::mergeText(const std::string& pText)
 {
+    const size_t tFirst = pText.find_first_not_of(" \t\r\n");
+    if (tFirst == std::string::npos)
+    {
+        return;
+    }
+    if (pText[tFirst] == '{')
+    {
+        parseJson(pText, &mValues);
+        return;
+    }
     std::istringstream tLines(pText);
     std::string tSection;
     std::string tLine;
@@ -101,32 +322,35 @@ std::string Settings::toText(const std::vector<std::string>& pSections) const
         }
         return false;
     };
+    // JSON: { "bolum": { "anahtar": "deger" } }; std::map sayesinde alfabetik sirada
     std::ostringstream tOut;
-    if (mComment.empty())
-    {
-        tOut << "# Prime XMap Plugin settings. Can be edited by hand while X-Plane is closed.\n";
-    }
-    else
-    {
-        std::istringstream tLines(mComment);
-        std::string tLine;
-        while (std::getline(tLines, tLine))
-        {
-            tOut << "# " << tLine << "\n";
-        }
-    }
+    tOut << "{\n";
+    bool tFirstSection = true;
     for (const auto& tSection : mValues)
     {
         if (!tWanted(tSection.first))
         {
             continue;
         }
-        tOut << "\n[" << tSection.first << "]\n";
+        if (!tFirstSection)
+        {
+            tOut << ",\n";
+        }
+        tFirstSection = false;
+        tOut << "  \"" << jsonEscape(tSection.first) << "\": {\n";
+        bool tFirstEntry = true;
         for (const auto& tEntry : tSection.second)
         {
-            tOut << tEntry.first << "=" << tEntry.second << "\n";
+            if (!tFirstEntry)
+            {
+                tOut << ",\n";
+            }
+            tFirstEntry = false;
+            tOut << "    \"" << jsonEscape(tEntry.first) << "\": \"" << jsonEscape(tEntry.second) << "\"";
         }
+        tOut << "\n  }";
     }
+    tOut << "\n}\n";
     return tOut.str();
 }
 
@@ -158,11 +382,6 @@ bool Settings::save() const
 void Settings::setPath(const std::string& pPath)
 {
     mPath = pPath;
-}
-
-void Settings::setComment(const std::string& pComment)
-{
-    mComment = pComment;
 }
 
 const std::string& Settings::path() const

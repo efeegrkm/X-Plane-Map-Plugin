@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "Layer.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "gfx/Mesh.h"
 #include "gfx/Texture.h"
 #include "data/TerrainClasses.h"

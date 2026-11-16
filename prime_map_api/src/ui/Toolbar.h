@@ -17,7 +17,7 @@ enum class ToolbarAction
 {
     None,
     Layers,          // katman panelini ac/kapat
-    MapMode,         // harita modu listesini ac/kapat ("XMap: VFR")
+    XMapMode,         // harita modu listesini ac/kapat ("XMap: VFR")
     FollowAircraft,  // ucagi takip et (ac/kapat)
     CenterAircraft,  // haritayi bir kez ucaga ortala
     goToAirport,     // havalimani arama panelini ac/kapat (0.18; sadece harita gider, ucak degil)

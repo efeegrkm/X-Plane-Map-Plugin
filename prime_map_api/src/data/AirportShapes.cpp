@@ -1,6 +1,6 @@
 #include "data/AirportShapes.h"
 
-#include "MapView.h"
+#include "XMapView.h"
 #include "mapbox/earcut.hpp"  // third_party/earcut (dis kutuphane)
 
 #include <algorithm>

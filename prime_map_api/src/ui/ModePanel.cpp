@@ -33,16 +33,16 @@ void ModePanel::toggle()
 void ModePanel::layout(const RectI& pAnchor)
 {
     int tWidth = kMinWidth;
-    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    for (int tIndex = 0; tIndex < kXMapModeCount; ++tIndex)
     {
         const int tRowWidth =
-            kPadding + kBoxSize + 8 + Ui::textWidth(themeFor(static_cast<MapMode>(tIndex)).mName) + kPadding;
+            kPadding + kBoxSize + 8 + Ui::textWidth(themeFor(static_cast<XMapMode>(tIndex)).mName) + kPadding;
         tWidth = std::max(tWidth, tRowWidth);
     }
     mRect.mLeft = pAnchor.mLeft;
     mRect.mRight = pAnchor.mLeft + tWidth;
     mRect.mTop = pAnchor.mBottom - 4;
-    mRect.mBottom = mRect.mTop - (kPadding + kTitleHeight + kMapModeCount * kRowHeight + kPadding);
+    mRect.mBottom = mRect.mTop - (kPadding + kTitleHeight + kXMapModeCount * kRowHeight + kPadding);
 }
 
 RectI ModePanel::rowRect(int pIndex) const
@@ -55,7 +55,7 @@ RectI ModePanel::rowRect(int pIndex) const
     return tRow;
 }
 
-void ModePanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCurrent) const
+void ModePanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, XMapMode pCurrent) const
 {
     if (!mOpen)
     {
@@ -64,9 +64,9 @@ void ModePanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCu
     Ui::fillRect(pCanvas, mRect, Ui::kPanelBg);
     Ui::frameRect(pCanvas, mRect, Ui::kBorder);
     Ui::text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "MAP MODE", Ui::kTextGrey);
-    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    for (int tIndex = 0; tIndex < kXMapModeCount; ++tIndex)
     {
-        const MapMode tMode = static_cast<MapMode>(tIndex);
+        const XMapMode tMode = static_cast<XMapMode>(tIndex);
         const RectI tRow = rowRect(tIndex);
         RectI tBox;
         tBox.mLeft = tRow.mLeft;
@@ -80,18 +80,18 @@ void ModePanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCu
     }
 }
 
-bool ModePanel::hitTest(int pX, int pY, std::optional<MapMode>* pOutMode) const
+bool ModePanel::hitTest(int pX, int pY, std::optional<XMapMode>* pOutMode) const
 {
     pOutMode->reset();
     if (!mOpen || !mRect.contains(pX, pY))
     {
         return false;
     }
-    for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
+    for (int tIndex = 0; tIndex < kXMapModeCount; ++tIndex)
     {
         if (rowRect(tIndex).contains(pX, pY))
         {
-            *pOutMode = static_cast<MapMode>(tIndex);
+            *pOutMode = static_cast<XMapMode>(tIndex);
         }
     }
     return true;

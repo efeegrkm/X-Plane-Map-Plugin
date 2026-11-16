@@ -31,13 +31,13 @@ private:
         int mSouth = 0;
         std::shared_ptr<const TerrainVectors> mVectors;
         std::array<Gfx::StaticMesh, kVectorLineKindCount> mMeshes;
-        const MapTheme* mUploadedTheme = nullptr;  // renk koselerde: tema degisince yeniden yuklenir
+        const XMapTheme* mUploadedTheme = nullptr;  // renk koselerde: tema degisince yeniden yuklenir
         double mOriginX = 0.0;  // karonun guney-bati kosesinin Mercator koordinati
         double mOriginY = 0.0;
         uint64_t mLastFrame = 0;
     };
 
-    void upload(GpuTile& pTile, const MapTheme& pTheme);
+    void upload(GpuTile& pTile, const XMapTheme& pTheme);
     void evictUnused();
 
     TerrainHub& mHub;

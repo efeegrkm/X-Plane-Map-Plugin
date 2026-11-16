@@ -6,11 +6,11 @@
 #include <format>
 
 #include "Geo.h"
-#include "MapView.h"
+#include "XMapView.h"
 #include "data/AirportGeometryStore.h"
 #include "data/LocalizerMatch.h"
 #include "gfx/Canvas.h"
-#include "layers/MapSymbols.h"
+#include "layers/XMapSymbols.h"
 
 namespace
 {
@@ -251,7 +251,7 @@ void NavaidLayer::draw(const drawContext& pContext)
         return;
     }
 
-    Gfx::OutlinedLines tSymbols(MapSymbols::kOutlineExtra);
+    Gfx::OutlinedLines tSymbols(XMapSymbols::kOutlineExtra);
     tSymbols.setOutlineColor(mHalo);
     Gfx::Mesh tCenters;
     for (const VisibleNavaid& tNavaid : mVisible)
@@ -270,7 +270,7 @@ void NavaidLayer::draw(const drawContext& pContext)
 void NavaidLayer::addSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const
 {
     const NavRecord& tRecord = mDatabase.at(pNavaid.mIndex);
-    const float tWidth = MapSymbols::kLineWidth;
+    const float tWidth = XMapSymbols::kLineWidth;
     switch (tRecord.mKind)
     {
         case NavKind::Vor:
@@ -381,13 +381,13 @@ void NavaidLayer::drawLabels(const drawContext& pContext)
         if (mType == NavaidType::Ils)
         {
             // ILS etiketi tuyun dis ucunda
-            MapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mFeather[1].mX, tNavaid.mFeather[1].mY, 6.0f, tText,
+            XMapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mFeather[1].mX, tNavaid.mFeather[1].mY, 6.0f, tText,
                                       mColor, tShadow);
         }
         else
         {
             const float tGap = (mType == NavaidType::Fix ? kFixRadius : kDmeBoxRadius) + 3.0f;
-            MapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mPoint.mX, tNavaid.mPoint.mY, tGap, tText,
+            XMapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mPoint.mX, tNavaid.mPoint.mY, tGap, tText,
                                       mColor, tShadow);
         }
     }

@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "Geo.h"
-#include "MapView.h"
+#include "XMapView.h"
 
 // Pist yuzeyi, cizim rengi icin gruplanmis (apt.dat yuzey kodlari parantezde)
 enum class RunwaySurface : unsigned char
