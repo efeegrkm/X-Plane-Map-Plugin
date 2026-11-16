@@ -15,6 +15,14 @@
 #include "engine/LayerTable.h"
 #include "engine/XMapData.h"
 
+namespace
+{
+
+const char* kSettingsFileName = "prime_map.json";  // XMapData::settingsPath ile ayni
+const char* kXMapsFolder = "maps/";                 // XMapData::mapsDirectory ile ayni
+
+}  // namespace
+
 namespace prime
 {
 
@@ -77,17 +85,17 @@ bool XMapManager::initialize()
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
 
     XMapDataConfig tConfig;
-    std::string tDataDir = mDataDirectory;
-    if (tDataDir.empty())
+    tConfig.mDataDirectory = resolvedDataDirectory();
+    tConfig.mCacheDirectory = resolvedCacheDirectory();
+    // Host vermediyse (-1) XMapManagerSettings varsayilani kalir; 0 gecerli bir degerdir (sinirsiz / kapali)
+    if (mTerrainCacheMb >= 0)
     {
-        const char* tAppData = std::getenv("LOCALAPPDATA");
-        tDataDir = (tAppData ? std::string(tAppData) : std::string(".")) + "/prime/prime-xmap";
+        tConfig.mDefaults.mTerrainCacheMb = mTerrainCacheMb;
     }
-    tConfig.mDataDirectory = api::withSeparator(tDataDir);
-    tConfig.mCacheDirectory = api::withSeparator(
-        mCacheDirectory.empty() ? tConfig.mDataDirectory + "cache/" : mCacheDirectory);
-    tConfig.mDefaults.mTerrainCacheMb = mTerrainCacheMb;
-    tConfig.mDefaults.mPrefetchTiles = mPrefetchTiles;
+    if (mPrefetchTiles >= 0)
+    {
+        tConfig.mDefaults.mPrefetchTiles = mPrefetchTiles;
+    }
     std::error_code tError;
     std::filesystem::create_directories(tConfig.mDataDirectory, tError);
     std::filesystem::create_directories(tConfig.mCacheDirectory, tError);
@@ -246,24 +254,41 @@ bool XMapManager::setSettings(const XMapManagerSettings& pSettings)
     return true;
 }
 
+// Yol sorgulari initialize() oncesi de calisir (host dosyalari onceden hazirlayabilsin)
 std::string XMapManager::getDataDirectory() const
 {
-    return mData ? mData->dataDirectory() : std::string();
+    return mData ? mData->dataDirectory() : resolvedDataDirectory();
 }
 
 std::string XMapManager::getSettingsFilePath() const
 {
-    return mData ? mData->settingsPath() : std::string();
+    return mData ? mData->settingsPath() : resolvedDataDirectory() + kSettingsFileName;
 }
 
 std::string XMapManager::getXMapsDirectory() const
 {
-    return mData ? mData->mapsDirectory() : std::string();
+    return mData ? mData->mapsDirectory() : resolvedDataDirectory() + kXMapsFolder;
 }
 
 std::string XMapManager::getCacheDirectory() const
 {
-    return mData ? mData->cacheDirectory() : std::string();
+    return mData ? mData->cacheDirectory() : resolvedCacheDirectory();
+}
+
+std::string XMapManager::resolvedDataDirectory() const
+{
+    std::string tDataDir = mDataDirectory;
+    if (tDataDir.empty())
+    {
+        const char* tAppData = std::getenv("LOCALAPPDATA");
+        tDataDir = (tAppData ? std::string(tAppData) : std::string(".")) + "/prime/prime-xmap";
+    }
+    return api::withSeparator(tDataDir);
+}
+
+std::string XMapManager::resolvedCacheDirectory() const
+{
+    return api::withSeparator(mCacheDirectory.empty() ? resolvedDataDirectory() + "cache/" : mCacheDirectory);
 }
 
 std::optional<XMapLayer> XMapManager::parentOf(XMapLayer pLayer) const

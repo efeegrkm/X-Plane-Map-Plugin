@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,6 +19,7 @@
 #include "api/XMapTypes.h"
 #include "ScreenMath.h"
 #include "gfx/Canvas.h"
+#include "gfx/RenderTarget.h"
 #include "XMapTheme.h"
 #include "Settings.h"
 #include "ui/AirportSearchPanel.h"
@@ -35,20 +37,6 @@ class LayerManager;
 
 struct drawContext;
 
-// Pencereyi acarken verilenler (API XMapConfig'in ic karsiligi)
-struct XMapWindowOptions
-{
-    RectI mGeometry;           // global boxel
-    bool mEmbedded = true;     // false: Standalone
-    bool mVisible = true;
-    bool mUiVisible = false;
-    bool mMouseInput = false;
-    XMapMode mMode = XMapMode::Scenery;
-    bool mImageCache = true;   // [render] cache
-    int mMaxRenderFps = 15;    // [render] max_fps
-    bool mXPlaneFont = false;  // [text] renderer = xplane
-};
-
 class XMapWindow
 {
 public:
@@ -60,15 +48,15 @@ public:
     XMapWindow(const XMapWindow&) = delete;
     XMapWindow& operator=(const XMapWindow&) = delete;
 
-    // Pencereyi nesnedeki ayarlarla (yer, stil, gorunurluk ...) olusturur
+    // Haritayi nesnedeki ayarlarla (stil, yer, gorunurluk ...) acar: Texture'da doku hazirligi,
+    // LEGACY stillerde (Embedded / Standalone) XPLM penceresi
     void create();
-    // Eski yol: once ayarlari uygular, sonra olusturur
-    void create(const XMapWindowOptions& pOptions);
-    void applyOptions(const XMapWindowOptions& pOptions);
     void destroy();
     bool isCreated() const;
 
-    void setEmbedded(bool pEmbedded);  // sadece pencere acik DEGILKEN (stil acik pencerede degismez); degistiyse true doner
+    // LEGACY: Embedded (cercevesiz, host yerlestirir) / Standalone. Texture'da da true (host yerlestirir).
+    // Sadece kapaliyken degisir.
+    void setEmbedded(bool pEmbedded);
     bool isEmbedded() const;
     bool wantsVisible() const;         // pencere acilinca gorunur olacak mi (setVisible ile verilen)
     void setTitle(const std::string& pTitle);  // Standalone pencerenin baslik yazisi
@@ -149,8 +137,25 @@ public:
     void setLayerColors(const std::map<prime::XMapLayer, Rgba>& pColors);  // ayar dosyasindan toplu yukleme
     const std::map<prime::XMapLayer, Rgba>& layerColors() const;
 
-    // API onRender: bir kare cizer (XPLM cizim callback'iyle ayni yol)
+    // API onRender: bir kare cizer (pencere: XPLM cizim callback'iyle ayni yol; Texture: renderTexture)
     void render();
+
+    // --- Texture modu (API WindowStyle::Texture): XPLM penceresi yok, harita mTextureTarget'a cizilir ---
+    void setTextureMode(bool pTexture);  // sadece kapaliyken (stil acik haritada degismez)
+    bool isTextureMode() const;
+    // Haritanin alani: pWidth x pHeight boxel, orijin sol-alt; pPixelsPerBoxel 0 = host'un UI olcegi
+    void setTextureSize(int pWidth, int pHeight, double pPixelsPerBoxel);
+    int textureWidth() const;
+    int textureHeight() const;
+    // Host'un XPLM cizim callback'i icinde: gerekiyorsa dokuyu yeniden cizer. false: basilacak doku yok
+    bool renderTexture();
+    unsigned int textureId() const;
+    // Host'tan gelen girdi (doku koordinati, boxel). Dondurulen deger XPLM callback'leriyle ayni anlamda
+    int injectMouse(int pX, int pY, XPLMMouseStatus pStatus, bool pRight);
+    void injectMouseMove(int pX, int pY);
+    int injectWheel(int pX, int pY, int pClicks);
+    bool injectKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey);  // klavye bizde degilse false
+    bool wantsKeyboard() const;  // arama paneli yaziyor: host klavye odagini almali
 
 private:
     void applyLayerColors();  // mLayerColors -> mTheme (mod degisince yeniden uygulanir)
@@ -166,6 +171,14 @@ private:
     static int wheelCallback(XPLMWindowID pWindow, int pX, int pY, int pWheel, int pClicks, void* pRefcon);
 
     void onDraw();
+    // Iki cizim yolunun (XPLM penceresi, Texture) ortak parcalari
+    void prepareFrame();      // gorunum alani, ucak takibi, arac seridi yerlesimi (GL gerekmez)
+    bool beginCanvasFrame();  // Canvas hazir ve bu baglamda kullanilabilir mi
+    // Haritayi ve kontrolleri mArea'ya cizer. pBoxelToPixel: UI olcegi (yoksa onbellek ve olcek yok);
+    // pUseImageCache: harita resmi onbellegi (Texture'da kapali: zaten dokuya ciziliyor)
+    void drawFrame(float pNow, const std::optional<Affine2D>& pBoxelToPixel, bool pUseImageCache,
+                   const RectD& pScissorPixels);
+    RectI textureArea() const;  // {0, yukseklik, genislik, 0}
     bool prepareCanvas();  // openGL hazir mi (ilk karede yukler); degilse hatayi pencereye yazar
     void createTextRenderer();  // ilk karede: kendi yazi atlasimiz ([text] renderer = atlas | xplane)
     void drawTooltip(const drawContext& pContext, const std::string& pText);  // imlecin yaninda kucuk aciklama
@@ -205,7 +218,7 @@ private:
     Drawings& mDrawings;
     uint64_t mSettingsRevision = 0;
     uint64_t mDrawingsRevision = 0;
-    bool mEmbedded = true;
+    bool mEmbedded = true;       // false: Standalone (LEGACY pencere stilleri; Texture'da true)
     bool mMouseInput = false;
     bool mXPlaneFont = false;
     bool mTextPending = false;   // yazi cizici degisti: bir sonraki cizimde yeniden kur
@@ -265,6 +278,21 @@ private:
     int mPressY = 0;
     int mDragLastX = 0;
     int mDragLastY = 0;
+
+    // Texture modu: host'a verilen doku ve yeniden cizim karari
+    bool mTextureMode = false;
+    bool mTextureOpen = false;            // create / destroy (pencerenin karsiligi)
+    int mTextureWidth = 400;              // boxel
+    int mTextureHeight = 300;
+    double mTexturePixelsPerBoxel = 0.0;  // 0: host'un cizim callback'indeki UI olcegi
+    Gfx::renderTarget mTextureTarget;
+    bool mTextureDirty = true;            // girdi geldi / boyut degisti: hiz sinirini beklemeden ciz
+    bool mTextureKeyboard = false;        // arama paneli klavye istiyor (host odagi tutar)
+    bool mTextureFontWarned = false;
+    float mLastTextureRender = -100.0f;
+    double mTextureCenterX = 0.0;         // son cizimin gorunumu (Mercator); degisince hemen ciz
+    double mTextureCenterY = 0.0;
+    double mTextureZoom = -1.0;
 
     // Imlecin son bilinen yeri. Pencere disari alinmissa (pop-out)
     // XPLMGetMouseLocationGlobal'a guvenmiyoruz; cursor callback'in

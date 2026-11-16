@@ -52,14 +52,11 @@ const int kMinStandaloneWidth = 400;   // Standalone pencerenin kullanilabilir e
 const int kMinStandaloneHeight = 260;
 const int kShapeIdBase = 1000000;      // Shape kimligi: tur * kShapeIdBase + etiket numarasi
 
+// 0.24-0.25 hatasi: alt kenar mTop + mHeight idi (y yukari artar) -> yukseklik negatif cikiyordu.
+// "kullanilamaz" sayilip ekran ortasina 1000x700 aciliyordu. Donusum ScreenMath'te (testli).
 RectI toRect(const prime::Geometry& pGeometry)
 {
-    RectI tRect;
-    tRect.mLeft = pGeometry.mLeft;
-    tRect.mTop = pGeometry.mTop;
-    tRect.mRight = pGeometry.mLeft + pGeometry.mWidth;
-    tRect.mBottom = pGeometry.mTop + pGeometry.mHeight;
-    return tRect;
+    return rectFromTopLeft(pGeometry.mLeft, pGeometry.mTop, pGeometry.mWidth, pGeometry.mHeight);
 }
 
 bool readTextFile(const std::string& pPath, std::string* pText)
@@ -154,6 +151,9 @@ XMap::XMap(XMapData& pData, int pId)
     mPalette = std::make_unique<TerrainPalette>();
     mPaletteId = mData.registerPalette(mPalette.get());  // varsayilan zemin ayarlari (cogu zaman palet 0)
     mLayers = std::make_unique<LayerManager>();
+    // Pencere katmanlara / ucaga / cizimlere baglidir: onlardan SONRA kurulur, katmanlardan once (0.24 sirasi).
+    // Kurulmazsa asagidaki getMapMode ve sonraki her API cagrisi bos isaretciye duser.
+    mWindow = std::make_unique<XMapWindow>(*mLayers, *mAircraft, *mDrawings, mData.airports());
     createLayers();
     // XMapWindow, katmanlar eklenmeden kuruldu: modun varsayilan katman durumunu simdi uygula
     mLayers->resetToDefaults(themeFor(mWindow->getMapMode()));
@@ -291,11 +291,12 @@ bool XMap::initialize()
     {
         loadFiles();
     }
-    // Yer verilmemisse (ya da Standalone pencere ekran disinda kalacaksa) varsayilan yer
+    // LEGACY pencereli stiller: yer verilmemisse (ya da Standalone ekran disinda kalacaksa) varsayilan yer.
+    // Texture: yer yok, alan setTextureSize ile.
     const RectI tGeometry = mWindow->getGeometry();
     const bool tUsable = mWindow->isEmbedded() ? (tGeometry.width() > 0 && tGeometry.height() > 0)
                                                : isStandaloneGeometryUsable(tGeometry);
-    if (!tUsable)
+    if (!mWindow->isTextureMode() && !tUsable)
     {
         mWindow->setGeometry(defaultGeometry());
     }
@@ -350,12 +351,18 @@ bool XMap::isInitialized() const
 
 void XMap::setStyle(WindowStyle pStyle)
 {
-    mWindow->setEmbedded(pStyle == WindowStyle::Embedded);  // acik pencerede uyari loglar, degistirmez
+    // Texture, arayuz davranisinda Embedded gibidir (host yerlestirir, "Controls" dugmesi yok)
+    mWindow->setEmbedded(pStyle != WindowStyle::Standalone);  // acik haritada uyari loglar, degistirmez
+    mWindow->setTextureMode(pStyle == WindowStyle::Texture);
 }
 
 WindowStyle XMap::getStyle() const
 {
-    return !mWindow->isEmbedded() ? WindowStyle::Standalone : WindowStyle::Embedded;
+    if (mWindow->isTextureMode())
+    {
+        return WindowStyle::Texture;
+    }
+    return mWindow->isEmbedded() ? WindowStyle::Embedded : WindowStyle::Standalone;
 }
 
 void XMap::setTitle(const std::string& pTitle)
@@ -1075,42 +1082,42 @@ bool XMap::importSettings(const std::string& pText)
 TerrainSettings XMap::getTerrainSettings() const
 {
     TerrainSettings tOut;
-    Settings tIni;
-    mPalette->save(tIni);
-    tOut.mUseXPlaneColors = tIni.getString("palette", "source", "xplane") != "ini";
+    Settings tStore;
+    mPalette->save(tStore);
+    tOut.mUseXPlaneColors = tStore.getString("palette", "source", "xplane") != "colors";
     for (int tClass = 0; tClass < kTerrainClassCount; ++tClass)
     {
         const std::string tKey = terrainClassKey(static_cast<TerrainClass>(tClass));
-        if (tIni.has("colors", tKey))
+        if (tStore.has("colors", tKey))
         {
-            std::istringstream tStream(tIni.getString("colors", tKey, ""));
+            std::istringstream tStream(tStore.getString("colors", tKey, ""));
             tOut.mClassColors.emplace_back(tKey, api::parseRgb(tStream));
         }
     }
-    tOut.mShadingStrength = tIni.getDouble("shading", "strength", 0.0);
-    tOut.mBlendMeters = tIni.getDouble("blend", "meters", 0.0);
-    tOut.mBlendMaxPixels = tIni.getDouble("blend", "max_pixels", 0.0);
-    tOut.mWarpMeters = tIni.getDouble("warp", "meters", 0.0);
-    tOut.mWarpWavelength = tIni.getDouble("warp", "wavelength", 0.0);
-    tOut.mCloseupClassMix = tIni.getDouble("closeup", "class_mix", 0.0);
-    tOut.mReliefMultiDirectional = tIni.getBool("relief", "multi_directional", true);
-    tOut.mReliefExaggeration = tIni.getDouble("relief", "exaggeration", 0.0);
-    tOut.mReliefCoarseBoost = tIni.getDouble("relief", "coarse_boost", 0.0);
-    tOut.mReliefSlopeTone = tIni.getDouble("relief", "slope_tone", 0.0);
-    tOut.mReliefFlatSlope = tIni.getDouble("relief", "flat_slope", 0.0);
-    tOut.mCoastline = tIni.getBool("water", "coastline", true);
-    tOut.mCoastlineStrength = tIni.getDouble("water", "coastline_strength", 0.0);
-    tOut.mWaterBandMeters = tIni.getDouble("water", "band_meters", 0.0);
-    tOut.mWaterBandMaxPixels = tIni.getDouble("water", "band_max_pixels", 0.0);
-    tOut.mWaterBandStrength = tIni.getDouble("water", "band_strength", 0.0);
-    tOut.mDepthTone = tIni.getDouble("water", "depth_tone", 0.0);
-    tOut.mDepthFullMeters = tIni.getDouble("water", "depth_full_meters", 0.0);
-    tOut.mVfrBands = tIni.getBool("vfr", "bands", true);
-    tOut.mVfrContourLines = tIni.getBool("vfr", "contour_lines", false);
-    tOut.mVfrContourStrength = tIni.getDouble("vfr", "contour_strength", 0.0);
+    tOut.mShadingStrength = tStore.getDouble("shading", "strength", 0.0);
+    tOut.mBlendMeters = tStore.getDouble("blend", "meters", 0.0);
+    tOut.mBlendMaxPixels = tStore.getDouble("blend", "max_pixels", 0.0);
+    tOut.mWarpMeters = tStore.getDouble("warp", "meters", 0.0);
+    tOut.mWarpWavelength = tStore.getDouble("warp", "wavelength", 0.0);
+    tOut.mCloseupClassMix = tStore.getDouble("closeup", "class_mix", 0.0);
+    tOut.mReliefMultiDirectional = tStore.getBool("relief", "multi_directional", true);
+    tOut.mReliefExaggeration = tStore.getDouble("relief", "exaggeration", 0.0);
+    tOut.mReliefCoarseBoost = tStore.getDouble("relief", "coarse_boost", 0.0);
+    tOut.mReliefSlopeTone = tStore.getDouble("relief", "slope_tone", 0.0);
+    tOut.mReliefFlatSlope = tStore.getDouble("relief", "flat_slope", 0.0);
+    tOut.mCoastline = tStore.getBool("water", "coastline", true);
+    tOut.mCoastlineStrength = tStore.getDouble("water", "coastline_strength", 0.0);
+    tOut.mWaterBandMeters = tStore.getDouble("water", "band_meters", 0.0);
+    tOut.mWaterBandMaxPixels = tStore.getDouble("water", "band_max_pixels", 0.0);
+    tOut.mWaterBandStrength = tStore.getDouble("water", "band_strength", 0.0);
+    tOut.mDepthTone = tStore.getDouble("water", "depth_tone", 0.0);
+    tOut.mDepthFullMeters = tStore.getDouble("water", "depth_full_meters", 0.0);
+    tOut.mVfrBands = tStore.getBool("vfr", "bands", true);
+    tOut.mVfrContourLines = tStore.getBool("vfr", "contour_lines", false);
+    tOut.mVfrContourStrength = tStore.getDouble("vfr", "contour_strength", 0.0);
     for (int tBand = 1; tBand <= kVfrBandCount; ++tBand)
     {
-        std::istringstream tStream(tIni.getString("vfr", std::format("band_{}", tBand), ""));
+        std::istringstream tStream(tStore.getString("vfr", std::format("band_{}", tBand), ""));
         double tFeet = 0.0;
         tStream >> tFeet;
         tOut.mVfrBandsFeet.emplace_back(tFeet, api::parseRgb(tStream));
@@ -1120,41 +1127,41 @@ TerrainSettings XMap::getTerrainSettings() const
 
 void XMap::setTerrainSettings(const TerrainSettings& pSettings)
 {
-    Settings tIni;
-    mPalette->save(tIni);  // [palette] version ve bilinmeyen anahtarlar korunur
-    tIni.setString("palette", "source", pSettings.mUseXPlaneColors ? "xplane" : "ini");
+    Settings tStore;
+    mPalette->save(tStore);  // [palette] version ve bilinmeyen anahtarlar korunur
+    tStore.setString("palette", "source", pSettings.mUseXPlaneColors ? "xplane" : "colors");
     for (const auto& [tKey, tColor] : pSettings.mClassColors)
     {
-        tIni.setString("colors", tKey, std::format("{} {} {}", tColor.mR, tColor.mG, tColor.mB));
+        tStore.setString("colors", tKey, std::format("{} {} {}", tColor.mR, tColor.mG, tColor.mB));
     }
-    tIni.setDouble("shading", "strength", pSettings.mShadingStrength);
-    tIni.setDouble("blend", "meters", pSettings.mBlendMeters);
-    tIni.setDouble("blend", "max_pixels", pSettings.mBlendMaxPixels);
-    tIni.setDouble("warp", "meters", pSettings.mWarpMeters);
-    tIni.setDouble("warp", "wavelength", pSettings.mWarpWavelength);
-    tIni.setDouble("closeup", "class_mix", pSettings.mCloseupClassMix);
-    tIni.setBool("relief", "multi_directional", pSettings.mReliefMultiDirectional);
-    tIni.setDouble("relief", "exaggeration", pSettings.mReliefExaggeration);
-    tIni.setDouble("relief", "coarse_boost", pSettings.mReliefCoarseBoost);
-    tIni.setDouble("relief", "slope_tone", pSettings.mReliefSlopeTone);
-    tIni.setDouble("relief", "flat_slope", pSettings.mReliefFlatSlope);
-    tIni.setBool("water", "coastline", pSettings.mCoastline);
-    tIni.setDouble("water", "coastline_strength", pSettings.mCoastlineStrength);
-    tIni.setDouble("water", "band_meters", pSettings.mWaterBandMeters);
-    tIni.setDouble("water", "band_max_pixels", pSettings.mWaterBandMaxPixels);
-    tIni.setDouble("water", "band_strength", pSettings.mWaterBandStrength);
-    tIni.setDouble("water", "depth_tone", pSettings.mDepthTone);
-    tIni.setDouble("water", "depth_full_meters", pSettings.mDepthFullMeters);
-    tIni.setBool("vfr", "bands", pSettings.mVfrBands);
-    tIni.setBool("vfr", "contour_lines", pSettings.mVfrContourLines);
-    tIni.setDouble("vfr", "contour_strength", pSettings.mVfrContourStrength);
+    tStore.setDouble("shading", "strength", pSettings.mShadingStrength);
+    tStore.setDouble("blend", "meters", pSettings.mBlendMeters);
+    tStore.setDouble("blend", "max_pixels", pSettings.mBlendMaxPixels);
+    tStore.setDouble("warp", "meters", pSettings.mWarpMeters);
+    tStore.setDouble("warp", "wavelength", pSettings.mWarpWavelength);
+    tStore.setDouble("closeup", "class_mix", pSettings.mCloseupClassMix);
+    tStore.setBool("relief", "multi_directional", pSettings.mReliefMultiDirectional);
+    tStore.setDouble("relief", "exaggeration", pSettings.mReliefExaggeration);
+    tStore.setDouble("relief", "coarse_boost", pSettings.mReliefCoarseBoost);
+    tStore.setDouble("relief", "slope_tone", pSettings.mReliefSlopeTone);
+    tStore.setDouble("relief", "flat_slope", pSettings.mReliefFlatSlope);
+    tStore.setBool("water", "coastline", pSettings.mCoastline);
+    tStore.setDouble("water", "coastline_strength", pSettings.mCoastlineStrength);
+    tStore.setDouble("water", "band_meters", pSettings.mWaterBandMeters);
+    tStore.setDouble("water", "band_max_pixels", pSettings.mWaterBandMaxPixels);
+    tStore.setDouble("water", "band_strength", pSettings.mWaterBandStrength);
+    tStore.setDouble("water", "depth_tone", pSettings.mDepthTone);
+    tStore.setDouble("water", "depth_full_meters", pSettings.mDepthFullMeters);
+    tStore.setBool("vfr", "bands", pSettings.mVfrBands);
+    tStore.setBool("vfr", "contour_lines", pSettings.mVfrContourLines);
+    tStore.setDouble("vfr", "contour_strength", pSettings.mVfrContourStrength);
     for (size_t tBand = 0; tBand < pSettings.mVfrBandsFeet.size() && tBand < kVfrBandCount; ++tBand)
     {
         const auto& [tFeet, tColor] = pSettings.mVfrBandsFeet[tBand];
-        tIni.setString("vfr", std::format("band_{}", tBand + 1),
+        tStore.setString("vfr", std::format("band_{}", tBand + 1),
                        std::format("{:.0f} {} {} {}", tFeet, tColor.mR, tColor.mG, tColor.mB));
     }
-    importTerrainSettings(tIni.toText({}));
+    importTerrainSettings(tStore.toText({}));
 }
 
 std::string XMap::exportTerrainSettings() const
@@ -1241,6 +1248,80 @@ bool XMap::isDiagnosticsOn() const
 void XMap::onRender()
 {
     mWindow->render();
+}
+
+bool XMap::setTextureSize(int pWidth, int pHeight, double pPixelsPerUnit)
+{
+    if (pWidth <= 0 || pHeight <= 0 || pPixelsPerUnit < 0.0)
+    {
+        log("WARNING: setTextureSize: invalid size {}x{} (pixels per unit {})", pWidth, pHeight, pPixelsPerUnit);
+        return false;
+    }
+    mWindow->setTextureSize(pWidth, pHeight, pPixelsPerUnit);
+    return true;
+}
+
+int XMap::getTextureWidth() const
+{
+    return mWindow->textureWidth();
+}
+
+int XMap::getTextureHeight() const
+{
+    return mWindow->textureHeight();
+}
+
+bool XMap::renderTexture()
+{
+    if (!mWindow->isTextureMode())
+    {
+        if (!mTextureWarned)
+        {
+            log("WARNING: renderTexture: map {} is not WindowStyle::Texture", mId);
+            mTextureWarned = true;
+        }
+        return false;
+    }
+    return mWindow->renderTexture();
+}
+
+unsigned int XMap::getTextureId() const
+{
+    return mWindow->textureId();
+}
+
+bool XMap::injectMouse(int pX, int pY, MouseAction pAction, MouseButton pButton)
+{
+    XPLMMouseStatus tStatus = xplm_MouseDown;
+    if (pAction == MouseAction::Drag)
+    {
+        tStatus = xplm_MouseDrag;
+    }
+    else if (pAction == MouseAction::Up)
+    {
+        tStatus = xplm_MouseUp;
+    }
+    return mWindow->injectMouse(pX, pY, tStatus, pButton == MouseButton::Right) != 0;
+}
+
+void XMap::injectMouseMove(int pX, int pY)
+{
+    mWindow->injectMouseMove(pX, pY);
+}
+
+bool XMap::injectWheel(int pX, int pY, int pClicks)
+{
+    return mWindow->injectWheel(pX, pY, pClicks) != 0;
+}
+
+bool XMap::injectKey(char pKey, int pFlags, char pVirtualKey)
+{
+    return mWindow->injectKey(pKey, static_cast<XPLMKeyFlags>(pFlags), pVirtualKey);
+}
+
+bool XMap::wantsKeyboard() const
+{
+    return mWindow->wantsKeyboard();
 }
 
 bool XMap::isDataLoaded() const
@@ -1421,7 +1502,7 @@ void XMap::storeExtraSections() const
 void XMap::applyWindowSection()
 {
     // Sadece Standalone: kullanici pencereyi tasir / kapatir, bir sonraki acilista ayni yerde bulur.
-    // Embedded haritanin yerini ve gorunurlugunu host belirler (kendi arayuzunun bir parcasi).
+    // Embedded ve Texture haritanin yerini ve gorunurlugunu host belirler.
     if (mWindow->isEmbedded())
     {
         return;
@@ -1501,13 +1582,11 @@ void XMap::loadFiles()
 {
     const std::string tDirectory = getSettingsDirectory();
     std::string tText;
-    if (readTextFile(tDirectory + kTerrainFileName, &tText) ||
-        readTextFile(tDirectory + "terrain_colors.ini", &tText))  // 0.23 dosyasi: gocsuz okunur
+    if (readTextFile(tDirectory + kTerrainFileName, &tText))
     {
         importTerrainSettings(tText);
     }
-    if (readTextFile(tDirectory + kSettingsFileName, &tText) ||
-        readTextFile(tDirectory + "map_settings.ini", &tText))  // 0.23 dosyasi: gocsuz okunur
+    if (readTextFile(tDirectory + kSettingsFileName, &tText))
     {
         importSettings(tText);
         log("map {} '{}': settings loaded from {}", mId, folderName(), tDirectory + kSettingsFileName);

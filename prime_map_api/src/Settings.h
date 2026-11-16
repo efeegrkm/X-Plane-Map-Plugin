@@ -1,5 +1,5 @@
 // Ayar dosyasi (JSON bicimi): { "bolum": { "anahtar": "deger" } }. Degerler tirnak icinde
-// saklanir; okurken JSON eski INI bicimini de kabul eder (0.23 ve oncesi dosyalari gocmek icin).
+// saklanir; JSON olmayan metin yok sayilir.
 // X-Plane'e bagimli DEGIL. Sayilar her zaman nokta ile yazilir/okunur
 // ("C" yerel ayari; Turkce Windows'ta da 41.5).
 #pragma once
@@ -13,7 +13,6 @@ class Settings
 public:
     // Dosyayi okur. Dosya yoksa false doner ve ayarlar bos kalir
     // (bu bir hata degil: ilk acilista dosya henuz yoktur).
-    // Eski INI bicimi de otomatik taninir (0.23 dosyalari gocsuz okunur).
     bool load(const std::string& pPath);
 
     // Metinden okuma (dosyasiz; API ice aktarma). loadText onceki her seyi siler, mergeText ustune yazar.

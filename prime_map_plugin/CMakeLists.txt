@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)
-project(prime-map-plugin VERSION 0.24 LANGUAGES CXX)
+project(prime-map-plugin VERSION 0.26 LANGUAGES CXX)
 
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bilesen klasoru (COTS)")
 if(NOT EXISTS "${COTS_DIR}/X-Plane-SDK" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../cots/X-Plane-SDK")
@@ -36,8 +36,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 add_subdirectory(${PRIME_MAP_DIR} prime_map_build)
 
 add_library(${PROJECT_NAME} SHARED
-    src/plugin/PluginMain.cpp
-    src/PluginSettings.h src/PluginSettings.cpp)
+    src/plugin/PluginMain.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)

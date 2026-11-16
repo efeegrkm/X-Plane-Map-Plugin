@@ -1,5 +1,5 @@
 // MultiXMapSelfTest.h
-// Prime XMap API 0.24'un coklu harita / fabrika ozelliklerini X-Plane ICINDE kendi kendine
+// Prime XMap API 0.26'nin coklu harita / fabrika ozelliklerini X-Plane ICINDE kendi kendine
 // dener; her kontrolu Log.txt'ye "[plugin-api-test] SELFTEST PASS/FAIL ..." olarak yazar.
 //
 // Ne zaman calisir: eklenti klasorunde (…/Resources/plugins/plugin-api-test/) "selftest.flag"

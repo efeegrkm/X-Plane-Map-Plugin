@@ -17,7 +17,7 @@ class XMapApiCalls
 {
 public:
     // --- Kutuphane ---
-    bool initLibrary(const std::string& pLogPrefix);
+    bool initLibrary(const std::string& pLogPrefix, const std::string& pDataDirectory);  // bos: varsayilan
     void shutdownLibrary();
     bool isInitialized() const;
     prime::Status getStatus() const;
@@ -25,6 +25,7 @@ public:
     std::string versionString() const;
 
     // --- Harita penceresi ---
+    // Ayar klasoru stile gore ayri (maps/ui_test_texture, maps/ui_test_standalone)
     bool openXMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse);
     // 0.23 fabrika ornegi: ikinci, bagimsiz bir harita (ayar klasoru maps/second/). Zaten aciksa
     // kapatir. Acildiysa true.
@@ -42,6 +43,17 @@ public:
     bool isUiVisible() const;
     void setMouseInput(bool pEnabled);
     bool isMouseInputEnabled() const;
+    prime::WindowStyle getStyle() const;
+
+    // --- Doku (WindowStyle::Texture): harita penceresiz dokuya cizilir, biz basariz ---
+    bool setTextureSize(int pWidth, int pHeight);  // boxel; doku pikseli UI olcegine gore otomatik
+    bool renderTexture();                          // bizim cizim callback'imiz icinde
+    unsigned int getTextureId() const;
+    bool injectMouse(int pX, int pY, prime::MouseAction pAction, prime::MouseButton pButton);
+    void injectMouseMove(int pX, int pY);
+    bool injectWheel(int pX, int pY, int pClicks);
+    bool injectKey(char pKey, int pFlags, char pVirtualKey);
+    bool wantsKeyboard() const;
 
     // --- Gorunum ---
     void setCenter(double pLat, double pLon);

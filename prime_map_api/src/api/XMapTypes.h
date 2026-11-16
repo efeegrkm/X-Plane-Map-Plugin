@@ -15,9 +15,9 @@ namespace prime
 {
 
 constexpr int kVersionMajor = 0;
-constexpr int kVersionMinor = 24;
+constexpr int kVersionMinor = 26;
 constexpr int kVersionPatch = 0;
-PRIME_MAP_EXPORT std::string versionString();  // "0.24.0"
+PRIME_MAP_EXPORT std::string versionString();  // "0.26.0"
 
 struct LatLon
 {
@@ -51,10 +51,27 @@ enum class XMapMode
     Dark,
 };
 
+// Haritanin ekrana gelis yolu. Hedef ve onerilen yol Texture'dir; digerleri LEGACY: kod ve davranis
+// korunur (Texture kapsamli denenene kadar), yeni host kodunda kullanilmamalidir.
 enum class WindowStyle
 {
-    Embedded,    // cercevesiz; tasiyamaz / boyutlandiramaz
-    Standalone,  // X-Plane cercevesi; kullanici tasir, pop-out
+    Embedded,    // LEGACY: cercevesiz ayri XPLM penceresi; host her karede setGeometry ile kendi penceresine oturtur
+    Standalone,  // LEGACY: haritanin kendi X-Plane penceresi (cerceve, tasima, boyutlama, pop-out)
+    Texture,     // pencere yok: harita bir openGL dokusuna cizilir, host istedigi yere basar (renderTexture)
+};
+
+// Texture stilinde host'un iletecegi fare olaylari (injectMouse)
+enum class MouseAction
+{
+    Down,
+    Drag,
+    Up,
+};
+
+enum class MouseButton
+{
+    Left,
+    Right,
 };
 
 enum class DrawTool
@@ -213,7 +230,7 @@ struct XMapConfig
     std::string mName;               // ayar klasoru maps/<ad>/; bos = map_<kimlik>
     Persistence mPersistence = Persistence::LoadAndSave;
     Geometry mGeometry;
-    WindowStyle mStyle = WindowStyle::Embedded;
+    WindowStyle mStyle = WindowStyle::Texture;
     XMapMode mMode = XMapMode::Scenery;
     bool mUiVisible = false;
     bool mMouseInput = false;

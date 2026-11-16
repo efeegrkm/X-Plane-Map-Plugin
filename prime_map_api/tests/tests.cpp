@@ -188,6 +188,14 @@ void testScreenMath()
         RectD tFar{200, 300, 300, 200};
         CHECK(!intersectRect(tFirst, tFar, &tOut), "kesismeyen");
     }
+
+    {
+        // API Geometry: sol-ust + boyut; y yukari artar (0.24-0.25'te alt kenar ters hesaplaniyordu)
+        const RectI tRect = rectFromTopLeft(100, 800, 900, 600);
+        CHECK(tRect.mLeft == 100 && tRect.mTop == 800 && tRect.mRight == 1000 && tRect.mBottom == 200,
+              "Geometry -> RectI kenarlari");
+        CHECK(tRect.width() == 900 && tRect.height() == 600, "Geometry -> RectI boyutu pozitif");
+    }
 }
 
 void testMercator()
@@ -565,14 +573,14 @@ void testMapFormat()
 
 void testSettings()
 {
-    const char* tPath = "map_test_settings.ini";
+    const char* tPath = "map_test_settings.json";
     {
         FILE* tFile = std::fopen(tPath, "w");
         CHECK(tFile != nullptr, "test dosyasi acilmali");
         if (tFile)
         {
-            std::fputs("# comment\n[window]\n left = -1200 \ntop=900\n\n[view]\nzoom=7.25\nfollow_aircraft=0\n"
-                       "broken line\n; another comment\n",
+            std::fputs("{\n  \"window\": { \"left\": \" -1200 \", \"top\": \"900\" },\n"
+                       "  \"view\": { \"zoom\": \"7.25\", \"follow_aircraft\": \"0\" }\n}\n",
                        tFile);
             std::fclose(tFile);
         }
@@ -599,7 +607,7 @@ void testSettings()
     std::remove(tPath);
 
     Settings tMissing;
-    CHECK(!tMissing.load("no_such_file.ini"), "olmayan dosya false");
+    CHECK(!tMissing.load("no_such_file.json"), "olmayan dosya false");
     CHECK(tMissing.getInt("a", "b", 3) == 3, "bos ayarlar varsayilan verir");
 }
 
@@ -700,15 +708,6 @@ void testLayerManager()
     tLayers.loadVisibility(tEmpty, tScenery);
     CHECK(tLayers.at(0)->isVisible() && !tLayers.at(1)->isVisible(), "ayar yoksa katmanin varsayilani");
 
-    Settings tLegacy;  // 0.12 ve oncesi: tek [layers] bolumu -> Scenery'ye tasinir
-    tLegacy.setBool("layers", "a", false);
-    tLayers.loadVisibility(tLegacy, tScenery);
-    CHECK(!tLayers.at(0)->isVisible(), "eski [layers] bolumu Scenery'de okunur");
-    tLayers.loadVisibility(tLegacy, themeFor(XMapMode::Vfr));
-    CHECK(tLayers.at(0)->isVisible(), "eski bolum diger modlari etkilemez");
-    tLegacy.setBool("layers", "b", true);  // varsayilan kapali katman (Taxi routes gibi)
-    tLayers.loadVisibility(tLegacy, tScenery);
-    CHECK(!tLayers.at(1)->isVisible(), "varsayilan kapali katman eski bolumden acilmaz");
     CHECK(!LayerManager::themeDefault(*tLayers.at(1), tScenery) && LayerManager::themeDefault(*tLayers.at(0), tScenery),
           "katmanin mod varsayilani");
 
@@ -1946,7 +1945,7 @@ void testTerrain()
     TerrainPalette tPalette;
     Settings tColors;
     tPalette.save(tColors);
-    tColors.setString("palette", "source", "ini");  // Asama 3: varsayilan kaynak X-Plane dokulari
+    tColors.setString("palette", "source", "colors");  // Asama 3: varsayilan kaynak X-Plane dokulari
     tColors.setString("colors", "water", "10 20 30");
     tColors.setDouble("shading", "strength", 2.0);  // sinira kirpilmali
     TerrainPalette tLoaded;
@@ -2148,7 +2147,7 @@ void testLandBlend()
               tVersionPalette.colorOf(TerrainClass::ForestConifer).mB == 58,
           "eski surum: dosyadaki renk atilir, yeni varsayilan kalir");
     tVersionSettings.setInt("palette", "version", TerrainPalette::kPaletteVersion);
-    tVersionSettings.setString("palette", "source", "ini");
+    tVersionSettings.setString("palette", "source", "colors");
     tVersionPalette.load(tVersionSettings);
     CHECK(tVersionPalette.loadedCurrentVersion() &&
               tVersionPalette.colorOf(TerrainClass::ForestConifer).mR == 1 &&
@@ -3599,18 +3598,22 @@ void testApiLayers()
     CHECK(!LayerRules::isVisible(tLayers, XMapLayer::Runways), "show only: runways off");
     CHECK(LayerRules::groupFromPanelName("Airports") == XMapLayer::AirportsGroup, "panel group name");
 
-    // 3) Ayar metni: ToText / loadText / mergeText ve bolum suzgeci (eski anahtarlar aynen)
+    // 3) Ayar metni (JSON): toText / loadText / mergeText ve bolum suzgeci
     Settings tSettings;
     tSettings.setString("view", "mode", "vfr");
     tSettings.setBool("layers.vfr", "runways.water", false);
     tSettings.setInt("window", "left", 12);
     const std::string tText = tSettings.toText({"view", "layers*"});
-    CHECK(tText.find("[window]") == std::string::npos, "window section filtered out");
+    CHECK(tText.find("\"window\"") == std::string::npos && tText.find("\"view\"") != std::string::npos,
+          "window section filtered out");
     Settings tBack;
     tBack.loadText(tText);
     CHECK(tBack.getString("view", "mode", "") == "vfr", "mode round trip");
     CHECK(!tBack.getBool("layers.vfr", "runways.water", true), "layer round trip");
-    tBack.mergeText("[view]\nzoom=9.5\n");
+    tBack.mergeText("{ \"view\": { \"zoom\": \"9.5\" } }");
+    Settings tNotJson;
+    tNotJson.loadText("[view]\nzoom=9.5\n");
+    CHECK(!tNotJson.has("view", "zoom"), "JSON olmayan metin yok sayilir");
     CHECK(tBack.getDouble("view", "zoom", 0.0) == 9.5 && tBack.getString("view", "mode", "") == "vfr", "merge");
 
     // 4) Cizimler: tek sekil silme

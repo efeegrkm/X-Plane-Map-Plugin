@@ -2,18 +2,15 @@
 // Prime XMap Plugin'in ince kabugu: X-Plane giris noktalari, menu ve prime/map/* komutlari.
 // Haritaya SADECE genel API (PrimeMap.h) uzerinden erisir.
 //
-// Ayar dosyalarini kutuphane yonetir (eklenti dosya okumaz / yazmaz). 0.22 ve oncesi
-// eklenti klasorundeki eski dosyalar ilk acilista haritanin ayar klasorune kopyalanir.
+// Ayar dosyalarini kutuphane yonetir (eklenti dosya okumaz / yazmaz): veri klasoru kutuphanenin
+// varsayilani (%LOCALAPPDATA%/prime/prime-xmap).
 //
 // akis(fabrika): addXMap() -> setName / setStyle / ... -> initialize(). Ikinci harita ayni
 // yolla, baska bir adla acilir: iki harita birbirinden bagimsiz gezilir ve ayarlanir.
-#include <array>
 #include <cstdint>
 #include <cstring>
-#include <filesystem>
 #include <memory>
 #include <string>
-#include <system_error>
 
 #include "XPLMDefs.h"
 #include "XPLMDisplay.h"
@@ -22,17 +19,14 @@
 #include "XPLMProcessing.h"
 #include "XPLMUtilities.h"
 
-#include "PluginSettings.h"
 #include <prime_map_api/PrimeMap.h>
 
 namespace
 {
 
-const char* kVersion = "0.24";  // CMake project(VERSION) ile ayni olmali
+const char* kVersion = "0.26";  // CMake project(VERSION) ile ayni olmali
 const char* kMainMapName = "main";      // ayar klasoru: maps/main/
 const char* kSecondMapName = "second";  // ayar klasoru: maps/second/
-const char* kLegacySettingsFile = "map_settings.ini";  // 0.22 ve oncesi: eklenti klasorunun kokunde
-const char* kLegacyFiles[] = {"map_settings.ini", "map_drawings.txt", "terrain_colors.ini"};
 
 void debugLine(const std::string& pText)
 {
@@ -57,15 +51,12 @@ private:
 
     void onMenu(int pItem);
     int onCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase);
-    void migrateLegacyFiles() const;
     void openMainMap();
     void toggleSecondMap();
     void createCommands();
     void createMenu();
     void toggleDiagnostics();
-    static std::string findPluginDirectory();
 
-    std::string mDirectory;
     prime::XMap* mXMap = nullptr;              // ana harita (maps/main)
     prime::XMap* mSecondXMap = nullptr;        // istege bagli ikinci harita (maps/second)
     prime::XMapManager* mManager = nullptr;   // sahibi; destroyXMapManager ile birakilir
@@ -84,23 +75,12 @@ private:
 void PrimeMapPlugin::start()
 {
     XPLMEnableFeature("XPLM_USE_NATIVE_PATHS", 1);
-    mDirectory = findPluginDirectory();
-    migrateLegacyFiles();
-
     if (!mManager)
     {
         mManager = prime::XMapManagerFactory::createXMapManager();
     }
-    mManager->setLogPrefix("[prime-map-plugin]");  // Log.txt satirlari eskisiyle ayni
-    // Veri klasoru verilmedi: kutuphane varsayilanini kullanir (%LOCALAPPDATA%/prime/prime-xmap).
-    // prime_map.ini henuz yoksa eski map_settings.ini'nin [cache] degerleri ilk deger olur
-    PluginSettings tLegacy;
-    if (tLegacy.load(mDirectory + kLegacySettingsFile))
-    {
-        mManager->setTerrainCacheMb(tLegacy.getInt("cache", "terrain_mb", 0));
-        mManager->setPrefetchTiles(tLegacy.getInt("cache", "prefetch_tiles", 0));
-    }
-    mManager->initialize();
+    mManager->setLogPrefix("[prime-map-plugin]");
+    mManager->initialize();  // veri klasoru: kutuphanenin varsayilani (%LOCALAPPDATA%/prime/prime-xmap)
 
     openMainMap();
     createCommands();
@@ -139,34 +119,10 @@ void PrimeMapPlugin::stop()
     }
 }
 
-void PrimeMapPlugin::migrateLegacyFiles() const
-{
-    // 0.22 ve oncesi dosyalar eklenti klasorunun kokundeydi; 0.23'te harita basina maps/<ad>/ altinda.
-    // Yeni klasor henuz yoksa eski dosyalar oraya kopyalanir (eskiler yerinde kalir: geri donus icin).
-    const std::filesystem::path tNewDirectory = std::filesystem::path(mDirectory) / "maps" / kMainMapName;
-    std::error_code tError;
-    if (std::filesystem::exists(tNewDirectory / kLegacySettingsFile, tError) ||
-        !std::filesystem::exists(std::filesystem::path(mDirectory) / kLegacySettingsFile, tError))
-    {
-        return;
-    }
-    std::filesystem::create_directories(tNewDirectory, tError);
-    for (const char* tName : kLegacyFiles)
-    {
-        const std::filesystem::path tOld = std::filesystem::path(mDirectory) / tName;
-        if (std::filesystem::exists(tOld, tError))
-        {
-            std::filesystem::copy_file(tOld, tNewDirectory / tName,
-                                       std::filesystem::copy_options::skip_existing, tError);
-        }
-    }
-    debugLine("settings of an older version copied to " + tNewDirectory.string());
-}
-
 void PrimeMapPlugin::openMainMap()
 {
     // Fabrika: once nesne, sonra ayarlar, en son initialize. Burada verilenler ILK acilisin
-    // varsayilanlaridir; maps/main/map_settings.ini varsa initialize onu okur (kullanicinin son hali).
+    // varsayilanlaridir; maps/main/map_settings.json varsa initialize onu okur (kullanicinin son hali).
     if (!mManager)
     {
         return;
@@ -277,23 +233,6 @@ void PrimeMapPlugin::toggleDiagnostics()
     {
         XPLMCheckMenuItem(mMenu, mDiagnosticsItem, mXMap->isDiagnosticsOn() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     }
-}
-
-std::string PrimeMapPlugin::findPluginDirectory()
-{
-    // .../Resources/plugins/prime-map-plugin/64/win.xpl -> .../Resources/plugins/prime-map-plugin/
-    std::array<char, 2048> tXplPath = {};  // SDK: en az 256 bayt
-    XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath.data(), nullptr, nullptr);
-    std::string tPath = tXplPath.data();
-    for (int tLevel = 0; tLevel < 2; ++tLevel)  // dosya adini ve "64" klasorunu at
-    {
-        const size_t tCut = tPath.find_last_of("/\\");
-        if (tCut != std::string::npos)
-        {
-            tPath.erase(tCut);
-        }
-    }
-    return tPath + XPLMGetDirectorySeparator();
 }
 
 // --- Callback'ler ------------------------------------------------------------

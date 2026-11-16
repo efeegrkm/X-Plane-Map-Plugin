@@ -1,51 +1,55 @@
 # plugin_api_test
 
-Prime Map API'yi denemek için ayrı bir X-Plane 11 eklentisi: kendi UI'ı +
-harita gömme testi (Adım 1 UI, Adım 2 API bağlama).
-Bütün API çağrıları `src/MapApiCalls.cpp` içindedir; liste: `docs/API_LISTESI.md`.
+Prime XMap API'yi (0.26) denemek için ayrı bir X-Plane 11 eklentisi: kendi UI penceresi (X-Plane çerçevesi:
+**başlıktan taşınır, kenarlardan boyutlanır**) + içine gömülü harita. Bütün API çağrıları
+`src/XMapApiCalls.cpp` içindedir; liste: `docs/API_LISTESI.md`.
 
-Kütüphane tüketimi: `prime_map_api` aynı CMake oturumuna
-`add_subdirectory` ile katılır, hedef adına (`prime_map`) linklenir; SDK paketi yoktur.
-**Ön koşul:** kütüphane reposu bu projenin kardeşi olarak klonlanmalıdır
-(`../prime_map_api`); farklı yerdeyse `-DPRIME_MAP_DIR=<klasor>`. Kütüphane
-derlenirken gerekli COTS bileşenleri (X-Plane SDK, LZMA, earcut, stb) ve
-adım adım akış: `../prime_map_api/README.md`.
-Derleme sonrası `prime_map.dll` otomatik olarak `win.xpl`'nin yanına kopyalanır;
-X-Plane'e kurarken ikisini de `<X-Plane>\Resources\plugins\plugin-api-test\64\`
-altına koyun.
+Harita `WindowStyle::Texture` ile açılır: **ayrı bir pencere yoktur**. Kütüphane haritayı bir openGL
+dokusuna çizer (`renderTexture`), eklenti onu kendi penceresindeki harita alanına basar. Pencere taşınınca /
+boyutlanınca harita aynı karede onunla gelir. Haritanın kendi arayüzü ve faresi açıktır: sürükleme, tekerlek,
+sağ tık, katman paneli, "Go to airport" (klavye) eklentiden `inject*` ile iletilir. Ayarlar:
+`maps/ui_test_texture/`.
 
-## 0.23: çoklu harita otomatik testi
+| Dosya | Ne |
+|---|---|
+| `src/XMapUiTestMain.cpp` | X-Plane giriş noktaları, pencere, düğmeler (pan / zoom) |
+| `src/XMapApiCalls.h/.cpp` | Her metot tek bir API çağrısı |
+| `src/MultiXMapSelfTest.h/.cpp` | Çoklu harita / fabrika / ayar dosyası otomatik testi (X-Plane içinde) |
 
-`src/MultiMapSelfTest.cpp`, fabrika / bağımsız harita / ayar dosyası / ortak önbellek sınırı
-özelliklerini X-Plane **içinde** kendi kendine dener. Çalıştırmak için eklenti klasörüne
-(`<X-Plane>\Resources\plugins\plugin-api-test\`) boş bir `selftest.flag` dosyası koyun ve
-X-Plane'i açın; Log.txt'de `[plugin-api-test] SELFTEST PASS/FAIL ...` satırları ve sonunda
-`SELFTEST DONE: N passed, M failed` çıkar. Dosyayı silince test çalışmaz. Aynı süreçte resmî
-eklenti de kuruluysa kütüphaneyi ilk başlatan host'un klasörü veri klasörü olur; bayrak dosyasını
-o klasöre koyun (Log'daki `Prime Map API ... ready (data: ...)` satırı hangisi olduğunu söyler).
+**Veri klasörü:** bu eklenti kütüphaneye kendi klasörünü verir
+(`<X-Plane>\Resources\plugins\plugin-api-test\`): `prime_map.json`, `maps/`, `cache/` orada oluşur.
+Böylece resmî eklentinin `%LOCALAPPDATA%\prime\prime-xmap\` klasörüyle çakışmaz (iki ayrı zemin işçisi
+aynı önbellek dosyasını yazmaz). İlk açılışta kendi zemin önbelleğini kurar.
 
-Kurulum: `-DMAP_DEPLOY=ON` ile derleme sonrası `win.xpl` + `prime_map.dll` X-Plane'e kopyalanır
-(varsayılan kapalı).
+Kütüphane tüketimi: `prime_map_api` aynı CMake oturumuna `add_subdirectory` ile katılır, hedef adına
+(`prime-map-api`) linklenir; SDK paketi yoktur. Kütüphane bu projenin kardeşi olmalı (`../prime_map_api`);
+farklı yerdeyse `-DPRIME_MAP_DIR=<klasor>`. COTS bileşenleri ve adım adım akış: `../prime_map_api/README.md`.
 
-## Derleme
+## Çoklu harita otomatik testi
+
+`src/MultiXMapSelfTest.cpp`, fabrika / bağımsız harita / ayar dosyası / ortak önbellek sınırı özelliklerini
+X-Plane **içinde** dener. Eklenti klasörüne (`<X-Plane>\Resources\plugins\plugin-api-test\`) boş bir
+`selftest.flag` dosyası koyun ve X-Plane'i açın; Log.txt'de `[plugin-api-test] SELFTEST PASS/FAIL ...`
+satırları ve sonunda `SELFTEST DONE: N passed, M failed` çıkar. Dosyayı silince test çalışmaz.
+
+## Derleme ve kurulum
 
 ```bat
 call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-cmake -S . -B build -G Ninja -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.exe -DCMAKE_BUILD_TYPE=Release
-ninja -C build   ->  build/plugin_api_test/64/win.xpl
+cmake -S . -B build -G Ninja -DCMAKE_MAKE_PROGRAM=C:\Qt\Tools\Ninja\ninja.exe -DCMAKE_BUILD_TYPE=Release -DMAP_DEPLOY=ON
+ninja -C build
 ```
 
-`win.xpl`'yi X-Plane'e kurmak için: `<X-Plane>\Resources\plugins\plugin-api-test\64\`
-(X-Plane kapalıyken).
+`-DMAP_DEPLOY=ON` (varsayılan kapalı) derleme sonrası `win.xpl` + `prime_map.dll`'yi
+`<X-Plane>\Resources\plugins\plugin-api-test\64\` altına kopyalar (X-Plane kapalıyken; açıkken dosya kilitli).
+Resmî eklentiyle aynı süreçte çalışırken iki eklentinin `prime_map.dll`'si **aynı sürüm** olmalı
+(Windows aynı adlı DLL'i bir kez yükler); ikisini birlikte derleyip kurun.
 
 ## Üçüncü Taraf Bileşenler
 
-Şirket kuralı gereği üçüncü taraf bileşenler repoda tutulmaz;
-`C:\workspace\cots` altından okunur:
+Şirket kuralı gereği üçüncü taraf bileşenler repoda tutulmaz; `C:\workspace\cots` (yoksa kardeş `..\cots`)
+altından okunur:
 
 | Bileşen | Sürüm | Ne için kullanılıyor | İndirme | Kurulum klasörü |
 |---|---|---|---|---|
 | X-Plane SDK | 3.0 (XPLM301) | X-Plane eklenti arayüzü: başlıklar + `XPLM_64.lib` | https://developer.x-plane.com/sdk/ | `C:\workspace\cots\X-Plane-SDK` |
-
-Varsayılan kütüphane yolu: kardeş klasör `../prime_map_api`;
-farklı yerdeyse `-DPRIME_MAP_DIR=<klasor>`.

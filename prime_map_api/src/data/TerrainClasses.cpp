@@ -147,7 +147,7 @@ void TerrainPalette::load(const Settings& pSettings)
 {
     // Eski surum dosyadaki renkler eski varsayilanlardir: yenilerini ezmesin
     mLoadedCurrentVersion = pSettings.getInt("palette", "version", 1) >= kPaletteVersion;
-    mUseXPlaneColors = !mLoadedCurrentVersion || pSettings.getString("palette", "source", "xplane") != "ini";
+    mUseXPlaneColors = !mLoadedCurrentVersion || pSettings.getString("palette", "source", "xplane") != "colors";
     if (mLoadedCurrentVersion && !mUseXPlaneColors)
     {
         for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
@@ -230,7 +230,7 @@ void TerrainPalette::load(const Settings& pSettings)
 void TerrainPalette::save(Settings& pSettings) const
 {
     pSettings.setInt("palette", "version", kPaletteVersion);
-    pSettings.setString("palette", "source", mUseXPlaneColors ? "xplane" : "ini");
+    pSettings.setString("palette", "source", mUseXPlaneColors ? "xplane" : "colors");
     for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
     {
         const TerrainColor& tColor = mColors[tIndex];

@@ -161,7 +161,7 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         }
         else if (tArg == "--mode" && tHasValue)
         {
-            pOut->mMode = ModeFromId(pArgv[++tIndex], XMapMode::Scenery);
+            pOut->mMode = modeFromId(pArgv[++tIndex], XMapMode::Scenery);
         }
         else if (tArg == "--hide" && tHasValue)
         {
@@ -287,24 +287,24 @@ bool WritePpm(const std::string& pPath, int pWidth, int pHeight)
 
 void AddDemoDrawings(Drawings& pDrawings, const LatLon& pCenter, double pSpan)
 {
-    pDrawings.SetMode(Drawings::Mode::Point);
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.30, pCenter.mLon - pSpan * 0.60});
-    pDrawings.SetMode(Drawings::Mode::Route);
-    pDrawings.AddVertex({pCenter.mLat - pSpan * 0.30, pCenter.mLon - pSpan * 0.90});
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.05, pCenter.mLon - pSpan * 0.20});
-    pDrawings.AddVertex({pCenter.mLat - pSpan * 0.20, pCenter.mLon + pSpan * 0.40});
-    pDrawings.Finish();
-    pDrawings.SetMode(Drawings::Mode::Region);
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.10, pCenter.mLon + pSpan * 0.50});
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.35, pCenter.mLon + pSpan * 0.55});
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.30, pCenter.mLon + pSpan * 0.85});
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.20, pCenter.mLon + pSpan * 0.70});
-    pDrawings.AddVertex({pCenter.mLat + pSpan * 0.05, pCenter.mLon + pSpan * 0.80});
-    pDrawings.Finish();
+    pDrawings.setMode(Drawings::Mode::Point);
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.30, pCenter.mLon - pSpan * 0.60});
+    pDrawings.setMode(Drawings::Mode::Route);
+    pDrawings.addVertex({pCenter.mLat - pSpan * 0.30, pCenter.mLon - pSpan * 0.90});
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.05, pCenter.mLon - pSpan * 0.20});
+    pDrawings.addVertex({pCenter.mLat - pSpan * 0.20, pCenter.mLon + pSpan * 0.40});
+    pDrawings.finish();
+    pDrawings.setMode(Drawings::Mode::Region);
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.10, pCenter.mLon + pSpan * 0.50});
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.35, pCenter.mLon + pSpan * 0.55});
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.30, pCenter.mLon + pSpan * 0.85});
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.20, pCenter.mLon + pSpan * 0.70});
+    pDrawings.addVertex({pCenter.mLat + pSpan * 0.05, pCenter.mLon + pSpan * 0.80});
+    pDrawings.finish();
     // Yarim kalan rota (turuncu)
-    pDrawings.SetMode(Drawings::Mode::Route);
-    pDrawings.AddVertex({pCenter.mLat - pSpan * 0.35, pCenter.mLon + pSpan * 0.10});
-    pDrawings.AddVertex({pCenter.mLat - pSpan * 0.25, pCenter.mLon + pSpan * 0.25});
+    pDrawings.setMode(Drawings::Mode::Route);
+    pDrawings.addVertex({pCenter.mLat - pSpan * 0.35, pCenter.mLon + pSpan * 0.10});
+    pDrawings.addVertex({pCenter.mLat - pSpan * 0.25, pCenter.mLon + pSpan * 0.25});
 }
 
 }  // namespace
@@ -326,12 +326,12 @@ int main(int pArgc, char** pArgv)
     }
     PreviewInitFont(tDc);
     Gfx::Canvas tCanvas;
-    if (!tCanvas.Init())
+    if (!tCanvas.init())
     {
-        std::fprintf(stderr, "OpenGL: %s\n", tCanvas.ErrorText().c_str());
+        std::fprintf(stderr, "OpenGL: %s\n", tCanvas.errorText().c_str());
         return 1;
     }
-    std::printf("OpenGL: %s\n", tCanvas.ContextText().c_str());
+    std::printf("OpenGL: %s\n", tCanvas.contextText().c_str());
     std::unique_ptr<AtlasTextRenderer> tText;
     if (tOptions.mAtlasText)
     {
@@ -339,9 +339,9 @@ int main(int pArgc, char** pArgv)
         XPLMGetFontDimensions(xplmFont_Proportional, nullptr, &tFontHeight, nullptr);
         tText = std::make_unique<AtlasTextRenderer>(tCanvas, tFontHeight);
         std::string tError;
-        if (tText->Load(tOptions.mXPlane + "Resources/fonts/DejaVuSans.ttf", &tError))
+        if (tText->load(tOptions.mXPlane + "Resources/fonts/DejaVuSans.ttf", &tError))
         {
-            Ui::SetTextRenderer(tText.get());
+            Ui::setTextRenderer(tText.get());
         }
         else
         {
@@ -355,22 +355,22 @@ int main(int pArgc, char** pArgv)
     NavDatabase tNav;
     const int tNavCount = LoadNavFromFiles(tOptions.mXPlane, tNav);
     AirportGeometryStore tRunways(std::make_unique<AptDatIndexer>());
-    tRunways.StartLoading(tOptions.mXPlane, tOptions.mCache + "airports/");
-    while (!tRunways.Poll())
+    tRunways.startLoading(tOptions.mXPlane, tOptions.mCache + "airports/");
+    while (!tRunways.poll())
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     AirwayDatabase tAirways;
-    tAirways.StartLoading({tOptions.mXPlane + "Custom Data/earth_awy.dat",
+    tAirways.startLoading({tOptions.mXPlane + "Custom Data/earth_awy.dat",
                            tOptions.mXPlane + "Resources/default data/earth_awy.dat"},
                           tNav);
-    while (!tAirways.Poll())
+    while (!tAirways.poll())
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
-    std::printf("airways: %s\n", tAirways.LastReport().c_str());
-    std::printf("airport index:\n%s", tRunways.LastReport().c_str());
-    std::printf("data: %d nav records, %d airports with runways (%.1f s)\n", tNavCount, tRunways.Count(),
+    std::printf("airways: %s\n", tAirways.lastReport().c_str());
+    std::printf("airport index:\n%s", tRunways.lastReport().c_str());
+    std::printf("data: %d nav records, %d airports with runways (%.1f s)\n", tNavCount, tRunways.count(),
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count());
 
     // Katmanlar: eklentiyle (Plugin.cpp CreateLayers) ayni sira
@@ -381,66 +381,66 @@ int main(int pArgc, char** pArgv)
     {
         // Ayni ini dosyasiyla eklentinin goreceginin aynisi (ayarlari derlemeden karsilastirmak icin)
         Settings tColors;
-        if (tColors.Load(tOptions.mTerrainColors))
+        if (tColors.load(tOptions.mTerrainColors))
         {
-            tPalette.Load(tColors);
+            tPalette.load(tColors);
         }
         else
         {
             std::fprintf(stderr, "cannot read terrain colors: %s\n", tOptions.mTerrainColors.c_str());
         }
     }
-    if (tPalette.UsesXPlaneColors())
+    if (tPalette.usesXPlaneColors())
     {
         // Eklentiyle ayni: sinif renkleri X-Plane'in arazi dokularindan
         XPlaneClassColors tDerived;
         std::string tReport;
-        if (LoadXPlaneClassColors(tOptions.mXPlane, tOptions.mCache + "xplane_palette.txt", &tDerived, &tReport))
+        if (loadXPlaneClassColors(tOptions.mXPlane, tOptions.mCache + "xplane_palette.txt", &tDerived, &tReport))
         {
-            tPalette.ApplyDerivedColors(tDerived.mColors, tDerived.mTextureCounts);
+            tPalette.applyDerivedColors(tDerived.mColors, tDerived.mTextureCounts);
         }
         std::printf("%s\n", tReport.c_str());
     }
     TerrainStore tTerrain;
-    tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette, AllTerrainStyles());
+    tTerrain.start(tOptions.mXPlane, tOptions.mCache, tPalette, allTerrainStyles());
     // Dokular / vektorler haritalarin ortak merkezinde. Katmanlardan ONCE tanimli olmali
     // (katman yikicilari merkeze haber verir: merkez onlardan sonra yok olmali).
     TerrainHub tTerrainHub(tTerrain);
     LayerManager tLayers;
-    tLayers.Add(std::make_unique<TerrainLayer>(tTerrainHub, tPalette));
-    Layer* tRoadLayer = tLayers.Add(std::make_unique<RoadLayer>(tTerrainHub));
+    tLayers.add(std::make_unique<TerrainLayer>(tTerrainHub, tPalette));
+    Layer* tRoadLayer = tLayers.add(std::make_unique<RoadLayer>(tTerrainHub));
     AirportDetailStore tAirportDetails(tRunways);
-    tAirportDetails.Start();
-    Layer* tSurfaceLayer = tLayers.Add(std::make_unique<AirportSurfaceLayer>(tRunways, tAirportDetails));
-    tLayers.Add(std::make_unique<GridLayer>());
-    tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
-    tLayers.Add(std::make_unique<RunwayLayer>(tRunways));
-    tLayers.Add(std::make_unique<TaxiRouteLayer>(tRunways, tAirportDetails));
-    Layer* tObjectsLayer = tLayers.Add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
-    tLayers.Add(std::make_unique<AirwayLayer>(tAirways, false));
-    tLayers.Add(std::make_unique<AirwayLayer>(tAirways, true));
-    tLayers.Add(std::make_unique<AirportLayer>(tNav, &tRunways));
-    tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, tNav));
-    tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, tNav));
-    Layer* tFixLayer = tLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, tNav));
-    tFixLayer->SetVisible(tOptions.mFixes);
-    tLayers.Add(std::make_unique<AircraftLayer>(tAircraft));
-    tLayers.Add(std::make_unique<DrawingLayer>(tDrawings));
-    const XMapTheme& tTheme = ThemeFor(tOptions.mMode);
+    tAirportDetails.start();
+    Layer* tSurfaceLayer = tLayers.add(std::make_unique<AirportSurfaceLayer>(tRunways, tAirportDetails));
+    tLayers.add(std::make_unique<GridLayer>());
+    tLayers.add(std::make_unique<NavaidLayer>(NavaidType::Ils, tNav, &tRunways));
+    tLayers.add(std::make_unique<RunwayLayer>(tRunways));
+    tLayers.add(std::make_unique<TaxiRouteLayer>(tRunways, tAirportDetails));
+    Layer* tObjectsLayer = tLayers.add(std::make_unique<AirportObjectsLayer>(tRunways, tAirportDetails));
+    tLayers.add(std::make_unique<AirwayLayer>(tAirways, false));
+    tLayers.add(std::make_unique<AirwayLayer>(tAirways, true));
+    tLayers.add(std::make_unique<AirportLayer>(tNav, &tRunways));
+    tLayers.add(std::make_unique<NavaidLayer>(NavaidType::Vor, tNav));
+    tLayers.add(std::make_unique<NavaidLayer>(NavaidType::Ndb, tNav));
+    Layer* tFixLayer = tLayers.add(std::make_unique<NavaidLayer>(NavaidType::Fix, tNav));
+    tFixLayer->setVisible(tOptions.mFixes);
+    tLayers.add(std::make_unique<AircraftLayer>(tAircraft));
+    tLayers.add(std::make_unique<DrawingLayer>(tDrawings));
+    const XMapTheme& tTheme = themeFor(tOptions.mMode);
     if (tOptions.mMode != XMapMode::Scenery)
     {
-        tLayers.LoadVisibility(Settings(), tTheme);  // modun varsayilan katmanlari
+        tLayers.loadVisibility(Settings(), tTheme);  // modun varsayilan katmanlari
     }
-    for (int tIndex = 0; tIndex < tLayers.Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < tLayers.count(); ++tIndex)
     {
-        Layer* tLayer = tLayers.At(tIndex);
-        if (std::find(tOptions.mHidden.begin(), tOptions.mHidden.end(), tLayer->Id()) != tOptions.mHidden.end())
+        Layer* tLayer = tLayers.at(tIndex);
+        if (std::find(tOptions.mHidden.begin(), tOptions.mHidden.end(), tLayer->id()) != tOptions.mHidden.end())
         {
-            tLayer->SetVisible(false);
+            tLayer->setVisible(false);
         }
-        if (std::find(tOptions.mShown.begin(), tOptions.mShown.end(), tLayer->Id()) != tOptions.mShown.end())
+        if (std::find(tOptions.mShown.begin(), tOptions.mShown.end(), tLayer->id()) != tOptions.mShown.end())
         {
-            tLayer->SetVisible(true);
+            tLayer->setVisible(true);
         }
     }
 
@@ -453,37 +453,37 @@ int main(int pArgc, char** pArgv)
     tArea.mRight = tWidth;
     tArea.mTop = tHeight;
     XMapView tView;
-    tView.SetViewport(ToRectD(tArea));
-    tView.SetCenter({tOptions.mLat, tOptions.mLon});
-    tView.SetZoom(tOptions.mZoom);
+    tView.setViewport(toRectD(tArea));
+    tView.setCenter({tOptions.mLat, tOptions.mLon});
+    tView.setZoom(tOptions.mZoom);
     if (tOptions.mDemoDrawings)
     {
-        const GeoBounds tBounds = tView.VisibleBounds();
-        AddDemoDrawings(tDrawings, tView.Center(), (tBounds.mNorth - tBounds.mSouth) * 0.5);
+        const GeoBounds tBounds = tView.visibleBounds();
+        AddDemoDrawings(tDrawings, tView.center(), (tBounds.mNorth - tBounds.mSouth) * 0.5);
     }
 
     // Zemin arka planda uretilir: hazir olana kadar birkac kez "ciz" (istek gonder,
     // gelen goruntuleri yukle). Sonra son kare asagida cizilir.
     for (int tRound = 0; tRound < 600; ++tRound)
     {
-        DrawContext tWarmup;
+        drawContext tWarmup;
         tWarmup.mView = &tView;
         tWarmup.mCanvas = &tCanvas;
         tWarmup.mTheme = &tTheme;
-        tWarmup.mArea = ToRectD(tArea);
+        tWarmup.mArea = toRectD(tArea);
         tWarmup.mClearArea = tWarmup.mArea;
-        tTerrainHub.BeginFrame();  // karedeki doku yukleme hakki (eklentide flight loop yapar)
-        tLayers.At(0)->Draw(tWarmup);
-        tRoadLayer->Draw(tWarmup);  // yol vektorlerini de iste
-        tSurfaceLayer->Draw(tWarmup);  // havalimani ayrintilarini da iste
-        tObjectsLayer->Draw(tWarmup);  // dugumsuz heliport'larinki de
-        tAirportDetails.Update();
-        const std::string tLog = tTerrain.TakeLogLines() + tAirportDetails.TakeLogLines();
+        tTerrainHub.beginFrame();  // karedeki doku yukleme hakki (eklentide flight loop yapar)
+        tLayers.at(0)->draw(tWarmup);
+        tRoadLayer->draw(tWarmup);  // yol vektorlerini de iste
+        tSurfaceLayer->draw(tWarmup);  // havalimani ayrintilarini da iste
+        tObjectsLayer->draw(tWarmup);  // dugumsuz heliport'larinki de
+        tAirportDetails.update();
+        const std::string tLog = tTerrain.takeLogLines() + tAirportDetails.takeLogLines();
         if (!tLog.empty())
         {
             std::printf("%s", tLog.c_str());
         }
-        if (tRound > 2 && tTerrain.IsIdle() && tAirportDetails.PendingCount() == 0)
+        if (tRound > 2 && tTerrain.isIdle() && tAirportDetails.pendingCount() == 0)
         {
             std::printf("terrain ready after %d rounds\n", tRound);
             break;
@@ -491,7 +491,7 @@ int main(int pArgc, char** pArgv)
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(20));  // iscinin son ozet satiri (goruntu sureleri)
-    std::printf("%s", tTerrain.TakeLogLines().c_str());
+    std::printf("%s", tTerrain.takeLogLines().c_str());
 
     glViewport(0, 0, tWidth, tHeight);
     glMatrixMode(GL_PROJECTION);
@@ -501,107 +501,107 @@ int main(int pArgc, char** pArgv)
     glLoadIdentity();
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
-    tCanvas.BeginFrame();
+    tCanvas.beginFrame();
 
-    Ui::FillRect(tCanvas, tArea, tTheme.mBackground);
+    Ui::fillRect(tCanvas, tArea, tTheme.mBackground);
 
     Toolbar tToolbar;
     ToolbarState tToolbarState;
-    tToolbarState.mMode = tDrawings.GetMode();
+    tToolbarState.mMode = tDrawings.getMode();
     const std::string tModeLabel = std::string("Map: ") + tTheme.mName;
     tToolbarState.mModeLabel = tModeLabel.c_str();
     tToolbarState.mToolsOpen = true;
-    tToolbarState.mCanFinish = tDrawings.Current() != nullptr;
-    tToolbarState.mCanUndo = tDrawings.ShapeCount() > 0;
+    tToolbarState.mCanFinish = tDrawings.current() != nullptr;
+    tToolbarState.mCanUndo = tDrawings.shapeCount() > 0;
     if (tOptions.mUi)
     {
-        tToolbar.Layout(tArea, tToolbarState);
+        tToolbar.layout(tArea, tToolbarState);
     }
 
     LabelPlacer tLabels;
-    DrawContext tContext;
+    drawContext tContext;
     tContext.mView = &tView;
     tContext.mCanvas = &tCanvas;
     tContext.mTheme = &tTheme;
-    tContext.mArea = ToRectD(tArea);
+    tContext.mArea = toRectD(tArea);
     tContext.mClearArea = tContext.mArea;
     if (tOptions.mUi)
     {
-        tContext.mClearArea.mTop -= tToolbar.Height();
+        tContext.mClearArea.mTop -= tToolbar.height();
         tContext.mClearArea.mBottom += StatusBar::kHeight;
     }
     tContext.mHasCursor = tOptions.mDemoDrawings;  // lastik cizgiyi gostermek icin sabit bir imlec
     tContext.mCursorX = tWidth * 0.62;
     tContext.mCursorY = tHeight * 0.30;
-    tLabels.Reset(tContext.mClearArea);
+    tLabels.reset(tContext.mClearArea);
     tContext.mLabels = &tLabels;
     bool tCachedDraw = false;
-    const std::optional<Affine2D> tBoxelToPixel = ReadBoxelToPixel();
+    const std::optional<Affine2D> tBoxelToPixel = readBoxelToPixel();
     if (tOptions.mImageCache && tBoxelToPixel)
     {
         XMapImageCache tImageCache;
-        tLayers.PrepareAll();
-        tCachedDraw = tImageCache.Draw(tCanvas, tView, *tBoxelToPixel, 0.0f, true, false, false,
+        tLayers.prepareAll();
+        tCachedDraw = tImageCache.draw(tCanvas, tView, *tBoxelToPixel, 0.0f, true, false, false,
                                        [&](const XMapView& pView, const RectD& pArea)
                                        {
-                                           DrawContext tImage = tContext;
+                                           drawContext tImage = tContext;
                                            tImage.mView = &pView;
                                            tImage.mArea = pArea;
                                            tImage.mHasCursor = false;
                                            Gfx::Mesh tBackground;
-                                           tBackground.AddRect(pArea, tTheme.mBackground);
-                                           tCanvas.Draw(tBackground);
-                                           tLabels.Reset(tImage.mClearArea);
-                                           tLayers.DrawAll(tImage, LayerPass::Cached);
+                                           tBackground.addRect(pArea, tTheme.mBackground);
+                                           tCanvas.draw(tBackground);
+                                           tLabels.reset(tImage.mClearArea);
+                                           tLayers.drawAll(tImage, LayerPass::Cached);
                                        });
         std::printf("image cache: %s\n", tCachedDraw ? "used" : "NOT available");
         if (tCachedDraw)
         {
-            tLabels.Reset(tContext.mClearArea);
-            tLayers.DrawAll(tContext, LayerPass::Overlay);
+            tLabels.reset(tContext.mClearArea);
+            tLayers.drawAll(tContext, LayerPass::Overlay);
         }
     }
     if (!tCachedDraw)
     {
-        tLayers.DrawAll(tContext);
+        tLayers.drawAll(tContext);
     }
     for (const auto& tPoint : tOptions.mDescribe)
     {
         // Resim pikseli (ust = 0) -> boxel (alt = 0)
         const double tY = tHeight - tPoint.second;
         std::printf("describe %.0f,%.0f: %s\n", tPoint.first, tPoint.second,
-                    tLayers.DescribeAt(tContext, tPoint.first, tY).c_str());
+                    tLayers.describeAt(tContext, tPoint.first, tY).c_str());
     }
 
     if (tOptions.mUi)
     {
         StatusBar tStatus;
-        tToolbar.Draw(tCanvas, -1, -1, tToolbarState);
+        tToolbar.draw(tCanvas, -1, -1, tToolbarState);
         // Cizim paleti: varsayilan yerinde (sag ust); --palette-collapsed ile katlanmis
         ToolPalette tToolPalette;
-        tToolPalette.SetCollapsed(tOptions.mPaletteCollapsed);
+        tToolPalette.setCollapsed(tOptions.mPaletteCollapsed);
         RectI tPaletteBounds = tArea;
-        tPaletteBounds.mTop -= tToolbar.Height() + 4;
+        tPaletteBounds.mTop -= tToolbar.height() + 4;
         tPaletteBounds.mBottom += StatusBar::kHeight + 4;
         tPaletteBounds.mLeft += 4;
         tPaletteBounds.mRight -= 4;
-        tToolPalette.Layout(tPaletteBounds, tToolbarState);
-        tToolPalette.Draw(tCanvas, -1, -1, tToolbarState);
+        tToolPalette.layout(tPaletteBounds, tToolbarState);
+        tToolPalette.draw(tCanvas, -1, -1, tToolbarState);
         if (tOptions.mPanel)
         {
             LayerPanel tPanel;
-            tPanel.SetOpen(true);
+            tPanel.setOpen(true);
             // "--panel Airports" grubu, "--panel layer:runways" katmanin alt listesini acar
             for (const std::string& tKey : tOptions.mPanelGroups)
             {
-                tPanel.ToggleExpanded(tKey.find(':') == std::string::npos ? "group:" + tKey : tKey);
+                tPanel.toggleExpanded(tKey.find(':') == std::string::npos ? "group:" + tKey : tKey);
             }
-            tPanel.Layout(tToolbar.ButtonRect(ToolbarAction::Layers), tArea.mBottom + StatusBar::kHeight + 4, tLayers);
-            tPanel.Draw(tCanvas, -1, -1, tLayers);
+            tPanel.layout(tToolbar.buttonRect(ToolbarAction::Layers), tArea.mBottom + StatusBar::kHeight + 4, tLayers);
+            tPanel.draw(tCanvas, -1, -1, tLayers);
         }
-        tStatus.Draw(tCanvas, tArea, tView, tView.BoxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");
+        tStatus.draw(tCanvas, tArea, tView, tView.boxelToLatLon(tContext.mCursorX, tContext.mCursorY), "");
     }
-    tCanvas.FlushText();
+    tCanvas.flushText();
     glFinish();
 
     if (!WritePpm(tOptions.mOut, tWidth, tHeight))
@@ -609,6 +609,6 @@ int main(int pArgc, char** pArgv)
         std::fprintf(stderr, "could not write %s\n", tOptions.mOut.c_str());
         return 1;
     }
-    std::printf("written: %s (%d labels)\n", tOptions.mOut.c_str(), tLabels.PlacedCount());
+    std::printf("written: %s (%d labels)\n", tOptions.mOut.c_str(), tLabels.placedCount());
     return 0;
 }

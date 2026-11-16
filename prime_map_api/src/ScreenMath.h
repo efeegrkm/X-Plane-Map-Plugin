@@ -103,3 +103,6 @@ RectD transformRectBBox(const Affine2D& pMatrix, const RectD& pRect);
 bool intersectRect(const RectD& pFirst, const RectD& pSecond, RectD* pOut);
 
 RectD toRectD(const RectI& pRect);
+
+// API Geometry (sol-ust kose + boyut, boxel) -> RectI. X-Plane'de y yukari artar: alt kenar = ust - yukseklik.
+RectI rectFromTopLeft(int pLeft, int pTop, int pWidth, int pHeight);

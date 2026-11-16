@@ -64,10 +64,10 @@ int main(int pArgc, char** pArgv)
     std::chrono::steady_clock::time_point tClock = std::chrono::steady_clock::now();
 
     std::string tError;
-    if (SevenZip::IsArchive(tData.data(), tData.size()))
+    if (SevenZip::isArchive(tData.data(), tData.size()))
     {
         std::vector<uint8_t> tPlain;
-        if (!SevenZip::ExtractFirstFile(tData, &tPlain, &tError))
+        if (!SevenZip::extractFirstFile(tData, &tPlain, &tError))
         {
             std::printf("7z error: %s\n", tError.c_str());
             return 1;
@@ -85,15 +85,15 @@ int main(int pArgc, char** pArgv)
 
     ElapsedMs(&tClock);  // --raw yazma suresi olcume girmesin
     DsfReader tReader;
-    if (!tReader.Open(tData, &tError))
+    if (!tReader.open(tData, &tError))
     {
         std::printf("DSF error: %s\n", tError.c_str());
         return 1;
     }
     const double tOpenMs = ElapsedMs(&tClock);
-    const DsfInfo& tInfo = tReader.Info();
+    const DsfInfo& tInfo = tReader.info();
     std::printf("bounds: W %.3f S %.3f E %.3f N %.3f overlay=%d pools=%d\n", tInfo.mWest, tInfo.mSouth, tInfo.mEast,
-                tInfo.mNorth, tInfo.mOverlay ? 1 : 0, tReader.PoolCount());
+                tInfo.mNorth, tInfo.mOverlay ? 1 : 0, tReader.poolCount());
     for (const auto& tProperty : tInfo.mProperties)
     {
         if (tProperty.first.rfind("sim/", 0) == 0 && tProperty.first.rfind("sim/exclude_", 0) != 0)
@@ -131,7 +131,7 @@ int main(int pArgc, char** pArgv)
         tDump.open(tDumpPath);
         tDump.precision(9);
     }
-    const bool tOk = tReader.ForEachTriangle(
+    const bool tOk = tReader.forEachTriangle(
         [&](const DsfTriangle& pTriangle)
         {
             const bool tIsBase = (pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0;
@@ -177,7 +177,7 @@ int main(int pArgc, char** pArgv)
 
     // Overlay envanteri: tanim basina komut sayilari
     DsfCommandStatistics tStatistics;
-    const bool tCountOk = tReader.CountCommands(&tStatistics, &tError);
+    const bool tCountOk = tReader.countCommands(&tStatistics, &tError);
     const double tCountMs = ElapsedMs(&tClock);
     std::printf("commands: %s; terrain patches %lld\n", tCountOk ? "ok" : tError.c_str(),
                 tStatistics.mTerrainPatches);
@@ -217,7 +217,7 @@ int main(int pArgc, char** pArgv)
     long long tPolygonPoints = 0;
     long long tChainPoints = 0;
     double tChainBox[4] = {1e9, 1e9, -1e9, -1e9};
-    const bool tVectorsOk = tReader.ForEachVector(
+    const bool tVectorsOk = tReader.forEachVector(
         [&](const DsfPolygon& pPolygon)
         {
             for (const std::vector<double>& tRing : pPolygon.mRingLon)
@@ -242,10 +242,10 @@ int main(int pArgc, char** pArgv)
                 tChainBox[1], tChainBox[3]);
 
     // Butun raster katmanlari: boyut ve deger araligi
-    for (const std::string& tName : tReader.RasterNames())
+    for (const std::string& tName : tReader.rasterNames())
     {
         DsfRaster tLayer;
-        if (!tReader.ReadRaster(tName, &tLayer) || tLayer.mValues.empty())
+        if (!tReader.readRaster(tName, &tLayer) || tLayer.mValues.empty())
         {
             std::printf("raster %s: unreadable\n", tName.c_str());
             continue;
@@ -258,7 +258,7 @@ int main(int pArgc, char** pArgv)
 
     // DEM okuma suresi (zemin iscisi her karoda bunu yapar)
     DsfRaster tElevation;
-    const bool tHasElevation = tReader.ReadRaster("elevation", &tElevation);
+    const bool tHasElevation = tReader.readRaster("elevation", &tElevation);
     const double tRasterMs = ElapsedMs(&tClock);
     std::printf("elevation raster: %s %dx%d post_centric=%d\n", tHasElevation ? "yes" : "no", tElevation.mWidth,
                 tElevation.mHeight, tElevation.mPostCentric ? 1 : 0);

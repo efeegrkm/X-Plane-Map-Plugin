@@ -255,46 +255,15 @@ void Settings::loadText(const std::string& pText)
     mergeText(pText);
 }
 
-// JSON (yeni bicim) ya da eski INI: metin '{' ile basliyorsa JSON say.
+// Sadece JSON: { "bolum": { "anahtar": "deger" } }. JSON olmayan metin yok sayilir.
 void Settings::mergeText(const std::string& pText)
 {
     const size_t tFirst = pText.find_first_not_of(" \t\r\n");
-    if (tFirst == std::string::npos)
+    if (tFirst == std::string::npos || pText[tFirst] != '{')
     {
         return;
     }
-    if (pText[tFirst] == '{')
-    {
-        parseJson(pText, &mValues);
-        return;
-    }
-    std::istringstream tLines(pText);
-    std::string tSection;
-    std::string tLine;
-    while (std::getline(tLines, tLine))
-    {
-        tLine = trim(tLine);
-        if (tLine.empty() || tLine[0] == '#' || tLine[0] == ';')
-        {
-            continue;
-        }
-        if (tLine.front() == '[' && tLine.back() == ']')
-        {
-            tSection = trim(tLine.substr(1, tLine.size() - 2));
-            continue;
-        }
-        const size_t tEquals = tLine.find('=');
-        if (tEquals == std::string::npos)
-        {
-            continue;  // taninmayan satir: atla
-        }
-        const std::string tKey = trim(tLine.substr(0, tEquals));
-        const std::string tValue = trim(tLine.substr(tEquals + 1));
-        if (!tKey.empty())
-        {
-            mValues[tSection][tKey] = tValue;
-        }
-    }
+    parseJson(pText, &mValues);
 }
 
 std::string Settings::toText(const std::vector<std::string>& pSections) const

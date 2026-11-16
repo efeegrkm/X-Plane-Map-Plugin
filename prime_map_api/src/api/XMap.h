@@ -30,6 +30,13 @@ namespace prime
 
 class XMapManager;
 
+// C4251 (dll arayuzunde std uyeleri): kutuphane ve host ayni MSVC + /MD ile derlenmek zorunda (README),
+// bu yuzden zararsiz; host'un /W4 derlemesini kirletmesin diye yalnizca bu sinif icin kapatilir.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
+
 class PRIME_MAP_EXPORT XMap
 {
 public:
@@ -51,6 +58,8 @@ public:
     bool saveSettings();
 
     // --- Pencere ---
+    // Stil: Texture onerilen ve hedef yol. Embedded / Standalone LEGACY (WindowStyle); setTitle, setGeometry,
+    // bringToFront, setPoppedOut yalnizca bu LEGACY pencereli stillerde anlamlidir.
     void setStyle(WindowStyle pStyle);  // yalnizca kapaliyken
     WindowStyle getStyle() const;
     void setTitle(const std::string& pTitle);
@@ -167,6 +176,23 @@ public:
     uint64_t getSettingsRevision() const;
     uint64_t getDrawingsRevision() const;
 
+    // --- Doku (WindowStyle::Texture) ---
+    // Harita penceresiz bir openGL dokusuna cizilir; host kendi cizim callback'inde renderTexture()
+    // cagirir ve getTextureId() dokusunu istedigi dortgene basar (v = 0 alt kenar). Koordinatlar dokuya
+    // goredir: birim boxel, orijin SOL-ALT kose, y yukari (X-Plane ile ayni). pPixelsPerUnit: boxel basina
+    // doku pikseli; 0 = host'un cizim callback'indeki UI olceginden otomatik (keskin goruntu).
+    bool setTextureSize(int pWidth, int pHeight, double pPixelsPerUnit = 0.0);
+    int getTextureWidth() const;   // boxel
+    int getTextureHeight() const;
+    bool renderTexture();          // host'un XPLM cizim callback'i icinde; false: dokuyu basma
+    unsigned int getTextureId() const;  // GL_TEXTURE_2D adi (XPLMBindTexture2d); yoksa 0
+    // Girdi: host kendi pencere koordinatini doku koordinatina cevirip iletir. Tuketildiyse true.
+    bool injectMouse(int pX, int pY, MouseAction pAction, MouseButton pButton = MouseButton::Left);
+    void injectMouseMove(int pX, int pY);  // imlec dokunun ustundeyken her karede (tooltip, vurgu)
+    bool injectWheel(int pX, int pY, int pClicks);
+    bool injectKey(char pKey, int pFlags, char pVirtualKey);  // XPLM key callback degerleri aynen
+    bool wantsKeyboard() const;  // true: host klavye odagini alip tuslari injectKey ile iletmeli
+
     // --- Durum ---
     std::string getStatusText() const;
     int getTerrainPendingImages() const;
@@ -232,8 +258,13 @@ private:
     std::atomic<bool>* mDataLoadedFlag = nullptr;  // sahibi bu nesne (mIsDataLoaded); update() yazar
 
     std::atomic<bool> mIsDataLoaded{false};
+    bool mTextureWarned = false;      // renderTexture yanlis stilde: uyari bir kez (her karede cagrilir)
     XMapManager* mManager = nullptr;  // sahibi; yok olurken kendini listeden dusurur
 };
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace prime
 

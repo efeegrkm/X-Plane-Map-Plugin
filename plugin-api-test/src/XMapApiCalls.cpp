@@ -3,13 +3,14 @@
 // yapmaz / varsayilan doner; API'nin kendisi de ayni kurali uygular.
 #include "XMapApiCalls.h"
 
-bool XMapApiCalls::initLibrary(const std::string& pLogPrefix)
+bool XMapApiCalls::initLibrary(const std::string& pLogPrefix, const std::string& pDataDirectory)
 {
     if (!mManager)
     {
         mManager = prime::XMapManagerFactory::createXMapManager();
     }
     mManager->setLogPrefix(pLogPrefix);
+    mManager->setDataDirectory(pDataDirectory);
     return mManager->initialize();
 }
 
@@ -25,6 +26,7 @@ bool XMapApiCalls::openXMap(const prime::Geometry& pGeometry, prime::WindowStyle
         return false;
     }
     prime::XMapConfig tConfig;
+    tConfig.mName = pStyle == prime::WindowStyle::Texture ? "ui_test_texture" : "ui_test_standalone";
     tConfig.mGeometry = pGeometry;
     tConfig.mStyle = pStyle;
     tConfig.mUiVisible = pUi;
@@ -232,6 +234,54 @@ void XMapApiCalls::bringToFront()
     {
         mXMap->bringToFront();
     }
+}
+
+prime::WindowStyle XMapApiCalls::getStyle() const
+{
+    return mXMap ? mXMap->getStyle() : prime::WindowStyle::Texture;
+}
+
+bool XMapApiCalls::setTextureSize(int pWidth, int pHeight)
+{
+    return mXMap && mXMap->setTextureSize(pWidth, pHeight);
+}
+
+bool XMapApiCalls::renderTexture()
+{
+    return mXMap && mXMap->renderTexture();
+}
+
+unsigned int XMapApiCalls::getTextureId() const
+{
+    return mXMap ? mXMap->getTextureId() : 0u;
+}
+
+bool XMapApiCalls::injectMouse(int pX, int pY, prime::MouseAction pAction, prime::MouseButton pButton)
+{
+    return mXMap && mXMap->injectMouse(pX, pY, pAction, pButton);
+}
+
+void XMapApiCalls::injectMouseMove(int pX, int pY)
+{
+    if (mXMap)
+    {
+        mXMap->injectMouseMove(pX, pY);
+    }
+}
+
+bool XMapApiCalls::injectWheel(int pX, int pY, int pClicks)
+{
+    return mXMap && mXMap->injectWheel(pX, pY, pClicks);
+}
+
+bool XMapApiCalls::injectKey(char pKey, int pFlags, char pVirtualKey)
+{
+    return mXMap && mXMap->injectKey(pKey, pFlags, pVirtualKey);
+}
+
+bool XMapApiCalls::wantsKeyboard() const
+{
+    return mXMap && mXMap->wantsKeyboard();
 }
 
 void XMapApiCalls::setPoppedOut(bool pPoppedOut)

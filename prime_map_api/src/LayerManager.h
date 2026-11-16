@@ -50,8 +50,6 @@ public:
                                                                    double pY) const;
 
     // Mod basina bolum ("layers.vfr" ...): anahtar = katman kimligi, deger = 1/0.
-    // Scenery icin eski [layers] bolumu de okunur (0.12 ve oncesi); orada varsayilan
-    // kapali katmanlar okunmaz, yeni kurulumda kapali gelsinler.
     void loadVisibility(const Settings& pSettings, const XMapTheme& pTheme);
 
     // Katmanin bu moddaki varsayilan gorunurlugu (temanin ayari, yoksa katmanin kendisi)

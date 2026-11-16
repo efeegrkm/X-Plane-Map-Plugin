@@ -1,7 +1,9 @@
 #include "XMapWindow.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <format>
 #include <cstdlib>
@@ -37,7 +39,7 @@ const char* kFontFile = "Resources/fonts/DejaVuSans.ttf";  // X-Plane kurulumund
 const int kMinWidth = 400;           // pencere en kucuk boyutu (boxel)
 const int kMinHeight = 260;
 const int kMaxSize = 8192;
-const int kEmbeddedMinSize = 50;     // Embedded pencere: host kucuk bir alan verebilir
+const int kEmbeddedMinSize = 50;     // LEGACY Embedded pencere: host kucuk bir alan verebilir
 const float kMouseTimeout = 0.25f;   // pop-out'ta imlec bu sureden eski ise pencere disinda say
 const float kDiagnosticsPeriod = 2.0f;
 const int kClickSlop = 4;            // basip birakmada bundan az hareket: tiklama (boxel)
@@ -67,36 +69,20 @@ XMapWindow::~XMapWindow()
     destroy();
 }
 
-void XMapWindow::applyOptions(const XMapWindowOptions& pOptions)
+void XMapWindow::create()
 {
-    if (!mWindow)
-    {
-        mEmbedded = pOptions.mEmbedded;
-    }
-    mShowControls = pOptions.mUiVisible;
-    mMouseInput = pOptions.mMouseInput;
-    setXPlaneFont(pOptions.mXPlaneFont);
-    mUseImageCache = pOptions.mImageCache;
-    setMaxRenderFps(pOptions.mMaxRenderFps);
-    setGeometry(pOptions.mGeometry);
-    setMapMode(pOptions.mMode);
-    mWantVisible = pOptions.mVisible;
-}
-
-void XMapWindow::create(const XMapWindowOptions& pOptions)
-{
-    if (mWindow)
+    if (mWindow || mTextureOpen)
     {
         return;
     }
-    applyOptions(pOptions);
-    create();
-}
-
-void XMapWindow::create()
-{
-    if (mWindow)
+    if (mTextureMode)
     {
+        // Pencere yok: harita host'un renderTexture cagrisiyla dokuya cizilir
+        mTextureOpen = true;
+        mArea = textureArea();
+        mView.setViewport(toRectD(mArea));
+        mTextureDirty = true;
+        log("map texture created ({} x {} boxels)", mTextureWidth, mTextureHeight);
         return;
     }
     mImageCache.setMaxRate(mMaxRenderFps);
@@ -118,8 +104,8 @@ void XMapWindow::create()
     tParams.handleCursorFunc = cursorCallback;
     tParams.handleMouseWheelFunc = wheelCallback;
     tParams.refcon = this;
-    // Standalone: X-Plane'in ince cercevesi (tasinir, boyutlanir). Embedded: cercevesiz; kullanici
-    // tasiyamaz / boyutlandiramaz, yeri sadece host'un setGeometry cagrisiyla degisir.
+    // LEGACY pencere stilleri. Standalone: X-Plane'in ince cercevesi (tasinir, boyutlanir, pop-out).
+    // Embedded: cercevesiz; yeri sadece host'un setGeometry cagrisiyla degisir.
     tParams.decorateAsFloatingWindow =
         mEmbedded ? xplm_WindowDecorationNone : xplm_WindowDecorationRoundRectangle;
     tParams.layer = xplm_WindowLayerFloatingWindows;
@@ -165,9 +151,12 @@ bool XMapWindow::isEmbedded() const
 
 void XMapWindow::setEmbedded(bool pEmbedded)
 {
-    if (mWindow)
+    if (isCreated())
     {
-        log("WARNING: window style cannot change while the map is open (close it first)");
+        if (pEmbedded != mEmbedded)
+        {
+            log("WARNING: window style cannot change while the map is open (close it first)");
+        }
         return;
     }
     mEmbedded = pEmbedded;
@@ -279,7 +268,7 @@ void XMapWindow::invalidateImage()
 
 bool XMapWindow::isCreated() const
 {
-    return mWindow != nullptr;
+    return mWindow != nullptr || mTextureOpen;
 }
 
 void XMapWindow::destroy()
@@ -296,6 +285,14 @@ void XMapWindow::destroy()
         mWindow = nullptr;
         mPressOnMap = false;
     }
+    if (mTextureOpen)
+    {
+        // Doku nesnede kalir (yeniden acilabilir); GL nesneleri yikicida birakilir
+        mTextureOpen = false;
+        mTextureKeyboard = false;
+        mSearchPanel.setOpen(false);
+        mPressOnMap = false;
+    }
     // Yazi atlasi ve Canvas nesnede kalir (pencere yeniden acilabilir); Ui baska pencereninkini
     // gosteriyor olabilir: sadece bizimkiyse birak
     if (mText && Ui::currentTextRenderer() == mText.get())
@@ -306,6 +303,10 @@ void XMapWindow::destroy()
 
 bool XMapWindow::isVisible() const
 {
+    if (mTextureMode)
+    {
+        return mTextureOpen && mWantVisible;  // host basip basmamaya kendisi karar verir
+    }
     return mWindow && XPLMGetWindowIsVisible(mWindow) != 0;
 }
 
@@ -434,8 +435,6 @@ int XMapWindow::wheelCallback(XPLMWindowID /*pWindow*/, int pX, int pY, int pWhe
 
 void XMapWindow::onDraw()
 {
-    const std::chrono::steady_clock::time_point tDrawStart = std::chrono::steady_clock::now();
-    const float tNow = XPLMGetElapsedTime();
     useOwnText();  // coklu harita: yazilar bu pencerenin atlasina / Canvas'ina
 
     int tLeft = 0;
@@ -452,45 +451,9 @@ void XMapWindow::onDraw()
         mFloatingGeometry = mArea;
         mHasFloatingGeometry = true;
     }
-    mView.setViewport(toRectD(mArea));
-
-    // Ucak verisini cizimden hemen once oku (sim duraklatilmis olsa bile guncel)
-    mAircraft.refresh();
-    if (mFollowAircraft && mAircraft.state().mValid)
+    prepareFrame();
+    if (!beginCanvasFrame())
     {
-        mView.setCenter(mAircraft.state().mPosition);
-    }
-
-    // Arac seridinin yuksekligi (bir/iki satir) katmanlarin "bos alanini" belirler
-    const ToolbarState tToolbarState = currentToolbarState();
-    if (mShowControls)
-    {
-        mToolbar.layout(mArea, tToolbarState);
-    }
-
-    // Cizim kapisi: ilk karede openGL fonksiyonlari ve shader'lar yuklenir
-    if (!prepareCanvas())
-    {
-        return;
-    }
-    if (mTextPending)
-    {
-        mTextPending = false;
-        createTextRenderer();  // setXPlaneFont acik pencerede cagrildi
-    }
-    mCanvas.beginFrame();
-    if (!mCanvas.isContextUsable())
-    {
-        // Pop-out penceresi shader'larimizi paylasmayan bir baglamda: cizim
-        // yapilirsa gecersiz nesneler kullanilir. Cizme, nedenini yaz.
-        if (!mContextWarned)
-        {
-            log("ERROR: this openGL context does not share the map's shaders (popped out = {})",
-                XPLMWindowIsPoppedOut(mWindow) != 0);
-            mContextWarned = true;
-        }
-        Ui::text(mArea.mLeft + 10, mArea.mTop - 30, "XMap cannot draw in this window, use Pop in", Ui::kTextYellow);
-        mCanvas.flushText();
         return;
     }
 
@@ -501,6 +464,65 @@ void XMapWindow::onDraw()
     {
         tScissor.emplace(*tBoxelToPixel, toRectD(mArea));  // pencere disina tasma
     }
+    drawFrame(XPLMGetElapsedTime(), tBoxelToPixel, true, tScissor ? tScissor->pixelRect() : RectD());
+}
+
+void XMapWindow::prepareFrame()
+{
+    mView.setViewport(toRectD(mArea));
+
+    // Ucak verisini cizimden hemen once oku (sim duraklatilmis olsa bile guncel)
+    mAircraft.refresh();
+    if (mFollowAircraft && mAircraft.state().mValid)
+    {
+        mView.setCenter(mAircraft.state().mPosition);
+    }
+
+    // Arac seridinin yuksekligi (bir/iki satir) katmanlarin "bos alanini" belirler
+    if (mShowControls)
+    {
+        mToolbar.layout(mArea, currentToolbarState());
+    }
+}
+
+bool XMapWindow::beginCanvasFrame()
+{
+    // Cizim kapisi: ilk karede openGL fonksiyonlari ve shader'lar yuklenir
+    if (!prepareCanvas())
+    {
+        return false;
+    }
+    if (mTextPending)
+    {
+        mTextPending = false;
+        createTextRenderer();  // setXPlaneFont acik pencerede cagrildi
+    }
+    mCanvas.beginFrame();
+    if (mCanvas.isContextUsable())
+    {
+        return true;
+    }
+    // Pop-out penceresi (ya da host'un baglami) shader'larimizi paylasmiyor: cizim yapilirsa gecersiz
+    // nesneler kullanilir. Cizme, nedenini yaz.
+    if (!mContextWarned)
+    {
+        log("ERROR: this openGL context does not share the map's shaders (popped out = {}, texture = {})",
+            isPoppedOut(), mTextureMode);
+        mContextWarned = true;
+    }
+    if (mWindow)
+    {
+        Ui::text(mArea.mLeft + 10, mArea.mTop - 30, "XMap cannot draw in this window, use Pop in", Ui::kTextYellow);
+        mCanvas.flushText();
+    }
+    return false;
+}
+
+void XMapWindow::drawFrame(float pNow, const std::optional<Affine2D>& pBoxelToPixel, bool pUseImageCache,
+                          const RectD& pScissorPixels)
+{
+    const std::chrono::steady_clock::time_point tDrawStart = std::chrono::steady_clock::now();
+    const float tNow = pNow;
 
     const XMapTheme& tTheme = mTheme;  // API katman renk yazmalari uygulanmis etkin tema
     Ui::fillRect(mCanvas, mArea, tTheme.mBackground);  // zemin verisi olmayan yer: duz renk
@@ -515,7 +537,7 @@ void XMapWindow::onDraw()
     tContext.mTheme = &tTheme;
     tContext.mArea = toRectD(mArea);
     tContext.mClearArea = clearArea();
-    tContext.mPixelsPerBoxel = tBoxelToPixel ? pixelsPerBoxel(*tBoxelToPixel) : 1.0;
+    tContext.mPixelsPerBoxel = pBoxelToPixel ? pixelsPerBoxel(*pBoxelToPixel) : 1.0;
     if (mText)
     {
         mText->setPixelsPerBoxel(tContext.mPixelsPerBoxel);  // UI olcegi degistiyse atlas yeniden basilir
@@ -532,14 +554,14 @@ void XMapWindow::onDraw()
     // kendi matrisleriyle cizer, FBO'ya dogru cizecegi belli degil.
     const bool tNewData = mLayers.prepareAll();  // hazir dokular, vektorler
     bool tCached = false;
-    if (mUseImageCache && mText && tBoxelToPixel)
+    if (pUseImageCache && mUseImageCache && mText && pBoxelToPixel)
     {
         const uint64_t tSignature = sceneSignature();
         const bool tUrgent = tSignature != mLastSignature;
         mLastSignature = tSignature;
         const bool tBusyEnded = mWasBusy && !mDataBusy;  // son gelen veri de resme girsin
         mWasBusy = mDataBusy;
-        tCached = mImageCache.draw(mCanvas, mView, *tBoxelToPixel, tNow, tUrgent, tNewData || tBusyEnded, mDataBusy,
+        tCached = mImageCache.draw(mCanvas, mView, *pBoxelToPixel, tNow, tUrgent, tNewData || tBusyEnded, mDataBusy,
                                    [this, &tContext, &tTheme](const XMapView& pView, const RectD& pArea)
                                    {
                                        drawContext tImage = tContext;
@@ -583,8 +605,186 @@ void XMapWindow::onDraw()
     if (mDiagnostics && tNow - mLastDiagnosticsTime >= kDiagnosticsPeriod)
     {
         mLastDiagnosticsTime = tNow;
-        logDiagnostics(tNow, tContext.mPixelsPerBoxel, tScissor ? tScissor->pixelRect() : RectD());
+        logDiagnostics(tNow, tContext.mPixelsPerBoxel, pScissorPixels);
     }
+}
+
+RectI XMapWindow::textureArea() const
+{
+    RectI tArea;
+    tArea.mLeft = 0;
+    tArea.mBottom = 0;
+    tArea.mRight = mTextureWidth;
+    tArea.mTop = mTextureHeight;
+    return tArea;
+}
+
+void XMapWindow::setTextureMode(bool pTexture)
+{
+    if (isCreated())
+    {
+        if (pTexture != mTextureMode)
+        {
+            log("WARNING: window style cannot change while the map is open (close it first)");
+        }
+        return;
+    }
+    mTextureMode = pTexture;
+}
+
+bool XMapWindow::isTextureMode() const
+{
+    return mTextureMode;
+}
+
+void XMapWindow::setTextureSize(int pWidth, int pHeight, double pPixelsPerBoxel)
+{
+    const int tWidth = std::clamp(pWidth, 1, kMaxSize);
+    const int tHeight = std::clamp(pHeight, 1, kMaxSize);
+    if (tWidth == mTextureWidth && tHeight == mTextureHeight && pPixelsPerBoxel == mTexturePixelsPerBoxel)
+    {
+        return;
+    }
+    mTextureWidth = tWidth;
+    mTextureHeight = tHeight;
+    mTexturePixelsPerBoxel = pPixelsPerBoxel;
+    mTextureDirty = true;
+    if (mTextureMode)
+    {
+        mArea = textureArea();
+        mView.setViewport(toRectD(mArea));
+    }
+}
+
+int XMapWindow::textureWidth() const
+{
+    return mTextureWidth;
+}
+
+int XMapWindow::textureHeight() const
+{
+    return mTextureHeight;
+}
+
+bool XMapWindow::renderTexture()
+{
+    if (!mTextureMode || !mTextureOpen || !mWantVisible)
+    {
+        return false;
+    }
+    useOwnText();
+    const float tNow = XPLMGetElapsedTime();
+    mArea = textureArea();
+    prepareFrame();
+
+    // Doku pikseli / boxel: verilmediyse host'un cizim callback'indeki UI olcegi (keskin goruntu)
+    double tScale = mTexturePixelsPerBoxel;
+    if (tScale <= 0.0)
+    {
+        const std::optional<Affine2D> tHost = readBoxelToPixel();
+        tScale = tHost ? pixelsPerBoxel(*tHost) : 1.0;
+    }
+    const int tPixelWidth = std::clamp(static_cast<int>(std::lround(mTextureWidth * tScale)), 1, kMaxSize);
+    const int tPixelHeight = std::clamp(static_cast<int>(std::lround(mTextureHeight * tScale)), 1, kMaxSize);
+
+    // Yeniden cizim: ilk kez / boyut / sahne (mod, katman, cizim) / gorunum degisti, girdi geldi; aksi
+    // halde en fazla max_fps (ucak ve iz hareket eder). Gerek yoksa eski doku basilir.
+    const uint64_t tSignature = sceneSignature();
+    const bool tSceneChanged = tSignature != mLastSignature;
+    const bool tViewChanged = mView.centerMercatorX() != mTextureCenterX ||
+                              mView.centerMercatorY() != mTextureCenterY || mView.zoom() != mTextureZoom;
+    const bool tSizeChanged = tPixelWidth != mTextureTarget.width() || tPixelHeight != mTextureTarget.height();
+    const bool tRateAllows = tNow - mLastTextureRender >= 1.0f / static_cast<float>(mMaxRenderFps);
+    const bool tHasImage = mTextureTarget.getTexture().isValid();
+    if (tHasImage && !tSizeChanged && !tSceneChanged && !tViewChanged && !mTextureDirty && !tRateAllows)
+    {
+        return true;
+    }
+
+    if (!beginCanvasFrame())
+    {
+        return false;
+    }
+    if (!mText && !mTextureFontWarned)
+    {
+        // XPLMDrawString X-Plane'in matrisleriyle cizer: dokuya dogru yere dusmez
+        log("WARNING: texture map uses the X-Plane font; labels may be misplaced ([text] renderer = atlas)");
+        mTextureFontWarned = true;
+    }
+    if (mTextureTarget.prepare(tPixelWidth, tPixelHeight) == 0 ||
+        !mCanvas.beginOffscreen(mTextureTarget, toRectD(mArea)))
+    {
+        return false;
+    }
+    // Doku orijini haritanin sol-alt kosesi: boxel -> piksel sadece olcek
+    Affine2D tBoxelToPixel;
+    tBoxelToPixel.mA = static_cast<double>(tPixelWidth) / mTextureWidth;
+    tBoxelToPixel.mD = static_cast<double>(tPixelHeight) / mTextureHeight;
+    drawFrame(tNow, tBoxelToPixel, false, RectD());
+    mCanvas.endOffscreen();
+
+    mLastSignature = tSignature;
+    mTextureCenterX = mView.centerMercatorX();
+    mTextureCenterY = mView.centerMercatorY();
+    mTextureZoom = mView.zoom();
+    mTextureDirty = false;
+    mLastTextureRender = tNow;
+    return true;
+}
+
+unsigned int XMapWindow::textureId() const
+{
+    const Gfx::Texture& tTexture = mTextureTarget.getTexture();
+    return tTexture.isValid() ? static_cast<unsigned int>(tTexture.id()) : 0u;
+}
+
+int XMapWindow::injectMouse(int pX, int pY, XPLMMouseStatus pStatus, bool pRight)
+{
+    if (!mTextureMode || !mTextureOpen)
+    {
+        return 0;
+    }
+    mTextureDirty = true;
+    return pRight ? onRightClick(pX, pY, pStatus) : onClick(pX, pY, pStatus);
+}
+
+void XMapWindow::injectMouseMove(int pX, int pY)
+{
+    if (!mTextureMode || !mTextureOpen)
+    {
+        return;
+    }
+    if (pX != mMouseX || pY != mMouseY)
+    {
+        mTextureDirty = true;  // vurgu / tooltip imleci izlesin
+    }
+    rememberMouse(pX, pY);
+}
+
+int XMapWindow::injectWheel(int pX, int pY, int pClicks)
+{
+    if (!mTextureMode || !mTextureOpen)
+    {
+        return 0;
+    }
+    mTextureDirty = true;
+    return onWheel(pX, pY, 0, pClicks);
+}
+
+bool XMapWindow::injectKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey)
+{
+    if (!wantsKeyboard())
+    {
+        return false;
+    }
+    mTextureDirty = true;
+    onKey(pKey, pFlags, pVirtualKey, false);
+    return true;
+}
+
+bool XMapWindow::wantsKeyboard() const
+{
+    return mTextureMode && mTextureOpen && mTextureKeyboard;
 }
 
 void XMapWindow::drawTooltip(const drawContext& pContext, const std::string& pText)
@@ -662,7 +862,10 @@ bool XMapWindow::prepareCanvas()
         log("ERROR: map cannot draw: {}", mCanvas.errorText());
     }
     // Sekil cizemiyoruz ama X-Plane'in yazisi calisir: nedeni pencereye yaz
-    Ui::text(mArea.mLeft + 10, mArea.mTop - 30, "XMap cannot draw: " + mCanvas.errorText(), Ui::kTextYellow);
+    if (mWindow)
+    {
+        Ui::text(mArea.mLeft + 10, mArea.mTop - 30, "XMap cannot draw: " + mCanvas.errorText(), Ui::kTextYellow);
+    }
     return false;
 }
 
@@ -694,7 +897,7 @@ void XMapWindow::drawControls(int pMouseX, int pMouseY, bool pMouseInside)
     if (!mShowControls)
     {
         // Kontroller gizli: Standalone'da imlec haritanin ustundeyken kucuk bir
-        // "Controls" dugmesi goster; imlec cikinca sadece harita kalir. Embedded'de hic bir sey.
+        // "Controls" dugmesi goster; imlec cikinca sadece harita kalir. Embedded / Texture'da hic bir sey.
         if (pMouseInside && !mEmbedded)
         {
             const RectI tButton = showControlsButtonRect();
@@ -823,7 +1026,7 @@ void XMapWindow::logDiagnostics(float pNow, double pPixelsPerBoxel, const RectD&
     log("DIAG t={:.1f} window=({},{},{},{}) popped_out={} pixels_per_boxel={:.3f} "
         "scissor=({:.0f},{:.0f},{:.0f},{:.0f}) "
         "zoom={:.2f} center={:.5f},{:.5f} mouse=({},{},{}) mouse_global=({},{}) aircraft={} labels={} {}",
-        pNow, mArea.mLeft, mArea.mTop, mArea.mRight, mArea.mBottom, XPLMWindowIsPoppedOut(mWindow),
+        pNow, mArea.mLeft, mArea.mTop, mArea.mRight, mArea.mBottom, isPoppedOut(),
         pPixelsPerBoxel, pScissor.mLeft, pScissor.mTop, pScissor.mRight, pScissor.mBottom, mView.zoom(),
         tCenter.mLat, tCenter.mLon, tMouseX, tMouseY, tInside ? "inside" : "outside", tGlobalX, tGlobalY,
         mAircraft.state().mValid ? 1 : 0, mLabelPlacer.placedCount(), performanceText());
@@ -853,7 +1056,7 @@ int XMapWindow::onClick(int pX, int pY, XPLMMouseStatus pStatus)
             mPressOnMap = false;
             return 0;
         }
-        XPLMBringWindowToFront(mWindow);
+        bringToFront();
         mPressOnMap = !tOnControls;
         if (mPressOnMap)
         {
@@ -1202,6 +1405,10 @@ void XMapWindow::performToolbarAction(ToolbarAction pAction)
 
 void XMapWindow::togglePopOut()
 {
+    if (!mWindow)
+    {
+        return;  // Texture: disari alinacak pencere yok (host kendi penceresini alir)
+    }
     if (XPLMWindowIsPoppedOut(mWindow))
     {
         // X-Plane penceresine geri al, son bilinen yerine koy
@@ -1229,6 +1436,11 @@ void XMapWindow::setSearchOpen(bool pOpen)
 
 void XMapWindow::setKeyboardFocus(bool pFocus)
 {
+    if (mTextureMode)
+    {
+        mTextureKeyboard = pFocus && mTextureOpen;  // odagi host alir (wantsKeyboard)
+        return;
+    }
     if (!mWindow)
     {
         return;
@@ -1245,6 +1457,10 @@ void XMapWindow::setKeyboardFocus(bool pFocus)
 
 bool XMapWindow::hasKeyboardFocus() const
 {
+    if (mTextureMode)
+    {
+        return mTextureKeyboard;
+    }
     return mWindow && XPLMHasKeyboardFocus(mWindow) != 0;
 }
 
@@ -1459,7 +1675,14 @@ const std::map<prime::XMapLayer, Rgba>& XMapWindow::layerColors() const
 
 void XMapWindow::render()
 {
-    onDraw();
+    if (mTextureMode)
+    {
+        renderTexture();
+    }
+    else if (mWindow)
+    {
+        onDraw();
+    }
 }
 
 XMapView& XMapWindow::view()
@@ -1474,6 +1697,10 @@ const XMapView& XMapWindow::view() const
 
 void XMapWindow::setGeometry(const RectI& pGeometry)
 {
+    if (mTextureMode)
+    {
+        return;  // Texture: yer host'un isi; alan setTextureSize ile
+    }
     mFloatingGeometry = pGeometry;
     mHasFloatingGeometry = true;
     if (mWindow && !XPLMWindowIsPoppedOut(mWindow))
@@ -1486,6 +1713,10 @@ void XMapWindow::setGeometry(const RectI& pGeometry)
 
 RectI XMapWindow::getGeometry() const
 {
+    if (mTextureMode)
+    {
+        return textureArea();
+    }
     if (!mWindow)
     {
         return mFloatingGeometry;

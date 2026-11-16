@@ -12,7 +12,6 @@
 namespace
 {
 
-const char* kLegacySection = "layers";  // 0.12 ve oncesi: tek bolum (Scenery'ye tasinir)
 const char* kZoomSection = "layer_zoom";  // 0.23: katman / alt katman zoom araliklari
 
 // "<en az> <en cok>" -> iki sayi; okunamazsa false
@@ -263,11 +262,7 @@ void LayerManager::loadVisibility(const Settings& pSettings, const XMapTheme& pT
     const std::string tSection(layerSectionFor(pTheme.mMode));
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        bool tDefault = themeDefault(*tLayer, pTheme);
-        if (pTheme.mMode == XMapMode::Scenery && tDefault)
-        {
-            tDefault = pSettings.getBool(kLegacySection, tLayer->id(), tDefault);  // eski ayar
-        }
+        const bool tDefault = themeDefault(*tLayer, pTheme);
         tLayer->setVisible(pSettings.getBool(tSection, tLayer->id(), tDefault));
 
         // Alt katmanlar: "<katman>.<alt>" anahtari; tema varsayilani ayni tam anahtarla verilebilir

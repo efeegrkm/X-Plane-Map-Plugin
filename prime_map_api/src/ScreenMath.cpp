@@ -117,6 +117,16 @@ bool intersectRect(const RectD& pFirst, const RectD& pSecond, RectD* pOut)
     return true;
 }
 
+RectI rectFromTopLeft(int pLeft, int pTop, int pWidth, int pHeight)
+{
+    RectI tRect;
+    tRect.mLeft = pLeft;
+    tRect.mTop = pTop;
+    tRect.mRight = pLeft + pWidth;
+    tRect.mBottom = pTop - pHeight;
+    return tRect;
+}
+
 RectD toRectD(const RectI& pRect)
 {
     RectD tResult;

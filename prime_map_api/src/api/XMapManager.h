@@ -20,6 +20,13 @@ namespace prime
 
 class XMap;
 
+// C4251 (dll arayuzunde std uyeleri): kutuphane ve host ayni MSVC + /MD ile derlenmek zorunda (README),
+// bu yuzden zararsiz; host'un /W4 derlemesini kirletmesin diye yalnizca bu sinif icin kapatilir.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4251)
+#endif
+
 class PRIME_MAP_EXPORT XMapManager
 {
 public:
@@ -48,6 +55,7 @@ public:
     XMapManagerSettings getSettings() const;
     bool setSettings(const XMapManagerSettings& pSettings);
 
+    // Yollar initialize() oncesi de dogru doner (setDataDirectory / setCacheDirectory ya da varsayilan)
     std::string getDataDirectory() const;
     std::string getSettingsFilePath() const;
     std::string getXMapsDirectory() const;
@@ -67,6 +75,8 @@ private:
     XMapManager();
     XMapManager(const XMapManager&) = delete;
     XMapManager& operator=(const XMapManager&) = delete;
+    std::string resolvedDataDirectory() const;   // setDataDirectory ya da %LOCALAPPDATA%/prime/prime-xmap/
+    std::string resolvedCacheDirectory() const;  // setCacheDirectory ya da <veri>/cache/
 
     std::unique_ptr<::XMapData> mData;  // ortak veri ve arka plan isleri; initialize/shutdown
     std::vector<XMap*> mXMaps;          // yasayan harita nesneleri (olusturulma sirasiyla)
@@ -77,12 +87,16 @@ private:
     std::string mCacheDirectory;
     std::string mLogPrefix;
     std::function<void(std::string_view)> mLogCallback;
-    int mTerrainCacheMb = 0;
-    int mPrefetchTiles = 0;
+    int mTerrainCacheMb = -1;  // -1: verilmedi (XMapManagerSettings varsayilani)
+    int mPrefetchTiles = -1;
 
     friend class XMap;                // xmap, yok olurken kendini listeden dusurur
     friend class XMapManagerFactory;  // ozel kurucu/yikici yalnizca fabrikada
 };
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace prime
 

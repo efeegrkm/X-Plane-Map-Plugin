@@ -101,7 +101,7 @@ void MultiXMapSelfTest::runImmediate()
     prime::XMapManager& tLibrary = *mManager;
 
     // --- Kutuphane: surum, klasorler, merkezi ayarlar
-    Check(prime::versionString() == "0.24.0", "VersionString", prime::versionString());
+    Check(prime::versionString() == "0.26.0", "VersionString", prime::versionString());
     Check(!tLibrary.getDataDirectory().empty() && !tLibrary.getCacheDirectory().empty() &&
               !tLibrary.getXMapsDirectory().empty(),
           "data / cache / maps directories", tLibrary.getDataDirectory());
@@ -171,8 +171,8 @@ void MultiXMapSelfTest::runImmediate()
     Check(nearEqual(tMinZoom, 8.0, 1e-9), "group zoom range reaches its layers", std::format("{} {}", tMinZoom, tMaxZoom));
     Check(!mFirst->setLayerZoomRange(XMapLayer::Vor, 12.0, 9.0), "inverted zoom range is refused");
     Check(!mFirst->setName("other"), "setName refused while the map is open");
-    Check(fileExists(mFirst->getSettingsDirectory() + "map_settings.ini") &&
-              fileExists(mFirst->getSettingsDirectory() + "terrain_colors.ini"),
+    Check(fileExists(mFirst->getSettingsDirectory() + "map_settings.json") &&
+              fileExists(mFirst->getSettingsDirectory() + "terrain_colors.json"),
           "settings files created by Open");
 
     // --- Ikinci harita: bagimsiz

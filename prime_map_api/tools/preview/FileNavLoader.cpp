@@ -65,9 +65,9 @@ void LoadNav(const std::string& pPath, NavDatabase& pDatabase)
         }
         if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
         {
-            DecodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);
+            decodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);
         }
-        pDatabase.Add(tRecord);
+        pDatabase.add(tRecord);
     }
 }
 
@@ -92,7 +92,7 @@ void LoadFixes(const std::string& pPath, NavDatabase& pDatabase)
         tRecord.mLat = static_cast<float>(tLat);
         tRecord.mLon = static_cast<float>(tLon);
         tRecord.mId = tId;
-        pDatabase.Add(tRecord);
+        pDatabase.add(tRecord);
     }
 }
 
@@ -108,7 +108,7 @@ void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSe
     {
         if (tHasCurrent && tHasPosition && pSeen.insert(tCurrent.mId).second)  // ayni ICAO: once gelen kazanir
         {
-            pDatabase.Add(tCurrent);
+            pDatabase.add(tCurrent);
         }
         tHasCurrent = false;
         tHasPosition = false;
@@ -143,8 +143,8 @@ void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSe
             tCurrent = NavRecord();
             tCurrent.mKind = NavKind::Airport;
             tCurrent.mId = tId;
-            tCurrent.mAirportKind = AirportKindFromName(tName, &tCurrent.mName);
-            tCurrent.mMajor = tCurrent.mAirportKind == AirportKind::Land && IsMajorAirportId(tId);
+            tCurrent.mAirportKind = airportKindFromName(tName, &tCurrent.mName);
+            tCurrent.mMajor = tCurrent.mAirportKind == AirportKind::Land && isMajorAirportId(tId);
             tHasCurrent = true;
             continue;
         }
@@ -195,16 +195,16 @@ void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSe
 
 int LoadNavFromFiles(const std::string& pXPlaneDirectory, NavDatabase& pDatabase)
 {
-    pDatabase.Clear();
+    pDatabase.clear();
     LoadNav(pXPlaneDirectory + "Resources/default data/earth_nav.dat", pDatabase);
     LoadFixes(pXPlaneDirectory + "Resources/default data/earth_fix.dat", pDatabase);
     // Havalimanlari: X-Plane'in sirasiyla (scenery_packs.ini, sonra default apt.dat)
-    const std::vector<std::string> tFiles = AptDatIndexer::AptFiles(pXPlaneDirectory);
+    const std::vector<std::string> tFiles = AptDatIndexer::aptFiles(pXPlaneDirectory);
     std::unordered_set<std::string> tSeen;
     for (const std::string& tFile : tFiles)
     {
         LoadAirports(tFile, tSeen, pDatabase);
     }
-    pDatabase.Build();
-    return pDatabase.Count();
+    pDatabase.build();
+    return pDatabase.count();
 }
