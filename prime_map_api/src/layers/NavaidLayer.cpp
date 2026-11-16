@@ -1,4 +1,3 @@
-// NavaidLayer.cpp
 #include "layers/NavaidLayer.h"
 
 #include <array>
@@ -41,13 +40,13 @@ const float kDmeBoxRadius = 8.5f;  // VOR/DME'nin cevresindeki kare (kosegen yar
 const float kNdbRadius = 7.0f;
 const float kFixRadius = 4.5f;
 
-// VOR pusula gulu (VFR / IFR modlari)
+// VOR pusula gulu
 const double kRoseMinZoom = 7.5;
 const float kRoseRadiusMin = 34.0f;  // boxel; zoom arttikca buyur
 const float kRoseRadiusMax = 70.0f;
 
 // Gorunen alani pMarginNm kadar genislet (ILS tuyu antenden uzaga tasar)
-GeoBounds ExpandBounds(const GeoBounds& pBounds, double pMarginNm)
+GeoBounds expandBounds(const GeoBounds& pBounds, double pMarginNm)
 {
     const double tLatMargin = pMarginNm / 60.0;
     const double tMaxLat = std::fmax(std::fabs(pBounds.mSouth), std::fabs(pBounds.mNorth));
@@ -62,45 +61,45 @@ GeoBounds ExpandBounds(const GeoBounds& pBounds, double pMarginNm)
 
 // nav.dat frekansi: VOR/DME/ILS MHz * 100 (11340 -> "113.40"), NDB kHz.
 // TACAN'da SDK kanal numarasi verir: "CH85".
-std::string FormatFrequency(NavKind pKind, int pFrequency)
+std::string formatFrequency(NavKind pKind, int pFrequency)
 {
     if (pKind == NavKind::Ndb)
     {
         return std::to_string(pFrequency);
     }
-    if (IsTacanChannel(pFrequency))
+    if (isTacanChannel(pFrequency))
     {
         return std::format("CH{}", pFrequency);
     }
     return std::format("{}.{:02d}", pFrequency / 100, pFrequency % 100);
 }
 
-}  // namespace
+}
 
 NavaidLayer::NavaidLayer(NavaidType pType, const NavDatabase& pDatabase, const AirportGeometryStore* pRunways)
-    : Layer(StyleFor(pType).mId, StyleFor(pType).mName, StyleFor(pType).mDefaultVisible)
+    : Layer(styleFor(pType).mId, styleFor(pType).mName, styleFor(pType).mDefaultVisible)
     , mType(pType)
-    , mStyle(StyleFor(pType))
+    , mStyle(styleFor(pType))
     , mDatabase(pDatabase)
     , mRunways(pRunways)
 {
 }
 
-int NavaidLayer::LabelPriority() const
+int NavaidLayer::labelPriority() const
 {
     return mStyle.mLabelPriority;
 }
 
-const NavaidLayer::Style& NavaidLayer::StyleFor(NavaidType pType)
+const NavaidLayer::Style& NavaidLayer::styleFor(NavaidType pType)
 {
     return kStyles[static_cast<int>(pType)];
 }
 
-void NavaidLayer::CollectVisible(const DrawContext& pContext)
+void NavaidLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
-    const MapView& tView = *pContext.mView;
-    if (!mDatabase.IsReady() || tView.Zoom() < mStyle.mMinZoom)
+    const XMapView& tView = *pContext.mView;
+    if (!mDatabase.isReady() || tView.zoom() < mStyle.mMinZoom)
     {
         return;
     }
@@ -111,39 +110,39 @@ void NavaidLayer::CollectVisible(const DrawContext& pContext)
     tArea.mBottom -= kEdgeMargin;
     tArea.mTop += kEdgeMargin;
 
-    GeoBounds tBounds = tView.BoundsOf(tArea);
+    GeoBounds tBounds = tView.boundsOf(tArea);
     if (mType == NavaidType::Ils)
     {
-        tBounds = ExpandBounds(tBounds, kFeatherNm + 1.0);
+        tBounds = expandBounds(tBounds, kFeatherNm + 1.0);
     }
 
     mQuery.clear();
     for (int tKind = 0; tKind < mStyle.mKindCount; ++tKind)
     {
-        mDatabase.Query(mStyle.mKinds[tKind], tBounds, mQuery);
+        mDatabase.query(mStyle.mKinds[tKind], tBounds, mQuery);
     }
-    mSymbolPlacer.Reset(tArea);
+    mSymbolPlacer.reset(tArea);
 
     for (int tIndex : mQuery)
     {
-        const NavRecord& tRecord = mDatabase.At(tIndex);
+        const NavRecord& tRecord = mDatabase.at(tIndex);
         VisibleNavaid tNavaid;
         tNavaid.mIndex = tIndex;
-        tNavaid.mPoint = tView.ToScreen({tRecord.mLat, tRecord.mLon});
+        tNavaid.mPoint = tView.toScreen({tRecord.mLat, tRecord.mLon});
         const double tX = tNavaid.mPoint.mX;
         const double tY = tNavaid.mPoint.mY;
 
         if (mType == NavaidType::Ils)
         {
             // Tuy ekrana degiyorsa ciz (anten disarida olsa bile); seyreltme yok
-            if (!ComputeFeather(pContext, tIndex, &tNavaid))
+            if (!computeFeather(pContext, tIndex, &tNavaid))
             {
                 continue;
             }
         }
         else
         {
-            if (!tArea.Contains(tX, tY))
+            if (!tArea.contains(tX, tY))
             {
                 continue;
             }
@@ -153,13 +152,13 @@ void NavaidLayer::CollectVisible(const DrawContext& pContext)
             tBox.mRight = tX + tRadius;
             tBox.mBottom = tY - tRadius;
             tBox.mTop = tY + tRadius;
-            if (!mSymbolPlacer.TryPlace(tBox))
+            if (!mSymbolPlacer.tryPlace(tBox))
             {
                 continue;
             }
             if (pContext.mLabels)
             {
-                pContext.mLabels->Reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
+                pContext.mLabels->reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
             }
         }
         mVisible.push_back(tNavaid);
@@ -170,21 +169,21 @@ void NavaidLayer::CollectVisible(const DrawContext& pContext)
     }
 }
 
-LatLon NavaidLayer::FeatherOrigin(int pIndex)
+LatLon NavaidLayer::featherOrigin(int pIndex)
 {
     const auto tCached = mOrigins.find(pIndex);
     if (tCached != mOrigins.end())
     {
         return tCached->second.mOrigin;
     }
-    const NavRecord& tRecord = mDatabase.At(pIndex);
+    const NavRecord& tRecord = mDatabase.at(pIndex);
     const LatLon tAntenna = {tRecord.mLat, tRecord.mLon};
-    if (!mRunways || !mRunways->IsReady())
+    if (!mRunways || !mRunways->isReady())
     {
         return tAntenna;  // pist verisi henuz yok: simdilik anten (onbellege yazma)
     }
     FeatherOriginCache tEntry;
-    tEntry.mOnThreshold = FindLocalizerThreshold(tAntenna, tRecord.mCourseTrue, *mRunways, &tEntry.mOrigin);
+    tEntry.mOnThreshold = findLocalizerThreshold(tAntenna, tRecord.mCourseTrue, *mRunways, &tEntry.mOrigin);
     if (!tEntry.mOnThreshold)
     {
         tEntry.mOrigin = tAntenna;  // LDA/SDF gibi kayik localizer: anteni kullan
@@ -193,19 +192,19 @@ LatLon NavaidLayer::FeatherOrigin(int pIndex)
     return tEntry.mOrigin;
 }
 
-bool NavaidLayer::ComputeFeather(const DrawContext& pContext, int pIndex, VisibleNavaid* pOut)
+bool NavaidLayer::computeFeather(const drawContext& pContext, int pIndex, VisibleNavaid* pOut)
 {
     // Ucak localizer'a course yonunde yaklasir; yani yaklasma hatti pist
     // esiginden geriye (course + 180) dogru uzanir.
-    const NavRecord& tRecord = mDatabase.At(pIndex);
-    const LatLon tOrigin = FeatherOrigin(pIndex);
-    pOut->mPoint = pContext.mView->ToScreen(tOrigin);
+    const NavRecord& tRecord = mDatabase.at(pIndex);
+    const LatLon tOrigin = featherOrigin(pIndex);
+    pOut->mPoint = pContext.mView->toScreen(tOrigin);
     const double tBackBearing = tRecord.mCourseTrue + 180.0;
     const double tSideNm = kFeatherNm / std::cos(kFeatherHalfAngle * 3.14159265358979 / 180.0);
     pOut->mFeather = {
-        pContext.mView->ToScreen(DestinationPoint(tOrigin, tBackBearing - kFeatherHalfAngle, tSideNm)),
-        pContext.mView->ToScreen(DestinationPoint(tOrigin, tBackBearing, kFeatherNm * 0.92)),  // ortada centik
-        pContext.mView->ToScreen(DestinationPoint(tOrigin, tBackBearing + kFeatherHalfAngle, tSideNm)),
+        pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing - kFeatherHalfAngle, tSideNm)),
+        pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing, kFeatherNm * 0.92)),  // ortada centik
+        pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing + kFeatherHalfAngle, tSideNm)),
     };
 
     RectD tBounds;
@@ -221,12 +220,12 @@ bool NavaidLayer::ComputeFeather(const DrawContext& pContext, int pIndex, Visibl
         tBounds.mTop = std::max<double>(tBounds.mTop, tEnd.mY);
     }
     RectD tUnused;
-    return IntersectRect(tBounds, pContext.mArea, &tUnused);
+    return intersectRect(tBounds, pContext.mArea, &tUnused);
 }
 
-void NavaidLayer::Draw(const DrawContext& pContext)
+void NavaidLayer::draw(const drawContext& pContext)
 {
-    CollectVisible(pContext);
+    collectVisible(pContext);
     if (mVisible.empty())
     {
         return;
@@ -236,78 +235,78 @@ void NavaidLayer::Draw(const DrawContext& pContext)
     mHalo = pContext.mTheme->mHalo;
 
     // VFR / IFR: VOR'larin cevresinde manyetik kuzeye donuk pusula gulu
-    if (mType == NavaidType::Vor && pContext.mTheme->mVorRose && pContext.mView->Zoom() >= kRoseMinZoom)
+    if (mType == NavaidType::Vor && pContext.mTheme->mVorRose && pContext.mView->zoom() >= kRoseMinZoom)
     {
         Gfx::Mesh tRose;
         for (const VisibleNavaid& tNavaid : mVisible)
         {
-            AddCompassRose(tNavaid, pContext.mView->Zoom(), tRose);
+            addCompassRose(tNavaid, pContext.mView->zoom(), tRose);
         }
-        tCanvas.Draw(tRose);
+        tCanvas.draw(tRose);
     }
 
     if (mType == NavaidType::Ils)
     {
-        DrawFeathers(tCanvas, pContext.mView->Zoom());
+        drawFeathers(tCanvas, pContext.mView->zoom());
         return;
     }
 
     Gfx::OutlinedLines tSymbols(MapSymbols::kOutlineExtra);
-    tSymbols.SetOutlineColor(mHalo);
+    tSymbols.setOutlineColor(mHalo);
     Gfx::Mesh tCenters;
     for (const VisibleNavaid& tNavaid : mVisible)
     {
-        AddSymbol(tNavaid, tSymbols);
+        addSymbol(tNavaid, tSymbols);
         if (mType != NavaidType::Fix)
         {
             // Ortadaki dolu nokta (fix haric)
-            tCenters.AddDisc(tNavaid.mPoint, mType == NavaidType::Ndb ? 2.5f : 1.6f, mColor);
+            tCenters.addDisc(tNavaid.mPoint, mType == NavaidType::Ndb ? 2.5f : 1.6f, mColor);
         }
     }
-    tCanvas.Draw(tSymbols);
-    tCanvas.Draw(tCenters);
+    tCanvas.draw(tSymbols);
+    tCanvas.draw(tCenters);
 }
 
-void NavaidLayer::AddSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const
+void NavaidLayer::addSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const
 {
-    const NavRecord& tRecord = mDatabase.At(pNavaid.mIndex);
+    const NavRecord& tRecord = mDatabase.at(pNavaid.mIndex);
     const float tWidth = MapSymbols::kLineWidth;
     switch (tRecord.mKind)
     {
         case NavKind::Vor:
-            pSymbols.AddRegularPolygon(pNavaid.mPoint, kVorRadius, 6, 0.0f, tWidth, mColor);
+            pSymbols.addRegularPolygon(pNavaid.mPoint, kVorRadius, 6, 0.0f, tWidth, mColor);
             if (tRecord.mHasDme)
             {
-                pSymbols.AddRegularPolygon(pNavaid.mPoint, kDmeBoxRadius, 4, 45.0f, tWidth, mColor);
+                pSymbols.addRegularPolygon(pNavaid.mPoint, kDmeBoxRadius, 4, 45.0f, tWidth, mColor);
             }
             break;
         case NavKind::Dme:
-            pSymbols.AddRegularPolygon(pNavaid.mPoint, kVorRadius, 4, 45.0f, tWidth, mColor);
+            pSymbols.addRegularPolygon(pNavaid.mPoint, kVorRadius, 4, 45.0f, tWidth, mColor);
             break;
         case NavKind::Fix:
-            pSymbols.AddRegularPolygon(pNavaid.mPoint, kFixRadius, 3, 90.0f, tWidth, mColor);
+            pSymbols.addRegularPolygon(pNavaid.mPoint, kFixRadius, 3, 90.0f, tWidth, mColor);
             break;
         case NavKind::Ndb:
-            pSymbols.AddDottedCircle(pNavaid.mPoint, kNdbRadius, 12, 2.5f, mColor);  // noktali cember
+            pSymbols.addDottedCircle(pNavaid.mPoint, kNdbRadius, 12, 2.5f, mColor);  // noktali cember
             break;
         default:
             break;
     }
 }
 
-void NavaidLayer::AddCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const
+void NavaidLayer::addCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const
 {
     // Cember + her 10 derecede centik (30'larda uzun), manyetik kuzeyde ok.
     // Manyetik kuzey gercek kuzeyden mVariation (+ = dogu) kadar saga doner.
-    const NavRecord& tRecord = mDatabase.At(pNavaid.mIndex);
+    const NavRecord& tRecord = mDatabase.at(pNavaid.mIndex);
     if (tRecord.mKind != NavKind::Vor)
     {
         return;
     }
     const float tRadius =
         std::clamp(kRoseRadiusMin + static_cast<float>(pZoom - kRoseMinZoom) * 12.0f, kRoseRadiusMin, kRoseRadiusMax);
-    const Rgba tColor = WithAlpha(mColor, 0.75f);
-    pRose.AddRing(pNavaid.mPoint, tRadius, 1.0f, tColor);
+    const Rgba tColor = withAlpha(mColor, 0.75f);
+    pRose.addRing(pNavaid.mPoint, tRadius, 1.0f, tColor);
     for (int tTick = 0; tTick < 36; ++tTick)
     {
         const double tBearing = (tTick * 10.0 + tRecord.mVariation) * 3.14159265358979 / 180.0;
@@ -317,7 +316,7 @@ void NavaidLayer::AddCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx
         const PointF tOuter = {pNavaid.mPoint.mX + tSin * tRadius, pNavaid.mPoint.mY + tCos * tRadius};
         const PointF tInner = {pNavaid.mPoint.mX + tSin * (tRadius - tLength),
                                pNavaid.mPoint.mY + tCos * (tRadius - tLength)};
-        pRose.AddLine(tInner, tOuter, tTick % 9 == 0 ? 1.6f : 1.0f, tColor);
+        pRose.addLine(tInner, tOuter, tTick % 9 == 0 ? 1.6f : 1.0f, tColor);
         if (tTick == 0)
         {
             // Manyetik kuzey: cemberin disinda kucuk ok
@@ -325,12 +324,12 @@ void NavaidLayer::AddCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx
                                  pNavaid.mPoint.mY + tCos * (tRadius + 8.0f)};
             const PointF tLeft = {tOuter.mX - tCos * 3.5f, tOuter.mY + tSin * 3.5f};
             const PointF tRight = {tOuter.mX + tCos * 3.5f, tOuter.mY - tSin * 3.5f};
-            pRose.AddTriangle(tTip, tLeft, tRight, tColor);
+            pRose.addTriangle(tTip, tLeft, tRight, tColor);
         }
     }
 }
 
-void NavaidLayer::DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
+void NavaidLayer::drawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
 {
     // Yari saydam dolgu: tuyun sag yarisi (haritalardaki klasik gorunum).
     // Saydamlik zoom'a gore azalir (kFeatherFadeStart .. kFeatherFadeEnd).
@@ -338,12 +337,12 @@ void NavaidLayer::DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
     const float tFillAlpha =
         kFeatherFillAlphaFar + static_cast<float>(tFade) * (kFeatherFillAlphaNear - kFeatherFillAlphaFar);
     Gfx::Mesh tFill;
-    const Rgba tFillColor = WithAlpha(mColor, tFillAlpha);
+    const Rgba tFillColor = withAlpha(mColor, tFillAlpha);
     for (const VisibleNavaid& tNavaid : mVisible)
     {
-        tFill.AddTriangle(tNavaid.mPoint, tNavaid.mFeather[1], tNavaid.mFeather[2], tFillColor);
+        tFill.addTriangle(tNavaid.mPoint, tNavaid.mFeather[1], tNavaid.mFeather[2], tFillColor);
     }
-    pCanvas.Draw(tFill);
+    pCanvas.draw(tFill);
 
     // Kontur: esik -> sol kanat -> orta -> sag kanat -> esik, ve orta cizgi.
     // Uzaktan bakinca koyu kontur okunurluk saglar; yakinda gereksiz kalinlik yapar.
@@ -356,51 +355,51 @@ void NavaidLayer::DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
                                             tNavaid.mFeather[2]};
         if (tWithOutline)
         {
-            tOutline.AddPolyline(tShape, true, 3.0f, mHalo);
-            tOutline.AddLine(tNavaid.mPoint, tNavaid.mFeather[1], 3.0f, mHalo);
+            tOutline.addPolyline(tShape, true, 3.0f, mHalo);
+            tOutline.addLine(tNavaid.mPoint, tNavaid.mFeather[1], 3.0f, mHalo);
         }
-        tLines.AddPolyline(tShape, true, 1.2f, mColor);
-        tLines.AddLine(tNavaid.mPoint, tNavaid.mFeather[1], 1.2f, mColor);
+        tLines.addPolyline(tShape, true, 1.2f, mColor);
+        tLines.addLine(tNavaid.mPoint, tNavaid.mFeather[1], 1.2f, mColor);
     }
-    pCanvas.Draw(tOutline);
-    pCanvas.Draw(tLines);
+    pCanvas.draw(tOutline);
+    pCanvas.draw(tLines);
 }
 
-void NavaidLayer::DrawLabels(const DrawContext& pContext)
+void NavaidLayer::drawLabels(const drawContext& pContext)
 {
-    const double tZoom = pContext.mView->Zoom();
+    const double tZoom = pContext.mView->zoom();
     if (!pContext.mLabels || tZoom < mStyle.mLabelMinZoom)
     {
         return;
     }
     const bool tDetail = tZoom >= mStyle.mDetailMinZoom;
     mColor = pContext.mTheme->mNavaid[static_cast<int>(mType)];
-    const Rgba tShadow = pContext.LabelShadow();
+    const Rgba tShadow = pContext.labelShadow();
     for (const VisibleNavaid& tNavaid : mVisible)
     {
-        const std::string tText = FormatLabel(mDatabase.At(tNavaid.mIndex), tDetail);
+        const std::string tText = formatLabel(mDatabase.at(tNavaid.mIndex), tDetail);
         if (mType == NavaidType::Ils)
         {
             // ILS etiketi tuyun dis ucunda
-            MapSymbols::DrawLabelNear(*pContext.mLabels, tNavaid.mFeather[1].mX, tNavaid.mFeather[1].mY, 6.0f, tText,
+            MapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mFeather[1].mX, tNavaid.mFeather[1].mY, 6.0f, tText,
                                       mColor, tShadow);
         }
         else
         {
             const float tGap = (mType == NavaidType::Fix ? kFixRadius : kDmeBoxRadius) + 3.0f;
-            MapSymbols::DrawLabelNear(*pContext.mLabels, tNavaid.mPoint.mX, tNavaid.mPoint.mY, tGap, tText,
+            MapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mPoint.mX, tNavaid.mPoint.mY, tGap, tText,
                                       mColor, tShadow);
         }
     }
 }
 
-std::string NavaidLayer::FormatLabel(const NavRecord& pRecord, bool pDetail) const
+std::string NavaidLayer::formatLabel(const NavRecord& pRecord, bool pDetail) const
 {
     if (!pDetail || mType == NavaidType::Fix)
     {
         return pRecord.mId;
     }
-    const std::string tFrequency = FormatFrequency(pRecord.mKind, pRecord.mFrequency);
+    const std::string tFrequency = formatFrequency(pRecord.mKind, pRecord.mFrequency);
     if (mType == NavaidType::Ils)
     {
         // Pilotlar manyetik yonu kullanir. X-Plane 11 SDK'si sadece gercek yonu
@@ -414,7 +413,7 @@ std::string NavaidLayer::FormatLabel(const NavRecord& pRecord, bool pDetail) con
     return std::format("{} {}", pRecord.mId, tFrequency);
 }
 
-std::string NavaidLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+std::string NavaidLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
 {
     const float tRadius = (mType == NavaidType::Fix ? kFixRadius : kDmeBoxRadius) + 3.0f;
     for (const VisibleNavaid& tNavaid : mVisible)
@@ -423,7 +422,7 @@ std::string NavaidLayer::Describe(const DrawContext& /*pContext*/, double pX, do
         {
             continue;
         }
-        const NavRecord& tRecord = mDatabase.At(tNavaid.mIndex);
+        const NavRecord& tRecord = mDatabase.at(tNavaid.mIndex);
         const char* tKind = "Fix";
         switch (tRecord.mKind)
         {
@@ -446,7 +445,7 @@ std::string NavaidLayer::Describe(const DrawContext& /*pContext*/, double pX, do
                 break;
         }
         const std::string tName = (tRecord.mKind == NavKind::Fix || tRecord.mName.empty()) ? "" : "  " + tRecord.mName;
-        return std::format("{}  {}{}", tKind, FormatLabel(tRecord, true), tName);
+        return std::format("{}  {}{}", tKind, formatLabel(tRecord, true), tName);
     }
     return "";
 }

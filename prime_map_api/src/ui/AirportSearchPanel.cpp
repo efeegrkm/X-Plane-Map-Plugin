@@ -1,4 +1,3 @@
-// AirportSearchPanel.cpp
 #include "ui/AirportSearchPanel.h"
 
 #include <algorithm>
@@ -27,12 +26,12 @@ AirportSearchPanel::AirportSearchPanel(const AirportGeometryStore& pAirports)
 {
 }
 
-bool AirportSearchPanel::IsOpen() const
+bool AirportSearchPanel::isOpen() const
 {
     return mOpen;
 }
 
-void AirportSearchPanel::SetOpen(bool pOpen)
+void AirportSearchPanel::setOpen(bool pOpen)
 {
     mOpen = pOpen;
     if (!mOpen)
@@ -43,12 +42,12 @@ void AirportSearchPanel::SetOpen(bool pOpen)
     }
 }
 
-void AirportSearchPanel::Toggle()
+void AirportSearchPanel::toggle()
 {
-    SetOpen(!mOpen);
+    setOpen(!mOpen);
 }
 
-void AirportSearchPanel::Layout(const RectI& pAnchor)
+void AirportSearchPanel::layout(const RectI& pAnchor)
 {
     // Sonuc yoksa da bir satirlik yer (bilgi yazisi)
     const int tRows = std::max(1, static_cast<int>(mResults.size()));
@@ -58,7 +57,7 @@ void AirportSearchPanel::Layout(const RectI& pAnchor)
     mRect.mBottom = mRect.mTop - (kPadding + kTitleHeight + kInputHeight + 6 + tRows * kRowHeight + kPadding);
 }
 
-RectI AirportSearchPanel::InputRect() const
+RectI AirportSearchPanel::inputRect() const
 {
     RectI tRect;
     tRect.mLeft = mRect.mLeft + kPadding;
@@ -68,73 +67,73 @@ RectI AirportSearchPanel::InputRect() const
     return tRect;
 }
 
-RectI AirportSearchPanel::RowRect(int pIndex) const
+RectI AirportSearchPanel::rowRect(int pIndex) const
 {
     RectI tRow;
     tRow.mLeft = mRect.mLeft + kPadding;
     tRow.mRight = mRect.mRight - kPadding;
-    tRow.mTop = InputRect().mBottom - 6 - pIndex * kRowHeight;
+    tRow.mTop = inputRect().mBottom - 6 - pIndex * kRowHeight;
     tRow.mBottom = tRow.mTop - kRowHeight;
     return tRow;
 }
 
-void AirportSearchPanel::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bool pFocused, float pNow) const
+void AirportSearchPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bool pFocused, float pNow) const
 {
     if (!mOpen)
     {
         return;
     }
-    Ui::FillRect(pCanvas, mRect, Ui::kPanelBg);
-    Ui::FrameRect(pCanvas, mRect, Ui::kBorder);
-    Ui::Text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "GO TO AIRPORT", Ui::kTextGrey);
+    Ui::fillRect(pCanvas, mRect, Ui::kPanelBg);
+    Ui::frameRect(pCanvas, mRect, Ui::kBorder);
+    Ui::text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "GO TO AIRPORT", Ui::kTextGrey);
 
     // Yazi kutusu: odak bizdeyse acik mavi cerceve ve yanip sonen imlec
-    const RectI tInput = InputRect();
-    Ui::FillRect(pCanvas, tInput, Ui::kButton);
-    Ui::FrameRect(pCanvas, tInput, pFocused ? Ui::kButtonActiveBorder : Ui::kBorder);
+    const RectI tInput = inputRect();
+    Ui::fillRect(pCanvas, tInput, Ui::kButton);
+    Ui::frameRect(pCanvas, tInput, pFocused ? Ui::kButtonActiveBorder : Ui::kBorder);
     const int tTextX = tInput.mLeft + 6;
-    const int tTextY = (tInput.mTop + tInput.mBottom) / 2 - Ui::FontHeight() / 2 + 1;
+    const int tTextY = (tInput.mTop + tInput.mBottom) / 2 - Ui::fontHeight() / 2 + 1;
     if (mQuery.empty() && !pFocused)
     {
-        Ui::Text(tTextX, tTextY, "Click and type ICAO or name", Ui::kTextDim);
+        Ui::text(tTextX, tTextY, "Click and type ICAO or name", Ui::kTextDim);
     }
     else
     {
-        Ui::Text(tTextX, tTextY, mQuery, Ui::kTextWhite);
+        Ui::text(tTextX, tTextY, mQuery, Ui::kTextWhite);
         const bool tCaretOn = std::fmod(pNow, 1.0f) < 0.6f;
         if (pFocused && tCaretOn)
         {
-            const float tCaretX = static_cast<float>(tTextX + Ui::TextWidth(mQuery) + 1) + 0.5f;
-            Ui::Line(pCanvas, {tCaretX, static_cast<float>(tInput.mBottom + 4)},
+            const float tCaretX = static_cast<float>(tTextX + Ui::textWidth(mQuery) + 1) + 0.5f;
+            Ui::line(pCanvas, {tCaretX, static_cast<float>(tInput.mBottom + 4)},
                      {tCaretX, static_cast<float>(tInput.mTop - 4)}, 1.0f, Ui::kTextWhite);
         }
     }
 
-    const int tRowTextOffset = kRowHeight / 2 - Ui::FontHeight() / 2 + 1;
+    const int tRowTextOffset = kRowHeight / 2 - Ui::fontHeight() / 2 + 1;
     if (mResults.empty())
     {
-        const RectI tRow = RowRect(0);
-        const char* tInfo = !mAirports.IsReady() ? "Airports are still loading..."
+        const RectI tRow = rowRect(0);
+        const char* tInfo = !mAirports.isReady() ? "Airports are still loading..."
                             : mQuery.empty()     ? "Example: KSEA, LTFM, Tacoma"
                                                  : "No airport found";
-        Ui::Text(tRow.mLeft + 4, tRow.mBottom + tRowTextOffset, tInfo, Ui::kTextDim);
+        Ui::text(tRow.mLeft + 4, tRow.mBottom + tRowTextOffset, tInfo, Ui::kTextDim);
         return;
     }
     for (int tIndex = 0; tIndex < static_cast<int>(mResults.size()); ++tIndex)
     {
-        const RectI tRow = RowRect(tIndex);
-        const bool tHover = tRow.Contains(pMouseX, pMouseY);
+        const RectI tRow = rowRect(tIndex);
+        const bool tHover = tRow.contains(pMouseX, pMouseY);
         if (tIndex == mSelected || tHover)
         {
-            Ui::FillRect(pCanvas, tRow, tIndex == mSelected ? Ui::kButtonActive : Ui::kButtonHover);
+            Ui::fillRect(pCanvas, tRow, tIndex == mSelected ? Ui::kButtonActive : Ui::kButtonHover);
         }
-        const AirportGeometry& tAirport = mAirports.At(mResults[tIndex]);
+        const AirportGeometry& tAirport = mAirports.at(mResults[tIndex]);
         const int tY = tRow.mBottom + tRowTextOffset;
-        Ui::Text(tRow.mLeft + 4, tY, tAirport.mId, Ui::kTextWhite);
+        Ui::text(tRow.mLeft + 4, tY, tAirport.mId, Ui::kTextWhite);
         // Ad: satira sigmazsa sondan kisaltilir
         std::string tName = tAirport.mName;
-        const int tNameWidth = tRow.Width() - kIdColumn - 8;
-        while (!tName.empty() && Ui::TextWidth(tName) > tNameWidth)
+        const int tNameWidth = tRow.width() - kIdColumn - 8;
+        while (!tName.empty() && Ui::textWidth(tName) > tNameWidth)
         {
             tName.pop_back();
         }
@@ -143,22 +142,22 @@ void AirportSearchPanel::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bo
             tName.resize(tName.size() - 2);
             tName += "..";
         }
-        Ui::Text(tRow.mLeft + kIdColumn, tY, tName, tIndex == mSelected ? Ui::kTextWhite : Ui::kTextGrey);
+        Ui::text(tRow.mLeft + kIdColumn, tY, tName, tIndex == mSelected ? Ui::kTextWhite : Ui::kTextGrey);
     }
 }
 
-AirportSearchPanel::Hit AirportSearchPanel::HitTest(int pX, int pY) const
+AirportSearchPanel::Hit AirportSearchPanel::hitTest(int pX, int pY) const
 {
     Hit tHit;
-    if (!mOpen || !mRect.Contains(pX, pY))
+    if (!mOpen || !mRect.contains(pX, pY))
     {
         return tHit;
     }
     tHit.mInside = true;
-    tHit.mInput = InputRect().Contains(pX, pY);
+    tHit.mInput = inputRect().contains(pX, pY);
     for (int tIndex = 0; tIndex < static_cast<int>(mResults.size()); ++tIndex)
     {
-        if (RowRect(tIndex).Contains(pX, pY))
+        if (rowRect(tIndex).contains(pX, pY))
         {
             tHit.mAirport = mResults[tIndex];
         }
@@ -166,26 +165,26 @@ AirportSearchPanel::Hit AirportSearchPanel::HitTest(int pX, int pY) const
     return tHit;
 }
 
-void AirportSearchPanel::TypeCharacter(char pChar)
+void AirportSearchPanel::typeCharacter(char pChar)
 {
     if (pChar < ' ' || pChar > '~' || mQuery.size() >= kMaxQueryLength)
     {
         return;
     }
     mQuery += pChar;
-    Search();
+    search();
 }
 
-void AirportSearchPanel::Backspace()
+void AirportSearchPanel::backspace()
 {
     if (!mQuery.empty())
     {
         mQuery.pop_back();
-        Search();
+        search();
     }
 }
 
-void AirportSearchPanel::MoveSelection(int pDelta)
+void AirportSearchPanel::moveSelection(int pDelta)
 {
     if (!mResults.empty())
     {
@@ -193,22 +192,22 @@ void AirportSearchPanel::MoveSelection(int pDelta)
     }
 }
 
-int AirportSearchPanel::SelectedAirport() const
+int AirportSearchPanel::selectedAirport() const
 {
     return mResults.empty() ? -1 : mResults[mSelected];
 }
 
-void AirportSearchPanel::Refresh()
+void AirportSearchPanel::refresh()
 {
-    if (mOpen && !mSearchedWhenReady && mAirports.IsReady() && !mQuery.empty())
+    if (mOpen && !mSearchedWhenReady && mAirports.isReady() && !mQuery.empty())
     {
-        Search();
+        search();
     }
 }
 
-void AirportSearchPanel::Search()
+void AirportSearchPanel::search()
 {
-    mResults = FindAirports(mAirports, mQuery, kMaxResults);
+    mResults = findAirports(mAirports, mQuery, kMaxResults);
     mSelected = 0;
-    mSearchedWhenReady = mAirports.IsReady();
+    mSearchedWhenReady = mAirports.isReady();
 }

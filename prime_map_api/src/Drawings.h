@@ -1,10 +1,4 @@
-// Drawings.h
-// Kullanicinin haritaya cizdikleri: noktalar, rotalar, bolgeler (cizim modeli).
-// Hepsi lat/lon olarak saklanir; her karede ekrana cevrilip cizilir, bu
-// yuzden zoom/pan'de kendiliginden dogru yerde kalir.
-//
-// X-Plane'e bagimli DEGIL (sadece Log kullanir). Haritaya cizimi
-// DrawingLayer yapacak (asama 4).
+// Kullanicinin haritaya cizdikleri: noktalar, rotalar, bolgeler (lat/lon olarak saklanir).
 #pragma once
 
 #include <string>
@@ -15,13 +9,12 @@
 class Drawings
 {
 public:
-    // Isaretleme modu: haritaya tiklayinca ne olacagi
     enum class Mode
     {
-        Pan,     // "Pan" (gezin): isaretleme kapali, surukleme haritayi kaydirir
-        Point,   // her tiklama tek bir nokta
-        Route,   // tiklamalar acik bir cizgi (rota) olusturur
-        Region,  // tiklamalar kapali bir alan (bolge) olusturur
+        Pan,
+        Point,
+        Route,
+        Region,
     };
 
     enum class ShapeKind
@@ -34,51 +27,47 @@ public:
     struct Shape
     {
         ShapeKind mKind = ShapeKind::Point;
-        int mNumber = 0;               // P1, R2, A3 gibi etiket numarasi
+        int mNumber = 0;               // P1, R2, A3 etiket numarasi
         std::vector<LatLon> mPoints;   // koseler
-        std::vector<int> mTriangles;   // bolge dolgusu icin ucgen indeksleri (bossa sadece kenar cizilir)
+        std::vector<int> mTriangles;   // bolge dolgusu ucgen indeksleri (bossa sadece kenar)
     };
 
-    Mode GetMode() const;
-    void SetMode(Mode pMode);              // mod degisince yarim kalan cizim bitirilir
-    static const char* ModeName(Mode pMode);  // "Pan", "Point", ...
+    Mode getMode() const;
+    void setMode(Mode pMode);              // mod degisince yarim cizim bitirilir
+    static const char* modeName(Mode pMode);
 
-    // Mevcut moda gore tiklanan noktayi ekler
-    void AddVertex(const LatLon& pPoint);
+    void addVertex(const LatLon& pPoint);
 
-    // Yarim kalan rota/bolgeyi bitirir (rota >= 2, bolge >= 3 nokta ister)
-    void Finish();
+    void finish();  // rota >= 2, bolge >= 3 nokta ister
 
-    // Son koseyi, yarim cizim yoksa son sekli geri alir
-    void Undo();
+    void undo();
 
-    // Her seyi siler
-    void Clear();
+    void clear();
 
-    // Bitmis tek bir sekli siler (tur + numara); bulunamazsa false
-    bool Remove(ShapeKind pKind, int pNumber);
+    // (tur + numara); bulunamazsa false
+    bool remove(ShapeKind pKind, int pNumber);
 
-    const std::vector<Shape>& Shapes() const;  // bitmis sekiller
-    const Shape* Current() const;              // yarim kalan cizim (yoksa nullptr)
-    int ShapeCount() const;
+    const std::vector<Shape>& shapes() const;
+    const Shape* current() const;
+    int shapeCount() const;
 
     // Etiket: "P1", "R2", "A3" (A = area: bolge)
-    static std::string LabelOf(const Shape& pShape);
+    static std::string labelOf(const Shape& pShape);
 
-    // Kayit: bitmis sekiller metin olarak (yarim kalan cizim kaydedilmez).
+    // Kayit bicimi (yarim cizim kaydedilmez):
     //   P <no> <enlem> <boylam>
     //   R <no> <enlem> <boylam> <enlem> <boylam> ...
     //   A <no> <enlem> <boylam> ...
-    std::string Serialize() const;
-    // Onceki her seyi siler; okunamayan satirlari atlar. Okunan sekil sayisini doner.
-    int Deserialize(const std::string& pText);
+    std::string serialize() const;
+    // okunamayan satirlari atlar; okunan sekil sayisini doner
+    int deserialize(const std::string& pText);
 
 private:
-    int& CounterFor(ShapeKind pKind);
+    int& counterFor(ShapeKind pKind);
 
     Mode mMode = Mode::Pan;
     std::vector<Shape> mShapes;
-    Shape mCurrent;               // yarim kalan rota/bolge
+    Shape mCurrent;
     bool mHasCurrent = false;
-    int mCounters[3] = {0, 0, 0};  // tur basina numara sayaci: nokta, rota, bolge
+    int mCounters[3] = {0, 0, 0};
 };

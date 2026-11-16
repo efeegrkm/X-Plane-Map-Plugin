@@ -1,27 +1,5 @@
-// ToolPalette.h
-// Cizim araclari paleti: haritanin ustunde YUZEN, tasinabilir ve katlanabilir
-// kucuk bir panel (ust seritteki daginik Pan/Point/Route/Region/Finish/Undo/
-// Clear dugmelerinin yerine).
-//
-//   Acik:                         Katlanmis (secili aracin uzerine):
-//   +------------------------+    +------------------------+
-//   | :: DRAW             ^  |    | :: DRAW             v  |
-//   |------------------------|    | [ikon] Route           |
-//   | [ikon] Pan             |    +------------------------+
-//   | [ikon] Point           |
-//   |#[ikon] Route##########|   <- secili arac vurgulu
-//   | [ikon] Region          |
-//   |------------------------|
-//   | [Finish] [Undo] [Clear]|
-//   +------------------------+
-//
-// Baslik cubugundan (":: DRAW") tutup surukleyince panel tasinir; yeri
-// haritanin SAG UST kosesine gore saklanir (pencere boyutu degisince kenara
-// yapisik kalir). Ok (^ / v) paneli katlar/acar; katliyken secili araca
-// tiklamak da acar. Ust seritteki "Draw tools" dugmesi paneli gizler/gosterir.
-//
-// Panel sadece cizer ve tiklamanin neye denk geldigini soyler; ne yapilacagina
-// MapWindow karar verir (ToolbarAction ile ayni eylemler).
+// Cizim araclari paleti: haritanin ustunde yuzen, tasinabilir ve katlanabilir
+// kucuk bir panel (Pan/Point/Route/Region + Finish/Undo/Clear).
 #pragma once
 
 #include <vector>
@@ -46,25 +24,25 @@ public:
         bool mToggleCollapse = false;  // ok: katla / ac
     };
 
-    bool IsVisible() const;
-    void SetVisible(bool pVisible);
-    bool IsCollapsed() const;
-    void SetCollapsed(bool pCollapsed);
+    bool isVisible() const;
+    void setVisible(bool pVisible);
+    bool isCollapsed() const;
+    void setCollapsed(bool pCollapsed);
 
     // Haritanin sag ust kosesine gore yer (boxel, >= 0); ayar dosyasi icin
-    int OffsetRight() const;
-    int OffsetTop() const;
-    void SetOffset(int pRight, int pTop);
+    int offsetRight() const;
+    int offsetTop() const;
+    void setOffset(int pRight, int pTop);
 
     // pBounds: panelin kalabilecegi alan (ust ve alt seritlerin arasi). Her cizimden once.
-    void Layout(const RectI& pBounds, const ToolbarState& pState);
+    void layout(const RectI& pBounds, const ToolbarState& pState);
 
-    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const;
-    Hit HitTest(int pX, int pY, const ToolbarState& pState) const;
-    bool Contains(int pX, int pY) const;
+    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const;
+    Hit hitTest(int pX, int pY, const ToolbarState& pState) const;
+    bool contains(int pX, int pY) const;
 
     // Surukleme: fare bu kadar kaydi (Layout bir sonraki karede alana sigdirir)
-    void MoveBy(int pDeltaX, int pDeltaY);
+    void moveBy(int pDeltaX, int pDeltaY);
 
 private:
     struct Item
@@ -74,12 +52,12 @@ private:
         bool mIsTool;  // true: ikonlu arac satiri, false: islem dugmesi
     };
 
-    static const char* LabelFor(ToolbarAction pAction);
-    static bool IsActive(ToolbarAction pAction, const ToolbarState& pState);
-    static bool IsEnabled(ToolbarAction pAction, const ToolbarState& pState);
-    static ToolbarAction ActiveTool(const ToolbarState& pState);
-    static void DrawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const PointF& pCenter, const Rgba& pColor);
-    RectI ChevronRect() const;
+    static const char* labelFor(ToolbarAction pAction);
+    static bool isActive(ToolbarAction pAction, const ToolbarState& pState);
+    static bool isEnabled(ToolbarAction pAction, const ToolbarState& pState);
+    static ToolbarAction activeTool(const ToolbarState& pState);
+    static void drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const PointF& pCenter, const Rgba& pColor);
+    RectI chevronRect() const;
 
     bool mVisible = true;
     bool mCollapsed = false;

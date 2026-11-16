@@ -1,4 +1,3 @@
-// ModePanel.cpp
 #include "ui/ModePanel.h"
 
 #include <algorithm>
@@ -16,28 +15,28 @@ const int kMinWidth = 130;
 
 }  // namespace
 
-bool ModePanel::IsOpen() const
+bool ModePanel::isOpen() const
 {
     return mOpen;
 }
 
-void ModePanel::SetOpen(bool pOpen)
+void ModePanel::setOpen(bool pOpen)
 {
     mOpen = pOpen;
 }
 
-void ModePanel::Toggle()
+void ModePanel::toggle()
 {
     mOpen = !mOpen;
 }
 
-void ModePanel::Layout(const RectI& pAnchor)
+void ModePanel::layout(const RectI& pAnchor)
 {
     int tWidth = kMinWidth;
     for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
     {
         const int tRowWidth =
-            kPadding + kBoxSize + 8 + Ui::TextWidth(ThemeFor(static_cast<MapMode>(tIndex)).mName) + kPadding;
+            kPadding + kBoxSize + 8 + Ui::textWidth(themeFor(static_cast<MapMode>(tIndex)).mName) + kPadding;
         tWidth = std::max(tWidth, tRowWidth);
     }
     mRect.mLeft = pAnchor.mLeft;
@@ -46,7 +45,7 @@ void ModePanel::Layout(const RectI& pAnchor)
     mRect.mBottom = mRect.mTop - (kPadding + kTitleHeight + kMapModeCount * kRowHeight + kPadding);
 }
 
-RectI ModePanel::RowRect(int pIndex) const
+RectI ModePanel::rowRect(int pIndex) const
 {
     RectI tRow;
     tRow.mLeft = mRect.mLeft + kPadding;
@@ -56,41 +55,41 @@ RectI ModePanel::RowRect(int pIndex) const
     return tRow;
 }
 
-void ModePanel::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCurrent) const
+void ModePanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCurrent) const
 {
     if (!mOpen)
     {
         return;
     }
-    Ui::FillRect(pCanvas, mRect, Ui::kPanelBg);
-    Ui::FrameRect(pCanvas, mRect, Ui::kBorder);
-    Ui::Text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "MAP MODE", Ui::kTextGrey);
+    Ui::fillRect(pCanvas, mRect, Ui::kPanelBg);
+    Ui::frameRect(pCanvas, mRect, Ui::kBorder);
+    Ui::text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "MAP MODE", Ui::kTextGrey);
     for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
     {
         const MapMode tMode = static_cast<MapMode>(tIndex);
-        const RectI tRow = RowRect(tIndex);
+        const RectI tRow = rowRect(tIndex);
         RectI tBox;
         tBox.mLeft = tRow.mLeft;
         tBox.mRight = tBox.mLeft + kBoxSize;
         tBox.mTop = (tRow.mTop + tRow.mBottom) / 2 + kBoxSize / 2;
         tBox.mBottom = tBox.mTop - kBoxSize;
         const bool tSelected = tMode == pCurrent;
-        Ui::CheckBox(pCanvas, tBox, tSelected, tRow.Contains(pMouseX, pMouseY));
-        const int tTextY = (tRow.mTop + tRow.mBottom) / 2 - Ui::FontHeight() / 2 + 1;
-        Ui::Text(tBox.mRight + 8, tTextY, ThemeFor(tMode).mName, tSelected ? Ui::kTextWhite : Ui::kTextGrey);
+        Ui::checkBox(pCanvas, tBox, tSelected, tRow.contains(pMouseX, pMouseY));
+        const int tTextY = (tRow.mTop + tRow.mBottom) / 2 - Ui::fontHeight() / 2 + 1;
+        Ui::text(tBox.mRight + 8, tTextY, themeFor(tMode).mName, tSelected ? Ui::kTextWhite : Ui::kTextGrey);
     }
 }
 
-bool ModePanel::HitTest(int pX, int pY, std::optional<MapMode>* pOutMode) const
+bool ModePanel::hitTest(int pX, int pY, std::optional<MapMode>* pOutMode) const
 {
     pOutMode->reset();
-    if (!mOpen || !mRect.Contains(pX, pY))
+    if (!mOpen || !mRect.contains(pX, pY))
     {
         return false;
     }
     for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
     {
-        if (RowRect(tIndex).Contains(pX, pY))
+        if (rowRect(tIndex).contains(pX, pY))
         {
             *pOutMode = static_cast<MapMode>(tIndex);
         }

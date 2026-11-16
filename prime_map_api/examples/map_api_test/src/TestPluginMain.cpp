@@ -1,9 +1,9 @@
 // TestPluginMain.cpp
-// Prime Map API test eklentisi (ayri bir X-Plane eklentisi; kutuphaneyi CMake hedefi olarak kullanir).
+// Prime XMap API test eklentisi (ayri bir X-Plane eklentisi; kutuphaneyi CMake hedefi olarak kullanir).
 //
 //   XPluginEnable : kutuphane + Embedded harita (UI ve fare kapali), otomatik test baslar
 //   flight loop   : otomatik test adimlari (sonuclar Log.txt'de "[map-api-test]")
-//   menu          : Plugins > Map API Test: ayni MapApiCalls metotlari disaridan, elle
+//   menu          : Plugins > XMap API Test: ayni MapApiCalls metotlari disaridan, elle
 //   XPluginDisable: harita kapanir, kutuphane durur
 #include <cstring>
 #include <memory>
@@ -23,8 +23,8 @@ namespace
 class TestPlugin
 {
 public:
-    void Enable();
-    void Disable();
+    void enable();
+    void disable();
 
 private:
     struct MenuAction
@@ -33,69 +33,69 @@ private:
         void (TestPlugin::*mRun)();
     };
 
-    static void MenuCallback(void* pMenuRef, void* pItemRef);
-    static float FlightLoop(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
+    static void menuCallback(void* pMenuRef, void* pItemRef);
+    static float flightLoop(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
 
-    void ZoomIn()
+    void zoomIn()
     {
-        mCalls.ZoomIn();
+        mCalls.zoomIn();
     }
-    void ZoomOut()
+    void zoomOut()
     {
-        mCalls.ZoomOut();
+        mCalls.zoomOut();
     }
-    void PanLeft()
+    void panLeft()
     {
-        mCalls.PanLeft();
+        mCalls.panLeft();
     }
-    void PanRight()
+    void panRight()
     {
-        mCalls.PanRight();
+        mCalls.panRight();
     }
-    void PanUp()
+    void panUp()
     {
-        mCalls.PanUp();
+        mCalls.panUp();
     }
-    void PanDown()
+    void panDown()
     {
-        mCalls.PanDown();
+        mCalls.panDown();
     }
-    void NextMode()
+    void nextMode()
     {
-        mCalls.NextMode();
+        mCalls.nextMode();
     }
-    void GoToKsea()
+    void goToKsea()
     {
-        mCalls.GoToAirport("KSEA");
+        mCalls.goToAirport("KSEA");
     }
-    void ToggleAirways()
+    void toggleAirways()
     {
-        mCalls.ToggleLayer(prime::MapLayer::AirwaysGroup);
+        mCalls.toggleLayer(prime::MapLayer::AirwaysGroup);
     }
-    void ToggleUi()
+    void toggleUi()
     {
-        mCalls.SetUiVisible(!mCalls.IsUiVisible());
+        mCalls.setUiVisible(!mCalls.isUiVisible());
     }
-    void ToggleMouse()
+    void toggleMouse()
     {
-        mCalls.SetMouseInput(!mCalls.IsMouseInputEnabled());
+        mCalls.setMouseInput(!mCalls.isMouseInputEnabled());
     }
-    void MoveRight()
+    void moveRight()
     {
-        prime::Geometry tGeometry = mCalls.GetGeometry();
+        prime::Geometry tGeometry = mCalls.getGeometry();
         tGeometry.mLeft += 100;
-        mCalls.SetGeometry(tGeometry);
+        mCalls.setGeometry(tGeometry);
     }
-    void Grow()
+    void grow()
     {
-        prime::Geometry tGeometry = mCalls.GetGeometry();
+        prime::Geometry tGeometry = mCalls.getGeometry();
         tGeometry.mWidth += 100;
         tGeometry.mHeight += 60;
-        mCalls.SetGeometry(tGeometry);
+        mCalls.setGeometry(tGeometry);
     }
-    void ToggleVisible()
+    void toggleVisible()
     {
-        mCalls.SetVisible(!mCalls.IsVisible());
+        mCalls.setVisible(!mCalls.isVisible());
     }
 
     MapApiCalls mCalls;
@@ -104,43 +104,43 @@ private:
     std::vector<MenuAction> mActions;
 };
 
-void TestPlugin::Enable()
+void TestPlugin::enable()
 {
-    mCalls.InitLibrary("[map-api-test-lib]");
-    mCalls.OpenMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, false, false);
-    mTest.Start(XPLMGetElapsedTime());
+    mCalls.initLibrary("[map-api-test-lib]");
+    mCalls.openMap({150, 750, 640, 420}, prime::WindowStyle::Embedded, false, false);
+    mTest.start(XPLMGetElapsedTime());
 
     mActions = {
-        {"Zoom in", &TestPlugin::ZoomIn},        {"Zoom out", &TestPlugin::ZoomOut},
-        {"Pan left", &TestPlugin::PanLeft},      {"Pan right", &TestPlugin::PanRight},
-        {"Pan up", &TestPlugin::PanUp},          {"Pan down", &TestPlugin::PanDown},
-        {"Next mode", &TestPlugin::NextMode},    {"Go to KSEA", &TestPlugin::GoToKsea},
-        {"Toggle airways", &TestPlugin::ToggleAirways}, {"Toggle UI", &TestPlugin::ToggleUi},
-        {"Toggle mouse input", &TestPlugin::ToggleMouse}, {"Move window right", &TestPlugin::MoveRight},
-        {"Grow window", &TestPlugin::Grow},      {"Show / hide", &TestPlugin::ToggleVisible},
+        {"Zoom in", &TestPlugin::zoomIn},        {"Zoom out", &TestPlugin::zoomOut},
+        {"Pan left", &TestPlugin::panLeft},      {"Pan right", &TestPlugin::panRight},
+        {"Pan up", &TestPlugin::panUp},          {"Pan down", &TestPlugin::panDown},
+        {"Next mode", &TestPlugin::nextMode},    {"Go to KSEA", &TestPlugin::goToKsea},
+        {"Toggle airways", &TestPlugin::toggleAirways}, {"Toggle UI", &TestPlugin::toggleUi},
+        {"Toggle mouse input", &TestPlugin::toggleMouse}, {"Move window right", &TestPlugin::moveRight},
+        {"Grow window", &TestPlugin::grow},      {"Show / hide", &TestPlugin::toggleVisible},
     };
-    const int tSlot = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "Map API Test", nullptr, 0);
-    mMenu = XPLMCreateMenu("Map API Test", XPLMFindPluginsMenu(), tSlot, MenuCallback, this);
+    const int tSlot = XPLMAppendMenuItem(XPLMFindPluginsMenu(), "XMap API Test", nullptr, 0);
+    mMenu = XPLMCreateMenu("XMap API Test", XPLMFindPluginsMenu(), tSlot, menuCallback, this);
     for (size_t tIndex = 0; tIndex < mActions.size(); ++tIndex)
     {
         XPLMAppendMenuItem(mMenu, mActions[tIndex].mLabel, reinterpret_cast<void*>(tIndex), 0);
     }
-    XPLMRegisterFlightLoopCallback(FlightLoop, -1.0f, this);
+    XPLMRegisterFlightLoopCallback(flightLoop, -1.0f, this);
 }
 
-void TestPlugin::Disable()
+void TestPlugin::disable()
 {
-    XPLMUnregisterFlightLoopCallback(FlightLoop, this);
+    XPLMUnregisterFlightLoopCallback(flightLoop, this);
     if (mMenu)
     {
         XPLMDestroyMenu(mMenu);
         mMenu = nullptr;
     }
-    mCalls.CloseMap();
-    mCalls.ShutdownLibrary();
+    mCalls.closeMap();
+    mCalls.shutdownLibrary();
 }
 
-void TestPlugin::MenuCallback(void* pMenuRef, void* pItemRef)
+void TestPlugin::menuCallback(void* pMenuRef, void* pItemRef)
 {
     TestPlugin* tSelf = static_cast<TestPlugin*>(pMenuRef);
     const size_t tIndex = reinterpret_cast<size_t>(pItemRef);
@@ -150,12 +150,12 @@ void TestPlugin::MenuCallback(void* pMenuRef, void* pItemRef)
     }
 }
 
-float TestPlugin::FlightLoop(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/, void* pRefcon)
+float TestPlugin::flightLoop(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/, void* pRefcon)
 {
     TestPlugin* tSelf = static_cast<TestPlugin*>(pRefcon);
-    if (!tSelf->mTest.IsDone())
+    if (!tSelf->mTest.isDone())
     {
-        tSelf->mTest.Step(XPLMGetElapsedTime());
+        tSelf->mTest.step(XPLMGetElapsedTime());
     }
     return -1.0f;
 }
@@ -166,9 +166,9 @@ std::unique_ptr<TestPlugin> gPlugin;
 
 PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescription)
 {
-    std::strcpy(pOutName, "Map API Test");
+    std::strcpy(pOutName, "XMap API Test");
     std::strcpy(pOutSignature, "prime.map_api_test");
-    std::strcpy(pOutDescription, "Tests every Prime Map API function");
+    std::strcpy(pOutDescription, "Tests every Prime XMap API function");
     return 1;
 }
 
@@ -179,7 +179,7 @@ PLUGIN_API void XPluginStop()
 PLUGIN_API int XPluginEnable()
 {
     gPlugin = std::make_unique<TestPlugin>();
-    gPlugin->Enable();
+    gPlugin->enable();
     return 1;
 }
 
@@ -187,7 +187,7 @@ PLUGIN_API void XPluginDisable()
 {
     if (gPlugin)
     {
-        gPlugin->Disable();
+        gPlugin->disable();
         gPlugin.reset();
     }
 }

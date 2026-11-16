@@ -1,15 +1,6 @@
-// NavaidLayer.h
-// Radyo seyrusefer yardimcilari ve fix'ler. Tek sinif, tur parametreli:
-//
-//   tur   semboller                                   gorunur   etiket   frekans
-//   Vor   altigen (VOR), altigen+kare (VOR/DME),      zoom 5    6.5      8
-//         kare (tek basina DME)
-//   Ndb   noktali cember                              zoom 7    8        9
-//   Ils   localizer "tuyu": pist esiginden yaklasma   zoom 8.5  10       10
-//         yonune 10 NM'lik ucgen (pist bulunamazsa antenden)
-//   Fix   ucgen                                       zoom 9    10       -
-//
-// Zoom esikleri ve renkler NavaidLayer.cpp'deki tablodadir (kStyles).
+// Radyo seyrusefer yardimcilari ve fix'ler. Tek sinif, tur parametreli
+// (VOR, NDB, ILS, Fix). Zoom esikleri ve renkler NavaidLayer.cpp'deki
+// kStyles tablosunda.
 #pragma once
 
 #include <array>
@@ -46,12 +37,11 @@ public:
     NavaidLayer(NavaidType pType, const NavDatabase& pDatabase,
                 const AirportGeometryStore* pRunways = nullptr);
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
-    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
-    int LabelPriority() const override;
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
+    std::string describe(const drawContext& pContext, double pX, double pY) const override;
+    int labelPriority() const override;
 
-    // Katman turunun tablo bilgisi
     struct Style
     {
         const char* mId;            // ayar dosyasindaki anahtar
@@ -62,7 +52,7 @@ public:
         double mMinZoom;            // bunun altinda hic cizilmez
         double mLabelMinZoom;       // kimlik etiketi
         double mDetailMinZoom;      // frekans / yon
-        int mLabelPriority;         // Layer::LabelPriority (kucuk = once)
+        int mLabelPriority;         // Layer::labelPriority(kucuk = once)
         Rgba mColor;
     };
 
@@ -74,19 +64,19 @@ private:
         std::array<PointF, 3> mFeather;  // sadece ILS: sol kanat, orta uc, sag kanat
     };
 
-    static const Style& StyleFor(NavaidType pType);
+    static const Style& styleFor(NavaidType pType);
 
-    void CollectVisible(const DrawContext& pContext);
-    bool ComputeFeather(const DrawContext& pContext, int pIndex, VisibleNavaid* pOut);
-    LatLon FeatherOrigin(int pIndex);  // esik (bulunduysa) veya anten
-    void AddSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const;
-    void AddCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const;
-    void DrawFeathers(Gfx::Canvas& pCanvas, double pZoom) const;
-    std::string FormatLabel(const NavRecord& pRecord, bool pDetail) const;
+    void collectVisible(const drawContext& pContext);
+    bool computeFeather(const drawContext& pContext, int pIndex, VisibleNavaid* pOut);
+    LatLon featherOrigin(int pIndex);  // esik (bulunduysa) veya anten
+    void addSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const;
+    void addCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const;
+    void drawFeathers(Gfx::Canvas& pCanvas, double pZoom) const;
+    std::string formatLabel(const NavRecord& pRecord, bool pDetail) const;
 
     NavaidType mType;
     const Style& mStyle;
-    Rgba mColor;  // bu karenin rengi (temadan, Draw / DrawLabels basinda)
+    Rgba mColor;  // bu karenin rengi (temadan, Draw / drawLabels basinda)
     Rgba mHalo;   // kontur rengi (temadan)
     const NavDatabase& mDatabase;
     const AirportGeometryStore* mRunways;

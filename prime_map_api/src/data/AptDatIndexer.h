@@ -1,21 +1,18 @@
-// AptDatIndexer.h
 // Acilista tum apt.dat dosyalarini BIR KEZ tarayip her havalimaninin ozetini
 // ve dosyadaki bayt araligini cikarir. X-Plane'e bagimli DEGIL; arka plan
 // thread'inde calisir.
 //
 // Neden: Global Airports apt.dat'i ~325 MB (37 bin havalimani, 7 milyon
-// dugum). Hepsini ayristirip bellekte tutmak yerine burada sadece ozet
-// (pistler, kapsayan kutu, kule) cikarilir; ayrinti gerektiginde dosyada
-// havalimaninin baslangicina dogrudan atlanip sadece o kisim okunur
+// dugum). Hepsini ayristirmak yerine ozet cikarilir; ayrinti gerektiginde
+// dosyada havalimaninin baslangicina atlanip sadece o kisim okunur
 // (AirportDetailStore).
 //
 // Disk onbellegi: tarama sonucu <onbellek>/airport_index.bin dosyasina
-// yazilir. Anahtar = her apt.dat'in yolu + boyutu + degisiklik zamani; sahne
-// eklenir, cikarilir, sirasi degisir veya guncellenirse anahtar tutmaz ve
-// dosyalar yeniden taranir. Onbellek dosyasini silmek bir sey bozmaz.
+// yazilir. Anahtar = her apt.dat'in yolu + boyutu + degisiklik zamani; anahtar
+// tutmazsa dosyalar yeniden taranir. Onbellek dosyasini silmek bir sey bozmaz.
 //
 // Dosya sirasi (X-Plane'in kurali, ayni kimlik icin ONCE gelen kazanir;
-// boylece ozel sahnedeki havalimani Global Airports'takini tamamen ezer):
+// boylece ozel sahne Global Airports'takini tamamen ezer):
 //   1. Custom Scenery/scenery_packs.ini'deki etkin paketler, yukaridan asagi,
 //      her birinin "Earth nav data/apt.dat"i
 //   2. Resources/default scenery/default apt dat/Earth nav data/apt.dat
@@ -37,16 +34,16 @@ public:
     AptDatScanner(int pFileIndex, std::unordered_set<std::string>& pSeen, std::vector<AirportGeometry>& pOut);
 
     // pOffset: satirin dosyadaki ilk bayti
-    void AddLine(std::string_view pLine, uint64_t pOffset);
-    void Finish(uint64_t pFileSize);  // dosya bitti: son havalimanini kapat
+    void addLine(std::string_view pLine, uint64_t pOffset);
+    void finish(uint64_t pFileSize);  // dosya bitti: son havalimanini kapat
 
-    int AirportCount() const;
-    int RunwayCount() const;
-    int NodeCount() const;
+    int airportCount() const;
+    int runwayCount() const;
+    int nodeCount() const;
 
 private:
-    void Close(uint64_t pEndOffset);
-    void Extend(const LatLon& pPoint);
+    void close(uint64_t pEndOffset);
+    void extend(const LatLon& pPoint);
 
     int mFileIndex;
     std::unordered_set<std::string>& mSeen;
@@ -66,22 +63,22 @@ private:
 class AptDatIndexer : public IAirportGeometrySource
 {
 public:
-    const char* Name() const override;
-    void SetCacheDirectory(const std::string& pDirectory) override;
-    bool LoadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel, AirportIndex& pOut,
+    const char* name() const override;
+    void setCacheDirectory(const std::string& pDirectory) override;
+    bool loadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel, AirportIndex& pOut,
                  std::string& pOutReport) override;
 
     // Onbellek dosyasi: anahtar tutarsa pOut'u doldurup true. Testler icin acik.
-    static bool LoadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut);
-    static bool SaveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex);
+    static bool loadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut);
+    static bool saveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex);
     // Dosya listesinin anahtari (yol | boyut | degisiklik zamani)
-    static std::string CacheKey(const std::vector<std::string>& pFiles);
+    static std::string cacheKey(const std::vector<std::string>& pFiles);
 
     // Okunacak apt.dat yollari, oncelik sirasiyla (var olup olmadigina bakmaz)
-    static std::vector<std::string> AptFiles(const std::string& pXPlaneDirectory);
+    static std::vector<std::string> aptFiles(const std::string& pXPlaneDirectory);
 
 private:
     std::string mCacheDirectory;
 
-    static bool ScanFile(const std::string& pPath, AptDatScanner& pScanner, const std::atomic<bool>& pCancel);
+    static bool scanFile(const std::string& pPath, AptDatScanner& pScanner, const std::atomic<bool>& pCancel);
 };

@@ -1,10 +1,5 @@
-// DsfInfoMain.cpp
 // dsf_info: bir DSF dosyasinin ozetini yazar (gelistirme ve teshis icin).
-//   dsf_info "<.../+47-123.dsf>"
-// Ozellikler, arazi turu adlari, her arazi turunun ucgen sayisi (overlay ayri),
-// koordinat araligi; overlay envanteri (nesne / poligon / ag tanimlari ve
-// sayilari, dislama alanlari) ve asama sureleri (7z acma, okuma, ucgen gecisi,
-// DEM). 7z ile sikistirilmis dosyalari kendisi acar.
+// Kullanim: dsf_info "<.../+47-123.dsf>"
 #include <algorithm>
 #include <chrono>
 #include <cstdio>

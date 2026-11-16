@@ -1,4 +1,3 @@
-// Settings.cpp
 #include "Settings.h"
 
 #include <filesystem>
@@ -10,7 +9,7 @@ namespace
 {
 
 // Bastaki ve sondaki bosluklari at
-std::string Trim(const std::string& pText)
+std::string trim(const std::string& pText)
 {
     const char* tSpaces = " \t\r\n";
     const size_t tBegin = pText.find_first_not_of(tSpaces);
@@ -24,7 +23,7 @@ std::string Trim(const std::string& pText)
 
 }  // namespace
 
-bool Settings::Load(const std::string& pPath)
+bool Settings::load(const std::string& pPath)
 {
     mPath = pPath;
     mValues.clear();
@@ -36,31 +35,31 @@ bool Settings::Load(const std::string& pPath)
     }
     std::ostringstream tText;
     tText << tFile.rdbuf();
-    MergeText(tText.str());
+    mergeText(tText.str());
     return true;
 }
 
-void Settings::LoadText(const std::string& pText)
+void Settings::loadText(const std::string& pText)
 {
     mValues.clear();
-    MergeText(pText);
+    mergeText(pText);
 }
 
-void Settings::MergeText(const std::string& pText)
+void Settings::mergeText(const std::string& pText)
 {
     std::istringstream tLines(pText);
     std::string tSection;
     std::string tLine;
     while (std::getline(tLines, tLine))
     {
-        tLine = Trim(tLine);
+        tLine = trim(tLine);
         if (tLine.empty() || tLine[0] == '#' || tLine[0] == ';')
         {
             continue;
         }
         if (tLine.front() == '[' && tLine.back() == ']')
         {
-            tSection = Trim(tLine.substr(1, tLine.size() - 2));
+            tSection = trim(tLine.substr(1, tLine.size() - 2));
             continue;
         }
         const size_t tEquals = tLine.find('=');
@@ -68,8 +67,8 @@ void Settings::MergeText(const std::string& pText)
         {
             continue;  // taninmayan satir: atla
         }
-        const std::string tKey = Trim(tLine.substr(0, tEquals));
-        const std::string tValue = Trim(tLine.substr(tEquals + 1));
+        const std::string tKey = trim(tLine.substr(0, tEquals));
+        const std::string tValue = trim(tLine.substr(tEquals + 1));
         if (!tKey.empty())
         {
             mValues[tSection][tKey] = tValue;
@@ -77,7 +76,7 @@ void Settings::MergeText(const std::string& pText)
     }
 }
 
-std::string Settings::ToText(const std::vector<std::string>& pSections) const
+std::string Settings::toText(const std::vector<std::string>& pSections) const
 {
     // pSections bos: hepsi. "layers*" gibi sonu '*' olan oge on ek olarak eslesir.
     auto tWanted = [&pSections](const std::string& pName)
@@ -105,7 +104,7 @@ std::string Settings::ToText(const std::vector<std::string>& pSections) const
     std::ostringstream tOut;
     if (mComment.empty())
     {
-        tOut << "# Prime Map Plugin settings. Can be edited by hand while X-Plane is closed.\n";
+        tOut << "# Prime XMap Plugin settings. Can be edited by hand while X-Plane is closed.\n";
     }
     else
     {
@@ -131,7 +130,7 @@ std::string Settings::ToText(const std::vector<std::string>& pSections) const
     return tOut.str();
 }
 
-bool Settings::Save() const
+bool Settings::save() const
 {
     if (mPath.empty())
     {
@@ -145,7 +144,7 @@ bool Settings::Save() const
         {
             return false;
         }
-        tFile << ToText({});
+        tFile << toText({});
         if (!tFile)
         {
             return false;
@@ -156,28 +155,28 @@ bool Settings::Save() const
     return !tError;
 }
 
-void Settings::SetPath(const std::string& pPath)
+void Settings::setPath(const std::string& pPath)
 {
     mPath = pPath;
 }
 
-void Settings::SetComment(const std::string& pComment)
+void Settings::setComment(const std::string& pComment)
 {
     mComment = pComment;
 }
 
-const std::string& Settings::Path() const
+const std::string& Settings::path() const
 {
     return mPath;
 }
 
-bool Settings::Has(const std::string& pSection, const std::string& pKey) const
+bool Settings::has(const std::string& pSection, const std::string& pKey) const
 {
     const auto tSection = mValues.find(pSection);
     return tSection != mValues.end() && tSection->second.count(pKey) > 0;
 }
 
-std::string Settings::GetString(const std::string& pSection, const std::string& pKey,
+std::string Settings::getString(const std::string& pSection, const std::string& pKey,
                                 const std::string& pDefault) const
 {
     const auto tSection = mValues.find(pSection);
@@ -193,40 +192,40 @@ std::string Settings::GetString(const std::string& pSection, const std::string& 
     return tEntry->second;
 }
 
-double Settings::GetDouble(const std::string& pSection, const std::string& pKey, double pDefault) const
+double Settings::getDouble(const std::string& pSection, const std::string& pKey, double pDefault) const
 {
-    if (!Has(pSection, pKey))
+    if (!has(pSection, pKey))
     {
         return pDefault;
     }
     // "C" yerel ayariyla oku: ondalik ayirici her zaman nokta
-    std::istringstream tStream(GetString(pSection, pKey, ""));
+    std::istringstream tStream(getString(pSection, pKey, ""));
     tStream.imbue(std::locale::classic());
     double tValue = pDefault;
     tStream >> tValue;
     return tStream.fail() ? pDefault : tValue;
 }
 
-int Settings::GetInt(const std::string& pSection, const std::string& pKey, int pDefault) const
+int Settings::getInt(const std::string& pSection, const std::string& pKey, int pDefault) const
 {
-    if (!Has(pSection, pKey))
+    if (!has(pSection, pKey))
     {
         return pDefault;
     }
-    std::istringstream tStream(GetString(pSection, pKey, ""));
+    std::istringstream tStream(getString(pSection, pKey, ""));
     tStream.imbue(std::locale::classic());
     int tValue = pDefault;
     tStream >> tValue;
     return tStream.fail() ? pDefault : tValue;
 }
 
-bool Settings::GetBool(const std::string& pSection, const std::string& pKey, bool pDefault) const
+bool Settings::getBool(const std::string& pSection, const std::string& pKey, bool pDefault) const
 {
-    if (!Has(pSection, pKey))
+    if (!has(pSection, pKey))
     {
         return pDefault;
     }
-    const std::string tValue = GetString(pSection, pKey, "");
+    const std::string tValue = getString(pSection, pKey, "");
     if (tValue == "1" || tValue == "yes" || tValue == "true")
     {
         return true;
@@ -238,31 +237,37 @@ bool Settings::GetBool(const std::string& pSection, const std::string& pKey, boo
     return pDefault;
 }
 
-void Settings::SetString(const std::string& pSection, const std::string& pKey, const std::string& pValue)
+void Settings::setString(const std::string& pSection, const std::string& pKey, const std::string& pValue)
 {
     mValues[pSection][pKey] = pValue;
 }
 
-void Settings::SetDouble(const std::string& pSection, const std::string& pKey, double pValue)
+void Settings::setDouble(const std::string& pSection, const std::string& pKey, double pValue)
 {
     std::ostringstream tStream;
     tStream.imbue(std::locale::classic());
     tStream.precision(10);
     tStream << pValue;
-    SetString(pSection, pKey, tStream.str());
+    setString(pSection, pKey, tStream.str());
 }
 
-void Settings::SetInt(const std::string& pSection, const std::string& pKey, int pValue)
+void Settings::setInt(const std::string& pSection, const std::string& pKey, int pValue)
 {
-    SetString(pSection, pKey, std::to_string(pValue));
+    setString(pSection, pKey, std::to_string(pValue));
 }
 
-void Settings::SetBool(const std::string& pSection, const std::string& pKey, bool pValue)
+void Settings::setBool(const std::string& pSection, const std::string& pKey, bool pValue)
 {
-    SetString(pSection, pKey, pValue ? "1" : "0");
+    setString(pSection, pKey, pValue ? "1" : "0");
 }
 
-void Settings::ClearSection(const std::string& pSection)
+void Settings::clearSection(const std::string& pSection)
 {
     mValues.erase(pSection);
+}
+
+const std::map<std::string, std::string>* Settings::findSection(const std::string& pSection) const
+{
+    const auto tIt = mValues.find(pSection);
+    return tIt == mValues.end() ? nullptr : &tIt->second;
 }

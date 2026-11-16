@@ -1,23 +1,5 @@
-// Layer.h
 // Tum harita katmanlarinin ortak arayuzu. X-Plane'e bagimli DEGIL.
-//
-// Yeni bir katman eklemek icin:
-//   1. Layer'dan tureyen bir sinif yaz (ornek: layers/GridLayer.*)
-//   2. Draw() icinde ciz; yazilari DrawLabels() icinde ciz
-//   3. Plugin.cpp'de LayerManager'a dogru sirada ekle
-// Gorunurluk, ac/kapa dugmesi ve ayar dosyasina kayit kendiliginden olur.
-//
-// Alt katmanlar (istege bagli): bir katman yapicisinda AddSubLayer ile
-// parcalarini (ornek: "boundary", "pavement") tanitir; Draw icinde
-// IsSubLayerVisible(indeks) ile o parcayi cizip cizmeyecegine bakar.
-// Panelde katmanin altinda acilir liste olarak cikar, ayar dosyasina
-// "<katman>.<alt katman>" anahtariyla kaydedilir.
-//
-// Zoom araligi (0.23, harita basina; API SetLayerZoomRange): her katmana ve alt katmana
-// "sadece su zoom araliginda ciz" siniri konabilir. Katmanin kendi esikleri (ornek: pistler
-// zoom 11+) yerinde kalir; aralik onlari DARALTIR. Kutu (gorunurluk) durumu degismez:
-//   IsVisible / IsSubLayerVisible : kullanicinin kutusu (panel, ayar dosyasi, kurallar)
-//   IsInZoomRange / IsSubLayerDrawn : su anki zoom'da gercekten cizilecek mi (Draw icinde bu kullanilir)
+// Yeni katman: Layer'dan ture, draw()/drawLabels() icine ciz, LayerManager'a sirayla ekle.
 #pragma once
 
 #include <string>
@@ -28,7 +10,7 @@
 #include "ScreenMath.h"
 
 class LabelPlacer;
-class MapView;
+class XMapView;
 
 namespace Gfx
 {
@@ -36,10 +18,10 @@ class Canvas;
 }
 
 // Bir katmanin cizim icin ihtiyac duydugu her sey (her karede yeniden doldurulur)
-struct DrawContext
+struct drawContext
 {
-    const MapView* mView = nullptr;  // projeksiyon: lat/lon <-> boxel
-    Gfx::Canvas* mCanvas = nullptr;  // cizim kapisi (Mesh -> OpenGL)
+    const XMapView* mView = nullptr;  // projeksiyon: lat/lon <-> boxel
+    Gfx::Canvas* mCanvas = nullptr;  // cizim kapisi (Mesh -> openGL)
     RectD mArea;                     // haritanin cizildigi alan (global boxel)
     RectD mClearArea;                // mArea'nin kontrollerle (ust/alt serit) ortulmeyen kismi
     double mPixelsPerBoxel = 1.0;    // UI olcek (%150 ise 1.5)
@@ -50,17 +32,15 @@ struct DrawContext
     double mCursorX = 0.0;           // boxel
     double mCursorY = 0.0;
 
-    // Tum katmanlarin ortak etiket yerlestiricisi (DrawLabels icinde kullanilir).
-    // Katmanlar sirayla cizildigi icin alttaki katmanin etiketi onceliklidir.
+    // Tum katmanlarin ortak etiket yerlestiricisi (drawLabels icinde kullanilir)
     LabelPlacer* mLabels = nullptr;
 
-    // Harita modunun renkleri (hic bos degil; varsayilan Scenery)
-    const MapTheme* mTheme = &ThemeFor(MapMode::Scenery);
+    const MapTheme* mTheme = &themeFor(MapMode::Scenery);
 
     // Yazi golgesi: temanin halesi, tam opak
-    Rgba LabelShadow() const
+    Rgba labelShadow() const
     {
-        return WithAlpha(mTheme->mHalo, 1.0f);
+        return withAlpha(mTheme->mHalo, 1.0f);
     }
 };
 
@@ -82,83 +62,74 @@ public:
     Layer(const Layer&) = delete;
     Layer& operator=(const Layer&) = delete;
 
-    const std::string& Id() const
+    const std::string& id() const
     {
         return mId;
     }
 
-    const std::string& Name() const
+    const std::string& name() const
     {
         return mName;
     }
 
-    bool IsVisible() const
+    bool isVisible() const
     {
         return mVisible;
     }
 
-    void SetVisible(bool pVisible)
+    void setVisible(bool pVisible)
     {
         mVisible = pVisible;
     }
 
-    bool DefaultVisible() const
+    bool defaultVisible() const
     {
         return mDefaultVisible;
     }
 
-    // Her karede flight loop'tan cagrilir (katman kapali olsa bile):
-    // veri yenileme icin (ornek: ucus izi, FMS rotasi)
-    virtual void Update(float /*pNow*/)
+    // flight loop'tan her karede (katman kapaliyken bile): veri yenileme
+    virtual void update(float /*pNow*/)
     {
     }
 
-    // 0.18: her karede, pencere cizilirken (OpenGL baglami etkin), cizimden ONCE; sadece
-    // gorunurken. Hazir gelen veriyi alir (doku yukleme gibi). Harita goruntusunu degistiren
-    // yeni bir sey geldiyse true: onbellekteki harita resmi (MapImageCache) yeniden cizilir.
-    virtual bool PrepareFrame()
+    // openGL baglami etkin, cizimden ONCE, sadece gorunurken. Harita goruntusunu
+    // degistiren yeni veri geldiyse true: onbellek resmi (XMapImageCache) yenilenir.
+    virtual bool prepareFrame()
     {
         return false;
     }
 
-    // 0.18: true ise katman onbellekteki harita resmine girmez, her karede onun USTUNE
-    // ayrica cizilir (ucak, ucus izi, cizim sirasinda imlece giden kesikli cizgi).
-    virtual bool IsOverlay() const
+    // true: onbellek resme girmez, her karede ustune cizilir (ucak, ucus izi ...)
+    virtual bool isOverlay() const
     {
         return false;
     }
 
-    // Geometri cizimi (cizgi, dolgu). Sadece gorunurken cagrilir.
-    virtual void Draw(const DrawContext& pContext) = 0;
+    // Sadece gorunurken cagrilir
+    virtual void draw(const drawContext& pContext) = 0;
 
-    // Yazilar. Tum katmanlarin geometrisi bittikten sonra cagrilir;
-    // boylece yazilar hicbir cizginin altinda kalmaz.
-    virtual void DrawLabels(const DrawContext& /*pContext*/)
+    // Tum katmanlarin geometrisi bittikten sonra cagrilir; yazilar cizgilerin altinda kalmaz
+    virtual void drawLabels(const drawContext& /*pContext*/)
     {
     }
 
-    // Her karede harita resminin USTUNE cizilen kisim (katmanin kendisi resimde olsa bile).
-    // Pencere kenarina yapisik kalmasi gereken seyler icin: izgara yazilari alt ve sol kenarda
-    // durur; resimde olsalar kaydirirken resimle birlikte kayip sonra yerine ziplarlardi.
-    virtual void DrawOverlay(const DrawContext& /*pContext*/)
+    // Harita resminin USTUNE cizilen kisim: kenara yapisan seyler kaydirinca kaymasin
+    virtual void drawOverlay(const drawContext& /*pContext*/)
     {
     }
 
-    // Fare (pX, pY) boxel noktasinin ustundeyse ne oldugunu anlatan kisa
-    // metin ("Runway 16L/34R ..."); yoksa bos. Son cizimdeki konumlara gore.
-    virtual std::string Describe(const DrawContext& /*pContext*/, double /*pX*/, double /*pY*/) const
+    // imlec altindaki seyin kisa aciklamasi; yoksa bos
+    virtual std::string describe(const drawContext& /*pContext*/, double /*pX*/, double /*pY*/) const
     {
         return "";
     }
 
-    // Etiket onceligi: kucuk sayi once yer bulur (cizim sirasindan bagimsiz).
-    // Ornek: havalimani adlari hava yolu adlarindan once yerlesir.
-    virtual int LabelPriority() const
+    // kucuk sayi once yer bulur (orn. havalimani, hava yolundan once)
+    virtual int labelPriority() const
     {
         return 50;
     }
 
-    // --- Alt katmanlar ---
     struct SubLayer
     {
         std::string mId;    // ayar anahtari parcasi (kucuk harf, ASCII)
@@ -169,35 +140,35 @@ public:
         double mMaxZoom = 99.0;  // kNoMaxZoom
     };
 
-    int SubLayerCount() const
+    int subLayerCount() const
     {
         return static_cast<int>(mSubLayers.size());
     }
 
-    const SubLayer& SubLayerAt(int pIndex) const
+    const SubLayer& subLayerAt(int pIndex) const
     {
         return mSubLayers[static_cast<size_t>(pIndex)];
     }
 
     // Gecersiz indeks: gorunur say (alt katmani olmayan cagiranlar bozulmasin)
-    bool IsSubLayerVisible(int pIndex) const
+    bool isSubLayerVisible(int pIndex) const
     {
-        if (pIndex < 0 || pIndex >= SubLayerCount())
+        if (pIndex < 0 || pIndex >= subLayerCount())
         {
             return true;
         }
         return mSubLayers[static_cast<size_t>(pIndex)].mVisible;
     }
 
-    void SetSubLayerVisible(int pIndex, bool pVisible)
+    void setSubLayerVisible(int pIndex, bool pVisible)
     {
-        if (pIndex >= 0 && pIndex < SubLayerCount())
+        if (pIndex >= 0 && pIndex < subLayerCount())
         {
             mSubLayers[static_cast<size_t>(pIndex)].mVisible = pVisible;
         }
     }
 
-    int VisibleSubLayerCount() const
+    int visibleSubLayerCount() const
     {
         int tCount = 0;
         for (const SubLayer& tSub : mSubLayers)
@@ -207,29 +178,28 @@ public:
         return tCount;
     }
 
-    // --- Zoom araligi (0.23) ---
-    static constexpr double kNoMinZoom = 0.0;    // alt sinir yok
-    static constexpr double kNoMaxZoom = 99.0;   // ust sinir yok
+    static constexpr double kNoMinZoom = 0.0;
+    static constexpr double kNoMaxZoom = 99.0;
 
-    void SetZoomRange(double pMinZoom, double pMaxZoom)
+    void setZoomRange(double pMinZoom, double pMaxZoom)
     {
         mMinZoom = pMinZoom;
         mMaxZoom = pMaxZoom;
     }
 
-    double MinZoom() const
+    double minZoom() const
     {
         return mMinZoom;
     }
 
-    double MaxZoom() const
+    double maxZoom() const
     {
         return mMaxZoom;
     }
 
-    void SetSubLayerZoomRange(int pIndex, double pMinZoom, double pMaxZoom)
+    void setSubLayerZoomRange(int pIndex, double pMinZoom, double pMaxZoom)
     {
-        if (pIndex >= 0 && pIndex < SubLayerCount())
+        if (pIndex >= 0 && pIndex < subLayerCount())
         {
             mSubLayers[static_cast<size_t>(pIndex)].mMinZoom = pMinZoom;
             mSubLayers[static_cast<size_t>(pIndex)].mMaxZoom = pMaxZoom;
@@ -237,22 +207,22 @@ public:
     }
 
     // LayerManager her cizimden once haritanin o anki zoom'unu verir
-    void SetCurrentZoom(double pZoom)
+    void setCurrentZoom(double pZoom)
     {
         mCurrentZoom = pZoom;
     }
 
     // Katman su anki zoom'da ciziliyor mu (kendi kutusundan bagimsiz)
-    bool IsInZoomRange() const
+    bool isInZoomRange() const
     {
         return mCurrentZoom >= mMinZoom && mCurrentZoom <= mMaxZoom;
     }
 
     // Draw icinde kullanilir: alt katmanin kutusu acik VE su anki zoom araliginda.
-    // Gecersiz indeks: cizilir say (IsSubLayerVisible ile ayni kural).
-    bool IsSubLayerDrawn(int pIndex) const
+    // Gecersiz indeks: cizilir say (isSubLayerVisible ile ayni kural).
+    bool isSubLayerDrawn(int pIndex) const
     {
-        if (pIndex < 0 || pIndex >= SubLayerCount())
+        if (pIndex < 0 || pIndex >= subLayerCount())
         {
             return true;
         }
@@ -261,8 +231,8 @@ public:
     }
 
 protected:
-    // Yapicida sirayla cagrilir; donen indeks IsSubLayerVisible icin
-    int AddSubLayer(std::string_view pId, std::string_view pName, bool pDefaultVisible = true)
+    // Yapicida sirayla cagrilir; donen indeks isSubLayerVisible icin
+    int addSubLayer(std::string_view pId, std::string_view pName, bool pDefaultVisible = true)
     {
         SubLayer tSub;
         tSub.mId = pId;
@@ -270,7 +240,7 @@ protected:
         tSub.mVisible = pDefaultVisible;
         tSub.mDefaultVisible = pDefaultVisible;
         mSubLayers.push_back(tSub);
-        return SubLayerCount() - 1;
+        return subLayerCount() - 1;
     }
 
 private:
@@ -280,6 +250,6 @@ private:
     bool mDefaultVisible;
     double mMinZoom = kNoMinZoom;
     double mMaxZoom = kNoMaxZoom;
-    double mCurrentZoom = 10.0;  // SetCurrentZoom gelene kadar: her aralikta sayilmasin diye ortalama bir deger
+    double mCurrentZoom = 10.0;  // setCurrentZoom gelene kadar: her aralikta sayilmasin diye ortalama bir deger
     std::vector<SubLayer> mSubLayers;
 };

@@ -1,4 +1,3 @@
-// TerrainRelief.cpp
 #include "data/TerrainRelief.h"
 
 #include <algorithm>
@@ -9,7 +8,7 @@ namespace
 
 const double kPi = 3.14159265358979323846;
 const double kSunAltitudeDeg = 45.0;
-const double kShadeGain = 1.8;          // isik farkinin parlakliga cevrimi (0.15'teki formulle ayni)
+const double kShadeGain = 1.8;          // isik farkinin parlakliga cevrimi
 const double kMinFactor = 0.45;
 const double kMaxFactor = 1.55;
 const double kSlopeToneHalf = 0.5;      // egim bu degerdeyken (~27 derece) slope_tone'un yarisi uygulanir
@@ -29,7 +28,7 @@ const Light kSingleLight[] = {{315.0, 1.0}};
 
 }  // namespace
 
-double ReliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters, double pFinestCellMeters)
+double reliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters, double pFinestCellMeters)
 {
     if (pFinestCellMeters <= 0.0 || pCellMeters <= pFinestCellMeters)
     {
@@ -38,7 +37,7 @@ double ReliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters
     return pParams.mExaggeration * std::pow(pCellMeters / pFinestCellMeters, pParams.mCoarseBoost);
 }
 
-double ReliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, double pExaggeration,
+double reliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, double pExaggeration,
                     const TerrainReliefParams& pParams)
 {
     // Duz arazi esigi: DEM tam metre saklanir; neredeyse duz ovada 1 m'lik basamaklar (~%1 egim)
@@ -82,7 +81,7 @@ double ReliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, dou
     return std::clamp(tFactor, kMinFactor, kMaxFactor);
 }
 
-void VfrBandColor(double pMeters, double pFeetPerPixel, const TerrainVfrParams& pParams, double pRgb[3])
+void vfrBandColor(double pMeters, double pFeetPerPixel, const TerrainVfrParams& pParams, double pRgb[3])
 {
     const double tFeet = pMeters * kFeetPerMeter;
     int tBand = 0;
@@ -133,7 +132,7 @@ void VfrBandColor(double pMeters, double pFeetPerPixel, const TerrainVfrParams& 
     }
 }
 
-double DepthDarkening(double pSeaLevel, const TerrainWaterParams& pParams)
+double depthDarkening(double pSeaLevel, const TerrainWaterParams& pParams)
 {
     if (pParams.mDepthTone <= 0.0 || pSeaLevel >= kNoDepthSeaLevel)
     {
@@ -144,7 +143,7 @@ double DepthDarkening(double pSeaLevel, const TerrainWaterParams& pParams)
     return pParams.mDepthTone * std::clamp(tT, 0.0, 1.0);
 }
 
-double CoastBandLightening(double pDistancePixels, double pBandPixels, const TerrainWaterParams& pParams)
+double coastBandLightening(double pDistancePixels, double pBandPixels, const TerrainWaterParams& pParams)
 {
     // Serit kiyi cizgisinin (1 piksel) arkasindan baslar: cizginin hemen yani acilirsa kiyi
     // kontrastini kaybeder, kucuk goller bulanik gorunur (onizlemede goruldu)
@@ -157,7 +156,7 @@ double CoastBandLightening(double pDistancePixels, double pBandPixels, const Ter
     return pParams.mBandStrength * tNear * tNear;
 }
 
-void DistanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDistance, std::vector<float>* pOut)
+void distanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDistance, std::vector<float>* pOut)
 {
     // 3-4 chamfer: dik komsu 3, capraz komsu 4 birim; iki gecis (ileri, geri). Sonuc / 3 = piksel.
     const float tInfinity = pMaxDistance * 3.0f + 4.0f;
@@ -224,7 +223,7 @@ void DistanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDist
     }
 }
 
-void CoastlineStrength(const std::vector<float>& pLandFraction, int pSize, std::vector<float>* pOut)
+void coastlineStrength(const std::vector<float>& pLandFraction, int pSize, std::vector<float>* pOut)
 {
     // Cizgi suyun tarafinda tek piksel (ilk surumde 3x3 ortalama 2-3 piksel genis ve bulanikti):
     //   kara agirlikli piksel (oran >= 0.5)       : karisik ise (1 - oran) * 2, tam kara ise 0

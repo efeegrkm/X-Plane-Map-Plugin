@@ -1,4 +1,3 @@
-// AirwayDatabase.cpp
 #include "data/AirwayDatabase.h"
 
 #include <cmath>
@@ -19,7 +18,7 @@ const int kTypeFix = 11;
 const int kMaxCellsPerSegment = 400;  // cok uzun segmentler (okyanus asiri) icin ust sinir
 
 // Nav kaydinin hava yolu dosyasindaki tur koduna uyup uymadigi
-bool KindMatches(NavKind pKind, int pType)
+bool kindMatches(NavKind pKind, int pType)
 {
     switch (pType)
     {
@@ -41,18 +40,18 @@ public:
     explicit EndpointIndex(const NavDatabase& pNav)
         : mNav(pNav)
     {
-        for (int tIndex = 0; tIndex < pNav.Count(); ++tIndex)
+        for (int tIndex = 0; tIndex < pNav.count(); ++tIndex)
         {
-            const NavKind tKind = pNav.At(tIndex).mKind;
+            const NavKind tKind = pNav.at(tIndex).mKind;
             if (tKind == NavKind::Fix || tKind == NavKind::Ndb || tKind == NavKind::Vor || tKind == NavKind::Dme)
             {
-                mById.emplace(pNav.At(tIndex).mId, tIndex);
+                mById.emplace(pNav.at(tIndex).mId, tIndex);
             }
         }
     }
 
     // Iki ucun adaylari arasindan birbirine en yakin cifti secer
-    bool Resolve(const AirwayLine& pLine, LatLon* pOutFrom, LatLon* pOutTo) const
+    bool resolve(const AirwayLine& pLine, LatLon* pOutFrom, LatLon* pOutTo) const
     {
         const auto tFromRange = mById.equal_range(pLine.mFromId);
         const auto tToRange = mById.equal_range(pLine.mToId);
@@ -60,21 +59,21 @@ public:
         bool tFound = false;
         for (auto tFrom = tFromRange.first; tFrom != tFromRange.second; ++tFrom)
         {
-            const NavRecord& tFromRecord = mNav.At(tFrom->second);
-            if (!KindMatches(tFromRecord.mKind, pLine.mFromType))
+            const NavRecord& tFromRecord = mNav.at(tFrom->second);
+            if (!kindMatches(tFromRecord.mKind, pLine.mFromType))
             {
                 continue;
             }
             for (auto tTo = tToRange.first; tTo != tToRange.second; ++tTo)
             {
-                const NavRecord& tToRecord = mNav.At(tTo->second);
-                if (!KindMatches(tToRecord.mKind, pLine.mToType))
+                const NavRecord& tToRecord = mNav.at(tTo->second);
+                if (!kindMatches(tToRecord.mKind, pLine.mToType))
                 {
                     continue;
                 }
                 const LatLon tA = {tFromRecord.mLat, tFromRecord.mLon};
                 const LatLon tB = {tToRecord.mLat, tToRecord.mLon};
-                const double tDistance = DistanceNm(tA, tB);
+                const double tDistance = distanceNm(tA, tB);
                 if (tDistance < tBest)
                 {
                     tBest = tDistance;
@@ -94,7 +93,7 @@ private:
 
 }  // namespace
 
-bool AirwayDatabase::ParseLine(const std::string& pLine, AirwayLine* pOut)
+bool AirwayDatabase::parseLine(const std::string& pLine, AirwayLine* pOut)
 {
     std::istringstream tStream(pLine);
     tStream.imbue(std::locale::classic());
@@ -114,7 +113,7 @@ bool AirwayDatabase::ParseLine(const std::string& pLine, AirwayLine* pOut)
     return pOut->mLevel == 1 || pOut->mLevel == 2;
 }
 
-bool AirwayDatabase::LoadFile(const std::string& pPath, const NavDatabase& pNav, const std::atomic<bool>& pCancel,
+bool AirwayDatabase::loadFile(const std::string& pPath, const NavDatabase& pNav, const std::atomic<bool>& pCancel,
                               std::string* pReport)
 {
     std::ifstream tFile(pPath);
@@ -134,13 +133,13 @@ bool AirwayDatabase::LoadFile(const std::string& pPath, const NavDatabase& pNav,
         {
             return false;
         }
-        if (!ParseLine(tLine, &tParsed))
+        if (!parseLine(tLine, &tParsed))
         {
             continue;
         }
         ++tLines;
         AirwaySegment tSegment;
-        if (!tIndex.Resolve(tParsed, &tSegment.mFrom, &tSegment.mTo))
+        if (!tIndex.resolve(tParsed, &tSegment.mFrom, &tSegment.mTo))
         {
             ++tUnresolved;  // uc nokta nav verisinde yok (farkli AIRAC dongusu vb.)
             continue;
@@ -152,16 +151,16 @@ bool AirwayDatabase::LoadFile(const std::string& pPath, const NavDatabase& pNav,
         tSegment.mNames = tParsed.mNames;
         mSegments.push_back(tSegment);
     }
-    BuildGrid();
+    buildGrid();
     *pReport = std::format("{}: {} segments, {} unresolved endpoints", pPath, mSegments.size(), tUnresolved);
     return true;
 }
 
-void AirwayDatabase::BuildGrid()
+void AirwayDatabase::buildGrid()
 {
     // Her segmenti, kapsayan kutusunun degdigi her 1x1 derece hucreye koy
     std::vector<GridItem> tItems;
-    for (int tIndex = 0; tIndex < Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < count(); ++tIndex)
     {
         const AirwaySegment& tSegment = mSegments[tIndex];
         double tWest = std::fmin(tSegment.mFrom.mLon, tSegment.mTo.mLon);
@@ -188,22 +187,22 @@ void AirwayDatabase::BuildGrid()
             }
         }
     }
-    mGrid.Build(tItems);
+    mGrid.build(tItems);
 }
 
-void AirwayDatabase::StartLoading(const std::vector<std::string>& pPaths, const NavDatabase& pNav)
+void AirwayDatabase::startLoading(const std::vector<std::string>& pPaths, const NavDatabase& pNav)
 {
-    if (mJob.IsRunning() || mReady)
+    if (mJob.isRunning() || mReady)
     {
         return;
     }
-    mJob.Start(
+    mJob.start(
         [this, pPaths, &pNav]()
         {
             // ARKA PLAN THREAD'i: XPLM yok; sonuc mSegments/mGrid/mReport'a yazilir
             for (const std::string& tPath : pPaths)
             {
-                if (LoadFile(tPath, pNav, mJob.CancelFlag(), &mReport))
+                if (loadFile(tPath, pNav, mJob.cancelFlag(), &mReport))
                 {
                     return;
                 }
@@ -212,9 +211,9 @@ void AirwayDatabase::StartLoading(const std::vector<std::string>& pPaths, const 
         });
 }
 
-bool AirwayDatabase::Poll()
+bool AirwayDatabase::poll()
 {
-    if (!mJob.Poll())
+    if (!mJob.poll())
     {
         return false;
     }
@@ -222,35 +221,35 @@ bool AirwayDatabase::Poll()
     return true;
 }
 
-bool AirwayDatabase::IsLoading() const
+bool AirwayDatabase::isLoading() const
 {
-    return mJob.IsRunning();
+    return mJob.isRunning();
 }
 
-bool AirwayDatabase::IsReady() const
+bool AirwayDatabase::isReady() const
 {
     return mReady;
 }
 
-const std::string& AirwayDatabase::LastReport() const
+const std::string& AirwayDatabase::lastReport() const
 {
     return mReport;
 }
 
-int AirwayDatabase::Count() const
+int AirwayDatabase::count() const
 {
     return static_cast<int>(mSegments.size());
 }
 
-const AirwaySegment& AirwayDatabase::At(int pIndex) const
+const AirwaySegment& AirwayDatabase::at(int pIndex) const
 {
     return mSegments[pIndex];
 }
 
-void AirwayDatabase::Query(const GeoBounds& pBounds, std::vector<int>& pOut) const
+void AirwayDatabase::query(const GeoBounds& pBounds, std::vector<int>& pOut) const
 {
     if (mReady)
     {
-        mGrid.Query(pBounds, pOut);
+        mGrid.query(pBounds, pOut);
     }
 }

@@ -1,5 +1,4 @@
-// TerrainVectors.inl
-// FillVectorArea: sablon (piksel ziyaretcisi satir icinde tek cagri; std::function maliyeti yok).
+// fillVectorArea: sablon (std::function maliyeti yok).
 #pragma once
 
 #include <algorithm>
@@ -7,7 +6,7 @@
 #include <vector>
 
 template <typename TSet>
-void FillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pPixelsPerUnitX,
+void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pPixelsPerUnitX,
                     double pPixelsPerUnitY, int pWidth, int pHeight, TSet pSet)
 {
     // Alanin satir araligi (izgaraya kirpilmis)

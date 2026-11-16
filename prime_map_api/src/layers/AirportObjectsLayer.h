@@ -1,19 +1,5 @@
-// AirportObjectsLayer.h
-// Havalimanindaki nokta nesneleri, her biri kendi sekli ve rengiyle:
-//
-//   Nesne (apt.dat)          Sembol                               Zoom
-//   kalkis / park (1300, 15) burun yonune donuk ok:               14+  (ad 15.5+)
-//                              kapi = dolu mavi, baglama = bos yesil,
-//                              hangar = kare + ok, diger = gri ok
-//   helipad (102)            cember + yonune donuk "H"            12.5+
-//   beacon (18)              isinli yildiz (renk = beacon turu)   12.5+
-//   ruzgar tulumu (19)       direk + turuncu/beyaz koni           13.5+
-//   PAPI / VASI (21)         kirmizi-beyaz isik sirasi            14.5+
-//   tabela (20)              rengine gore kucuk dikdortgen        15.5+
-//   isik dizileri (101-108)  turune gore renkli kucuk noktalar,   14.5+
-//                            15 m arayla (yesil orta hat, mavi kenar ...)
-//
-// Fare uzerine gelince Describe ne oldugunu soyler ("Gate A10 (jets)").
+// Havalimanindaki nokta nesneleri (kapi/park oku, helipad, beacon, ruzgar
+// tulumu, PAPI/VASI, tabela, isik dizileri), her biri kendi sekil/rengiyle.
 // Veri AirportDetailStore'dan; okunmamis havalimani icin istek gonderir.
 #pragma once
 
@@ -30,10 +16,10 @@ class AirportObjectsLayer : public Layer
 public:
     AirportObjectsLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails);
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
-    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
-    int LabelPriority() const override
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
+    std::string describe(const drawContext& pContext, double pX, double pY) const override;
+    int labelPriority() const override
     {
         return 65;  // kapi adlari: navaid'lerden sonra
     }

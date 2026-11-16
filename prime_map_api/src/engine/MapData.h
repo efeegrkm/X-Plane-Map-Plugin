@@ -1,27 +1,5 @@
-// MapData.h
-// Haritalarin ORTAK verisi ve her karede ilerleyen ortak isleri:
-//
-//   nav verisi (ana thread'de parca parca), apt.dat indeksi + ayrintilari, hava yollari,
-//   zemin (DSF -> doku, arka plan iscisi + TerrainHub), onceden yukleme, bolge onbellegi,
-//   merkezi ayarlar (prime_map.ini) ve onlardan hesaplanan sinirlar.
-//
-// 0.23 (coklu harita): harita basina olan her sey (katmanlar, cizimler, ucak kaynagi,
-// gorunum, zemin ayarlari, ayar dosyalari) engine/MapInstance'a tasindi:
-//
-//   MapData (surecte tek)                      MapInstance (harita basina)
-//   ---------------------                      ---------------------------
-//   NavDatabase, AirportGeometryStore,   <---  LayerManager + katmanlar (depolara bakar)
-//   AirportDetailStore, AirwayDatabase,        Drawings, AircraftData, MapWindow
-//   TerrainStore + TerrainHub (onbellek)       TerrainPalette (palet numarasi), ayar dosyalari
-//
-// Onbellek ORTAKTIR: disk onbellegi (cache/terrain, cache/airports), bellekteki karolar ve
-// video bellegindeki dokular butun haritalarca paylasilir. Sinirlar acik harita sayisina gore
-// buyur (ApplyLimits):
-//
-//   sinir(n) = taban x (1 + artis% x (n - 1) / 100), tavan varsa onu gecmez      n = acik harita
-//
-// Kendi flight loop'unu kaydeder (refcon = this) ve her karede haritalari ilerletir.
-// XPLM komutu / menusu YOK: onlar sadece host'ta.
+// Haritalarin ORTAK verisi ve her karede ilerleyen ortak isler (surecte tek). Onbellek ortaktir:
+// sinirlari acik harita sayisina gore buyur (applyLimits). Kendi flight loop'unu kaydeder.
 #pragma once
 
 #include <array>
@@ -43,14 +21,14 @@
 #include "layers/TerrainHub.h"
 #include "MapView.h"
 
-class MapInstance;
+class XMapInstance;
 
 struct MapDataConfig
 {
     std::string mDataDirectory;   // sonunda ayirici ile; altinda prime_map.ini, maps/
     std::string mCacheDirectory;  // sonunda ayirici ile; altinda terrain/ ve airports/
     // prime_map.ini'de karsiligi olmayan anahtarlarin ilk degeri (host'un InitConfig'inden)
-    prime::LibrarySettings mDefaults;
+    prime::MapManagerSettings mDefaults;
 };
 
 // Yukleme durumu (API Status'un ic karsiligi)
@@ -70,75 +48,75 @@ struct MapDataStatus
     int mTextureLimitMb = 0;        // su an gecerli doku butcesi
 };
 
-class MapData
+class XMapData
 {
 public:
-    explicit MapData(const MapDataConfig& pConfig);
-    ~MapData();
+    explicit XMapData(const MapDataConfig& pConfig);
+    ~XMapData();
 
-    MapData(const MapData&) = delete;
-    MapData& operator=(const MapData&) = delete;
+    XMapData(const XMapData&) = delete;
+    XMapData& operator=(const XMapData&) = delete;
 
-    void Start();  // merkezi ayarlar, palet, flight loop (Init)
-    void Stop();   // isciler durur (Shutdown)
-    bool IsRunning() const { return mRunning; }  // Start ile Stop arasinda true
+    void start();  // merkezi ayarlar, palet, flight loop (Init)
+    void stop();   // isciler durur (Shutdown)
+    bool isRunning() const { return mRunning; }  // Start ile Stop arasinda true
 
     // --- Haritalar ---
-    void AddInstance(MapInstance* pInstance);     // harita nesnesi olustu (henuz acik olmayabilir)
-    void RemoveInstance(MapInstance* pInstance);  // harita nesnesi yok oluyor
-    void OpenMapsChanged();                       // bir harita acildi / kapandi: sinirlari yeniden hesapla
-    int OpenMapCount() const;
+    void addInstance(XMapInstance* pInstance);     // harita nesnesi olustu (henuz acik olmayabilir)
+    void removeInstance(XMapInstance* pInstance);  // harita nesnesi yok oluyor
+    void openMapsChanged();                       // bir harita acildi / kapandi: sinirlari yeniden hesapla
+    int openMapCount() const;
 
     // --- Ortak depolar (katmanlar bunlara bakar) ---
-    TerrainHub& Hub();
-    TerrainStore& Terrain();
-    NavDatabase& Navs();
-    AirwayDatabase& Airways();
-    AirportGeometryStore& AirportGeometry();
-    AirportDetailStore& AirportDetails();
-    const AirportGeometryStore& Airports() const;
-    const MapDataStatus& Status() const;
+    TerrainHub& hub();
+    TerrainStore& terrain();
+    NavDatabase& navs();
+    AirwayDatabase& airways();
+    AirportGeometryStore& airportGeometry();
+    AirportDetailStore& airportDetails();
+    const AirportGeometryStore& airports() const;
+    const MapDataStatus& status() const;
 
     // --- Zemin paletleri (harita basina ayar) ---
     // Paleti hazirlar: [palette] source = xplane ise X-Plane dokularindan turetilen renkler uygulanir;
     // ayni icerikli palet daha once tanitildiysa onun numarasi doner, yoksa depoya eklenir.
-    int RegisterPalette(TerrainPalette* pPalette);
+    int registerPalette(TerrainPalette* pPalette);
     // terrain_colors.ini basindaki aciklama (butun haritalar icin ayni)
-    static const char* TerrainSettingsComment();
+    static const char* terrainSettingsComment();
 
     // --- Merkezi ayarlar (prime_map.ini) ---
-    const prime::LibrarySettings& LibrarySettings() const;
-    void SetLibrarySettings(const prime::LibrarySettings& pSettings);  // uygular + dosyaya yazar
-    std::string SettingsPath() const;        // <veri>/prime_map.ini
-    const std::string& DataDirectory() const;
-    const std::string& CacheDirectory() const;
-    std::string MapsDirectory() const;       // <veri>/maps/
+    const prime::MapManagerSettings& managerSettings() const;
+    void setManagerSettings(const prime::MapManagerSettings& pSettings);  // uygular + dosyaya yazar
+    std::string settingsPath() const;        // <veri>/prime_map.ini
+    const std::string& dataDirectory() const;
+    const std::string& cacheDirectory() const;
+    std::string mapsDirectory() const;       // <veri>/maps/
 
     // Bolge onbellegi: alanin kurulu DSF karolarini diske hazirlar. Baslamazsa false (neden: durum metni)
-    bool StartPrecache(const GeoBounds& pBounds);
-    void CancelPrecache();
+    bool startPrecache(const GeoBounds& pBounds);
+    void cancelPrecache();
 
     // Veri yukleniyor mu (harita resmi bu surece hiz sinirinda yenilenir)
-    bool IsBusy() const;
+    bool isBusy() const;
     // Ortak durum metni (yukleme, bildirim); haritalar kendi "Loading terrain" yazisini ekler
-    const std::string& SharedStatusText() const;
-    const std::string& TerrainWorkerStatus() const;
-    bool IsTerrainIdle() const;
-    void ShowNotice(const std::string& pText);
+    const std::string& sharedStatusText() const;
+    const std::string& terrainWorkerStatus() const;
+    bool isTerrainIdle() const;
+    void showNotice(const std::string& pText);
 
 private:
-    static float FlightLoopCallback(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
-    float OnFlightLoop();
-    void StepLoading();
-    void UpdateStatus();
-    void UpdatePrefetch(float pNow);
-    void LoadLibrarySettings();
-    bool SaveLibrarySettings() const;
-    void ApplyLimits();  // acik harita sayisina gore disk siniri, doku butcesi, bellek olcegi
-    static void LogReport(const std::string& pReport);
+    static float flightLoopCallback(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
+    float onFlightLoop();
+    void stepLoading();
+    void updateStatus();
+    void updatePrefetch(float pNow);
+    void loadLibrarySettings();
+    bool saveLibrarySettings() const;
+    void applyLimits();  // acik harita sayisina gore disk siniri, doku butcesi, bellek olcegi
+    static void logReport(const std::string& pReport);
 
     MapDataConfig mConfig;
-    prime::LibrarySettings mSettings;
+    prime::MapManagerSettings mSettings;
     NavDatabase mNavDatabase;
     NavLoader mNavLoader{mNavDatabase};  // mNavDatabase'den sonra tanimli olmali
     std::unique_ptr<AirportGeometryStore> mAirportGeometry;
@@ -157,7 +135,7 @@ private:
     std::array<int, kTerrainClassCount> mDerivedCounts = {};
     std::map<std::string, int> mPaletteIds;  // palet metni -> TerrainStore numarasi
 
-    std::vector<MapInstance*> mInstances;  // yasayan harita nesneleri (acik ya da degil)
+    std::vector<XMapInstance*> mInstances;  // yasayan harita nesneleri (acik ya da degil)
     float mLastPrefetch = -100.0f;
     bool mPrecacheRunning = false;
     std::string mNotice;

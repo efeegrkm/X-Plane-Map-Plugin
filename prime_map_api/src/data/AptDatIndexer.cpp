@@ -1,4 +1,3 @@
-// AptDatIndexer.cpp
 #include "data/AptDatIndexer.h"
 
 #include <algorithm>
@@ -20,8 +19,6 @@ const char kCacheMagic[4] = {'M', 'P', 'A', 'I'};
 const uint32_t kCacheVersion = 1;  // AirportGeometry'nin kayitli alanlari degisirse artir
 const char* kCacheFileName = "airport_index.bin";
 
-// --- Onbellek dosyasi icin kucuk ikili okuma / yazma yardimcilari ---
-
 class BinaryWriter
 {
 public:
@@ -31,14 +28,14 @@ public:
     }
 
     template <typename TValue>
-    void Value(const TValue& pValue)
+    void value(const TValue& pValue)
     {
         mFile.write(reinterpret_cast<const char*>(&pValue), sizeof(TValue));
     }
 
-    void Text(const std::string& pText)
+    void text(const std::string& pText)
     {
-        Value(static_cast<uint32_t>(pText.size()));
+        value(static_cast<uint32_t>(pText.size()));
         mFile.write(pText.data(), static_cast<std::streamsize>(pText.size()));
     }
 
@@ -55,15 +52,15 @@ public:
     }
 
     template <typename TValue>
-    bool Value(TValue& pValue)
+    bool value(TValue& pValue)
     {
         return static_cast<bool>(mFile.read(reinterpret_cast<char*>(&pValue), sizeof(TValue)));
     }
 
-    bool Text(std::string& pText)
+    bool text(std::string& pText)
     {
         uint32_t tSize = 0;
-        if (!Value(tSize) || tSize > (16u << 20))
+        if (!value(tSize) || tSize > (16u << 20))
         {
             return false;
         }
@@ -75,52 +72,48 @@ private:
     std::ifstream& mFile;
 };
 
-void WriteRunway(BinaryWriter& pOut, const Runway& pRunway)
+void writeRunway(BinaryWriter& pOut, const Runway& pRunway)
 {
-    pOut.Value(pRunway.mWidthM);
-    pOut.Value(pRunway.mSurface);
-    pOut.Value(pRunway.mSurfaceCode);
-    pOut.Value(pRunway.mShoulderCode);
-    pOut.Value(pRunway.mCenterLights);
-    pOut.Value(pRunway.mEdgeLights);
-    pOut.Value(pRunway.mWater);
+    pOut.value(pRunway.mWidthM);
+    pOut.value(pRunway.mSurface);
+    pOut.value(pRunway.mSurfaceCode);
+    pOut.value(pRunway.mShoulderCode);
+    pOut.value(pRunway.mCenterLights);
+    pOut.value(pRunway.mEdgeLights);
+    pOut.value(pRunway.mWater);
     for (const RunwayEnd& tEnd : pRunway.mEnds)
     {
-        pOut.Text(tEnd.mName);
-        pOut.Value(tEnd.mPosition);
-        pOut.Value(tEnd.mDisplacedThresholdM);
-        pOut.Value(tEnd.mOverrunM);
-        pOut.Value(tEnd.mMarkings);
-        pOut.Value(tEnd.mApproachLights);
-        pOut.Value(tEnd.mTouchdownLights);
-        pOut.Value(tEnd.mReil);
+        pOut.text(tEnd.mName);
+        pOut.value(tEnd.mPosition);
+        pOut.value(tEnd.mDisplacedThresholdM);
+        pOut.value(tEnd.mOverrunM);
+        pOut.value(tEnd.mMarkings);
+        pOut.value(tEnd.mApproachLights);
+        pOut.value(tEnd.mTouchdownLights);
+        pOut.value(tEnd.mReil);
     }
 }
 
-bool ReadRunway(BinaryReader& pIn, Runway& pRunway)
+bool readRunway(BinaryReader& pIn, Runway& pRunway)
 {
-    bool tOk = pIn.Value(pRunway.mWidthM) && pIn.Value(pRunway.mSurface) && pIn.Value(pRunway.mSurfaceCode) &&
-               pIn.Value(pRunway.mShoulderCode) && pIn.Value(pRunway.mCenterLights) && pIn.Value(pRunway.mEdgeLights) &&
-               pIn.Value(pRunway.mWater);
+    bool tOk = pIn.value(pRunway.mWidthM) && pIn.value(pRunway.mSurface) && pIn.value(pRunway.mSurfaceCode) &&
+               pIn.value(pRunway.mShoulderCode) && pIn.value(pRunway.mCenterLights) && pIn.value(pRunway.mEdgeLights) &&
+               pIn.value(pRunway.mWater);
     for (RunwayEnd& tEnd : pRunway.mEnds)
     {
-        tOk = tOk && pIn.Text(tEnd.mName) && pIn.Value(tEnd.mPosition) && pIn.Value(tEnd.mDisplacedThresholdM) &&
-              pIn.Value(tEnd.mOverrunM) && pIn.Value(tEnd.mMarkings) && pIn.Value(tEnd.mApproachLights) &&
-              pIn.Value(tEnd.mTouchdownLights) && pIn.Value(tEnd.mReil);
+        tOk = tOk && pIn.text(tEnd.mName) && pIn.value(tEnd.mPosition) && pIn.value(tEnd.mDisplacedThresholdM) &&
+              pIn.value(tEnd.mOverrunM) && pIn.value(tEnd.mMarkings) && pIn.value(tEnd.mApproachLights) &&
+              pIn.value(tEnd.mTouchdownLights) && pIn.value(tEnd.mReil);
     }
     return tOk;
 }
 
-bool IsHeaderCode(int pCode)
+bool isHeaderCode(int pCode)
 {
     return pCode == 1 || pCode == 16 || pCode == 17;
 }
 
 }  // namespace
-
-// ============================================================================
-// AptDatScanner
-// ============================================================================
 
 AptDatScanner::AptDatScanner(int pFileIndex, std::unordered_set<std::string>& pSeen,
                              std::vector<AirportGeometry>& pOut)
@@ -130,7 +123,7 @@ AptDatScanner::AptDatScanner(int pFileIndex, std::unordered_set<std::string>& pS
 {
 }
 
-void AptDatScanner::Extend(const LatLon& pPoint)
+void AptDatScanner::extend(const LatLon& pPoint)
 {
     if (!mHasBounds)
     {
@@ -145,7 +138,7 @@ void AptDatScanner::Extend(const LatLon& pPoint)
     tBounds.mEast = std::max(tBounds.mEast, pPoint.mLon);
 }
 
-void AptDatScanner::Close(uint64_t pEndOffset)
+void AptDatScanner::close(uint64_t pEndOffset)
 {
     if (mOpen && !mSkip && mHasBounds)
     {
@@ -169,18 +162,18 @@ void AptDatScanner::Close(uint64_t pEndOffset)
     mHasDatumLon = false;
 }
 
-void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
+void AptDatScanner::addLine(std::string_view pLine, uint64_t pOffset)
 {
     AptLine tLine(pLine);
     int tCode = 0;
-    if (!tLine.Int(tCode))
+    if (!tLine.readInt(tCode))
     {
         return;  // bos satir, yorum, dosya basligi ("I", "1130 Version")
     }
-    if (IsHeaderCode(tCode))
+    if (isHeaderCode(tCode))
     {
-        Close(pOffset);
-        mOpen = AptDatParser::ParseHeader(pLine, &mCurrent.mType, &mCurrent.mElevationFt, &mCurrent.mId,
+        close(pOffset);
+        mOpen = AptDatParser::parseHeader(pLine, &mCurrent.mType, &mCurrent.mElevationFt, &mCurrent.mId,
                                           &mCurrent.mName);
         mSkip = mOpen && mSeen.count(mCurrent.mId) > 0;
         mCurrent.mLocation.mFile = mFileIndex;
@@ -189,7 +182,7 @@ void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
     }
     if (tCode == 99)
     {
-        Close(pOffset);
+        close(pOffset);
         return;
     }
     if (!mOpen || mSkip)
@@ -198,11 +191,11 @@ void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
     }
 
     LatLon tPoint;
-    if (AptDatParser::HasLeadingLatLon(tCode))
+    if (AptDatParser::hasLeadingLatLon(tCode))
     {
-        if (tLine.Double(tPoint.mLat) && tLine.Double(tPoint.mLon))
+        if (tLine.readDouble(tPoint.mLat) && tLine.readDouble(tPoint.mLon))
         {
-            Extend(tPoint);
+            extend(tPoint);
         }
         if (tCode >= 111 && tCode <= 116)
         {
@@ -216,12 +209,12 @@ void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
         case 101:
         {
             Runway tRunway;
-            const bool tOk = (tCode == 100) ? AptDatParser::ParseRunway(pLine, &tRunway)
-                                            : AptDatParser::ParseWaterRunway(pLine, &tRunway);
+            const bool tOk = (tCode == 100) ? AptDatParser::parseRunway(pLine, &tRunway)
+                                            : AptDatParser::parseWaterRunway(pLine, &tRunway);
             if (tOk)
             {
-                Extend(tRunway.mEnds[0].mPosition);
-                Extend(tRunway.mEnds[1].mPosition);
+                extend(tRunway.mEnds[0].mPosition);
+                extend(tRunway.mEnds[1].mPosition);
                 mCurrent.mRunways.push_back(tRunway);
             }
             break;
@@ -229,9 +222,9 @@ void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
         case 102:
         {
             std::string_view tName;
-            if (tLine.Token(tName) && tLine.Double(tPoint.mLat) && tLine.Double(tPoint.mLon))
+            if (tLine.token(tName) && tLine.readDouble(tPoint.mLat) && tLine.readDouble(tPoint.mLon))
             {
-                Extend(tPoint);
+                extend(tPoint);
             }
             break;
         }
@@ -245,21 +238,21 @@ void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
         case 1302:
         {
             std::string_view tKey;
-            if (!tLine.Token(tKey))
+            if (!tLine.token(tKey))
             {
                 break;
             }
             if (tKey == "icao_code")
             {
-                tLine.Token(mCurrent.mIcaoCode);
+                tLine.token(mCurrent.mIcaoCode);
             }
             else if (tKey == "datum_lat")
             {
-                mHasDatumLat = tLine.Double(mCurrent.mReference.mLat);
+                mHasDatumLat = tLine.readDouble(mCurrent.mReference.mLat);
             }
             else if (tKey == "datum_lon")
             {
-                mHasDatumLon = tLine.Double(mCurrent.mReference.mLon);
+                mHasDatumLon = tLine.readDouble(mCurrent.mReference.mLon);
             }
             break;
         }
@@ -268,41 +261,37 @@ void AptDatScanner::AddLine(std::string_view pLine, uint64_t pOffset)
     }
 }
 
-void AptDatScanner::Finish(uint64_t pFileSize)
+void AptDatScanner::finish(uint64_t pFileSize)
 {
-    Close(pFileSize);
+    close(pFileSize);
 }
 
-int AptDatScanner::AirportCount() const
+int AptDatScanner::airportCount() const
 {
     return mAirportCount;
 }
 
-int AptDatScanner::RunwayCount() const
+int AptDatScanner::runwayCount() const
 {
     return mRunwayCount;
 }
 
-int AptDatScanner::NodeCount() const
+int AptDatScanner::nodeCount() const
 {
     return mNodeCount;
 }
 
-// ============================================================================
-// AptDatIndexer
-// ============================================================================
-
-const char* AptDatIndexer::Name() const
+const char* AptDatIndexer::name() const
 {
     return "apt.dat indexer";
 }
 
-void AptDatIndexer::SetCacheDirectory(const std::string& pDirectory)
+void AptDatIndexer::setCacheDirectory(const std::string& pDirectory)
 {
     mCacheDirectory = pDirectory;
 }
 
-std::string AptDatIndexer::CacheKey(const std::vector<std::string>& pFiles)
+std::string AptDatIndexer::cacheKey(const std::vector<std::string>& pFiles)
 {
     std::string tKey = std::format("v{}", kCacheVersion);
     for (const std::string& tPath : pFiles)
@@ -315,7 +304,7 @@ std::string AptDatIndexer::CacheKey(const std::vector<std::string>& pFiles)
     return tKey;
 }
 
-bool AptDatIndexer::SaveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex)
+bool AptDatIndexer::saveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex)
 {
     std::error_code tError;
     std::filesystem::create_directories(std::filesystem::path(pPath).parent_path(), tError);
@@ -326,37 +315,37 @@ bool AptDatIndexer::SaveCache(const std::string& pPath, const std::string& pKey,
     }
     BinaryWriter tOut(tFile);
     tFile.write(kCacheMagic, 4);
-    tOut.Value(kCacheVersion);
-    tOut.Text(pKey);
-    tOut.Value(static_cast<uint32_t>(pIndex.mFiles.size()));
+    tOut.value(kCacheVersion);
+    tOut.text(pKey);
+    tOut.value(static_cast<uint32_t>(pIndex.mFiles.size()));
     for (const std::string& tPath : pIndex.mFiles)
     {
-        tOut.Text(tPath);
+        tOut.text(tPath);
     }
-    tOut.Value(static_cast<uint32_t>(pIndex.mAirports.size()));
+    tOut.value(static_cast<uint32_t>(pIndex.mAirports.size()));
     for (const AirportGeometry& tAirport : pIndex.mAirports)
     {
-        tOut.Text(tAirport.mId);
-        tOut.Text(tAirport.mIcaoCode);
-        tOut.Text(tAirport.mName);
-        tOut.Value(tAirport.mType);
-        tOut.Value(tAirport.mElevationFt);
-        tOut.Value(tAirport.mHasTower);
-        tOut.Value(tAirport.mReference);
-        tOut.Value(tAirport.mBounds);
-        tOut.Value(tAirport.mPavementCount);
-        tOut.Value(tAirport.mNodeCount);
-        tOut.Value(tAirport.mLocation);
-        tOut.Value(static_cast<uint32_t>(tAirport.mRunways.size()));
+        tOut.text(tAirport.mId);
+        tOut.text(tAirport.mIcaoCode);
+        tOut.text(tAirport.mName);
+        tOut.value(tAirport.mType);
+        tOut.value(tAirport.mElevationFt);
+        tOut.value(tAirport.mHasTower);
+        tOut.value(tAirport.mReference);
+        tOut.value(tAirport.mBounds);
+        tOut.value(tAirport.mPavementCount);
+        tOut.value(tAirport.mNodeCount);
+        tOut.value(tAirport.mLocation);
+        tOut.value(static_cast<uint32_t>(tAirport.mRunways.size()));
         for (const Runway& tRunway : tAirport.mRunways)
         {
-            WriteRunway(tOut, tRunway);
+            writeRunway(tOut, tRunway);
         }
     }
     return static_cast<bool>(tFile);
 }
 
-bool AptDatIndexer::LoadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut)
+bool AptDatIndexer::loadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     if (!tFile)
@@ -367,26 +356,26 @@ bool AptDatIndexer::LoadCache(const std::string& pPath, const std::string& pKey,
     char tMagic[4] = {0, 0, 0, 0};
     uint32_t tVersion = 0;
     std::string tKey;
-    if (!tFile.read(tMagic, 4) || std::memcmp(tMagic, kCacheMagic, 4) != 0 || !tIn.Value(tVersion) ||
-        tVersion != kCacheVersion || !tIn.Text(tKey) || tKey != pKey)
+    if (!tFile.read(tMagic, 4) || std::memcmp(tMagic, kCacheMagic, 4) != 0 || !tIn.value(tVersion) ||
+        tVersion != kCacheVersion || !tIn.text(tKey) || tKey != pKey)
     {
         return false;  // eski bicim ya da dosyalar degismis: yeniden taranacak
     }
     AirportIndex tIndex;
     uint32_t tCount = 0;
-    if (!tIn.Value(tCount))
+    if (!tIn.value(tCount))
     {
         return false;
     }
     tIndex.mFiles.resize(tCount);
     for (std::string& tPath : tIndex.mFiles)
     {
-        if (!tIn.Text(tPath))
+        if (!tIn.text(tPath))
         {
             return false;
         }
     }
-    if (!tIn.Value(tCount))
+    if (!tIn.value(tCount))
     {
         return false;
     }
@@ -394,10 +383,10 @@ bool AptDatIndexer::LoadCache(const std::string& pPath, const std::string& pKey,
     for (AirportGeometry& tAirport : tIndex.mAirports)
     {
         uint32_t tRunways = 0;
-        if (!tIn.Text(tAirport.mId) || !tIn.Text(tAirport.mIcaoCode) || !tIn.Text(tAirport.mName) ||
-            !tIn.Value(tAirport.mType) || !tIn.Value(tAirport.mElevationFt) || !tIn.Value(tAirport.mHasTower) ||
-            !tIn.Value(tAirport.mReference) || !tIn.Value(tAirport.mBounds) || !tIn.Value(tAirport.mPavementCount) ||
-            !tIn.Value(tAirport.mNodeCount) || !tIn.Value(tAirport.mLocation) || !tIn.Value(tRunways) ||
+        if (!tIn.text(tAirport.mId) || !tIn.text(tAirport.mIcaoCode) || !tIn.text(tAirport.mName) ||
+            !tIn.value(tAirport.mType) || !tIn.value(tAirport.mElevationFt) || !tIn.value(tAirport.mHasTower) ||
+            !tIn.value(tAirport.mReference) || !tIn.value(tAirport.mBounds) || !tIn.value(tAirport.mPavementCount) ||
+            !tIn.value(tAirport.mNodeCount) || !tIn.value(tAirport.mLocation) || !tIn.value(tRunways) ||
             tRunways > 10000)
         {
             return false;
@@ -405,7 +394,7 @@ bool AptDatIndexer::LoadCache(const std::string& pPath, const std::string& pKey,
         tAirport.mRunways.resize(tRunways);
         for (Runway& tRunway : tAirport.mRunways)
         {
-            if (!ReadRunway(tIn, tRunway))
+            if (!readRunway(tIn, tRunway))
             {
                 return false;
             }
@@ -415,10 +404,10 @@ bool AptDatIndexer::LoadCache(const std::string& pPath, const std::string& pKey,
     return true;
 }
 
-std::vector<std::string> AptDatIndexer::AptFiles(const std::string& pXPlaneDirectory)
+std::vector<std::string> AptDatIndexer::aptFiles(const std::string& pXPlaneDirectory)
 {
     std::vector<std::string> tFiles;
-    for (const std::string& tPack : ReadSceneryPacks(pXPlaneDirectory))
+    for (const std::string& tPack : readSceneryPacks(pXPlaneDirectory))
     {
         tFiles.push_back(tPack + "Earth nav data/apt.dat");
     }
@@ -426,7 +415,7 @@ std::vector<std::string> AptDatIndexer::AptFiles(const std::string& pXPlaneDirec
     return tFiles;
 }
 
-bool AptDatIndexer::ScanFile(const std::string& pPath, AptDatScanner& pScanner, const std::atomic<bool>& pCancel)
+bool AptDatIndexer::scanFile(const std::string& pPath, AptDatScanner& pScanner, const std::atomic<bool>& pCancel)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     std::vector<char> tChunk(kReadChunk);
@@ -458,12 +447,12 @@ bool AptDatIndexer::ScanFile(const std::string& pPath, AptDatScanner& pScanner, 
             {
                 // Parca sinirinda bolunmus satir: onceki parcadaki basiyla birlestir
                 tCarry.append(tData.substr(0, tNewline));
-                pScanner.AddLine(tCarry, tCarryOffset);
+                pScanner.addLine(tCarry, tCarryOffset);
                 tCarry.clear();
             }
             else
             {
-                pScanner.AddLine(tData.substr(tLineStart, tNewline - tLineStart), tChunkOffset + tLineStart);
+                pScanner.addLine(tData.substr(tLineStart, tNewline - tLineStart), tChunkOffset + tLineStart);
             }
             tLineStart = tNewline + 1;
         }
@@ -479,18 +468,18 @@ bool AptDatIndexer::ScanFile(const std::string& pPath, AptDatScanner& pScanner, 
     }
     if (!tCarry.empty())
     {
-        pScanner.AddLine(tCarry, tCarryOffset);
+        pScanner.addLine(tCarry, tCarryOffset);
     }
-    pScanner.Finish(tChunkOffset);
+    pScanner.finish(tChunkOffset);
     return true;
 }
 
-bool AptDatIndexer::LoadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel,
+bool AptDatIndexer::loadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel,
                             AirportIndex& pOut, std::string& pOutReport)
 {
     const auto tStart = std::chrono::steady_clock::now();
     std::vector<std::string> tFiles;
-    for (const std::string& tPath : AptFiles(pXPlaneDirectory))
+    for (const std::string& tPath : aptFiles(pXPlaneDirectory))
     {
         std::error_code tError;
         if (std::filesystem::is_regular_file(tPath, tError))
@@ -499,10 +488,9 @@ bool AptDatIndexer::LoadAll(const std::string& pXPlaneDirectory, const std::atom
         }
     }
 
-    // Onbellek: dosyalar degismediyse taramaya gerek yok
-    const std::string tKey = CacheKey(tFiles);
+    const std::string tKey = cacheKey(tFiles);
     const std::string tCachePath = mCacheDirectory.empty() ? "" : mCacheDirectory + kCacheFileName;
-    if (!tCachePath.empty() && LoadCache(tCachePath, tKey, pOut))
+    if (!tCachePath.empty() && loadCache(tCachePath, tKey, pOut))
     {
         const double tSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count();
         pOutReport += std::format("{} apt.dat files, {} airports, from cache {} ({:.2f} s)\n", pOut.mFiles.size(),
@@ -516,22 +504,22 @@ bool AptDatIndexer::LoadAll(const std::string& pXPlaneDirectory, const std::atom
     {
         const int tFileIndex = static_cast<int>(pOut.mFiles.size());
         AptDatScanner tScanner(tFileIndex, tSeen, pOut.mAirports);
-        if (!ScanFile(tPath, tScanner, pCancel))
+        if (!scanFile(tPath, tScanner, pCancel))
         {
             pOutReport += "cancelled\n";
             return false;
         }
         pOut.mFiles.push_back(tPath);
-        tNodes += tScanner.NodeCount();
-        pOutReport += std::format("  {}: {} airports, {} runways, {} nodes\n", tPath, tScanner.AirportCount(),
-                                  tScanner.RunwayCount(), tScanner.NodeCount());
+        tNodes += tScanner.nodeCount();
+        pOutReport += std::format("  {}: {} airports, {} runways, {} nodes\n", tPath, tScanner.airportCount(),
+                                  tScanner.runwayCount(), tScanner.nodeCount());
     }
     const double tSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count();
     pOutReport += std::format("{} apt.dat files, {} airports, {} nodes, scanned in {:.2f} s\n", pOut.mFiles.size(),
                               pOut.mAirports.size(), tNodes, tSeconds);
     if (!tCachePath.empty())
     {
-        pOutReport += SaveCache(tCachePath, tKey, pOut) ? std::format("  cache written: {}\n", tCachePath)
+        pOutReport += saveCache(tCachePath, tKey, pOut) ? std::format("  cache written: {}\n", tCachePath)
                                                          : std::format("  cannot write cache: {}\n", tCachePath);
     }
     return !pOut.mFiles.empty();

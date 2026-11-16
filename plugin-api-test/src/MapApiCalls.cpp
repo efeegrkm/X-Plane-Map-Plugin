@@ -1,791 +1,858 @@
 // MapApiCalls.cpp
-// SDK_BOUND: her metot tek bir Prime Map API cagrisidir. Harita acik degilse (mMap bos) bir sey
+// SDK_BOUND: her metot tek bir Prime XMap API cagrisidir. Harita acik degilse (mMap bos) bir sey
 // yapmaz / varsayilan doner; API'nin kendisi de ayni kurali uygular.
 #include "MapApiCalls.h"
 
-bool MapApiCalls::InitLibrary(const std::string& pLogPrefix)
+bool MapApiCalls::initLibrary(const std::string& pLogPrefix)
 {
-    prime::InitConfig tConfig;
-    tConfig.mLogPrefix = pLogPrefix;  // onbellek: bos = bu eklentinin klasoru/cache/
-    return prime::MapLibrary::Get().Init(tConfig);
+    if (!mManager)
+    {
+        mManager = prime::XMapManagerFactory::createXMapManager();
+    }
+    mManager->setLogPrefix(pLogPrefix);
+    return mManager->initialize();
 }
 
-void MapApiCalls::ShutdownLibrary()
+void MapApiCalls::shutdownLibrary()
 {
-    prime::MapLibrary::Get().Shutdown();
+    mManager->shutdown();
 }
 
-bool MapApiCalls::OpenMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse)
+bool MapApiCalls::openMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse)
 {
-    prime::OpenConfig tConfig;
+    if (!mManager)
+    {
+        return false;
+    }
+    prime::MapConfig tConfig;
     tConfig.mGeometry = pGeometry;
     tConfig.mStyle = pStyle;
     tConfig.mUiVisible = pUi;
     tConfig.mMouseInput = pMouse;
-    mMap = prime::Map::Open(tConfig);
+    mMap = mManager->addMap(tConfig);  // ayarlar uygulanir, acilmaz
+    if (mMap)
+    {
+        mMap->initialize();
+    }
     return mMap != nullptr;
 }
 
-bool MapApiCalls::OpenSecondMap()
+bool MapApiCalls::openSecondMap()
 {
     if (mSecondMap)
     {
-        mSecondMap.reset();  // ayarlari maps/second/ altina yazilir, pencere kapanir
+        if (mManager)
+        {
+            mManager->removeMap(mSecondMap);  // ayarlari maps/second/ altina yazilir, pencere kapanir
+        }
+        mSecondMap = nullptr;
         return false;
     }
-    // Fabrika: once nesne, sonra ayarlar, en son Open (PrimeMap.h basindaki akis)
-    mSecondMap = prime::MapLibrary::Get().CreateMap();
+    // Fabrika: once nesne, sonra ayarlar, en son open(PrimeMap.h basindaki akis)
+    if (!mManager)
+    {
+        return false;
+    }
+    mSecondMap = mManager->addMap();
     if (!mSecondMap)
     {
         return false;
     }
-    mSecondMap->SetName("second");
-    mSecondMap->SetStyle(prime::WindowStyle::Standalone);
-    mSecondMap->SetTitle("Second map");
-    mSecondMap->SetGeometry({900, 700, 500, 360});
-    mSecondMap->SetMode(prime::MapMode::Vfr);
-    mSecondMap->SetUiVisible(true);
-    mSecondMap->SetMouseInput(true);
-    return mSecondMap->Open();
+    mSecondMap->setName("second");
+    mSecondMap->setStyle(prime::WindowStyle::Standalone);
+    mSecondMap->setTitle("Second map");
+    mSecondMap->setGeometry({900, 700, 500, 360});
+    mSecondMap->setMode(prime::MapMode::Vfr);
+    mSecondMap->setIsUiVisible(true);
+    mSecondMap->setIsMouseInputEnabled(true);
+    return mSecondMap->initialize();
 }
 
-void MapApiCalls::CloseMap()
+void MapApiCalls::closeMap()
 {
-    mSecondMap.reset();
-    mMap.reset();
+    if (mSecondMap && mManager)
+    {
+        mManager->removeMap(mSecondMap);
+    }
+    mSecondMap = nullptr;
+    if (mMap && mManager)
+    {
+        mManager->removeMap(mMap);  // ayarlari yazar, pencereyi kapatir
+    }
+    mMap = nullptr;
 }
 
-bool MapApiCalls::IsOpen() const
+bool MapApiCalls::isOpen() const
 {
     return mMap != nullptr;
 }
 
-bool MapApiCalls::IsInitialized() const
+bool MapApiCalls::isInitialized() const
 {
-    return prime::MapLibrary::Get().IsInitialized();
+    return mManager && mManager->isInitialized();
 }
 
-prime::Status MapApiCalls::GetStatus() const
+prime::XMapManager* MapApiCalls::manager() const
 {
-    return prime::MapLibrary::Get().GetStatus();
+    return mManager;
+}
+prime::Status MapApiCalls::getStatus() const
+{
+    if (!mManager)
+    {
+        return prime::Status{};
+    }
+    return mManager->getStatus();
 }
 
-std::string MapApiCalls::VersionString() const
+std::string MapApiCalls::versionString() const
 {
-    return prime::VersionString();
+    return prime::versionString();
 }
 
-double MapApiCalls::MinZoom() const
+double MapApiCalls::minZoom() const
 {
-    return prime::Map::MinZoom();
+    return prime::XMap::minZoom();
 }
 
-double MapApiCalls::MaxZoom() const
+double MapApiCalls::maxZoom() const
 {
-    return prime::Map::MaxZoom();
+    return prime::XMap::maxZoom();
 }
 
-std::optional<prime::MapLayer> MapApiCalls::ParentOf(prime::MapLayer pLayer) const
+std::optional<prime::MapLayer> MapApiCalls::parentOf(prime::MapLayer pLayer) const
 {
-    return prime::ParentOf(pLayer);
+    if (!mManager)
+    {
+        return std::nullopt;
+    }
+    return mManager->parentOf(pLayer);
 }
 
-std::vector<prime::MapLayer> MapApiCalls::ChildrenOf(prime::MapLayer pLayer) const
+std::vector<prime::MapLayer> MapApiCalls::childrenOf(prime::MapLayer pLayer) const
 {
-    return prime::ChildrenOf(pLayer);
+    if (!mManager)
+    {
+        return {};
+    }
+    return mManager->childrenOf(pLayer);
 }
 
-std::vector<prime::MapLayer> MapApiCalls::TopLevelLayers() const
+std::vector<prime::MapLayer> MapApiCalls::topLevelLayers() const
 {
-    return prime::TopLevelLayers();
+    if (!mManager)
+    {
+        return {};
+    }
+    return mManager->topLevelLayers();
 }
 
-prime::LayerKind MapApiCalls::KindOf(prime::MapLayer pLayer) const
+prime::LayerKind MapApiCalls::kindOf(prime::MapLayer pLayer) const
 {
-    return prime::KindOf(pLayer);
+    if (!mManager)
+    {
+        return prime::LayerKind::Layer;
+    }
+    return mManager->kindOf(pLayer);
 }
 
-std::string MapApiCalls::LayerName(prime::MapLayer pLayer) const
+std::string MapApiCalls::layerName(prime::MapLayer pLayer) const
 {
-    return prime::LayerName(pLayer);
+    if (!mManager)
+    {
+        return {};
+    }
+    return mManager->layerName(pLayer);
 }
 
-std::string MapApiCalls::LayerKey(prime::MapLayer pLayer) const
+std::string MapApiCalls::layerKey(prime::MapLayer pLayer) const
 {
-    return prime::LayerKey(pLayer);
+    if (!mManager)
+    {
+        return {};
+    }
+    return mManager->layerKey(pLayer);
 }
 
-std::optional<prime::MapLayer> MapApiCalls::LayerFromKey(const std::string& pKey) const
+std::optional<prime::MapLayer> MapApiCalls::layerFromKey(const std::string& pKey) const
 {
-    return prime::LayerFromKey(pKey);
+    if (!mManager)
+    {
+        return std::nullopt;
+    }
+    return mManager->layerFromKey(pKey);
 }
 
-bool MapApiCalls::IsLayerDefaultVisible(prime::MapLayer pLayer, prime::MapMode pMode) const
+bool MapApiCalls::isLayerDefaultVisible(prime::MapLayer pLayer, prime::MapMode pMode) const
 {
-    return prime::IsLayerDefaultVisible(pLayer, pMode);
+    if (!mManager)
+    {
+        return false;
+    }
+    return mManager->isLayerDefaultVisible(pLayer, pMode);
 }
 
-void MapApiCalls::SetGeometry(const prime::Geometry& pGeometry)
+void MapApiCalls::setGeometry(const prime::Geometry& pGeometry)
 {
     if (mMap)
     {
-        mMap->SetGeometry(pGeometry);
+        mMap->setGeometry(pGeometry);
     }
 }
 
-prime::Geometry MapApiCalls::GetGeometry() const
+prime::Geometry MapApiCalls::getGeometry() const
 {
     if (!mMap)
     {
         return prime::Geometry();
     }
-    return mMap->GetGeometry();
+    return mMap->getGeometry();
 }
 
-void MapApiCalls::SetVisible(bool pVisible)
+void MapApiCalls::setVisible(bool pVisible)
 {
     if (mMap)
     {
-        mMap->SetVisible(pVisible);
+        mMap->setVisible(pVisible);
     }
 }
 
-bool MapApiCalls::IsVisible() const
+bool MapApiCalls::isVisible() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsVisible();
+    return mMap->isVisible();
 }
 
-void MapApiCalls::BringToFront()
+void MapApiCalls::bringToFront()
 {
     if (mMap)
     {
-        mMap->BringToFront();
+        mMap->bringToFront();
     }
 }
 
-void MapApiCalls::SetPoppedOut(bool pPoppedOut)
+void MapApiCalls::setPoppedOut(bool pPoppedOut)
 {
     if (mMap)
     {
-        mMap->SetPoppedOut(pPoppedOut);
+        mMap->setPoppedOut(pPoppedOut);
     }
 }
 
-bool MapApiCalls::IsPoppedOut() const
+bool MapApiCalls::isPoppedOut() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsPoppedOut();
+    return mMap->isPoppedOut();
 }
 
-void MapApiCalls::SetUiVisible(bool pVisible)
+void MapApiCalls::setUiVisible(bool pVisible)
 {
     if (mMap)
     {
-        mMap->SetUiVisible(pVisible);
+        mMap->setIsUiVisible(pVisible);
     }
 }
 
-bool MapApiCalls::IsUiVisible() const
+bool MapApiCalls::isUiVisible() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsUiVisible();
+    return mMap->isUiVisible();
 }
 
-void MapApiCalls::SetMouseInput(bool pEnabled)
+void MapApiCalls::setMouseInput(bool pEnabled)
 {
     if (mMap)
     {
-        mMap->SetMouseInput(pEnabled);
+        mMap->setIsMouseInputEnabled(pEnabled);
     }
 }
 
-bool MapApiCalls::IsMouseInputEnabled() const
+bool MapApiCalls::isMouseInputEnabled() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsMouseInputEnabled();
+    return mMap->isMouseInputEnabled();
 }
 
-void MapApiCalls::SetCenter(double pLat, double pLon)
+void MapApiCalls::setCenter(double pLat, double pLon)
 {
     if (mMap)
     {
-        mMap->SetCenter(pLat, pLon);
+        mMap->setCenter(pLat, pLon);
     }
 }
 
-prime::LatLon MapApiCalls::GetCenter() const
+prime::LatLon MapApiCalls::getCenter() const
 {
     if (!mMap)
     {
         return prime::LatLon();
     }
-    return mMap->GetCenter();
+    return mMap->getCenter();
 }
 
-void MapApiCalls::SetZoom(double pZoom)
+void MapApiCalls::setZoom(double pZoom)
 {
     if (mMap)
     {
-        mMap->SetZoom(pZoom);
+        mMap->setZoom(pZoom);
     }
 }
 
-double MapApiCalls::GetZoom() const
+double MapApiCalls::getZoom() const
 {
     if (!mMap)
     {
         return 0.0;
     }
-    return mMap->GetZoom();
+    return mMap->getZoom();
 }
 
-void MapApiCalls::ZoomIn()
+void MapApiCalls::zoomIn()
 {
     if (mMap)
     {
-        mMap->ZoomIn();
+        mMap->zoomIn();
     }
 }
 
-void MapApiCalls::ZoomOut()
+void MapApiCalls::zoomOut()
 {
     if (mMap)
     {
-        mMap->ZoomOut();
+        mMap->zoomOut();
     }
 }
 
-void MapApiCalls::SetZoomStep(double pStep)
+void MapApiCalls::setZoomStep(double pStep)
 {
     if (mMap)
     {
-        mMap->SetZoomStep(pStep);
+        mMap->setZoomStep(pStep);
     }
 }
 
-void MapApiCalls::PanLeft()
+void MapApiCalls::panLeft()
 {
     if (mMap)
     {
-        mMap->PanLeft();
+        mMap->panLeft();
     }
 }
 
-void MapApiCalls::PanRight()
+void MapApiCalls::panRight()
 {
     if (mMap)
     {
-        mMap->PanRight();
+        mMap->panRight();
     }
 }
 
-void MapApiCalls::PanUp()
+void MapApiCalls::panUp()
 {
     if (mMap)
     {
-        mMap->PanUp();
+        mMap->panUp();
     }
 }
 
-void MapApiCalls::PanDown()
+void MapApiCalls::panDown()
 {
     if (mMap)
     {
-        mMap->PanDown();
+        mMap->panDown();
     }
 }
 
-void MapApiCalls::SetPanStep(double pFraction)
+void MapApiCalls::setPanStep(double pFraction)
 {
     if (mMap)
     {
-        mMap->SetPanStep(pFraction);
+        mMap->setPanStep(pFraction);
     }
 }
 
-void MapApiCalls::PanBy(double pDeltaX, double pDeltaY)
+void MapApiCalls::panBy(double pDeltaX, double pDeltaY)
 {
     if (mMap)
     {
-        mMap->PanBy(pDeltaX, pDeltaY);
+        mMap->panBy(pDeltaX, pDeltaY);
     }
 }
 
-void MapApiCalls::FitBounds(const prime::GeoBounds& pBounds)
+void MapApiCalls::fitBounds(const prime::GeoBounds& pBounds)
 {
     if (mMap)
     {
-        mMap->FitBounds(pBounds);
+        mMap->fitBounds(pBounds);
     }
 }
 
-prime::GeoBounds MapApiCalls::GetVisibleBounds() const
+prime::GeoBounds MapApiCalls::getVisibleBounds() const
 {
     if (!mMap)
     {
         return prime::GeoBounds();
     }
-    return mMap->GetVisibleBounds();
+    return mMap->getVisibleBounds();
 }
 
-double MapApiCalls::GetMetersPerBoxel() const
+double MapApiCalls::getMetersPerBoxel() const
 {
     if (!mMap)
     {
         return 0.0;
     }
-    return mMap->GetMetersPerBoxel();
+    return mMap->getMetersPerBoxel();
 }
 
-void MapApiCalls::SetFollowAircraft(bool pFollow)
+void MapApiCalls::setFollowAircraft(bool pFollow)
 {
     if (mMap)
     {
-        mMap->SetFollowAircraft(pFollow);
+        mMap->setFollowAircraft(pFollow);
     }
 }
 
-bool MapApiCalls::IsFollowingAircraft() const
+bool MapApiCalls::isFollowingAircraft() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsFollowingAircraft();
+    return mMap->isFollowingAircraft();
 }
 
-void MapApiCalls::CenterOnAircraft()
+void MapApiCalls::centerOnAircraft()
 {
     if (mMap)
     {
-        mMap->CenterOnAircraft();
+        mMap->centerOnAircraft();
     }
 }
 
-bool MapApiCalls::GoToAirport(const std::string& pIdent)
+bool MapApiCalls::goToAirport(const std::string& pIdent)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->GoToAirport(pIdent);
+    return mMap->goToAirport(pIdent);
 }
 
-std::vector<prime::AirportMatch> MapApiCalls::FindAirports(const std::string& pQuery, int pMax) const
+std::vector<prime::AirportMatch> MapApiCalls::findAirports(const std::string& pQuery, int pMax) const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->FindAirports(pQuery, pMax);
+    return mMap->findAirports(pQuery, pMax);
 }
 
-prime::LatLon MapApiCalls::ScreenToGeo(int pX, int pY) const
+prime::LatLon MapApiCalls::screenToGeo(int pX, int pY) const
 {
     if (!mMap)
     {
         return prime::LatLon();
     }
-    return mMap->ScreenToGeo(pX, pY);
+    return mMap->screenToGeo(pX, pY);
 }
 
-bool MapApiCalls::GeoToScreen(double pLat, double pLon, int* pX, int* pY) const
+bool MapApiCalls::geoToScreen(double pLat, double pLon, int* pX, int* pY) const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->GeoToScreen(pLat, pLon, pX, pY);
+    return mMap->geoToScreen(pLat, pLon, pX, pY);
 }
 
-void MapApiCalls::SetMode(prime::MapMode pMode)
+void MapApiCalls::setMode(prime::MapMode pMode)
 {
     if (mMap)
     {
-        mMap->SetMode(pMode);
+        mMap->setMode(pMode);
     }
 }
 
-prime::MapMode MapApiCalls::GetMode() const
+prime::MapMode MapApiCalls::getMode() const
 {
     if (!mMap)
     {
         return prime::MapMode::Scenery;
     }
-    return mMap->GetMode();
+    return mMap->getMode();
 }
 
-void MapApiCalls::NextMode()
+void MapApiCalls::nextMode()
 {
     if (mMap)
     {
-        mMap->NextMode();
+        mMap->nextMode();
     }
 }
 
-void MapApiCalls::SetLayerVisible(prime::MapLayer pLayer, bool pVisible)
+void MapApiCalls::setLayerVisible(prime::MapLayer pLayer, bool pVisible)
 {
     if (mMap)
     {
-        mMap->SetLayerVisible(pLayer, pVisible);
+        mMap->setIsLayerVisible(pLayer, pVisible);
     }
 }
 
-bool MapApiCalls::IsLayerVisible(prime::MapLayer pLayer) const
+bool MapApiCalls::isLayerVisible(prime::MapLayer pLayer) const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsLayerVisible(pLayer);
+    return mMap->isLayerVisible(pLayer);
 }
 
-void MapApiCalls::ToggleLayer(prime::MapLayer pLayer)
+void MapApiCalls::toggleLayer(prime::MapLayer pLayer)
 {
     if (mMap)
     {
-        mMap->ToggleLayer(pLayer);
+        mMap->toggleLayer(pLayer);
     }
 }
 
-void MapApiCalls::SetLayersVisible(std::initializer_list<prime::MapLayer> pLayers, bool pVisible)
+void MapApiCalls::setLayersVisible(std::initializer_list<prime::MapLayer> pLayers, bool pVisible)
 {
     if (mMap)
     {
-        mMap->SetLayersVisible(pLayers, pVisible);
+        mMap->setLayersVisible(pLayers, pVisible);
     }
 }
 
-void MapApiCalls::ShowOnlyLayers(std::initializer_list<prime::MapLayer> pLayers)
+void MapApiCalls::showOnlyLayers(std::initializer_list<prime::MapLayer> pLayers)
 {
     if (mMap)
     {
-        mMap->ShowOnlyLayers(pLayers);
+        mMap->showOnlyLayers(pLayers);
     }
 }
 
-void MapApiCalls::ResetLayersToDefaults()
+void MapApiCalls::resetLayersToDefaults()
 {
     if (mMap)
     {
-        mMap->ResetLayersToDefaults();
+        mMap->resetLayersToDefaults();
     }
 }
 
-prime::LayerState MapApiCalls::GetLayerState(prime::MapLayer pLayer) const
+prime::LayerState MapApiCalls::getLayerState(prime::MapLayer pLayer) const
 {
     if (!mMap)
     {
         return prime::LayerState::Off;
     }
-    return mMap->GetLayerState(pLayer);
+    return mMap->getLayerState(pLayer);
 }
 
-void MapApiCalls::SetDrawTool(prime::DrawTool pTool)
+void MapApiCalls::setDrawTool(prime::DrawTool pTool)
 {
     if (mMap)
     {
-        mMap->SetDrawTool(pTool);
+        mMap->setDrawTool(pTool);
     }
 }
 
-prime::DrawTool MapApiCalls::GetDrawTool() const
+prime::DrawTool MapApiCalls::getDrawTool() const
 {
     if (!mMap)
     {
         return prime::DrawTool::Pan;
     }
-    return mMap->GetDrawTool();
+    return mMap->getDrawTool();
 }
 
-bool MapApiCalls::AddDrawingPoint(double pLat, double pLon)
+bool MapApiCalls::addDrawingPoint(double pLat, double pLon)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->AddDrawingPoint(pLat, pLon);
+    return mMap->addDrawingPoint(pLat, pLon);
 }
 
-bool MapApiCalls::FinishDrawing()
+bool MapApiCalls::finishDrawing()
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->FinishDrawing();
+    return mMap->finishDrawing();
 }
 
-bool MapApiCalls::UndoDrawing()
+bool MapApiCalls::undoDrawing()
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->UndoDrawing();
+    return mMap->undoDrawing();
 }
 
-void MapApiCalls::ClearDrawings()
+void MapApiCalls::clearDrawings()
 {
     if (mMap)
     {
-        mMap->ClearDrawings();
+        mMap->clearDrawings();
     }
 }
 
-bool MapApiCalls::HasUnfinishedDrawing() const
+bool MapApiCalls::hasUnfinishedDrawing() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->HasUnfinishedDrawing();
+    return mMap->hasUnfinishedDrawing();
 }
 
-std::vector<prime::Shape> MapApiCalls::GetShapes() const
+std::vector<prime::Shape> MapApiCalls::getShapes() const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->GetShapes();
+    return mMap->getShapes();
 }
 
-bool MapApiCalls::RemoveShape(int pId)
+bool MapApiCalls::removeShape(int pId)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->RemoveShape(pId);
+    return mMap->removeShape(pId);
 }
 
-std::string MapApiCalls::ExportDrawings() const
+std::string MapApiCalls::exportDrawings() const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->ExportDrawings();
+    return mMap->exportDrawings();
 }
 
-bool MapApiCalls::ImportDrawings(const std::string& pText)
+bool MapApiCalls::importDrawings(const std::string& pText)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->ImportDrawings(pText);
+    return mMap->importDrawings(pText);
 }
 
-void MapApiCalls::SetAircraftSource(prime::DataSource pSource)
+void MapApiCalls::setAircraftSource(prime::DataSource pSource)
 {
     if (mMap)
     {
-        mMap->SetAircraftSource(pSource);
+        mMap->setAircraftSource(pSource);
     }
 }
 
-prime::DataSource MapApiCalls::GetAircraftSource() const
+prime::DataSource MapApiCalls::getAircraftSource() const
 {
     if (!mMap)
     {
         return prime::DataSource::XPlane;
     }
-    return mMap->GetAircraftSource();
+    return mMap->getAircraftSource();
 }
 
-void MapApiCalls::SetAircraft(const prime::AircraftState& pState)
+void MapApiCalls::setAircraft(const prime::AircraftState& pState)
 {
     if (mMap)
     {
-        mMap->SetAircraft(pState);
+        mMap->setAircraft(pState);
     }
 }
 
-prime::AircraftState MapApiCalls::GetAircraft() const
+prime::AircraftState MapApiCalls::getAircraft() const
 {
     if (!mMap)
     {
         return prime::AircraftState();
     }
-    return mMap->GetAircraft();
+    return mMap->getAircraft();
 }
 
-void MapApiCalls::ClearTrack()
+void MapApiCalls::clearTrack()
 {
     if (mMap)
     {
-        mMap->ClearTrack();
+        mMap->clearTrack();
     }
 }
 
-void MapApiCalls::SetRouteSource(prime::DataSource pSource)
+void MapApiCalls::setRouteSource(prime::DataSource pSource)
 {
     if (mMap)
     {
-        mMap->SetRouteSource(pSource);
+        mMap->setRouteSource(pSource);
     }
 }
 
-prime::DataSource MapApiCalls::GetRouteSource() const
+prime::DataSource MapApiCalls::getRouteSource() const
 {
     if (!mMap)
     {
         return prime::DataSource::XPlane;
     }
-    return mMap->GetRouteSource();
+    return mMap->getRouteSource();
 }
 
-void MapApiCalls::SetRoute(const std::vector<prime::RouteWaypoint>& pWaypoints, int pActive)
+void MapApiCalls::setRoute(const std::vector<prime::RouteWaypoint>& pWaypoints, int pActive)
 {
     if (mMap)
     {
-        mMap->SetRoute(pWaypoints, pActive);
+        mMap->setRoute(pWaypoints, pActive);
     }
 }
 
-std::vector<prime::MapObject> MapApiCalls::QueryAt(double pLat, double pLon) const
+std::vector<prime::MapObject> MapApiCalls::queryAt(double pLat, double pLon) const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->QueryAt(pLat, pLon);
+    return mMap->queryAt(pLat, pLon);
 }
 
-std::vector<prime::MapObject> MapApiCalls::QueryAtScreen(int pX, int pY) const
+std::vector<prime::MapObject> MapApiCalls::queryAtScreen(int pX, int pY) const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->QueryAtScreen(pX, pY);
+    return mMap->queryAtScreen(pX, pY);
 }
 
-std::string MapApiCalls::ExportSettings() const
+std::string MapApiCalls::exportSettings() const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->ExportSettings();
+    return mMap->exportSettings();
 }
 
-bool MapApiCalls::ImportSettings(const std::string& pText)
+bool MapApiCalls::importSettings(const std::string& pText)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->ImportSettings(pText);
+    return mMap->importSettings(pText);
 }
 
-prime::TerrainSettings MapApiCalls::GetTerrainSettings() const
+prime::TerrainSettings MapApiCalls::getTerrainSettings() const
 {
     if (!mMap)
     {
-        return prime::TerrainSettings();
+        return prime::TerrainSettings{};
     }
-    return mMap->GetTerrainSettings();
+    return mMap->getTerrainSettings();
 }
 
-void MapApiCalls::SetTerrainSettings(const prime::TerrainSettings& pSettings)
+void MapApiCalls::setTerrainSettings(const prime::TerrainSettings& pSettings)
 {
     if (mMap)
     {
-        mMap->SetTerrainSettings(pSettings);
+        mMap->setTerrainSettings(pSettings);
     }
 }
 
-std::string MapApiCalls::ExportTerrainSettings() const
+std::string MapApiCalls::exportTerrainSettings() const
 {
     if (!mMap)
     {
         return {};
     }
-    return mMap->ExportTerrainSettings();
+    return mMap->exportTerrainSettings();
 }
 
-bool MapApiCalls::ImportTerrainSettings(const std::string& pText)
+bool MapApiCalls::importTerrainSettings(const std::string& pText)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->ImportTerrainSettings(pText);
+    return mMap->importTerrainSettings(pText);
 }
 
-uint64_t MapApiCalls::GetSettingsRevision() const
+uint64_t MapApiCalls::getSettingsRevision() const
 {
     if (!mMap)
     {
         return 0;
     }
-    return mMap->GetSettingsRevision();
+    return mMap->getSettingsRevision();
 }
 
-uint64_t MapApiCalls::GetDrawingsRevision() const
+uint64_t MapApiCalls::getDrawingsRevision() const
 {
     if (!mMap)
     {
         return 0;
     }
-    return mMap->GetDrawingsRevision();
+    return mMap->getDrawingsRevision();
 }
 
-bool MapApiCalls::PrecacheVisibleArea()
+bool MapApiCalls::precacheVisibleArea()
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->PrecacheVisibleArea();
+    return mMap->precacheVisibleArea();
 }
 
-bool MapApiCalls::PrecacheArea(const prime::GeoBounds& pArea)
+bool MapApiCalls::precacheArea(const prime::GeoBounds& pArea)
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->PrecacheArea(pArea);
+    return mMap->precacheArea(pArea);
 }
 
-void MapApiCalls::CancelPrecache()
+void MapApiCalls::cancelPrecache()
 {
     if (mMap)
     {
-        mMap->CancelPrecache();
+        mMap->cancelPrecache();
     }
 }
 
-void MapApiCalls::SetDiagnostics(bool pOn)
+void MapApiCalls::setDiagnostics(bool pOn)
 {
     if (mMap)
     {
-        mMap->SetDiagnostics(pOn);
+        mMap->setDiagnostics(pOn);
     }
 }
 
-bool MapApiCalls::IsDiagnosticsOn() const
+bool MapApiCalls::isDiagnosticsOn() const
 {
     if (!mMap)
     {
         return false;
     }
-    return mMap->IsDiagnosticsOn();
+    return mMap->isDiagnosticsOn();
 }

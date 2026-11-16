@@ -1,4 +1,3 @@
-// AirportShapes.cpp
 #include "data/AirportShapes.h"
 
 #include "MapView.h"
@@ -45,22 +44,22 @@ const int kMaxSegmentPieces = 32;      // bir egri en fazla bu kadar parcaya bol
 const double kSamePointM = 0.01;       // 1 cm'den yakin ardisik noktalar tek nokta sayilir
 const double kLightSpacingM = 15.0;    // isik dizisinde lambalar arasi (orta hat isiklari 15 m civari)
 
-double Distance(const LocalPoint& pA, const LocalPoint& pB)
+double distance(const LocalPoint& pA, const LocalPoint& pB)
 {
     return std::hypot(pA.mX - pB.mX, pA.mY - pB.mY);
 }
 
-bool SamePoint(const LocalPoint& pA, const LocalPoint& pB)
+bool samePoint(const LocalPoint& pA, const LocalPoint& pB)
 {
-    return Distance(pA, pB) < kSamePointM;
+    return distance(pA, pB) < kSamePointM;
 }
 
-LocalPoint Mirror(const LocalPoint& pPoint, const LocalPoint& pAbout)
+LocalPoint mirror(const LocalPoint& pPoint, const LocalPoint& pAbout)
 {
     return {2.0 * pAbout.mX - pPoint.mX, 2.0 * pAbout.mY - pPoint.mY};
 }
 
-LocalPoint Cubic(const LocalPoint& pP0, const LocalPoint& pP1, const LocalPoint& pP2, const LocalPoint& pP3,
+LocalPoint cubic(const LocalPoint& pP0, const LocalPoint& pP1, const LocalPoint& pP2, const LocalPoint& pP3,
                  double pT)
 {
     const double tU = 1.0 - pT;
@@ -73,18 +72,18 @@ LocalPoint Cubic(const LocalPoint& pP0, const LocalPoint& pP1, const LocalPoint&
 }
 
 // Ardisik ayni noktalari ve kapali halkada ilk noktayi tekrarlayan sonu atar
-std::vector<LocalPoint> Cleaned(const std::vector<LocalPoint>& pRing)
+std::vector<LocalPoint> cleaned(const std::vector<LocalPoint>& pRing)
 {
     std::vector<LocalPoint> tResult;
     tResult.reserve(pRing.size());
     for (const LocalPoint& tPoint : pRing)
     {
-        if (tResult.empty() || !SamePoint(tResult.back(), tPoint))
+        if (tResult.empty() || !samePoint(tResult.back(), tPoint))
         {
             tResult.push_back(tPoint);
         }
     }
-    while (tResult.size() > 1 && SamePoint(tResult.front(), tResult.back()))
+    while (tResult.size() > 1 && samePoint(tResult.front(), tResult.back()))
     {
         tResult.pop_back();
     }
@@ -102,28 +101,28 @@ public:
     {
     }
 
-    PointF Convert(const LocalPoint& pPoint) const
+    PointF convert(const LocalPoint& pPoint) const
     {
-        const LatLon tLatLon = mFrame.ToLatLon(pPoint);
-        return {static_cast<float>(Mercator::LonToX(tLatLon.mLon) - mOriginX),
-                static_cast<float>(Mercator::LatToY(tLatLon.mLat) - mOriginY)};
+        const LatLon tLatLon = mFrame.toLatLon(pPoint);
+        return {static_cast<float>(Mercator::lonToX(tLatLon.mLon) - mOriginX),
+                static_cast<float>(Mercator::latToY(tLatLon.mLat) - mOriginY)};
     }
 
-    PointF Convert(const LatLon& pPoint) const
+    PointF convert(const LatLon& pPoint) const
     {
-        return {static_cast<float>(Mercator::LonToX(pPoint.mLon) - mOriginX),
-                static_cast<float>(Mercator::LatToY(pPoint.mLat) - mOriginY)};
+        return {static_cast<float>(Mercator::lonToX(pPoint.mLon) - mOriginX),
+                static_cast<float>(Mercator::latToY(pPoint.mLat) - mOriginY)};
     }
 
-    std::vector<PointF> Convert(const std::vector<LocalPoint>& pPoints) const
+    std::vector<PointF> convert(const std::vector<LocalPoint>& pPoints) const
     {
         std::vector<PointF> tResult;
         tResult.reserve(pPoints.size());
         for (const LocalPoint& tPoint : pPoints)
         {
-            const LatLon tLatLon = mFrame.ToLatLon(tPoint);
-            tResult.push_back({static_cast<float>(Mercator::LonToX(tLatLon.mLon) - mOriginX),
-                               static_cast<float>(Mercator::LatToY(tLatLon.mLat) - mOriginY)});
+            const LatLon tLatLon = mFrame.toLatLon(tPoint);
+            tResult.push_back({static_cast<float>(Mercator::lonToX(tLatLon.mLon) - mOriginX),
+                               static_cast<float>(Mercator::latToY(tLatLon.mLat) - mOriginY)});
         }
         return tResult;
     }
@@ -136,7 +135,7 @@ private:
 
 // Isik tipli parcalar boyunca kLightSpacingM araliklarla lamba koyar (aralik
 // parcadan parcaya tasinir: kavisli dizilerde de lambalar esit aralikli kalir)
-void AddLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LightPoint>& pOut)
+void addLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LightPoint>& pOut)
 {
     const size_t tCount = pChain.mPoints.size();
     const size_t tSegments = pChain.mClosed ? tCount : (tCount > 0 ? tCount - 1 : 0);
@@ -151,7 +150,7 @@ void AddLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vect
         }
         const LocalPoint& tFrom = pChain.mPoints[tSegment];
         const LocalPoint& tTo = pChain.mPoints[(tSegment + 1) % tCount];
-        const double tLength = Distance(tFrom, tTo);
+        const double tLength = distance(tFrom, tTo);
         if (tCarry >= tLength)
         {
             tCarry -= tLength;  // bu parcaya lamba dusmuyor
@@ -161,7 +160,7 @@ void AddLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vect
         for (; tAt < tLength; tAt += kLightSpacingM)
         {
             const double tT = tAt / tLength;
-            pOut.push_back({pWriter.Convert(LocalPoint{tFrom.mX + (tTo.mX - tFrom.mX) * tT,
+            pOut.push_back({pWriter.convert(LocalPoint{tFrom.mX + (tTo.mX - tFrom.mX) * tT,
                                                        tFrom.mY + (tTo.mY - tFrom.mY) * tT}),
                             tType});
         }
@@ -169,8 +168,7 @@ void AddLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vect
     }
 }
 
-// Stili olan zincirleri (boya cizgisi / isik) cizgi listesine ekler
-void AddStyledLine(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LineMesh>& pOut)
+void addStyledLine(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LineMesh>& pOut)
 {
     const bool tStyled = std::any_of(pChain.mLineTypes.begin(), pChain.mLineTypes.end(), [](int pType)
                                      {
@@ -185,7 +183,7 @@ void AddStyledLine(const FlatChain& pChain, const MercatorWriter& pWriter, std::
         return;
     }
     LineMesh tLine;
-    tLine.mPoints = pWriter.Convert(pChain.mPoints);
+    tLine.mPoints = pWriter.convert(pChain.mPoints);
     tLine.mLineTypes = pChain.mLineTypes;
     tLine.mLightTypes = pChain.mLightTypes;
     tLine.mClosed = pChain.mClosed;
@@ -194,10 +192,6 @@ void AddStyledLine(const FlatChain& pChain, const MercatorWriter& pWriter, std::
 
 }  // namespace
 
-// ============================================================================
-// LocalFrame
-// ============================================================================
-
 LocalFrame::LocalFrame(const LatLon& pOrigin)
     : mOrigin(pOrigin)
     , mMetersPerDegreeLon(111320.0 * std::cos(pOrigin.mLat * kPi / 180.0))
@@ -205,45 +199,41 @@ LocalFrame::LocalFrame(const LatLon& pOrigin)
 {
 }
 
-LocalPoint LocalFrame::ToLocal(const LatLon& pPoint) const
+LocalPoint LocalFrame::toLocal(const LatLon& pPoint) const
 {
     return {(pPoint.mLon - mOrigin.mLon) * mMetersPerDegreeLon, (pPoint.mLat - mOrigin.mLat) * mMetersPerDegreeLat};
 }
 
-LatLon LocalFrame::ToLatLon(const LocalPoint& pPoint) const
+LatLon LocalFrame::toLatLon(const LocalPoint& pPoint) const
 {
     return {mOrigin.mLat + pPoint.mY / mMetersPerDegreeLat, mOrigin.mLon + pPoint.mX / mMetersPerDegreeLon};
 }
 
-// ============================================================================
-// Shapes
-// ============================================================================
-
 namespace Shapes
 {
 
-void AddSegment(const AptNode& pFrom, const AptNode& pTo, const LocalFrame& pFrame, double pMaxStepM,
+void addSegment(const AptNode& pFrom, const AptNode& pTo, const LocalFrame& pFrame, double pMaxStepM,
                 std::vector<LocalPoint>& pOut)
 {
-    const LocalPoint tP0 = pFrame.ToLocal(pFrom.mPosition);
-    const LocalPoint tP3 = pFrame.ToLocal(pTo.mPosition);
+    const LocalPoint tP0 = pFrame.toLocal(pFrom.mPosition);
+    const LocalPoint tP3 = pFrame.toLocal(pTo.mPosition);
     pOut.push_back(tP0);
     if (!pFrom.mHasControl && !pTo.mHasControl)
     {
         return;  // duz parca
     }
-    const LocalPoint tP1 = pFrom.mHasControl ? pFrame.ToLocal(pFrom.mControl) : tP0;
-    const LocalPoint tP2 = pTo.mHasControl ? Mirror(pFrame.ToLocal(pTo.mControl), tP3) : tP3;
+    const LocalPoint tP1 = pFrom.mHasControl ? pFrame.toLocal(pFrom.mControl) : tP0;
+    const LocalPoint tP2 = pTo.mHasControl ? mirror(pFrame.toLocal(pTo.mControl), tP3) : tP3;
     // Kontrol cokgeninin boyu egrinin boyundan biraz uzundur: guvenli ust sinir
-    const double tLength = Distance(tP0, tP1) + Distance(tP1, tP2) + Distance(tP2, tP3);
+    const double tLength = distance(tP0, tP1) + distance(tP1, tP2) + distance(tP2, tP3);
     const int tPieces = std::clamp(static_cast<int>(std::ceil(tLength / pMaxStepM)), 1, kMaxSegmentPieces);
     for (int tPiece = 1; tPiece < tPieces; ++tPiece)
     {
-        pOut.push_back(Cubic(tP0, tP1, tP2, tP3, static_cast<double>(tPiece) / tPieces));
+        pOut.push_back(cubic(tP0, tP1, tP2, tP3, static_cast<double>(tPiece) / tPieces));
     }
 }
 
-FlatChain Flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxStepM)
+FlatChain flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxStepM)
 {
     FlatChain tResult;
     tResult.mClosed = pChain.mClosed;
@@ -257,7 +247,7 @@ FlatChain Flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxS
     {
         const AptNode& tFrom = pChain.mNodes[tIndex];
         const size_t tBefore = tResult.mPoints.size();
-        AddSegment(tFrom, pChain.mNodes[(tIndex + 1) % tCount], pFrame, pMaxStepM, tResult.mPoints);
+        addSegment(tFrom, pChain.mNodes[(tIndex + 1) % tCount], pFrame, pMaxStepM, tResult.mPoints);
         // Bu dugumden baslayan butun alt parcalar dugumun stilini alir
         for (size_t tPiece = tBefore; tPiece < tResult.mPoints.size(); ++tPiece)
         {
@@ -267,12 +257,12 @@ FlatChain Flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxS
     }
     if (!pChain.mClosed)
     {
-        tResult.mPoints.push_back(pFrame.ToLocal(pChain.mNodes.back().mPosition));
+        tResult.mPoints.push_back(pFrame.toLocal(pChain.mNodes.back().mPosition));
     }
     return tResult;
 }
 
-double SignedArea(const std::vector<LocalPoint>& pRing)
+double signedArea(const std::vector<LocalPoint>& pRing)
 {
     double tTwice = 0.0;
     for (size_t tIndex = 0; tIndex < pRing.size(); ++tIndex)
@@ -284,7 +274,7 @@ double SignedArea(const std::vector<LocalPoint>& pRing)
     return tTwice * 0.5;
 }
 
-bool Triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::vector<LocalPoint>>& pHoles,
+bool triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::vector<LocalPoint>>& pHoles,
                  std::vector<LocalPoint>& pOutVertices, std::vector<int>& pOutTriangles)
 {
     pOutVertices.clear();
@@ -293,14 +283,14 @@ bool Triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::v
     // earcut'in girdisi: halka listesi, [0] dis sinir, digerleri delik.
     // Cikti indeksleri halkalarin arka arkaya dizilmis noktalarina gore.
     std::vector<std::vector<LocalPoint>> tRings;
-    tRings.push_back(Cleaned(pOuter));
+    tRings.push_back(cleaned(pOuter));
     if (tRings[0].size() < 3)
     {
         return false;
     }
     for (const std::vector<LocalPoint>& tHole : pHoles)
     {
-        std::vector<LocalPoint> tCleaned = Cleaned(tHole);
+        std::vector<LocalPoint> tCleaned = cleaned(tHole);
         if (tCleaned.size() >= 3)
         {
             tRings.push_back(std::move(tCleaned));
@@ -317,12 +307,12 @@ bool Triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::v
     return !pOutTriangles.empty();
 }
 
-AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
+AirportShapes build(const AirportDetail& pDetail, const LatLon& pReference)
 {
     AirportShapes tShapes;
     const LocalFrame tFrame(pReference);
-    tShapes.mOriginX = Mercator::LonToX(pReference.mLon);
-    tShapes.mOriginY = Mercator::LatToY(pReference.mLat);
+    tShapes.mOriginX = Mercator::lonToX(pReference.mLon);
+    tShapes.mOriginY = Mercator::latToY(pReference.mLat);
     const MercatorWriter tWriter(tFrame, tShapes.mOriginX, tShapes.mOriginY);
 
     // Yuzeyler: dosyada ilk gelen en ustte cizilir; biz alttan uste cizecegiz
@@ -336,7 +326,7 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
         std::vector<FlatChain> tRings;
         for (const AptChain& tChain : tPavement.mRings)
         {
-            tRings.push_back(Flatten(tChain, tFrame, kMaxStepM));
+            tRings.push_back(flatten(tChain, tFrame, kMaxStepM));
         }
         std::vector<std::vector<LocalPoint>> tHoles;
         for (size_t tIndex = 1; tIndex < tRings.size(); ++tIndex)
@@ -347,9 +337,9 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
         SurfaceMesh tMesh;
         tMesh.mSurfaceCode = tPavement.mSurfaceCode;
         tMesh.mName = tPavement.mName;
-        if (Triangulate(tRings[0].mPoints, tHoles, tVertices, tMesh.mTriangles))
+        if (triangulate(tRings[0].mPoints, tHoles, tVertices, tMesh.mTriangles))
         {
-            tMesh.mVertices = tWriter.Convert(tVertices);
+            tMesh.mVertices = tWriter.convert(tVertices);
             tShapes.mVertexCount += tMesh.mVertices.size();
             tShapes.mPavements.push_back(std::move(tMesh));
         }
@@ -359,9 +349,9 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
         }
         for (const FlatChain& tRing : tRings)
         {
-            tShapes.mPavementEdges.push_back(tWriter.Convert(tRing.mPoints));
-            AddStyledLine(tRing, tWriter, tShapes.mLines);  // yuzey kenarindaki cizgi ve isiklar
-            AddLights(tRing, tWriter, tShapes.mLights);
+            tShapes.mPavementEdges.push_back(tWriter.convert(tRing.mPoints));
+            addStyledLine(tRing, tWriter, tShapes.mLines);  // yuzey kenarindaki cizgi ve isiklar
+            addLights(tRing, tWriter, tShapes.mLights);
         }
     }
 
@@ -369,7 +359,7 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
     {
         for (const AptChain& tChain : tBoundary.mRings)
         {
-            tShapes.mBoundaries.push_back(tWriter.Convert(Flatten(tChain, tFrame, kMaxStepM).mPoints));
+            tShapes.mBoundaries.push_back(tWriter.convert(flatten(tChain, tFrame, kMaxStepM).mPoints));
         }
     }
 
@@ -377,12 +367,12 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
     {
         for (const AptChain& tChain : tFeature.mChains)
         {
-            const FlatChain tFlat = Flatten(tChain, tFrame, kMaxStepM);
-            AddStyledLine(tFlat, tWriter, tShapes.mLines);
-            AddLights(tFlat, tWriter, tShapes.mLights);
+            const FlatChain tFlat = flatten(tChain, tFrame, kMaxStepM);
+            addStyledLine(tFlat, tWriter, tShapes.mLines);
+            addLights(tFlat, tWriter, tShapes.mLights);
         }
     }
-    // Taksi agi: dugum kimligi -> konum, sonra ucak kenarlari
+
     std::unordered_map<int, LatLon> tNodes;
     for (const AptTaxiNode& tNode : pDetail.mTaxiNodes)
     {
@@ -397,7 +387,7 @@ AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference)
             continue;
         }
         tShapes.mTaxiEdges.push_back(
-            {tWriter.Convert(tFrom->second), tWriter.Convert(tTo->second), tEdge.mName, tEdge.mRunway, tEdge.mOneWay});
+            {tWriter.convert(tFrom->second), tWriter.convert(tTo->second), tEdge.mName, tEdge.mRunway, tEdge.mOneWay});
     }
 
     for (const LineMesh& tLine : tShapes.mLines)

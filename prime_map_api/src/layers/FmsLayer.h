@@ -1,11 +1,5 @@
-// FmsLayer.h
 // X-Plane'in FMS'indeki ucus plani (XPLMCountFMSEntries / XPLMGetFMSEntryInfo).
-// Her saniye yeniden okunur; FMS'te degisiklik olursa harita da degisir.
-//
-//   gecilmis bacaklar : soluk mor
-//   aktif bacak       : parlak, kalin (ucagin su an uctugu, hedef noktaya giden)
-//   kalan bacaklar    : mor
-//   noktalar          : elmas + kimlik (+ irtifa varsa)
+// Her saniye yeniden okunur; FMS degisince harita da degisir.
 // Etiketler navaid etiketlerinden oncelikli (yerleri Draw'da ayrilir).
 #pragma once
 
@@ -21,12 +15,12 @@ class FmsLayer : public Layer
 public:
     FmsLayer();
 
-    void Update(float pNow) override;  // her saniye FMS'i okur (ana thread, flight loop)
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
+    void update(float pNow) override;  // her saniye FMS'i okur (ana thread, flight loop)
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
 
     // Rotanin henuz ucurulmamis kismi (aktif bacagin sonundan itibaren); zemin onceden yuklemesi icin
-    std::vector<LatLon> RouteAhead() const;
+    std::vector<LatLon> routeAhead() const;
 
     struct Waypoint
     {
@@ -35,11 +29,11 @@ public:
         int mAltitudeFt;
     };
 
-    // API: rota host'tan (true; SetHostRoute ile) ya da X-Plane FMS'inden (false, varsayilan)
-    void SetFromHost(bool pFromHost);
-    bool IsFromHost() const;
+    // API: rota host'tan (true; setHostRoute ile) ya da X-Plane FMS'inden (false, varsayilan)
+    void setFromHost(bool pFromHost);
+    bool isFromHost() const;
     // pActive: ucagin su an uctugu noktanin indeksi (aktif bacagin sonu); -1 = yok
-    void SetHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive);
+    void setHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive);
 
 private:
 
@@ -50,7 +44,7 @@ private:
         int mY;
     };
 
-    void ReadFms();
+    void readFms();
 
     std::vector<Waypoint> mWaypoints;
     bool mFromHost = false;

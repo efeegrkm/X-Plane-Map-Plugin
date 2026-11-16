@@ -1,20 +1,5 @@
-// Mesh.h
-// Cizilecek seklin CPU'daki hali: renkli ucgen listesi. X-Plane'e ve
-// OpenGL'e bagimli DEGIL (testlerde denenir).
-//
-// Neden ucgen: modern OpenGL'de cizgi kalinligi (glLineWidth) guvenilir
-// degil. Kalin cizgi, daire, cerceve... hepsi burada ucgenlere cevrilir;
-// Gfx::Canvas da sadece ucgen cizer. Boylece her sey tek yoldan, tek
-// cagriyla (bir vertex buffer) cizilir.
-//
-// Birimler: koordinat ve kalinliklar boxel (pencere birimi). UI olcek %150
-// ise cizgiler de yazi ve semboller gibi %150 kalinlasir.
-//
-// Ornek:
-//   Gfx::Mesh tMesh;
-//   tMesh.AddPolyline(tPoints, false, 2.0f, kCyan);
-//   tMesh.AddDisc(tCenter, 4.0f, kYellow);
-//   pCanvas.Draw(tMesh);
+// Cizilecek seklin CPU'daki hali (renkli ucgen listesi); openGL'den bagimsiz,
+// testlerde denenir. Neden ucgen: glLineWidth guvenilir degil. Birimler: boxel.
 #pragma once
 
 #include <vector>
@@ -27,7 +12,6 @@ namespace Gfx
 
 using Point = PointF;
 
-// Vertex buffer'a oldugu gibi kopyalanan kose (Canvas'taki shader ile ayni duzen)
 struct ColorVertex
 {
     float mX = 0.0f;
@@ -35,7 +19,7 @@ struct ColorVertex
     Rgba mColor;
 };
 
-// Dokulu cizim icin kose (u, v: doku koordinati 0..1)
+// u, v: doku koordinati 0..1
 struct TexturedVertex
 {
     float mX = 0.0f;
@@ -44,73 +28,63 @@ struct TexturedVertex
     float mV = 0.0f;
 };
 
-const Rgba kOutline = {0.0f, 0.0f, 0.0f, 0.70f};  // sembollerin altindaki koyu kontur
+const Rgba kOutline = {0.0f, 0.0f, 0.0f, 0.70f};
 
 class Mesh
 {
 public:
-    void Clear();
-    bool IsEmpty() const;
-    const std::vector<ColorVertex>& Vertices() const;
+    void clear();
+    bool isEmpty() const;
+    const std::vector<ColorVertex>& vertices() const;
 
-    // --- Dolu sekiller ---
-    void AddTriangle(const Point& pA, const Point& pB, const Point& pC, const Rgba& pColor);
-    // Dortgen: koseler cevre boyunca sirayla
-    void AddQuad(const Point& pA, const Point& pB, const Point& pC, const Point& pD, const Rgba& pColor);
-    void AddRect(const RectD& pRect, const Rgba& pColor);
-    void AddDisc(const Point& pCenter, float pRadius, const Rgba& pColor);
-    // pIndices: 3'erli ucgen indeksleri (TriangulatePolygon ciktisi gibi)
-    void AddIndexed(const std::vector<Point>& pPoints, const std::vector<int>& pIndices, const Rgba& pColor);
+    void addTriangle(const Point& pA, const Point& pB, const Point& pC, const Rgba& pColor);
+    // koseler cevre boyunca sirayla
+    void addQuad(const Point& pA, const Point& pB, const Point& pC, const Point& pD, const Rgba& pColor);
+    void addRect(const RectD& pRect, const Rgba& pColor);
+    void addDisc(const Point& pCenter, float pRadius, const Rgba& pColor);
+    void addIndexed(const std::vector<Point>& pPoints, const std::vector<int>& pIndices, const Rgba& pColor);
 
-    // --- Cizgiler (pWidth kalinliginda seritler) ---
-    void AddLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgba& pColor);
-    // Koseler kesik (bevel) birlestirilir: sivri acida bile disari tasmaz.
-    // pClosed: son nokta ilk noktaya baglanir.
-    void AddPolyline(const std::vector<Point>& pPoints, bool pClosed, float pWidth, const Rgba& pColor);
-    void AddDashedLine(const Point& pFrom, const Point& pTo, float pWidth, float pDash, float pGap,
+    void addLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgba& pColor);
+    // Koseler bevel birlestirilir (sivri acida tasmaz); pClosed son noktayi ilkine baglar.
+    void addPolyline(const std::vector<Point>& pPoints, bool pClosed, float pWidth, const Rgba& pColor);
+    void addDashedLine(const Point& pFrom, const Point& pTo, float pWidth, float pDash, float pGap,
                        const Rgba& pColor);
-    // Dikdortgenin ic kenarina pWidth kalinliginda cerceve
-    void AddFrame(const RectD& pRect, float pWidth, const Rgba& pColor);
-    // Cember (cizgi)
-    void AddRing(const Point& pCenter, float pRadius, float pWidth, const Rgba& pColor);
-    // Duzgun cokgenin kenarlari; pStartDeg ilk kosenin acisi (0 = sag, 90 = yukari)
-    void AddRegularPolygon(const Point& pCenter, float pRadius, int pSides, float pStartDeg, float pWidth,
+    void addFrame(const RectD& pRect, float pWidth, const Rgba& pColor);
+    void addRing(const Point& pCenter, float pRadius, float pWidth, const Rgba& pColor);
+    // pStartDeg: ilk kosenin acisi (0 = sag, 90 = yukari)
+    void addRegularPolygon(const Point& pCenter, float pRadius, int pSides, float pStartDeg, float pWidth,
                            const Rgba& pColor);
-    // Cember uzerinde pCount tane kucuk kare nokta (NDB sembolu)
-    void AddDottedCircle(const Point& pCenter, float pRadius, int pCount, float pDotSize, const Rgba& pColor);
+    void addDottedCircle(const Point& pCenter, float pRadius, int pCount, float pDotSize, const Rgba& pColor);
 
-    // pRadius yaricapli daire icin parca sayisi (buyuk dairede daha cok)
-    static int SegmentsFor(float pRadius);
+    static int segmentsFor(float pRadius);
 
 private:
-    void Push(const Point& pPoint, const Rgba& pColor);
+    void push(const Point& pPoint, const Rgba& pColor);
 
-    std::vector<ColorVertex> mVertices;  // her 3 kose bir ucgen
+    std::vector<ColorVertex> mVertices;
 };
 
-// Iki katmanli cizgi: once koyu kontur (daha kalin), ustune renkli cizgi.
-// Her zemin renginde okunur kalir. Once TUM konturlar, sonra TUM renkli
-// cizgiler cizilir; boylece bir cizginin konturu digerinin ustune binmez.
+// Once TUM konturlar, sonra TUM renkli cizgiler cizilir; boylece bir cizginin
+// konturu digerinin ustune binmez.
 class OutlinedLines
 {
 public:
     explicit OutlinedLines(float pOutlineExtra = 2.0f);
 
-    // Kontur rengi (varsayilan kOutline). Acik zeminli haritada beyaz "hale" olur.
-    void SetOutlineColor(const Rgba& pColor);
+    void setOutlineColor(const Rgba& pColor);
 
-    void Clear();
-    bool IsEmpty() const;
+    void clear();
+    bool isEmpty() const;
 
-    void AddLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgba& pColor);
-    void AddPolyline(const std::vector<Point>& pPoints, bool pClosed, float pWidth, const Rgba& pColor);
-    void AddRegularPolygon(const Point& pCenter, float pRadius, int pSides, float pStartDeg, float pWidth,
+    void addLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgba& pColor);
+    void addPolyline(const std::vector<Point>& pPoints, bool pClosed, float pWidth, const Rgba& pColor);
+    void addRegularPolygon(const Point& pCenter, float pRadius, int pSides, float pStartDeg, float pWidth,
                            const Rgba& pColor);
-    void AddRing(const Point& pCenter, float pRadius, float pWidth, const Rgba& pColor);
-    void AddDottedCircle(const Point& pCenter, float pRadius, int pCount, float pDotSize, const Rgba& pColor);
+    void addRing(const Point& pCenter, float pRadius, float pWidth, const Rgba& pColor);
+    void addDottedCircle(const Point& pCenter, float pRadius, int pCount, float pDotSize, const Rgba& pColor);
 
-    const Mesh& Outline() const;
-    const Mesh& Fill() const;
+    const Mesh& outline() const;
+    const Mesh& fill() const;
 
 private:
     float mOutlineExtra;
@@ -119,4 +93,4 @@ private:
     Mesh mFill;
 };
 
-}  // namespace Gfx
+}

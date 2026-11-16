@@ -1,4 +1,3 @@
-// LandColorField.cpp
 #include "data/LandColorField.h"
 
 #include <algorithm>
@@ -15,7 +14,7 @@ const double kMinReachPixels = 1.5; // erim bundan kucukse yumusatma yok
 
 }  // namespace
 
-LandBlendPlan PlanLandBlend(double pMeters, double pMetersPerPixelX, double pMetersPerPixelY,
+LandBlendPlan planLandBlend(double pMeters, double pMetersPerPixelX, double pMetersPerPixelY,
                             double pMaxReachPixels)
 {
     LandBlendPlan tPlan;
@@ -42,14 +41,14 @@ LandBlendPlan PlanLandBlend(double pMeters, double pMetersPerPixelX, double pMet
     return tPlan;
 }
 
-void LandColorField::Reset(int pPixels, int pFactor)
+void LandColorField::reset(int pPixels, int pFactor)
 {
     mFactor = std::max(1, pFactor);
     mCells = (pPixels + mFactor - 1) / mFactor;
     mData.assign(static_cast<size_t>(mCells) * mCells * 4, 0.0f);
 }
 
-void LandColorField::Add(int pPixelX, int pPixelY, const TerrainColor& pColor, float pWeight)
+void LandColorField::add(int pPixelX, int pPixelY, const TerrainColor& pColor, float pWeight)
 {
     const int tX = pPixelX / mFactor;
     const int tY = pPixelY / mFactor;
@@ -64,7 +63,7 @@ void LandColorField::Add(int pPixelX, int pPixelY, const TerrainColor& pColor, f
     tCell[3] += pWeight;
 }
 
-void LandColorField::BoxPass(std::vector<float>& pData, int pCells, int pHalf, bool pHorizontal)
+void LandColorField::boxPass(std::vector<float>& pData, int pCells, int pHalf, bool pHorizontal)
 {
     // Kayan toplam: her hucre [i - h, i + h] penceresinin ortalamasi. Pencere disi 0 (veri yok);
     // renk ve agirlik ayni sekilde etkilendigi icin bolumde dogru ortalama cikar.
@@ -118,22 +117,22 @@ void LandColorField::BoxPass(std::vector<float>& pData, int pCells, int pHalf, b
     }
 }
 
-void LandColorField::Blur(int pHalfX, int pHalfY)
+void LandColorField::blur(int pHalfX, int pHalfY)
 {
     for (int tPass = 0; tPass < kPasses; ++tPass)
     {
         if (pHalfX > 0)
         {
-            BoxPass(mData, mCells, pHalfX, true);
+            boxPass(mData, mCells, pHalfX, true);
         }
         if (pHalfY > 0)
         {
-            BoxPass(mData, mCells, pHalfY, false);
+            boxPass(mData, mCells, pHalfY, false);
         }
     }
 }
 
-bool LandColorField::ColorAt(int pPixelX, int pPixelY, double pRgb[3]) const
+bool LandColorField::colorAt(int pPixelX, int pPixelY, double pRgb[3]) const
 {
     // Piksel merkezinin hucre koordinati (hucre merkezleri x.5'te)
     const double tX = (pPixelX + 0.5) / mFactor - 0.5;

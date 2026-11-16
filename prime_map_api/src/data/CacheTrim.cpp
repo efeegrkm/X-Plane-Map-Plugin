@@ -1,4 +1,3 @@
-// CacheTrim.cpp
 #include "data/CacheTrim.h"
 
 #include <algorithm>
@@ -23,7 +22,7 @@ struct TileFiles
 };
 
 // "+47-123" bicimi mi (SceneryIndex::TileName)
-bool IsTileStem(const std::string& pStem)
+bool isTileStem(const std::string& pStem)
 {
     if (pStem.size() != 7)
     {
@@ -43,13 +42,13 @@ bool IsTileStem(const std::string& pStem)
 
 }  // namespace
 
-void TouchCacheFile(const std::string& pPath)
+void touchCacheFile(const std::string& pPath)
 {
     std::error_code tError;
     fs::last_write_time(pPath, fs::file_time_type::clock::now(), tError);
 }
 
-CacheTrimResult TrimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
+CacheTrimResult trimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
 {
     CacheTrimResult tResult;
     std::error_code tError;
@@ -63,7 +62,7 @@ CacheTrimResult TrimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
         }
         // Sadece karo adli dosyalar ("+47-123.<uzanti>")
         const std::string tStem = tIterator->path().stem().string();
-        if (!IsTileStem(tStem))
+        if (!isTileStem(tStem))
         {
             continue;
         }

@@ -1,4 +1,3 @@
-// FmsLayer.cpp
 #include "layers/FmsLayer.h"
 
 #include <algorithm>
@@ -25,19 +24,19 @@ const Rgba kPastLegColor = {0.60f, 0.30f, 0.60f, 0.75f};
 const Rgba kActiveLegColor = {1.0f, 0.55f, 1.0f, 1.0f};
 const Rgba kLabelColor = {1.0f, 0.75f, 1.0f, 1.0f};
 
-Gfx::Point Project(const MapView& pView, const LatLon& pPoint)
+Gfx::Point project(const XMapView& pView, const LatLon& pPoint)
 {
-    return pView.ToScreen(pPoint);
+    return pView.toScreen(pPoint);
 }
 
-}  // namespace
+}
 
 FmsLayer::FmsLayer()
     : Layer("fms", "FMS route", true)
 {
 }
 
-void FmsLayer::SetFromHost(bool pFromHost)
+void FmsLayer::setFromHost(bool pFromHost)
 {
     mFromHost = pFromHost;
     mWaypoints.clear();
@@ -45,12 +44,12 @@ void FmsLayer::SetFromHost(bool pFromHost)
     mLastReadTime = -10.0f;  // X-Plane'e donuste hemen oku
 }
 
-bool FmsLayer::IsFromHost() const
+bool FmsLayer::isFromHost() const
 {
     return mFromHost;
 }
 
-void FmsLayer::SetHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive)
+void FmsLayer::setHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive)
 {
     if (!mFromHost)
     {
@@ -60,7 +59,7 @@ void FmsLayer::SetHostRoute(const std::vector<Waypoint>& pWaypoints, int pActive
     mDestination = (pActive >= 0 && pActive < static_cast<int>(mWaypoints.size())) ? pActive : -1;
 }
 
-void FmsLayer::Update(float pNow)
+void FmsLayer::update(float pNow)
 {
     if (mFromHost)
     {
@@ -71,10 +70,10 @@ void FmsLayer::Update(float pNow)
         return;
     }
     mLastReadTime = pNow;
-    ReadFms();
+    readFms();
 }
 
-void FmsLayer::ReadFms()
+void FmsLayer::readFms()
 {
     mWaypoints.clear();
     const int tCount = XPLMCountFMSEntries();
@@ -101,7 +100,7 @@ void FmsLayer::ReadFms()
     mDestination = (tCount > 0) ? XPLMGetDestinationFMSEntry() : -1;
 }
 
-std::vector<LatLon> FmsLayer::RouteAhead() const
+std::vector<LatLon> FmsLayer::routeAhead() const
 {
     std::vector<LatLon> tPoints;
     for (size_t tIndex = static_cast<size_t>(std::max(0, mDestination)); tIndex < mWaypoints.size(); ++tIndex)
@@ -111,50 +110,50 @@ std::vector<LatLon> FmsLayer::RouteAhead() const
     return tPoints;
 }
 
-void FmsLayer::Draw(const DrawContext& pContext)
+void FmsLayer::draw(const drawContext& pContext)
 {
     mLabels.clear();
     if (mWaypoints.empty())
     {
         return;
     }
-    const MapView& tView = *pContext.mView;
+    const XMapView& tView = *pContext.mView;
 
     Gfx::OutlinedLines tLegs;
     Gfx::OutlinedLines tActive;
     for (size_t tIndex = 0; tIndex + 1 < mWaypoints.size(); ++tIndex)
     {
         std::vector<LatLon> tDense;
-        DensifySegment(mWaypoints[tIndex].mPosition, mWaypoints[tIndex + 1].mPosition, kDensifyNm, tDense);
+        densifySegment(mWaypoints[tIndex].mPosition, mWaypoints[tIndex + 1].mPosition, kDensifyNm, tDense);
         tDense.push_back(mWaypoints[tIndex + 1].mPosition);
         std::vector<Gfx::Point> tScreen;
         for (const LatLon& tPoint : tDense)
         {
-            tScreen.push_back(Project(tView, tPoint));
+            tScreen.push_back(project(tView, tPoint));
         }
         const int tLegEnd = static_cast<int>(tIndex) + 1;
         if (tLegEnd == mDestination)
         {
-            tActive.AddPolyline(tScreen, false, 4.0f, kActiveLegColor);
+            tActive.addPolyline(tScreen, false, 4.0f, kActiveLegColor);
         }
         else
         {
-            tLegs.AddPolyline(tScreen, false, 2.5f, tLegEnd < mDestination ? kPastLegColor : kLegColor);
+            tLegs.addPolyline(tScreen, false, 2.5f, tLegEnd < mDestination ? kPastLegColor : kLegColor);
         }
     }
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
-    tCanvas.Draw(tLegs);
-    tCanvas.Draw(tActive);
+    tCanvas.draw(tLegs);
+    tCanvas.draw(tActive);
 
     // Noktalar: elmas (45 derece donuk kare)
     Gfx::OutlinedLines tDiamonds;
-    const bool tWithLabels = tView.Zoom() >= kLabelMinZoom;
+    const bool tWithLabels = tView.zoom() >= kLabelMinZoom;
     for (size_t tIndex = 0; tIndex < mWaypoints.size(); ++tIndex)
     {
         const Waypoint& tWaypoint = mWaypoints[tIndex];
-        const Gfx::Point tPoint = Project(tView, tWaypoint.mPosition);
+        const Gfx::Point tPoint = project(tView, tWaypoint.mPosition);
         const bool tIsDestination = static_cast<int>(tIndex) == mDestination;
-        tDiamonds.AddRegularPolygon(tPoint, kWaypointRadius, 4, 90.0f, 1.5f,
+        tDiamonds.addRegularPolygon(tPoint, kWaypointRadius, 4, 90.0f, 1.5f,
                                     tIsDestination ? kActiveLegColor : kLegColor);
         if (!tWithLabels)
         {
@@ -169,20 +168,20 @@ void FmsLayer::Draw(const DrawContext& pContext)
         {
             RectD tBox;
             tBox.mLeft = tLabel.mX - 1;
-            tBox.mRight = tLabel.mX + Ui::TextWidth(tLabel.mText) + 2;
+            tBox.mRight = tLabel.mX + Ui::textWidth(tLabel.mText) + 2;
             tBox.mBottom = tLabel.mY - 3;
-            tBox.mTop = tLabel.mY + Ui::FontHeight() + 1;
-            pContext.mLabels->Reserve(tBox);  // navaid etiketleri bunun ustune yazmasin
+            tBox.mTop = tLabel.mY + Ui::fontHeight() + 1;
+            pContext.mLabels->reserve(tBox);  // navaid etiketleri bunun ustune yazmasin
         }
         mLabels.push_back(tLabel);
     }
-    tCanvas.Draw(tDiamonds);
+    tCanvas.draw(tDiamonds);
 }
 
-void FmsLayer::DrawLabels(const DrawContext& /*pContext*/)
+void FmsLayer::drawLabels(const drawContext& /*pContext*/)
 {
     for (const PendingLabel& tLabel : mLabels)
     {
-        Ui::TextShadowed(tLabel.mX, tLabel.mY, tLabel.mText, kLabelColor);
+        Ui::textShadowed(tLabel.mX, tLabel.mY, tLabel.mText, kLabelColor);
     }
 }

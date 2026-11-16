@@ -1,4 +1,3 @@
-// AirportGeometryStore.h
 // Havalimani OZETLERININ (pistler, kapsayan kutu, dosyadaki yer) deposu:
 //   - kaynagi (IAirportGeometrySource) arka plan thread'inde calistirir,
 //   - bitince sonucu ana thread'de devralir (Poll),
@@ -26,31 +25,31 @@ public:
     AirportGeometryStore& operator=(const AirportGeometryStore&) = delete;
 
     // Okumayi arka planda baslatir (bir kez). pCacheDirectory: kaynagin disk onbellegi (bos olabilir)
-    void StartLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory = "");
+    void startLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory = "");
 
     // Ana thread'den her karede. Okuma bu cagrida bittiyse true doner (bir kez);
-    // o andan sonra IsReady() true'dur. Rapor: LastReport().
-    bool Poll();
+    // o andan sonra isReady() true'dur. Rapor: lastReport().
+    bool poll();
 
-    bool IsLoading() const;
-    bool IsReady() const;
-    bool LastLoadSucceeded() const;
-    const std::string& LastReport() const;
-    const char* SourceName() const;
+    bool isLoading() const;
+    bool isReady() const;
+    bool lastLoadSucceeded() const;
+    const std::string& lastReport() const;
+    const char* sourceName() const;
 
-    int Count() const;
-    int RunwayCount() const;
-    const AirportGeometry& At(int pIndex) const;
-    const AirportGeometry* Find(const std::string& pId) const;  // baslik kimligiyle
-    const std::string& FilePath(int pFile) const;  // AptFileLocation::mFile -> yol
+    int count() const;
+    int runwayCount() const;
+    const AirportGeometry& at(int pIndex) const;
+    const AirportGeometry* find(const std::string& pId) const;  // baslik kimligiyle
+    const std::string& filePath(int pFile) const;  // AptFileLocation::mFile -> yol
 
     // pBounds'un degdigi hucrelerdeki havalimanlarinin indekslerini pOut'a ekler.
     // Havalimani konumu = referans noktasi; havalimani bundan birkac km
     // tasabilecegi icin cagiran sinirlari biraz genisletmeli.
-    void Query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
+    void query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
 private:
-    void TakeResult();
+    void takeResult();
 
     std::unique_ptr<IAirportGeometrySource> mSource;
     std::thread mThread;

@@ -1,8 +1,5 @@
-// GridLayer.h
-// Enlem/boylam izgarasi. Aralik zoom'a gore secilir: cizgiler ekranda
-// birbirine cok yaklasirsa daha seyrek bir araliga gecilir (30 dereceden
-// 30 saniyeye kadar). Etiketler haritanin sol (enlem) ve alt (boylam)
-// kenarina yazilir.
+// Enlem/boylam izgarasi; aralik zoom'a gore seyreklestirilir (cizgiler cok
+// yaklasirsa daha seyrek adim). Etiketler sol (enlem) ve alt (boylam) kenarda.
 #pragma once
 
 #include "Layer.h"
@@ -12,9 +9,9 @@ class GridLayer : public Layer
 public:
     GridLayer();
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawOverlay(const DrawContext& pContext) override;  // kenar yazilari: her karede ustte
+    void draw(const drawContext& pContext) override;
+    void drawOverlay(const drawContext& pContext) override;  // kenar yazilari: her karede ustte
 
 private:
-    static double StepFor(const DrawContext& pContext);
+    static double stepFor(const drawContext& pContext);
 };

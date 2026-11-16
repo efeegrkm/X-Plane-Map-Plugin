@@ -1,27 +1,5 @@
-// LayerPanel.h
-// "Layers" dugmesinin altinda acilan, GRUPLU ve UC SEVIYELI katman listesi.
-//
-//   +-------------------------------+
-//   | LAYERS                        |
-//   |-------------------------------|
-//   | [x] > Map                     |   grup kapali (ok saga)
-//   | [-] v Airports                |   grup acik, katmanlarin bazilari acik
-//   |     [x]   Airport symbols     |   alt katmani olmayan katman
-//   |     [-] v Airport surfaces    |   alt katmanli katman, acik
-//   |         [x] Pavement          |
-//   |         [ ] Airport boundary  |
-//   |     [x] > Runways             |   alt katmanli katman, kapali (varsayilan)
-//   | [x] > User drawings           |   grupsuz ama alt katmanli
-//   +-------------------------------+
-//
-// Kutu: hepsi acik [x], hepsi kapali [ ], karisik [-]. Grup kutusu gruptaki
-// tum katmanlari, katman kutusu katmani acar/kapatir. Oka veya ada tiklamak
-// o satiri acar/kapar. Gruplar ve katmanlar varsayilan olarak KAPALI (katlanmis)
-// gelir. Gruplar kGroups tablosunda (LayerPanel.cpp); orada olmayan katmanlar
-// en altta grupsuz. Liste pencereye sigmazsa tekerlekle kaydirilir.
-//
-// Panel sadece cizer ve tiklamanin neye denk geldigini soyler; katmani
-// acip kapatmak ve ayari kaydetmek MapWindow'un isi.
+// "Layers" dugmesinin altinda acilan, gruplu ve uc seviyeli katman listesi.
+// Panel sadece cizer ve tiklamayi raporlar; ac/kapa karari XMapWindow'da.
 #pragma once
 
 #include <set>
@@ -40,35 +18,32 @@ class Canvas;
 class LayerPanel
 {
 public:
-    // Bir tiklamanin sonucu
     struct Hit
     {
         bool mInside = false;          // panelin ustunde mi
         std::vector<int> mToggle;      // acilip kapanacak katmanlar (bos: hicbiri)
         bool mGroupOn = false;         // grup kutusu: true = hepsini ac, false = hepsini kapat
-        bool mIsGroupBox = false;      // tiklama bir grup kutusuna (ac/kapa karari MapWindow'da)
+        bool mIsGroupBox = false;      // tiklama bir grup kutusuna (ac/kapa karari XMapWindow'da)
         int mSubLayerOwner = -1;       // >= 0: bu katmanin mSubLayer. alt katmani ac/kapa
         int mSubLayer = -1;
-        std::string mExpandKey;        // bos degilse bu satiri ac/kapa (ToggleExpanded)
+        std::string mExpandKey;        // bos degilse bu satiri ac/kapa (toggleExpanded)
         bool mResetDefaults = false;   // baslik satirindaki "Defaults" dugmesi: bu modun varsayilanlari
     };
 
-    bool IsOpen() const;
-    void SetOpen(bool pOpen);
-    void Toggle();
-    void ToggleExpanded(const std::string& pKey);
+    bool isOpen() const;
+    void setOpen(bool pOpen);
+    void toggle();
+    void toggleExpanded(const std::string& pKey);
 
-    // pAnchor: "Layers" dugmesi; panel onun hemen altina, sol kenari
-    // hizali acilir. pMinBottom: panelin inebilecegi en alt y (durum seridinin ustu).
-    // Her cizimden once cagrilir.
-    void Layout(const RectI& pAnchor, int pMinBottom, const LayerManager& pLayers);
+    // pAnchor: "Layers" dugmesi; panel onun altina acilir (pMinBottom: inebilecegi en alt y)
+    void layout(const RectI& pAnchor, int pMinBottom, const LayerManager& pLayers);
 
-    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const LayerManager& pLayers) const;
+    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const LayerManager& pLayers) const;
 
-    Hit HitTest(int pX, int pY, const LayerManager& pLayers) const;
+    Hit hitTest(int pX, int pY, const LayerManager& pLayers) const;
 
     // Tekerlek: pClicks > 0 yukari. Panelin ustundeyse true (harita zoom yapmasin)
-    bool Scroll(int pX, int pY, int pClicks);
+    bool scroll(int pX, int pY, int pClicks);
 
 private:
     enum class RowKind
@@ -87,14 +62,14 @@ private:
         int mIndent = 0;
     };
 
-    RectI ResetButtonRect() const;
-    RectI RowRect(int pIndex) const;  // pIndex: mRows indeksi (kaydirma hesaba katilir)
-    static RectI BoxRect(const RectI& pRow, int pIndent);
-    static int VisibleCount(const LayerManager& pLayers, const std::vector<int>& pIndices);
-    static std::string ExpandKey(const Row& pRow, const LayerManager& pLayers);
+    RectI resetButtonRect() const;
+    RectI rowRect(int pIndex) const;  // pIndex: mRows indeksi (kaydirma hesaba katilir)
+    static RectI boxRect(const RectI& pRow, int pIndent);
+    static int visibleCount(const LayerManager& pLayers, const std::vector<int>& pIndices);
+    static std::string expandKey(const Row& pRow, const LayerManager& pLayers);
     // 0 = kapali, 1 = acik, 2 = karisik
-    static int RowState(const Row& pRow, const LayerManager& pLayers);
-    void AddLayerRows(int pLayer, int pIndent, const LayerManager& pLayers);
+    static int rowState(const Row& pRow, const LayerManager& pLayers);
+    void addLayerRows(int pLayer, int pIndent, const LayerManager& pLayers);
 
     bool mOpen = false;
     RectI mRect;

@@ -1,11 +1,6 @@
-// Texture.h
-// OpenGL dokusu (RAII): nesne yok olunca doku da silinir. Kopyalanamaz,
-// tasinabilir (std::move ile bir tablodan digerine verilebilir).
-//
-// X-Plane kurali: doku numarasi XPLMGenerateTextureNumbers ile alinir,
-// baglamak icin XPLMBindTexture2d kullanilir (dogrudan glBindTexture degil;
-// X-Plane bagli dokuyu kendi onbelleginde tutar).
-// Olusturma ve silme ana thread'de, OpenGL baglami etkinken yapilmali.
+// X-Plane kurali: doku numarasi XPLMGenerateTextureNumbers ile alinir, baglama
+// XPLMBindTexture2d ile yapilir. Olusturma/silme ana thread'de, GL baglami
+// etkinken yapilmali.
 #pragma once
 
 #include <cstdint>
@@ -24,22 +19,19 @@ public:
     Texture(const Texture&) = delete;
     Texture& operator=(const Texture&) = delete;
 
-    // pSize x pSize RGBA goruntuden doku (satir 0 = dokunun v = 0 kenari).
-    // pMipmaps: kucultulmus seviyeler de uretilir (uzaktan bakinca kumlanma /
-    // titreme olmaz; bellek 4/3 kat). Zemin dokulari bunu kullanir.
-    static Texture FromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps = false);
+    // Satir 0 = dokunun v = 0 kenari. pMipmaps: bellek 4/3 kat ama titreme olmaz.
+    static Texture fromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps = false);
 
-    // Bos pWidth x pHeight RGBA doku (FBO'nun cizdigi yuzey). Dogrusal suzgec, mipmap yok.
-    static Texture CreateEmpty(int pWidth, int pHeight);
+    static Texture createEmpty(int pWidth, int pHeight);
 
-    bool IsValid() const;
-    int Id() const;  // XPLMBindTexture2d'ye verilen numara
+    bool isValid() const;
+    int id() const;
 
 private:
     explicit Texture(int pId);
-    void Release();
+    void release();
 
     int mId = 0;
 };
 
-}  // namespace Gfx
+}

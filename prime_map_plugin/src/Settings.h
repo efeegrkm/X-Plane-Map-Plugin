@@ -17,34 +17,34 @@ class Settings
 public:
     // Dosyayi okur. Dosya yoksa false doner ve ayarlar bos kalir
     // (bu bir hata degil: ilk acilista dosya henuz yoktur).
-    bool Load(const std::string& pPath);
+    bool load(const std::string& pPath);
 
-    // Metinden okuma (dosyasiz; API ice aktarma). LoadText onceki her seyi siler, MergeText ustune yazar.
-    void LoadText(const std::string& pText);
-    void MergeText(const std::string& pText);
+    // Metinden okuma (dosyasiz; API ice aktarma). loadText onceki her seyi siler, mergeText ustune yazar.
+    void loadText(const std::string& pText);
+    void mergeText(const std::string& pText);
     // Metin olarak (dosya bicimiyle ayni). pSections bos: butun bolumler; "layers*" on ekle eslesir.
-    std::string ToText(const std::vector<std::string>& pSections) const;
+    std::string toText(const std::vector<std::string>& pSections) const;
 
-    // Son Load edilen (veya SetPath ile verilen) dosyaya yazar
-    bool Save() const;
+    // Son Load edilen (veya setPath ile verilen) dosyaya yazar
+    bool save() const;
 
-    void SetPath(const std::string& pPath);
+    void setPath(const std::string& pPath);
     // Dosyanin basina yazilacak aciklama (her satir '# ' ile baslar); bossa varsayilan
-    void SetComment(const std::string& pComment);
-    const std::string& Path() const;
+    void setComment(const std::string& pComment);
+    const std::string& path() const;
 
-    bool Has(const std::string& pSection, const std::string& pKey) const;
+    bool has(const std::string& pSection, const std::string& pKey) const;
 
-    std::string GetString(const std::string& pSection, const std::string& pKey,
+    std::string getString(const std::string& pSection, const std::string& pKey,
                           const std::string& pDefault) const;
-    double GetDouble(const std::string& pSection, const std::string& pKey, double pDefault) const;
-    int GetInt(const std::string& pSection, const std::string& pKey, int pDefault) const;
-    bool GetBool(const std::string& pSection, const std::string& pKey, bool pDefault) const;
+    double getDouble(const std::string& pSection, const std::string& pKey, double pDefault) const;
+    int getInt(const std::string& pSection, const std::string& pKey, int pDefault) const;
+    bool getBool(const std::string& pSection, const std::string& pKey, bool pDefault) const;
 
-    void SetString(const std::string& pSection, const std::string& pKey, const std::string& pValue);
-    void SetDouble(const std::string& pSection, const std::string& pKey, double pValue);
-    void SetInt(const std::string& pSection, const std::string& pKey, int pValue);
-    void SetBool(const std::string& pSection, const std::string& pKey, bool pValue);
+    void setString(const std::string& pSection, const std::string& pKey, const std::string& pValue);
+    void setDouble(const std::string& pSection, const std::string& pKey, double pValue);
+    void setInt(const std::string& pSection, const std::string& pKey, int pValue);
+    void setBool(const std::string& pSection, const std::string& pKey, bool pValue);
 
 private:
     std::string mPath;

@@ -1,4 +1,3 @@
-// AirwayLayer.cpp
 #include "layers/AirwayLayer.h"
 
 #include <cmath>
@@ -19,9 +18,7 @@ const double kDensifyNm = 20.0;        // uzun segmentler buyuk daire boyunca bo
 const size_t kMaxSegments = 6000;      // FPS korumasi
 const float kMinLabelLength = 90.0f;   // ekranda bundan kisa segmente ad yazilmaz (boxel)
 const double kEdgeMarginDeg = 0.2;
-
-
-}  // namespace
+}
 
 AirwayLayer::AirwayLayer(const AirwayDatabase& pAirways, bool pHigh)
     : Layer(pHigh ? "airways_high" : "airways_low", pHigh ? "Airways (high)" : "Airways (low)", true)
@@ -30,31 +27,31 @@ AirwayLayer::AirwayLayer(const AirwayDatabase& pAirways, bool pHigh)
 {
 }
 
-void AirwayLayer::Draw(const DrawContext& pContext)
+void AirwayLayer::draw(const drawContext& pContext)
 {
     mVisible.clear();
-    const MapView& tView = *pContext.mView;
-    if (!mAirways.IsReady() || tView.Zoom() < kMinZoom)
+    const XMapView& tView = *pContext.mView;
+    if (!mAirways.isReady() || tView.zoom() < kMinZoom)
     {
         return;
     }
-    if (mSeenStamp.size() != static_cast<size_t>(mAirways.Count()))
+    if (mSeenStamp.size() != static_cast<size_t>(mAirways.count()))
     {
-        mSeenStamp.assign(mAirways.Count(), 0);
+        mSeenStamp.assign(mAirways.count(), 0);
     }
     ++mStamp;
 
-    GeoBounds tBounds = tView.VisibleBounds();
+    GeoBounds tBounds = tView.visibleBounds();
     tBounds.mSouth -= kEdgeMarginDeg;
     tBounds.mNorth += kEdgeMarginDeg;
     tBounds.mWest -= kEdgeMarginDeg;
     tBounds.mEast += kEdgeMarginDeg;
     mQuery.clear();
-    mAirways.Query(tBounds, mQuery);
+    mAirways.query(tBounds, mQuery);
 
     const MapTheme& tTheme = *pContext.mTheme;
     const Rgba& tColor = mHigh ? tTheme.mAirwayHigh : tTheme.mAirwayLow;
-    const bool tArrows = tView.Zoom() >= kArrowMinZoom;
+    const bool tArrows = tView.zoom() >= kArrowMinZoom;
     Gfx::Mesh tLines;
     const float tWidth = mHigh ? tTheme.mAirwayHighWidth : tTheme.mAirwayLowWidth;
     for (int tIndex : mQuery)
@@ -64,22 +61,22 @@ void AirwayLayer::Draw(const DrawContext& pContext)
             continue;  // uzun segment: baska bir hucreden zaten geldi
         }
         mSeenStamp[tIndex] = mStamp;
-        const AirwaySegment& tSegment = mAirways.At(tIndex);
+        const AirwaySegment& tSegment = mAirways.at(tIndex);
         if (tSegment.mHigh != mHigh)
         {
             continue;
         }
 
         std::vector<LatLon> tDense;
-        DensifySegment(tSegment.mFrom, tSegment.mTo, kDensifyNm, tDense);
+        densifySegment(tSegment.mFrom, tSegment.mTo, kDensifyNm, tDense);
         tDense.push_back(tSegment.mTo);
         std::vector<Gfx::Point> tScreen;
         tScreen.reserve(tDense.size());
         for (const LatLon& tPoint : tDense)
         {
-            tScreen.push_back(tView.ToScreen(tPoint));
+            tScreen.push_back(tView.toScreen(tPoint));
         }
-        tLines.AddPolyline(tScreen, false, tWidth, tColor);
+        tLines.addPolyline(tScreen, false, tWidth, tColor);
 
         VisibleSegment tVisible;
         tVisible.mIndex = tIndex;
@@ -102,9 +99,9 @@ void AirwayLayer::Draw(const DrawContext& pContext)
                 const float tDirY = tDeltaY / tLength;
                 const Gfx::Point tTip = {(tVisible.mFromX + tVisible.mToX) * 0.5f + tDirX * 5.0f,
                                          (tVisible.mFromY + tVisible.mToY) * 0.5f + tDirY * 5.0f};
-                tLines.AddLine(tTip, {tTip.mX - tDirX * 7.0f - tDirY * 4.0f, tTip.mY - tDirY * 7.0f + tDirX * 4.0f},
+                tLines.addLine(tTip, {tTip.mX - tDirX * 7.0f - tDirY * 4.0f, tTip.mY - tDirY * 7.0f + tDirX * 4.0f},
                                tWidth, tColor);
-                tLines.AddLine(tTip, {tTip.mX - tDirX * 7.0f + tDirY * 4.0f, tTip.mY - tDirY * 7.0f - tDirX * 4.0f},
+                tLines.addLine(tTip, {tTip.mX - tDirX * 7.0f + tDirY * 4.0f, tTip.mY - tDirY * 7.0f - tDirX * 4.0f},
                                tWidth, tColor);
             }
         }
@@ -113,12 +110,12 @@ void AirwayLayer::Draw(const DrawContext& pContext)
             break;
         }
     }
-    pContext.mCanvas->Draw(tLines);
+    pContext.mCanvas->draw(tLines);
 }
 
-void AirwayLayer::DrawLabels(const DrawContext& pContext)
+void AirwayLayer::drawLabels(const drawContext& pContext)
 {
-    if (!pContext.mLabels || pContext.mView->Zoom() < kLabelMinZoom)
+    if (!pContext.mLabels || pContext.mView->zoom() < kLabelMinZoom)
     {
         return;
     }
@@ -131,9 +128,9 @@ void AirwayLayer::DrawLabels(const DrawContext& pContext)
         {
             continue;
         }
-        const AirwaySegment& tSegment = mAirways.At(tVisible.mIndex);
-        MapSymbols::DrawLabelCentered(*pContext.mLabels, (tVisible.mFromX + tVisible.mToX) * 0.5f,
+        const AirwaySegment& tSegment = mAirways.at(tVisible.mIndex);
+        MapSymbols::drawLabelCentered(*pContext.mLabels, (tVisible.mFromX + tVisible.mToX) * 0.5f,
                                       (tVisible.mFromY + tVisible.mToY) * 0.5f + 8.0f, tSegment.mNames,
-                                      tColor, pContext.LabelShadow());
+                                      tColor, pContext.labelShadow());
     }
 }

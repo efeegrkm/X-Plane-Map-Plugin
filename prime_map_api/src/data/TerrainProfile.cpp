@@ -1,4 +1,3 @@
-// TerrainProfile.cpp
 #include "data/TerrainProfile.h"
 
 #include <array>
@@ -26,14 +25,14 @@ thread_local Totals gTotals;
 
 }  // namespace
 
-void Add(Stage pStage, double pMilliseconds)
+void add(Stage pStage, double pMilliseconds)
 {
     const size_t tIndex = static_cast<size_t>(pStage);
     ++gTotals.mCounts[tIndex];
     gTotals.mMilliseconds[tIndex] += pMilliseconds;
 }
 
-std::string TakeReport()
+std::string takeReport()
 {
     std::string tText;
     for (size_t tIndex = 0; tIndex < kNames.size(); ++tIndex)
@@ -57,7 +56,7 @@ ScopedStage::ScopedStage(Stage pStage)
 
 ScopedStage::~ScopedStage()
 {
-    Add(mStage, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - mStart).count());
+    add(mStage, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - mStart).count());
 }
 
 }  // namespace TerrainProfile

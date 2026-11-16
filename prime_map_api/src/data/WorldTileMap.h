@@ -1,4 +1,3 @@
-// WorldTileMap.h
 // X-Plane'in "Resources/dsf_files" dosyasi: dunyadaki her 1x1 derece karo icin
 // "X-Plane'in tam global sahnesinde bu karonun DSF'i var mi". X-Plane'e
 // bagimli DEGIL.
@@ -11,8 +10,8 @@
 // Karadeniz ortasi, Pasifik, Atlantik, Antarktika ici 0. Dosya bir karonun bu
 // bilgisayarda KURULU olup olmadigini soylemez (onu SceneryIndex bilir).
 //
-// Kullanim (SceneryIndex): karoda kurulu DSF yoksa 0 -> deniz, 255 -> veri yok
-// (kara ama sahnesi kurulu degil; haritada notr "veri yok" rengi).
+// kullanim (SceneryIndex): karoda kurulu DSF yoksa 0 -> deniz,
+// 255 -> veri yok (kara ama sahnesi kurulu degil).
 #pragma once
 
 #include <cstdint>
@@ -26,18 +25,18 @@ public:
     static const size_t kFileSize = kHeaderSize + 360 * 180;
 
     // Dosyayi okur; boyut tutmazsa false (harita bos kalir, cagiran yedek kurala doner)
-    bool Load(const std::string& pPath);
+    bool load(const std::string& pPath);
     // Bellekteki baytlardan (testler icin); boyut tutmazsa false
-    bool LoadBytes(const std::vector<uint8_t>& pBytes);
+    bool loadBytes(const std::vector<uint8_t>& pBytes);
 
-    bool IsLoaded() const;
-    void Clear();
+    bool isLoaded() const;
+    void clear();
 
     // Karonun global sahnede DSF'i var mi. pWest: -180..179, pSouth: -90..89. Yuklu degilse false.
-    bool HasDsf(int pWest, int pSouth) const;
-    int LandTileCount() const;  // 255 olan karo sayisi (log icin)
+    bool hasDsf(int pWest, int pSouth) const;
+    int landTileCount() const;  // 255 olan karo sayisi (log icin)
 
-    static size_t IndexOf(int pWest, int pSouth);
+    static size_t indexOf(int pWest, int pSouth);
 
 private:
     std::vector<uint8_t> mTiles;  // 360 * 180, IndexOf sirasi; bossa yuklu degil

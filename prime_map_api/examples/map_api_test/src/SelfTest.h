@@ -1,9 +1,9 @@
 // SelfTest.h
-// X-Plane icinde Prime Map API'nin butun fonksiyonlarini MapApiCalls uzerinden cagirir,
+// X-Plane icinde Prime XMap API'nin butun fonksiyonlarini MapApiCalls uzerinden cagirir,
 // her kontrolu Log.txt'ye "PASS" / "FAIL" olarak yazar. Uc asama (flight loop'tan Step):
 //
 //   1. hemen    : yasam dongusu, pencere, gorunum, mod, katman yardimcilari, cizimler, ayarlar
-//   2. veri     : (havalimani + nav hazir olunca) arama, GoToAirport, FitBounds, ucak, rota
+//   2. veri     : (havalimani + nav hazir olunca) arama, goToAirport, fitBounds, ucak, rota
 //   3. 2 s sonra: (harita cizildikten sonra) sorgu, on onbellek, teshis, kapat / yeniden ac
 #pragma once
 
@@ -16,16 +16,16 @@ class SelfTest
 public:
     explicit SelfTest(MapApiCalls& pCalls);
 
-    void Start(float pNow);
-    void Step(float pNow);  // her karede
-    bool IsDone() const;
+    void start(float pNow);
+    void step(float pNow);  // her karede
+    bool isDone() const;
 
 private:
     void Check(bool pCondition, const std::string& pName, const std::string& pDetail = "");
-    void RunImmediate();
-    void RunWithData();
-    void RunAfterDraw();
-    void Finish();
+    void runImmediate();
+    void runWithData();
+    void runAfterDraw();
+    void finish();
 
     MapApiCalls& mCalls;
     int mPhase = 0;

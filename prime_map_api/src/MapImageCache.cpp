@@ -1,4 +1,3 @@
-// MapImageCache.cpp
 #include "MapImageCache.h"
 
 #include <algorithm>
@@ -15,7 +14,7 @@ const double kMarginFraction = 0.25;  // dokunun pencereden her yandaki payi (pe
 const float kRefreshSeconds = 1.0f;   // en gec bu kadar surede bir yeniden cizim (guvenlik)
 const int kMaxTextureSide = 8192;     // dokunun en buyuk kenari (piksel); asilirsa pay kuculur
 
-bool SameRect(const RectD& pFirst, const RectD& pSecond)
+bool sameRect(const RectD& pFirst, const RectD& pSecond)
 {
     const double tEpsilon = 1e-6;
     return std::abs(pFirst.mLeft - pSecond.mLeft) < tEpsilon && std::abs(pFirst.mRight - pSecond.mRight) < tEpsilon &&
@@ -23,7 +22,7 @@ bool SameRect(const RectD& pFirst, const RectD& pSecond)
 }
 
 // Mercator x farki: 180. boylam sarilmasiyla en kisa yon
-double WrapDelta(double pDelta)
+double wrapDelta(double pDelta)
 {
     if (pDelta > 0.5)
     {
@@ -38,37 +37,37 @@ double WrapDelta(double pDelta)
 
 }  // namespace
 
-void MapImageCache::SetMaxRate(double pRendersPerSecond)
+void XMapImageCache::setMaxRate(double pRendersPerSecond)
 {
     mMaxRate = std::clamp(pRendersPerSecond, 1.0, 120.0);
 }
 
-void MapImageCache::Invalidate()
+void XMapImageCache::invalidate()
 {
     mValid = false;
 }
 
-int MapImageCache::RendersPerSecond() const
+int XMapImageCache::rendersPerSecond() const
 {
     return mLastCount;
 }
 
-RectD MapImageCache::ScreenRectOfImage(const MapView& pView, const Affine2D& pBoxelToPixel) const
+RectD XMapImageCache::screenRectOfImage(const XMapView& pView, const Affine2D& pBoxelToPixel) const
 {
     // Resimdeki bir nokta p (boxel) -> ekran: M + (c0 - c) * W + (p - M0) * W / W0
-    const RectD& tViewport = pView.Viewport();
-    const double tWorld = pView.WorldSize();
+    const RectD& tViewport = pView.viewport();
+    const double tWorld = pView.worldSize();
     const double tScale = tWorld / mWorldSize;
     const double tMidX = (tViewport.mLeft + tViewport.mRight) * 0.5;
     const double tMidY = (tViewport.mBottom + tViewport.mTop) * 0.5;
     const double tOldMidX = (mArea.mLeft + mArea.mRight) * 0.5;
     const double tOldMidY = (mArea.mBottom + mArea.mTop) * 0.5;
-    double tShiftX = tMidX + WrapDelta(mCenterX - pView.CenterMercatorX()) * tWorld - tOldMidX * tScale;
-    double tShiftY = tMidY + (mCenterY - pView.CenterMercatorY()) * tWorld - tOldMidY * tScale;
+    double tShiftX = tMidX + wrapDelta(mCenterX - pView.centerMercatorX()) * tWorld - tOldMidX * tScale;
+    double tShiftY = tMidY + (mCenterY - pView.centerMercatorY()) * tWorld - tOldMidY * tScale;
     if (std::abs(tScale - 1.0) < 1e-9)
     {
         // Sadece kaydirma: tam piksele yuvarla (doku pikselleri ekran pikseline oturur, bulaniklik yok)
-        const double tPixelsPerBoxel = PixelsPerBoxel(pBoxelToPixel);
+        const double tPixelsPerBoxel = pixelsPerBoxel(pBoxelToPixel);
         tShiftX = std::round(tShiftX * tPixelsPerBoxel) / tPixelsPerBoxel;
         tShiftY = std::round(tShiftY * tPixelsPerBoxel) / tPixelsPerBoxel;
     }
@@ -80,10 +79,9 @@ RectD MapImageCache::ScreenRectOfImage(const MapView& pView, const Affine2D& pBo
     return tRect;
 }
 
-bool MapImageCache::Draw(Gfx::Canvas& pCanvas, const MapView& pView, const Affine2D& pBoxelToPixel, float pNow,
-                         bool pUrgent, bool pDirty, bool pBusy, const RenderFunction& pRender)
+bool XMapImageCache::draw(Gfx::Canvas& pCanvas, const XMapView& pView, const Affine2D& pBoxelToPixel, float pNow,
+                         bool pUrgent, bool pDirty, bool pBusy, const renderFunction& pRender)
 {
-    // Teshis sayaci
     if (pNow - mCountStart >= 1.0f)
     {
         mLastCount = mCount;
@@ -92,36 +90,36 @@ bool MapImageCache::Draw(Gfx::Canvas& pCanvas, const MapView& pView, const Affin
     }
 
     // Pencerenin piksel dikdortgeni ve payli doku boyu (tam piksel)
-    const RectD& tWindow = pView.Viewport();
-    const RectD tWindowPixels = TransformRectBBox(pBoxelToPixel, tWindow);
-    const int tMarginX = static_cast<int>(std::lround(tWindowPixels.Width() * kMarginFraction));
-    const int tMarginY = static_cast<int>(std::lround(tWindowPixels.Height() * kMarginFraction));
+    const RectD& tWindow = pView.viewport();
+    const RectD tWindowPixels = transformRectBBox(pBoxelToPixel, tWindow);
+    const int tMarginX = static_cast<int>(std::lround(tWindowPixels.width() * kMarginFraction));
+    const int tMarginY = static_cast<int>(std::lround(tWindowPixels.height() * kMarginFraction));
     RectD tPixels;
     tPixels.mLeft = std::floor(tWindowPixels.mLeft) - tMarginX;
     tPixels.mRight = std::ceil(tWindowPixels.mRight) + tMarginX;
     tPixels.mBottom = std::floor(tWindowPixels.mBottom) - tMarginY;
     tPixels.mTop = std::ceil(tWindowPixels.mTop) + tMarginY;
-    const int tWidth = static_cast<int>(tPixels.Width());
-    const int tHeight = static_cast<int>(tPixels.Height());
+    const int tWidth = static_cast<int>(tPixels.width());
+    const int tHeight = static_cast<int>(tPixels.height());
     Affine2D tPixelToBoxel;
     if (tWidth <= 0 || tHeight <= 0 || tWidth > kMaxTextureSide || tHeight > kMaxTextureSide ||
-        !Invert(pBoxelToPixel, &tPixelToBoxel))
+        !invert(pBoxelToPixel, &tPixelToBoxel))
     {
         return false;
     }
 
-    // Eski resim gecerli mi, pencereyi kapliyor mu?
+    // Eski resmin pencereyi kaplayip kaplamadigina bakilir
     const bool tSizeChanged =
-        tWidth != mTarget.Width() || tHeight != mTarget.Height() || !SameRect(tWindow, mWindowArea);
+        tWidth != mTarget.width() || tHeight != mTarget.height() || !sameRect(tWindow, mWindowArea);
     bool tCovers = false;
     bool tViewChanged = true;
     if (mValid && !tSizeChanged)
     {
-        const RectD tImage = ScreenRectOfImage(pView, pBoxelToPixel);
+        const RectD tImage = screenRectOfImage(pView, pBoxelToPixel);
         const double tEpsilon = 0.01;
         tCovers = tImage.mLeft <= tWindow.mLeft + tEpsilon && tImage.mRight >= tWindow.mRight - tEpsilon &&
                   tImage.mBottom <= tWindow.mBottom + tEpsilon && tImage.mTop >= tWindow.mTop - tEpsilon;
-        tViewChanged = !SameRect(tImage, mArea);
+        tViewChanged = !sameRect(tImage, mArea);
     }
     mPendingDirty = mPendingDirty || pDirty;
 
@@ -132,46 +130,46 @@ bool MapImageCache::Draw(Gfx::Canvas& pCanvas, const MapView& pView, const Affin
 
     if (tRender)
     {
-        if (mTarget.Prepare(tWidth, tHeight) == 0)
+        if (mTarget.prepare(tWidth, tHeight) == 0)
         {
             mValid = false;
             return false;
         }
-        const RectD tArea = TransformRectBBox(tPixelToBoxel, tPixels);
-        // Resmin gorunumu: ayni zoom, genis viewport; merkez, icerik pencereyle birebir ayni
-        // yerde cizilecek sekilde kaydirilir (doku ortasi pencere ortasindan biraz farkli olabilir)
-        MapView tImageView = pView;
-        tImageView.SetViewport(tArea);
-        const double tWorld = pView.WorldSize();
+        const RectD tArea = transformRectBBox(tPixelToBoxel, tPixels);
+        // Resmin gorunumu: ayni zoom, genis viewport; merkez, icerik pencereyle
+        // birebir ayni yerde cizilecek sekilde kaydirilir
+        XMapView tImageView = pView;
+        tImageView.setViewport(tArea);
+        const double tWorld = pView.worldSize();
         const double tShiftX = ((tArea.mLeft + tArea.mRight) - (tWindow.mLeft + tWindow.mRight)) * 0.5 / tWorld;
         const double tShiftY = ((tArea.mBottom + tArea.mTop) - (tWindow.mBottom + tWindow.mTop)) * 0.5 / tWorld;
-        tImageView.SetCenterMercator(pView.CenterMercatorX() + tShiftX, pView.CenterMercatorY() + tShiftY);
+        tImageView.setCenterMercator(pView.centerMercatorX() + tShiftX, pView.centerMercatorY() + tShiftY);
 
-        if (!pCanvas.BeginOffscreen(mTarget, tArea))
+        if (!pCanvas.beginOffscreen(mTarget, tArea))
         {
             mValid = false;
             return false;
         }
         pRender(tImageView, tArea);
-        pCanvas.EndOffscreen();
+        pCanvas.endOffscreen();
 
         mValid = true;
         mPendingDirty = false;
         mLastRender = pNow;
-        mCenterX = tImageView.CenterMercatorX();
-        mCenterY = tImageView.CenterMercatorY();
+        mCenterX = tImageView.centerMercatorX();
+        mCenterY = tImageView.centerMercatorY();
         mWorldSize = tWorld;
         mArea = tArea;
         mWindowArea = tWindow;
         ++mCount;
     }
-    Blit(pCanvas, pView, pBoxelToPixel);
+    blit(pCanvas, pView, pBoxelToPixel);
     return true;
 }
 
-void MapImageCache::Blit(Gfx::Canvas& pCanvas, const MapView& pView, const Affine2D& pBoxelToPixel) const
+void XMapImageCache::blit(Gfx::Canvas& pCanvas, const XMapView& pView, const Affine2D& pBoxelToPixel) const
 {
-    const RectD tRect = ScreenRectOfImage(pView, pBoxelToPixel);
+    const RectD tRect = screenRectOfImage(pView, pBoxelToPixel);
     const float tLeft = static_cast<float>(tRect.mLeft);
     const float tRight = static_cast<float>(tRect.mRight);
     const float tBottom = static_cast<float>(tRect.mBottom);
@@ -182,5 +180,5 @@ void MapImageCache::Blit(Gfx::Canvas& pCanvas, const MapView& pView, const Affin
                                                     {tRight, tBottom, 1.0f, 0.0f}, {tRight, tTop, 1.0f, 1.0f}};
     // Saydamliksiz kopya: dokunun alfasi yari saydam cizimlerde 1'in altina inebilir, ama renkler
     // zaten opak zemin uzerinde karistirilmis durumda
-    pCanvas.DrawTextured(mTarget.GetTexture(), tQuad, false);
+    pCanvas.drawTextured(mTarget.getTexture(), tQuad, false);
 }

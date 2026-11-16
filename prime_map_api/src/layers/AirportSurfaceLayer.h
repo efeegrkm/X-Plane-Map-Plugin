@@ -1,15 +1,7 @@
-// AirportSurfaceLayer.h
-// Havalimani yuzeyleri: apron / taksi yolu (110), havalimani siniri (130),
-// boya cizgileri (120 ve yuzey kenarlari). Veri AirportDetailStore'dan
-// gelir; ekranda olup ayrintisi henuz okunmamis havalimaninin yerinde
-// yanip sonen kesikli bir kutu gorunur.
-//
-// Performans: bir havalimaninin sekilleri ilk gorundugunde BIR KEZ GPU'ya
-// yuklenir (Gfx::StaticMesh, Mercator koordinatinda). Sonraki karelerde
-// sadece olcek + kaydirma degisir; nokta basina CPU isi yok.
-//
-// Zoom esikleri:
-//   10.5+ sinir cizgisi, 11+ yuzeyler, 13.5+ boya cizgileri
+// Havalimani yuzeyleri: apron / taksi yolu, havalimani siniri, boya cizgileri.
+// Sekiller ilk gorundugunde BIR KEZ GPU'ya yuklenir (Gfx::StaticMesh,
+// Mercator); sonraki karelerde sadece olcek + kaydirma degisir.
+// Ayrintisi henuz okunmamis havalimaninda kesikli kutu gorunur.
 #pragma once
 
 #include <cstdint>
@@ -28,11 +20,10 @@ class AirportSurfaceLayer : public Layer
 public:
     AirportSurfaceLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails);
 
-    void Draw(const DrawContext& pContext) override;
-    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
+    void draw(const drawContext& pContext) override;
+    std::string describe(const drawContext& pContext, double pX, double pY) const override;
 
 private:
-    // Bir havalimaninin GPU'daki sekilleri
     struct GpuAirport
     {
         const LoadedAirport* mSource = nullptr;  // hangi ayrintidan uretildi
@@ -45,8 +36,8 @@ private:
         uint64_t mLastFrame = 0;
     };
 
-    void Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded) const;
-    void EvictUnused();
+    void upload(GpuAirport& pGpu, const LoadedAirport& pLoaded) const;
+    void evictUnused();
 
     const AirportGeometryStore& mSummaries;
     AirportDetailStore& mDetails;

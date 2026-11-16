@@ -1,4 +1,3 @@
-// ContextVertexArray.cpp
 #include "gfx/ContextVertexArray.h"
 
 #include "gfx/GlApi.h"
@@ -8,7 +7,7 @@ namespace Gfx
 
 ContextVertexArray::~ContextVertexArray()
 {
-    Release();
+    release();
 }
 
 ContextVertexArray::ContextVertexArray(ContextVertexArray&& pOther) noexcept
@@ -24,7 +23,7 @@ ContextVertexArray& ContextVertexArray::operator=(ContextVertexArray&& pOther) n
 {
     if (this != &pOther)
     {
-        Release();
+        release();
         mContext = pOther.mContext;
         mGeneration = pOther.mGeneration;
         mArray = pOther.mArray;
@@ -34,37 +33,37 @@ ContextVertexArray& ContextVertexArray::operator=(ContextVertexArray&& pOther) n
     return *this;
 }
 
-unsigned int ContextVertexArray::Get(const std::function<void()>& pSetup)
+unsigned int ContextVertexArray::get(const std::function<void()>& pSetup)
 {
-    void* tContext = Gl::CurrentContext();
-    if (mArray != 0 && mContext == tContext && mGeneration == Gl::ContextGeneration())
+    void* tContext = Gl::currentContext();
+    if (mArray != 0 && mContext == tContext && mGeneration == Gl::contextGeneration())
     {
-        Gl::BindVertexArray(mArray);
+        Gl::bindVertexArray(mArray);
         return mArray;  // ayni baglam, arada baska baglama gecilmedi: gecerli
     }
     // Baglam degisti (pop-out / pop-in) ya da hic olusturulmadi
-    Release();
-    Gl::GenVertexArrays(1, &mArray);
-    Gl::BindVertexArray(mArray);
+    release();
+    Gl::genVertexArrays(1, &mArray);
+    Gl::bindVertexArray(mArray);
     pSetup();
     mContext = tContext;
-    mGeneration = Gl::ContextGeneration();
+    mGeneration = Gl::contextGeneration();
     return mArray;
 }
 
-void ContextVertexArray::Release()
+void ContextVertexArray::release()
 {
     // Sadece olusturuldugu baglam hala etkinse ve arada baglam degismediyse
     // silinir. Nesil degistiyse ayni kimlik yeni (baska) bir baglama ait
     // olabilir; o adi silmek X-Plane'in kendi VAO'sunu silebilir. O durumda
     // sadece unutulur (pop-out basina birkac kucuk ad bosta kalir, zararsiz).
-    if (mArray != 0 && Gl::IsLoaded() && mContext == Gl::CurrentContext() &&
-        mGeneration == Gl::ContextGeneration())
+    if (mArray != 0 && Gl::isLoaded() && mContext == Gl::currentContext() &&
+        mGeneration == Gl::contextGeneration())
     {
-        Gl::DeleteVertexArrays(1, &mArray);
+        Gl::deleteVertexArrays(1, &mArray);
     }
     mArray = 0;
     mContext = nullptr;
 }
 
-}  // namespace Gfx
+}

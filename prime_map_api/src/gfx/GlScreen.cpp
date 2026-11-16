@@ -1,11 +1,10 @@
-// GlScreen.cpp
 #include "gfx/GlScreen.h"
 
 #include <cmath>
 
 #include "gfx/GlInclude.h"
 
-std::optional<Affine2D> ReadBoxelToPixel()
+std::optional<Affine2D> readBoxelToPixel()
 {
     float tModelview[16];
     float tProjection[16];
@@ -15,14 +14,14 @@ std::optional<Affine2D> ReadBoxelToPixel()
     glGetIntegerv(GL_VIEWPORT, tViewport);
     const int tViewportInt[4] = {tViewport[0], tViewport[1], tViewport[2], tViewport[3]};
     Affine2D tResult;
-    if (!AffineFromGL(tModelview, tProjection, tViewportInt, &tResult))
+    if (!affineFromGL(tModelview, tProjection, tViewportInt, &tResult))
     {
         return std::nullopt;
     }
     return tResult;
 }
 
-double PixelsPerBoxel(const Affine2D& pBoxelToPixel)
+double pixelsPerBoxel(const Affine2D& pBoxelToPixel)
 {
     return std::sqrt(std::fabs(pBoxelToPixel.mA * pBoxelToPixel.mD - pBoxelToPixel.mB * pBoxelToPixel.mC));
 }
@@ -32,7 +31,7 @@ ScissorGuard::ScissorGuard(const Affine2D& pBoxelToPixel, const RectD& pBoxels)
 {
     glGetIntegerv(GL_SCISSOR_BOX, mOldBox.data());
 
-    RectD tPixels = TransformRectBBox(pBoxelToPixel, pBoxels);
+    RectD tPixels = transformRectBBox(pBoxelToPixel, pBoxels);
     if (mWasEnabled)
     {
         RectD tOld;
@@ -41,7 +40,7 @@ ScissorGuard::ScissorGuard(const Affine2D& pBoxelToPixel, const RectD& pBoxels)
         tOld.mRight = mOldBox[0] + mOldBox[2];
         tOld.mTop = mOldBox[1] + mOldBox[3];
         RectD tBoth;
-        if (IntersectRect(tPixels, tOld, &tBoth))
+        if (intersectRect(tPixels, tOld, &tBoth))
         {
             tPixels = tBoth;
         }
@@ -65,7 +64,7 @@ ScissorGuard::~ScissorGuard()
     }
 }
 
-const RectD& ScissorGuard::PixelRect() const
+const RectD& ScissorGuard::pixelRect() const
 {
     return mPixelRect;
 }

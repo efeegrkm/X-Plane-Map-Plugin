@@ -1,4 +1,3 @@
-// AircraftData.cpp
 #include "data/AircraftData.h"
 
 #include <cmath>
@@ -13,7 +12,7 @@ const double kMpsToKnots = 1.943844;
 
 }  // namespace
 
-void AircraftData::Init()
+void AircraftData::init()
 {
     mLatRef = XPLMFindDataRef("sim/flightmodel/position/latitude");           // double, derece
     mLonRef = XPLMFindDataRef("sim/flightmodel/position/longitude");          // double, derece
@@ -22,11 +21,11 @@ void AircraftData::Init()
     mElevationRef = XPLMFindDataRef("sim/flightmodel/position/elevation");    // double, metre MSL
     if (!mLatRef || !mLonRef || !mHeadingRef)
     {
-        Log("WARNING: aircraft position datarefs not found");
+        log("WARNING: aircraft position datarefs not found");
     }
 }
 
-void AircraftData::Refresh()
+void AircraftData::refresh()
 {
     if (mFromHost)
     {
@@ -48,18 +47,18 @@ void AircraftData::Refresh()
     mState.mValid = std::fabs(mState.mPosition.mLat) > 1e-6 || std::fabs(mState.mPosition.mLon) > 1e-6;
 }
 
-void AircraftData::SetFromHost(bool pFromHost)
+void AircraftData::setFromHost(bool pFromHost)
 {
     mFromHost = pFromHost;
-    Refresh();
+    refresh();
 }
 
-bool AircraftData::IsFromHost() const
+bool AircraftData::isFromHost() const
 {
     return mFromHost;
 }
 
-void AircraftData::SetHostState(const AircraftState& pState)
+void AircraftData::setHostState(const AircraftState& pState)
 {
     mHostState = pState;
     if (mFromHost)
@@ -68,7 +67,7 @@ void AircraftData::SetHostState(const AircraftState& pState)
     }
 }
 
-const AircraftState& AircraftData::State() const
+const AircraftState& AircraftData::state() const
 {
     return mState;
 }

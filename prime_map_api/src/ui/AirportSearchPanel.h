@@ -1,17 +1,6 @@
-// AirportSearchPanel.h
-// "Go to airport" dugmesinin altinda acilan arama paneli (0.18). Ucagin konumuna
-// dokunmaz: sadece haritayi (kamerayi) secilen havalimanina goturur.
-//
-//   +--------------------------------------+
-//   | GO TO AIRPORT                        |
-//   | [ksea_                             ] |   ICAO / kimlik / ad yazilir
-//   |  KSEA  Seattle-Tacoma Intl           |   en iyi 8 eslesme (AirportSearch)
-//   |  KSEE  Gillespie Fld                 |   tiklama veya Enter: git
-//   +--------------------------------------+   yukari/asagi: sec, Esc: kapat
-//
-// Panel acilinca klavye odagini MapWindow alir (XPLMTakeKeyboardFocus) ve tuslari
-// buraya verir (TypeCharacter / Backspace / MoveSelection). Panel sadece cizer,
-// metni ve sonuclari tutar; haritayi tasimak MapWindow'un isi.
+// "Go to airport" dugmesinin altinda acilan arama paneli. Ucagin konumuna
+// dokunmaz: sadece haritayi secilen havalimanina goturur. Panel sadece cizer,
+// klavye tuslari XMapWindow'dan gelir.
 #pragma once
 
 #include <string>
@@ -38,29 +27,29 @@ public:
 
     explicit AirportSearchPanel(const AirportGeometryStore& pAirports);
 
-    bool IsOpen() const;
-    void SetOpen(bool pOpen);  // kapaninca metin ve sonuclar silinir
-    void Toggle();
+    bool isOpen() const;
+    void setOpen(bool pOpen);  // kapaninca metin ve sonuclar silinir
+    void toggle();
 
     // pAnchor: "Go to airport" dugmesi; panel onun altina acilir
-    void Layout(const RectI& pAnchor);
+    void layout(const RectI& pAnchor);
     // pFocused: klavye odagi bizde (imlec yanip soner); pNow: saniye (yanip sonme icin)
-    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bool pFocused, float pNow) const;
-    Hit HitTest(int pX, int pY) const;
+    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bool pFocused, float pNow) const;
+    Hit hitTest(int pX, int pY) const;
 
-    // --- Klavye (MapWindow'dan) ---
-    void TypeCharacter(char pChar);  // yazdirilabilir ASCII; digerleri yok sayilir
-    void Backspace();
-    void MoveSelection(int pDelta);  // +1 asagi, -1 yukari
-    int SelectedAirport() const;     // secili sonucun indeksi; sonuc yoksa -1
+    // Klavye (XMapWindow'dan)
+    void typeCharacter(char pChar);  // yazdirilabilir ASCII; digerleri yok sayilir
+    void backspace();
+    void moveSelection(int pDelta);  // +1 asagi, -1 yukari
+    int selectedAirport() const;     // secili sonucun indeksi; sonuc yoksa -1
 
     // Havalimani ozetleri henuz hazir degilken yazilan metin, hazir olunca aranir
-    void Refresh();
+    void refresh();
 
 private:
-    void Search();
-    RectI InputRect() const;
-    RectI RowRect(int pIndex) const;
+    void search();
+    RectI inputRect() const;
+    RectI rowRect(int pIndex) const;
 
     const AirportGeometryStore& mAirports;
     bool mOpen = false;

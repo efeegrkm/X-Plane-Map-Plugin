@@ -1,15 +1,5 @@
-// ModePanel.h
-// "Map: ..." dugmesinin altinda acilan harita modu listesi (tek secim).
-//
-//   +------------+
-//   | MAP MODE   |
-//   | (o) Scenery|
-//   | ( ) VFR    |
-//   | ( ) IFR Low|
-//   | ( ) IFR High
-//   +------------+
-//
-// Panel sadece cizer ve tiklanan modu soyler; modu degistirmek MapWindow'un isi.
+// "XMap: ..." dugmesinin altinda acilan harita modu listesi (tek secim).
+// Panel sadece cizer ve tiklanan modu soyler; modu degistirmek XMapWindow'un isi.
 #pragma once
 
 #include <optional>
@@ -25,19 +15,19 @@ class Canvas;
 class ModePanel
 {
 public:
-    bool IsOpen() const;
-    void SetOpen(bool pOpen);
-    void Toggle();
+    bool isOpen() const;
+    void setOpen(bool pOpen);
+    void toggle();
 
-    // pAnchor: "Map: ..." dugmesi; panel onun altina acilir
-    void Layout(const RectI& pAnchor);
-    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCurrent) const;
+    // pAnchor: "XMap: ..." dugmesi; panel onun altina acilir
+    void layout(const RectI& pAnchor);
+    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, MapMode pCurrent) const;
 
     // (pX, pY) panelin ustundeyse true; bir moda denk geldiyse pOutMode dolar
-    bool HitTest(int pX, int pY, std::optional<MapMode>* pOutMode) const;
+    bool hitTest(int pX, int pY, std::optional<MapMode>* pOutMode) const;
 
 private:
-    RectI RowRect(int pIndex) const;
+    RectI rowRect(int pIndex) const;
 
     bool mOpen = false;
     RectI mRect;

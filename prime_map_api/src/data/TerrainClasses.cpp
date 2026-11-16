@@ -1,4 +1,3 @@
-// TerrainClasses.cpp
 #include "data/TerrainClasses.h"
 
 #include <algorithm>
@@ -69,7 +68,7 @@ const TerrainColor kDefaultBandColors[kVfrBandCount] = {
 };
 
 // "<feet> R G B" -> bant; bicim yanlissa false (varsayilan kalir)
-bool ParseBand(const std::string& pText, double* pFeet, TerrainColor* pColor)
+bool parseBand(const std::string& pText, double* pFeet, TerrainColor* pColor)
 {
     double tFeet = 0.0;
     int tR = 0;
@@ -87,7 +86,7 @@ bool ParseBand(const std::string& pText, double* pFeet, TerrainColor* pColor)
 
 }  // namespace
 
-TerrainVfrParams DefaultVfrParams()
+TerrainVfrParams defaultVfrParams()
 {
     TerrainVfrParams tParams;
     for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
@@ -98,13 +97,12 @@ TerrainVfrParams DefaultVfrParams()
     return tParams;
 }
 
-TerrainClass ClassifyTerrain(const std::string& pTerrainName)
+TerrainClass classifyTerrain(const std::string& pTerrainName)
 {
     if (pTerrainName == "terrain_Water")
     {
         return TerrainClass::Water;
     }
-    // Dosya adi (son '/' sonrasi), uzanti ve "sq_" on eki olmadan
     const size_t tSlash = pTerrainName.find_last_of("/\\");
     std::string tName = (tSlash == std::string::npos) ? pTerrainName : pTerrainName.substr(tSlash + 1);
     if (tName.rfind("sq_", 0) == 0)
@@ -127,7 +125,7 @@ TerrainClass ClassifyTerrain(const std::string& pTerrainName)
     return TerrainClass::Land;
 }
 
-const char* TerrainClassKey(TerrainClass pClass)
+const char* terrainClassKey(TerrainClass pClass)
 {
     return kClassKeys[static_cast<int>(pClass)];
 }
@@ -137,7 +135,7 @@ TerrainPalette::TerrainPalette()
       mBlendMeters(kDefaultBlendMeters),
       mBlendMaxPixels(kDefaultBlendMaxPixels),
       mCloseupClassMix(kDefaultCloseupClassMix),
-      mVfr(DefaultVfrParams())
+      mVfr(defaultVfrParams())
 {
     for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
     {
@@ -145,16 +143,16 @@ TerrainPalette::TerrainPalette()
     }
 }
 
-void TerrainPalette::Load(const Settings& pSettings)
+void TerrainPalette::load(const Settings& pSettings)
 {
     // Eski surum dosyadaki renkler eski varsayilanlardir: yenilerini ezmesin
-    mLoadedCurrentVersion = pSettings.GetInt("palette", "version", 1) >= kPaletteVersion;
-    mUseXPlaneColors = !mLoadedCurrentVersion || pSettings.GetString("palette", "source", "xplane") != "ini";
+    mLoadedCurrentVersion = pSettings.getInt("palette", "version", 1) >= kPaletteVersion;
+    mUseXPlaneColors = !mLoadedCurrentVersion || pSettings.getString("palette", "source", "xplane") != "ini";
     if (mLoadedCurrentVersion && !mUseXPlaneColors)
     {
         for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
         {
-            const std::string tValue = pSettings.GetString("colors", kClassKeys[tIndex], "");
+            const std::string tValue = pSettings.getString("colors", kClassKeys[tIndex], "");
             int tR = 0;
             int tG = 0;
             int tB = 0;
@@ -165,7 +163,7 @@ void TerrainPalette::Load(const Settings& pSettings)
             }
         }
     }
-    mShadingStrength = pSettings.GetDouble("shading", "strength", kDefaultShading);
+    mShadingStrength = pSettings.getDouble("shading", "strength", kDefaultShading);
     if (mShadingStrength < 0.0)
     {
         mShadingStrength = 0.0;
@@ -174,49 +172,49 @@ void TerrainPalette::Load(const Settings& pSettings)
     {
         mShadingStrength = 1.0;
     }
-    mBlendMeters = std::clamp(pSettings.GetDouble("blend", "meters", kDefaultBlendMeters), 0.0, kMaxBlendMeters);
+    mBlendMeters = std::clamp(pSettings.getDouble("blend", "meters", kDefaultBlendMeters), 0.0, kMaxBlendMeters);
     // max_pixels / warp / closeup renk surumune bagli degil: her zaman okunur
-    mBlendMaxPixels = std::clamp(pSettings.GetDouble("blend", "max_pixels", kDefaultBlendMaxPixels), 0.0,
+    mBlendMaxPixels = std::clamp(pSettings.getDouble("blend", "max_pixels", kDefaultBlendMaxPixels), 0.0,
                                  kMaxBlendMaxPixels);
-    mWarp.mAmplitudeMeters = std::clamp(pSettings.GetDouble("warp", "meters", kDefaultWarpMeters), 0.0,
+    mWarp.mAmplitudeMeters = std::clamp(pSettings.getDouble("warp", "meters", kDefaultWarpMeters), 0.0,
                                         kMaxWarpMeters);
-    mWarp.mWavelengthMeters = std::clamp(pSettings.GetDouble("warp", "wavelength", kDefaultWarpWavelength),
+    mWarp.mWavelengthMeters = std::clamp(pSettings.getDouble("warp", "wavelength", kDefaultWarpWavelength),
                                          kMinWarpWavelength, kMaxWarpWavelength);
     mWarp.mOctaves = 3;
-    mCloseupClassMix = std::clamp(pSettings.GetDouble("closeup", "class_mix", kDefaultCloseupClassMix), 0.0,
+    mCloseupClassMix = std::clamp(pSettings.getDouble("closeup", "class_mix", kDefaultCloseupClassMix), 0.0,
                                   kMaxCloseupClassMix);
 
-    // 0.16: [relief], [water], [vfr]. Yoksa varsayilan; araliklar sinirlanir.
+    // [relief], [water], [vfr]: yoksa varsayilan; araliklar sinirlanir
     const TerrainReliefParams tRelief;
-    mRelief.mMultiDirectional = pSettings.GetBool("relief", "multi_directional", tRelief.mMultiDirectional);
-    mRelief.mExaggeration = std::clamp(pSettings.GetDouble("relief", "exaggeration", tRelief.mExaggeration), 0.0, 20.0);
-    mRelief.mCoarseBoost = std::clamp(pSettings.GetDouble("relief", "coarse_boost", tRelief.mCoarseBoost), 0.0, 1.0);
-    mRelief.mSlopeTone = std::clamp(pSettings.GetDouble("relief", "slope_tone", tRelief.mSlopeTone), 0.0, 0.8);
-    mRelief.mFlatSlope = std::clamp(pSettings.GetDouble("relief", "flat_slope", tRelief.mFlatSlope), 0.0, 0.2);
+    mRelief.mMultiDirectional = pSettings.getBool("relief", "multi_directional", tRelief.mMultiDirectional);
+    mRelief.mExaggeration = std::clamp(pSettings.getDouble("relief", "exaggeration", tRelief.mExaggeration), 0.0, 20.0);
+    mRelief.mCoarseBoost = std::clamp(pSettings.getDouble("relief", "coarse_boost", tRelief.mCoarseBoost), 0.0, 1.0);
+    mRelief.mSlopeTone = std::clamp(pSettings.getDouble("relief", "slope_tone", tRelief.mSlopeTone), 0.0, 0.8);
+    mRelief.mFlatSlope = std::clamp(pSettings.getDouble("relief", "flat_slope", tRelief.mFlatSlope), 0.0, 0.2);
 
     const TerrainWaterParams tWater;
-    mWater.mCoastline = pSettings.GetBool("water", "coastline", tWater.mCoastline);
+    mWater.mCoastline = pSettings.getBool("water", "coastline", tWater.mCoastline);
     mWater.mCoastlineStrength =
-        std::clamp(pSettings.GetDouble("water", "coastline_strength", tWater.mCoastlineStrength), 0.0, 1.0);
-    mWater.mBandMeters = std::clamp(pSettings.GetDouble("water", "band_meters", tWater.mBandMeters), 0.0, 5000.0);
+        std::clamp(pSettings.getDouble("water", "coastline_strength", tWater.mCoastlineStrength), 0.0, 1.0);
+    mWater.mBandMeters = std::clamp(pSettings.getDouble("water", "band_meters", tWater.mBandMeters), 0.0, 5000.0);
     mWater.mBandMaxPixels =
-        std::clamp(pSettings.GetDouble("water", "band_max_pixels", tWater.mBandMaxPixels), 0.0, 64.0);
-    mWater.mBandStrength = std::clamp(pSettings.GetDouble("water", "band_strength", tWater.mBandStrength), 0.0, 1.0);
-    mWater.mDepthTone = std::clamp(pSettings.GetDouble("water", "depth_tone", tWater.mDepthTone), 0.0, 1.0);
+        std::clamp(pSettings.getDouble("water", "band_max_pixels", tWater.mBandMaxPixels), 0.0, 64.0);
+    mWater.mBandStrength = std::clamp(pSettings.getDouble("water", "band_strength", tWater.mBandStrength), 0.0, 1.0);
+    mWater.mDepthTone = std::clamp(pSettings.getDouble("water", "depth_tone", tWater.mDepthTone), 0.0, 1.0);
     mWater.mDepthFullMeters =
-        std::clamp(pSettings.GetDouble("water", "depth_full_meters", tWater.mDepthFullMeters), 20.0, 5000.0);
+        std::clamp(pSettings.getDouble("water", "depth_full_meters", tWater.mDepthFullMeters), 20.0, 5000.0);
 
-    mVfr = DefaultVfrParams();
-    mVfr.mBands = pSettings.GetBool("vfr", "bands", mVfr.mBands);
-    mVfr.mContourLines = pSettings.GetBool("vfr", "contour_lines", mVfr.mContourLines);
-    mVfr.mContourStrength = std::clamp(pSettings.GetDouble("vfr", "contour_strength", mVfr.mContourStrength), 0.0, 1.0);
+    mVfr = defaultVfrParams();
+    mVfr.mBands = pSettings.getBool("vfr", "bands", mVfr.mBands);
+    mVfr.mContourLines = pSettings.getBool("vfr", "contour_lines", mVfr.mContourLines);
+    mVfr.mContourStrength = std::clamp(pSettings.getDouble("vfr", "contour_strength", mVfr.mContourStrength), 0.0, 1.0);
     // band_1 .. band_8 = "<alt sinir feet> R G B"; sinirlar artan olmali, degilse hepsi varsayilana doner
     TerrainVfrParams tRead = mVfr;
     bool tIncreasing = true;
     for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
     {
-        const std::string tText = pSettings.GetString("vfr", std::format("band_{}", tBand + 1), "");
-        ParseBand(tText, &tRead.mBandFeet[tBand], &tRead.mBandColors[tBand]);
+        const std::string tText = pSettings.getString("vfr", std::format("band_{}", tBand + 1), "");
+        parseBand(tText, &tRead.mBandFeet[tBand], &tRead.mBandColors[tBand]);
         if (tBand > 0 && tRead.mBandFeet[tBand] <= tRead.mBandFeet[tBand - 1])
         {
             tIncreasing = false;
@@ -229,83 +227,83 @@ void TerrainPalette::Load(const Settings& pSettings)
     }
 }
 
-void TerrainPalette::Save(Settings& pSettings) const
+void TerrainPalette::save(Settings& pSettings) const
 {
-    pSettings.SetInt("palette", "version", kPaletteVersion);
-    pSettings.SetString("palette", "source", mUseXPlaneColors ? "xplane" : "ini");
+    pSettings.setInt("palette", "version", kPaletteVersion);
+    pSettings.setString("palette", "source", mUseXPlaneColors ? "xplane" : "ini");
     for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
     {
         const TerrainColor& tColor = mColors[tIndex];
-        pSettings.SetString("colors", kClassKeys[tIndex], std::format("{} {} {}", tColor.mR, tColor.mG, tColor.mB));
+        pSettings.setString("colors", kClassKeys[tIndex], std::format("{} {} {}", tColor.mR, tColor.mG, tColor.mB));
     }
-    pSettings.SetDouble("shading", "strength", mShadingStrength);
-    pSettings.SetDouble("blend", "meters", mBlendMeters);
-    pSettings.SetDouble("blend", "max_pixels", mBlendMaxPixels);
-    pSettings.SetDouble("warp", "meters", mWarp.mAmplitudeMeters);
-    pSettings.SetDouble("warp", "wavelength", mWarp.mWavelengthMeters);
-    pSettings.SetDouble("closeup", "class_mix", mCloseupClassMix);
+    pSettings.setDouble("shading", "strength", mShadingStrength);
+    pSettings.setDouble("blend", "meters", mBlendMeters);
+    pSettings.setDouble("blend", "max_pixels", mBlendMaxPixels);
+    pSettings.setDouble("warp", "meters", mWarp.mAmplitudeMeters);
+    pSettings.setDouble("warp", "wavelength", mWarp.mWavelengthMeters);
+    pSettings.setDouble("closeup", "class_mix", mCloseupClassMix);
 
-    pSettings.SetBool("relief", "multi_directional", mRelief.mMultiDirectional);
-    pSettings.SetDouble("relief", "exaggeration", mRelief.mExaggeration);
-    pSettings.SetDouble("relief", "coarse_boost", mRelief.mCoarseBoost);
-    pSettings.SetDouble("relief", "slope_tone", mRelief.mSlopeTone);
-    pSettings.SetDouble("relief", "flat_slope", mRelief.mFlatSlope);
+    pSettings.setBool("relief", "multi_directional", mRelief.mMultiDirectional);
+    pSettings.setDouble("relief", "exaggeration", mRelief.mExaggeration);
+    pSettings.setDouble("relief", "coarse_boost", mRelief.mCoarseBoost);
+    pSettings.setDouble("relief", "slope_tone", mRelief.mSlopeTone);
+    pSettings.setDouble("relief", "flat_slope", mRelief.mFlatSlope);
 
-    pSettings.SetBool("water", "coastline", mWater.mCoastline);
-    pSettings.SetDouble("water", "coastline_strength", mWater.mCoastlineStrength);
-    pSettings.SetDouble("water", "band_meters", mWater.mBandMeters);
-    pSettings.SetDouble("water", "band_max_pixels", mWater.mBandMaxPixels);
-    pSettings.SetDouble("water", "band_strength", mWater.mBandStrength);
-    pSettings.SetDouble("water", "depth_tone", mWater.mDepthTone);
-    pSettings.SetDouble("water", "depth_full_meters", mWater.mDepthFullMeters);
+    pSettings.setBool("water", "coastline", mWater.mCoastline);
+    pSettings.setDouble("water", "coastline_strength", mWater.mCoastlineStrength);
+    pSettings.setDouble("water", "band_meters", mWater.mBandMeters);
+    pSettings.setDouble("water", "band_max_pixels", mWater.mBandMaxPixels);
+    pSettings.setDouble("water", "band_strength", mWater.mBandStrength);
+    pSettings.setDouble("water", "depth_tone", mWater.mDepthTone);
+    pSettings.setDouble("water", "depth_full_meters", mWater.mDepthFullMeters);
 
-    pSettings.SetBool("vfr", "bands", mVfr.mBands);
-    pSettings.SetBool("vfr", "contour_lines", mVfr.mContourLines);
-    pSettings.SetDouble("vfr", "contour_strength", mVfr.mContourStrength);
+    pSettings.setBool("vfr", "bands", mVfr.mBands);
+    pSettings.setBool("vfr", "contour_lines", mVfr.mContourLines);
+    pSettings.setDouble("vfr", "contour_strength", mVfr.mContourStrength);
     for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
     {
         const TerrainColor& tColor = mVfr.mBandColors[tBand];
-        pSettings.SetString("vfr", std::format("band_{}", tBand + 1),
+        pSettings.setString("vfr", std::format("band_{}", tBand + 1),
                             std::format("{:.0f} {} {} {}", mVfr.mBandFeet[tBand], tColor.mR, tColor.mG, tColor.mB));
     }
 }
 
-const TerrainColor& TerrainPalette::ColorOf(TerrainClass pClass) const
+const TerrainColor& TerrainPalette::colorOf(TerrainClass pClass) const
 {
     return mColors[static_cast<int>(pClass)];
 }
 
-double TerrainPalette::ShadingStrength() const
+double TerrainPalette::shadingStrength() const
 {
     return mShadingStrength;
 }
 
-double TerrainPalette::BlendMeters() const
+double TerrainPalette::blendMeters() const
 {
     return mBlendMeters;
 }
 
-void TerrainPalette::SetBlendMeters(double pMeters)
+void TerrainPalette::setBlendMeters(double pMeters)
 {
     mBlendMeters = std::clamp(pMeters, 0.0, kMaxBlendMeters);
 }
 
-double TerrainPalette::BlendMaxPixels() const
+double TerrainPalette::blendMaxPixels() const
 {
     return mBlendMaxPixels;
 }
 
-void TerrainPalette::SetBlendMaxPixels(double pPixels)
+void TerrainPalette::setBlendMaxPixels(double pPixels)
 {
     mBlendMaxPixels = std::clamp(pPixels, 0.0, kMaxBlendMaxPixels);
 }
 
-const TerrainWarpParams& TerrainPalette::Warp() const
+const TerrainWarpParams& TerrainPalette::warp() const
 {
     return mWarp;
 }
 
-void TerrainPalette::SetWarp(const TerrainWarpParams& pParams)
+void TerrainPalette::setWarp(const TerrainWarpParams& pParams)
 {
     mWarp = pParams;
     mWarp.mAmplitudeMeters = std::clamp(pParams.mAmplitudeMeters, 0.0, kMaxWarpMeters);
@@ -313,17 +311,17 @@ void TerrainPalette::SetWarp(const TerrainWarpParams& pParams)
     mWarp.mOctaves = pParams.mOctaves;
 }
 
-double TerrainPalette::CloseupClassMix() const
+double TerrainPalette::closeupClassMix() const
 {
     return mCloseupClassMix;
 }
 
-void TerrainPalette::SetCloseupClassMix(double pMix)
+void TerrainPalette::setCloseupClassMix(double pMix)
 {
     mCloseupClassMix = std::clamp(pMix, 0.0, kMaxCloseupClassMix);
 }
 
-TerrainColor TerrainPalette::ReferenceLandColor() const
+TerrainColor TerrainPalette::referenceLandColor() const
 {
     // Bitki ortusu siniflarinin aritmetik ortalamasi (karisimin referans kara tonu)
     const TerrainClass tClasses[] = {TerrainClass::ForestConifer, TerrainClass::ForestBroadleaf, TerrainClass::Shrub,
@@ -334,7 +332,7 @@ TerrainColor TerrainPalette::ReferenceLandColor() const
     const int tCount = static_cast<int>(sizeof(tClasses) / sizeof(tClasses[0]));
     for (int tIndex = 0; tIndex < tCount; ++tIndex)
     {
-        const TerrainColor& tColor = ColorOf(tClasses[tIndex]);
+        const TerrainColor& tColor = colorOf(tClasses[tIndex]);
         tR += tColor.mR;
         tG += tColor.mG;
         tB += tColor.mB;
@@ -342,7 +340,7 @@ TerrainColor TerrainPalette::ReferenceLandColor() const
     return {static_cast<uint8_t>(tR / tCount), static_cast<uint8_t>(tG / tCount), static_cast<uint8_t>(tB / tCount)};
 }
 
-double TerrainPalette::CloseupMixAt(double pMetersPerPixel) const
+double TerrainPalette::closeupMixAt(double pMetersPerPixel) const
 {
     // Piksel boyu 50 m ve ustu -> 0, 5 m ve alti -> tam oran; arasi logaritmik
     if (mCloseupClassMix <= 0.0 || pMetersPerPixel <= 0.0)
@@ -353,7 +351,7 @@ double TerrainPalette::CloseupMixAt(double pMetersPerPixel) const
     return mCloseupClassMix * std::clamp(tT, 0.0, 1.0);
 }
 
-std::array<TerrainColor, kTerrainClassCount> TerrainPalette::MixedColors(double pMix) const
+std::array<TerrainColor, kTerrainClassCount> TerrainPalette::mixedColors(double pMix) const
 {
     std::array<TerrainColor, kTerrainClassCount> tColors;
     for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
@@ -364,7 +362,7 @@ std::array<TerrainColor, kTerrainClassCount> TerrainPalette::MixedColors(double 
     {
         return tColors;
     }
-    const TerrainColor tReference = ReferenceLandColor();
+    const TerrainColor tReference = referenceLandColor();
     for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
     {
         const TerrainClass tClass = static_cast<TerrainClass>(tIndex);
@@ -381,17 +379,17 @@ std::array<TerrainColor, kTerrainClassCount> TerrainPalette::MixedColors(double 
     return tColors;
 }
 
-bool TerrainPalette::LoadedCurrentVersion() const
+bool TerrainPalette::loadedCurrentVersion() const
 {
     return mLoadedCurrentVersion;
 }
 
-bool TerrainPalette::UsesXPlaneColors() const
+bool TerrainPalette::usesXPlaneColors() const
 {
     return mUseXPlaneColors;
 }
 
-void TerrainPalette::ApplyDerivedColors(const std::array<TerrainColor, kTerrainClassCount>& pColors,
+void TerrainPalette::applyDerivedColors(const std::array<TerrainColor, kTerrainClassCount>& pColors,
                                         const std::array<int, kTerrainClassCount>& pCounts)
 {
     for (int tIndex = 1; tIndex < kTerrainClassCount; ++tIndex)
@@ -403,37 +401,37 @@ void TerrainPalette::ApplyDerivedColors(const std::array<TerrainColor, kTerrainC
     }
 }
 
-const TerrainReliefParams& TerrainPalette::Relief() const
+const TerrainReliefParams& TerrainPalette::relief() const
 {
     return mRelief;
 }
 
-void TerrainPalette::SetRelief(const TerrainReliefParams& pParams)
+void TerrainPalette::setRelief(const TerrainReliefParams& pParams)
 {
     mRelief = pParams;
 }
 
-const TerrainWaterParams& TerrainPalette::Water() const
+const TerrainWaterParams& TerrainPalette::water() const
 {
     return mWater;
 }
 
-void TerrainPalette::SetWater(const TerrainWaterParams& pParams)
+void TerrainPalette::setWater(const TerrainWaterParams& pParams)
 {
     mWater = pParams;
 }
 
-const TerrainVfrParams& TerrainPalette::Vfr() const
+const TerrainVfrParams& TerrainPalette::vfr() const
 {
     return mVfr;
 }
 
-void TerrainPalette::SetVfr(const TerrainVfrParams& pParams)
+void TerrainPalette::setVfr(const TerrainVfrParams& pParams)
 {
     mVfr = pParams;
 }
 
-TerrainColor ElevationColor(double pMeters)
+TerrainColor elevationColor(double pMeters)
 {
     // (feet, R, G, B): sectional'daki rakim tonlarina benzer; aralar dogrusal karisir
     struct Stop

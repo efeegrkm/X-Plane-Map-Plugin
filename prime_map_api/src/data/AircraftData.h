@@ -1,4 +1,3 @@
-// AircraftData.h
 // Kullanicinin ucaginin konumu ve yonu, X-Plane dataref'lerinden.
 // Ucak katmani, ucus izi ve "ucagi takip et" ayni veriyi buradan okur.
 #pragma once
@@ -19,15 +18,15 @@ struct AircraftState
 class AircraftData
 {
 public:
-    void Init();     // dataref'leri bul (XPluginStart icinde)
-    void Refresh();  // dataref'leri oku (ana thread'den, her karede)
+    void init();     // dataref'leri bul (XPluginStart icinde)
+    void refresh();  // dataref'leri oku (ana thread'den, her karede)
 
-    const AircraftState& State() const;
+    const AircraftState& state() const;
 
     // API: ucak durumunu host verir (true) ya da dataref'ler (false, varsayilan)
-    void SetFromHost(bool pFromHost);
-    bool IsFromHost() const;
-    void SetHostState(const AircraftState& pState);
+    void setFromHost(bool pFromHost);
+    bool isFromHost() const;
+    void setHostState(const AircraftState& pState);
 
 private:
     XPLMDataRef mLatRef = nullptr;

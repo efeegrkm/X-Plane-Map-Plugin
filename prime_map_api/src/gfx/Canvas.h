@@ -1,23 +1,5 @@
-// Canvas.h
-// Haritanin ve arayuzun TEK cizim kapisi: Mesh'leri (renkli ucgenler) ve
-// dokulu seritleri modern OpenGL (vertex buffer + shader) ile cizer.
-// Projede OpenGL cagrisi sadece gfx/ klasorundedir; katmanlar ve arayuz
-// sadece Canvas'a "su Mesh'i ciz" der.
-//
-// Kullanim (her pencere ciziminde):
-//   if (!mCanvas.Init()) { ...hata yazisi... }   // ilk karede bir kez yukler
-//   mCanvas.BeginFrame();                        // X-Plane'in matrislerini okur
-//   mCanvas.Draw(tMesh);
-//
-// X-Plane ile birlikte yasamak icin her Draw:
-//   - X-Plane'in grafik durumunu XPLMSetGraphicsState ile bildirir,
-//   - kendi shader / vertex buffer'ini baglar, cizer,
-//   - X-Plane'in bagli tuttugu program / vertex array / buffer'i ve
-//     yuz ayiklama (cull face) durumunu oldugu gibi geri koyar.
-// Yazilar (0.18): kendi atlasimizdan (ui/AtlasTextRenderer) QueueText ile
-// biriktirilir; bir sonraki sekil ciziminden once ya da FlushText'te TEK
-// cizim cagrisiyla basilir (sekillerle ust uste binme sirasi korunur).
-// Yedek yol: X-Plane'in XPLMDrawString'i (Ui::Text), Draw'lar arasinda guvenle cagrilabilir.
+// Haritanin ve arayuzun TEK cizim kapisi: Mesh ve dokulu seritleri modern
+// openGL ile cizer; projede openGL cagrisi sadece gfx/ klasorundedir.
 #pragma once
 
 #include <string>
@@ -31,7 +13,7 @@ namespace Gfx
 
 class Texture;
 class StaticMesh;
-class RenderTarget;
+class renderTarget;
 
 // Yazi koseleri: konum (boxel), atlas koordinati, renk (alfa = atlasin kaplamasiyla carpilir)
 struct TextVertex
@@ -52,43 +34,30 @@ public:
     Canvas(const Canvas&) = delete;
     Canvas& operator=(const Canvas&) = delete;
 
-    // OpenGL fonksiyonlarini yukler, shader'lari derler. Ilk cagride is
-    // yapar, sonrakiler sadece sonucu doner. OpenGL baglami etkinken
-    // (draw callback icinde) cagrilmali. Basarisizsa neden: ErrorText().
-    bool Init();
-    bool IsReady() const;
-    const std::string& ErrorText() const;
-    const std::string& ContextText() const;  // OpenGL surumu / kart (log icin)
+    // openGL baglami etkinken (draw callback icinde) cagrilmali; ilk cagride yukler.
+    bool init();
+    bool isReady() const;
+    const std::string& errorText() const;
+    const std::string& contextText() const;
 
-    // Her cizimin basinda: boxel -> ekran matrisini o anki OpenGL'den okur
-    void BeginFrame();
+    void beginFrame();
 
-    // Bu karenin baglaminda shader'larimiz gorunuyor mu? X-Plane pop-out
-    // baglamini paylasimsiz acarsa false olur; o zaman hic cizim yapilmaz
-    // (cokmek yerine bos pencere + log).
-    bool IsContextUsable() const;
+    // Pop-out baglamini paylasimsiz acarsa false: cokmek yerine bos pencere + log.
+    bool isContextUsable() const;
 
-    void Draw(const Mesh& pMesh);
-    void Draw(const OutlinedLines& pLines);  // once kontur, sonra renkli cizgi
-    // pVertices: 3'erli ucgenler (doku koordinatli)
-    // pBlend false: saydamliksiz kopya (MapImageCache resmini basarken)
-    void DrawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices, bool pBlend = true);
-    // GPU'da duran sekli ciz: ekrandaki konum = pOffset + kose * pScale (boxel)
-    // pLineWidth: Primitive::Lines icin gercek piksel kalinligi (1 = ince; uclarda kose yok)
-    void DrawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth = 1.0f);
+    void draw(const Mesh& pMesh);
+    void draw(const OutlinedLines& pLines);  // once kontur, sonra renkli cizgi
+    void drawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices, bool pBlend = true);
+    // konum = pOffset + kose * pScale (boxel); pLineWidth piksel kalinligi
+    void drawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth = 1.0f);
 
-    // Yazi harflerini biriktirir (3'erli ucgenler). Baska atlasla cagrilirsa once bekleyenler basilir.
-    void QueueText(const Texture& pAtlas, const std::vector<TextVertex>& pVertices);
-    // Bekleyen yazilari tek cizim cagrisiyla basar. Her pencere ciziminin SONUNDA cagrilmali
-    // (sekil cizimleri bunu kendisi once cagirir).
-    void FlushText();
+    void queueText(const Texture& pAtlas, const std::vector<TextVertex>& pVertices);
+    // Her pencere ciziminin SONUNDA cagrilmali (sekil cizimleri once kendisi cagirir)
+    void flushText();
 
-    // --- Ekran disi cizim (0.18, MapImageCache) ---
-    // Sonraki cizimler pTarget'in dokusuna gider; pBoxels dikdortgeni dokunun tamamini kaplar.
-    // X-Plane'in framebuffer'i, viewport'u, scissor'u ve temizleme rengi kaydedilir; doku
-    // saydam siyahla temizlenir. FBO kurulamazsa false (hicbir sey degismez).
-    bool BeginOffscreen(RenderTarget& pTarget, const RectD& pBoxels);
-    void EndOffscreen();  // kaydedilenleri geri koyar
+    // X-Plane'in framebuffer/viewport/scissor durumu kaydedilir; FBO kurulamazsa false
+    bool beginOffscreen(renderTarget& pTarget, const RectD& pBoxels);
+    void endOffscreen();
 
 private:
     struct Program
@@ -98,13 +67,13 @@ private:
         int mTransformLocation = -1;  // vec4(olcek x, olcek y, kaydirma x, kaydirma y)
     };
 
-    bool BuildProgram(const char* pVertexSource, const char* pFragmentSource, Program& pOut);
-    void Release();
+    bool buildProgram(const char* pVertexSource, const char* pFragmentSource, Program& pOut);
+    void release();
 
-    bool CanDraw() const;
-    void BindColorArray();    // renkli koselerin VAO'su (bu baglam icin)
-    void BindTextureArray();  // dokulu koselerin VAO'su (bu baglam icin)
-    void BindTextArray();     // yazi koselerinin VAO'su (bu baglam icin)
+    bool canDraw() const;
+    void bindColorArray();
+    void bindTextureArray();
+    void bindTextArray();
 
     bool mTried = false;
     bool mReady = false;
@@ -115,17 +84,16 @@ private:
     Program mTextureProgram;
     Program mTextProgram;
     bool mContextUsable = false;
-    ContextVertexArray mColorArray;  // vertex array (koselerin duzeni), baglam basina
-    unsigned int mColorBuffer = 0;   // vertex buffer (koseler), baglamlar arasi paylasilir
+    ContextVertexArray mColorArray;  // baglam basina
+    unsigned int mColorBuffer = 0;   // baglamlar arasi paylasilir
     ContextVertexArray mTextureArray;
     unsigned int mTextureBuffer = 0;
     ContextVertexArray mTextArray;
     unsigned int mTextBuffer = 0;
-    std::vector<TextVertex> mPendingText;  // henuz basilmamis harfler
-    int mPendingAtlas = 0;                 // onlarin atlas dokusu (XPLMBindTexture2d numarasi)
+    std::vector<TextVertex> mPendingText;
+    int mPendingAtlas = 0;
     float mMvp[16] = {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
-    // BeginOffscreen'in kaydettikleri
     bool mOffscreen = false;
     float mSavedMvp[16] = {};
     int mSavedDrawFramebuffer = 0;
@@ -135,4 +103,4 @@ private:
     float mSavedClearColor[4] = {};
 };
 
-}  // namespace Gfx
+}

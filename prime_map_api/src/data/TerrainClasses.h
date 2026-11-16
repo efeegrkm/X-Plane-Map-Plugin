@@ -1,18 +1,6 @@
-// TerrainClasses.h
 // DSF arazi turu adini (TERT, ornek "lib/g10/terrain10/coni_tmp_wet_hill.ter")
 // haritada cizilecek bir sinifa cevirir ve sinif renklerini tutar.
 // X-Plane'e bagimli DEGIL.
-//
-// Kurallar dosya adinin on ekine bakar (XP11 terrain10 kutuphanesindeki adlar;
-// "sq_" on eki atilir). Gercek XP11 verisinde gorulen on ekler:
-//   terrain_Water -> Water        urban -> Urban          coni -> ForestConifer
-//   broad, rainforest -> ForestBroadleaf                   shrb -> Shrub
-//   grass, pastr, sp, spr -> Grass                         crp, crpirg, orch, *crptwn* -> Crop
-//   wetl, rivbd -> Wetland        rock, bare, mine, morn -> Rock
-//   snow, ice -> SnowIce          tun -> Tundra           sand, dry, semidry -> Sand
-//   apt -> Airport                digerleri -> Land
-//
-// Renkler kullanicinin degistirebilecegi bir dosyadadir (terrain_colors.ini).
 #pragma once
 
 #include <array>
@@ -44,10 +32,10 @@ enum class TerrainClass : uint8_t
 
 const int kTerrainClassCount = 15;
 
-TerrainClass ClassifyTerrain(const std::string& pTerrainName);
+TerrainClass classifyTerrain(const std::string& pTerrainName);
 
 // Ayar dosyasindaki anahtar adi ("water", "forest_conifer" ...)
-const char* TerrainClassKey(TerrainClass pClass);
+const char* terrainClassKey(TerrainClass pClass);
 
 struct TerrainColor
 {
@@ -75,9 +63,7 @@ struct TerrainImageStyle
 
 // VFR rakim rampasi (sectional benzeri: alcak yesil, orta sari/ten, yuksek kahverengi).
 // [vfr] bands = 0 iken kullanilir (eski surekli rampa).
-TerrainColor ElevationColor(double pMeters);
-
-// --- 0.16 (Asama 1) ayarlari: terrain_colors.ini; her biri derlemeden acilip kapatilabilir ---
+TerrainColor elevationColor(double pMeters);
 
 // [relief]: kabartma golgesi. Her doku pikselinde, piksel boyuna uygun DEM piramit
 // seviyesinden bikubik okunan egimle hesaplanir (TerrainElevation, TerrainRelief).
@@ -117,70 +103,71 @@ struct TerrainVfrParams
 };
 
 // Sectional siniri: 0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft
-TerrainVfrParams DefaultVfrParams();
+TerrainVfrParams defaultVfrParams();
 
 class TerrainPalette
 {
 public:
-    // varsayilan renkler degisince artar (dosyadaki eski renkler atilir). 3: renkler X-Plane dokularindan (Asama 3)
+    // varsayilan renkler degisince artar (dosyadaki eski renkler atilir).
+    // 3: renkler X-Plane dokularindan
     static const int kPaletteVersion = 3;
 
-    TerrainPalette();  // varsayilan renkler
+    TerrainPalette();
 
     // [colors] bolumu: <sinif> = R G B (0..255); [shading] strength = 0..1;
     // [palette] version: varsayilan renklerin surumu; [blend] meters/max_pixels:
     // Scenery'de arazi siniflari arasi yumusak gecis (metre; yakin zoomda piksel tavani);
     // [warp] meters/wavelength: kara siniflarinin dogal (kivrilmis) sinirlari;
     // [closeup] class_mix: yakin zoomda sinif renklerinin ortak kara tona karismasi
-    void Load(const Settings& pSettings);
-    void Save(Settings& pSettings) const;
+    void load(const Settings& pSettings);
+    void save(Settings& pSettings) const;
 
-    const TerrainColor& ColorOf(TerrainClass pClass) const;
-    double ShadingStrength() const;  // kabartma golgesinin gucu (0 = yok)
+    const TerrainColor& colorOf(TerrainClass pClass) const;
+    double shadingStrength() const;  // kabartma golgesinin gucu (0 = yok)
 
     // [blend] meters: Scenery'de arazi siniflari arasi yumusak gecis mesafesi (0 = kapali)
-    double BlendMeters() const;
-    void SetBlendMeters(double pMeters);  // testler ve ileride ayar penceresi icin
+    double blendMeters() const;
+    void setBlendMeters(double pMeters);  // testler ve ileride ayar penceresi icin
 
     // [blend] max_pixels: yumusatma eriminin doku pikseli tavani (0 = tavan yok)
-    double BlendMaxPixels() const;
-    void SetBlendMaxPixels(double pPixels);
+    double blendMaxPixels() const;
+    void setBlendMaxPixels(double pPixels);
 
     // [warp] meters/wavelength: kara sinirlarini buken gurultu (meters = en buyuk kayma, 0 = duz kenarlar)
-    const TerrainWarpParams& Warp() const;
-    void SetWarp(const TerrainWarpParams& pParams);
+    const TerrainWarpParams& warp() const;
+    void setWarp(const TerrainWarpParams& pParams);
 
     // [closeup] class_mix: yakin zoomda kara sinif renklerinin ortak kara tona karisma orani (0 = kapali)
-    double CloseupClassMix() const;
-    void SetCloseupClassMix(double pMix);
+    double closeupClassMix() const;
+    void setCloseupClassMix(double pMix);
 
     // Bitki ortusu siniflarinin ortalamasi ([closeup] karisiminin referansi)
-    TerrainColor ReferenceLandColor() const;
+    TerrainColor referenceLandColor() const;
 
     // Yakin zoom sinif karisimi: piksel boyu 50 m ve ustu -> 0, 5 m ve alti -> tam oran; arasi logaritmik
-    double CloseupMixAt(double pMetersPerPixel) const;
+    double closeupMixAt(double pMetersPerPixel) const;
 
     // Bu doku icin sinif renkleri: pMix > 0 iken kara siniflari (su, kar, None haric) referans
     // kara tona dogru pMix oraninda karisir
-    std::array<TerrainColor, kTerrainClassCount> MixedColors(double pMix) const;
+    std::array<TerrainColor, kTerrainClassCount> mixedColors(double pMix) const;
 
     // Load sonrasi: dosyadaki [palette] version guncel miydi (false: renkler varsayilandan, dosya yeniden yazilmali)
-    bool LoadedCurrentVersion() const;
+    bool loadedCurrentVersion() const;
 
     // [palette] source = xplane (varsayilan): sinif renkleri X-Plane'in arazi dokularindan
     // (TerrainPaletteSource); ini: [colors] bolumundeki renkler. Su rengi her zaman [colors] / varsayilan.
-    bool UsesXPlaneColors() const;
+    bool usesXPlaneColors() const;
     // X-Plane dokularindan hesaplanan renkler (pCounts[i] > 0 olan siniflar; su haric) uygulanir
-    void ApplyDerivedColors(const std::array<TerrainColor, kTerrainClassCount>& pColors,
+    void applyDerivedColors(const std::array<TerrainColor, kTerrainClassCount>& pColors,
                             const std::array<int, kTerrainClassCount>& pCounts);
 
-    // [relief], [water], [vfr] (0.16); renk surumune bagli degil, her zaman okunur
-    const TerrainReliefParams& Relief() const;
-    void SetRelief(const TerrainReliefParams& pParams);
-    const TerrainWaterParams& Water() const;
-    void SetWater(const TerrainWaterParams& pParams);
-    const TerrainVfrParams& Vfr() const;
-    void SetVfr(const TerrainVfrParams& pParams);
+    // [relief], [water], [vfr]: renk surumune bagli degil, her zaman okunur
+    const TerrainReliefParams& relief() const;
+    void setRelief(const TerrainReliefParams& pParams);
+    const TerrainWaterParams& water() const;
+    void setWater(const TerrainWaterParams& pParams);
+    const TerrainVfrParams& vfr() const;
+    void setVfr(const TerrainVfrParams& pParams);
 
 private:
     TerrainColor mColors[kTerrainClassCount];

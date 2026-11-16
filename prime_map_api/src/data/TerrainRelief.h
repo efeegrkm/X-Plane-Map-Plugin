@@ -1,6 +1,5 @@
-// TerrainRelief.h
-// Zemin goruntusunun piksel formulleri (0.16, Asama 1). Saf fonksiyonlar:
-// girdi -> sayi; X-Plane'e ve OpenGL'e bagimli DEGIL, testli.
+// Zemin goruntusunun piksel formulleri. Saf fonksiyonlar:
+// girdi -> sayi; X-Plane'e ve openGL'e bagimli DEGIL, testli.
 //
 //   Kabartma  : egim -> parlaklik carpani. Cok yonlu isik (225/270/315/360
 //               derece, agirlik 315'te); tek yonlu isikta bazi yamaclar
@@ -24,30 +23,30 @@
 
 // Bir seviyenin egim abartmasi: mExaggeration * (pCellMeters / pFinestCellMeters) ^ mCoarseBoost.
 // Kaba seviyede egimler ortalamayla yumusar; hafif artis uzak gorunumu duz birakmaz.
-double ReliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters, double pFinestCellMeters);
+double reliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters, double pFinestCellMeters);
 
 // Kabartma parlaklik carpani (0.45 .. 1.55). pSlopeEast / pSlopeNorth: yuzeyin dogu ve
 // kuzey yonundeki egimi (metre / metre, abartmasiz). pStrength: [shading] strength.
 // mFlatSlope'un altindaki egimler bastirilir (DEM'in 1 m basamaklari dalga gibi gorunmesin).
-double ReliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, double pExaggeration,
+double reliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, double pExaggeration,
                     const TerrainReliefParams& pParams);
 
 // VFR bandi rengi (0..255, pRgb[3]). pFeetPerPixel: rakimin bir pikselde ne kadar degistigi
 // (feet); 0 ise kenar yumusatma ve kontur yok.
-void VfrBandColor(double pMeters, double pFeetPerPixel, const TerrainVfrParams& pParams, double pRgb[3]);
+void vfrBandColor(double pMeters, double pFeetPerPixel, const TerrainVfrParams& pParams, double pRgb[3]);
 
 // Derinlik koyulasma orani 0..1. pSeaLevel: sea_level (metre). -10 m ve ustu (veri yok,
 // gol, kiyi) 0; derinlestikce mDepthFullMeters'a kadar artar.
-double DepthDarkening(double pSeaLevel, const TerrainWaterParams& pParams);
+double depthDarkening(double pSeaLevel, const TerrainWaterParams& pParams);
 
 // Kiyi seridi aciklik orani 0..1: kiyi cizgisinin (1 piksel) arkasinda en guclu, pBandPixels sonra 0
 // (karesel azalir)
-double CoastBandLightening(double pDistancePixels, double pBandPixels, const TerrainWaterParams& pParams);
+double coastBandLightening(double pDistancePixels, double pBandPixels, const TerrainWaterParams& pParams);
 
 // Her pikselin en yakin kara pikseline uzakligi (piksel; 3-4 chamfer, ~%8 hata).
 // pLand: pSize x pSize, 1 = kara. pMaxDistance'tan uzak olanlar pMaxDistance.
-void DistanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDistance, std::vector<float>* pOut);
+void distanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDistance, std::vector<float>* pOut);
 
 // Kiyi cizgisi gucu 0..1. pLandFraction: pSize x pSize kara orani (0..1; < 0 = veri yok).
 // Suyun tarafinda tek piksel: 4 komsusundan biri kara olan su pikseli; karisik piksel orana gore.
-void CoastlineStrength(const std::vector<float>& pLandFraction, int pSize, std::vector<float>* pOut);
+void coastlineStrength(const std::vector<float>& pLandFraction, int pSize, std::vector<float>* pOut);

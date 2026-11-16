@@ -1,10 +1,10 @@
 // MapUiTestMain.cpp
-// Prime Map API test eklentisi - ADIM 2: API baglandi.
+// Prime XMap API test eklentisi - ADIM 2: API baglandi.
 //
-// Bir X-Plane penceresi acar; ortada Prime Map haritasi, etrafinda 4 kaydirma dugmesi
+// Bir X-Plane penceresi acar; ortada Prime XMap haritasi, etrafinda 4 kaydirma dugmesi
 // (yukari / asagi / sol / sag) ve altta 2 zoom dugmesi (+ / -) vardir.
 //
-// Harita prime::MapLibrary::Get().Init + MapLibrary::CreateMap ile harita alaninin icine Embedded stilinde gomulur;
+// Harita XMapManagerFactory + XMapManager::addMap ile harita alaninin icine Embedded stilinde gomulur;
 // butun cagrilari src\MapApiCalls.cpp yapar. "SDK_BOUND" yorumu ile isaretli satirlar
 // API baglantisi icin yapilan degisikliklerdir.
 // Kod standardi ana projeyle ayni: m/p/t onekleri, suslu parantez alt satirda,
@@ -21,7 +21,7 @@
 
 #include <GL/gl.h>
 
-// SDK_BOUND: Prime Map API sarmalayicisi (butun harita cagrilari bu siniftan gecer)
+// SDK_BOUND: Prime XMap API sarmalayicisi (butun harita cagrilari bu siniftan gecer)
 #include "MapApiCalls.h"
 #include "MultiMapSelfTest.h"
 
@@ -31,12 +31,12 @@ namespace
 // --- Dugme kimlikleri ---------------------------------------------------------
 enum class Button
 {
-    PanUp,
-    PanDown,
-    PanLeft,
-    PanRight,
-    ZoomIn,
-    ZoomOut,
+    panUp,
+    panDown,
+    panLeft,
+    panRight,
+    zoomIn,
+    zoomOut,
     Count,
 };
 
@@ -64,15 +64,15 @@ struct Rect
     int mTop = 0;    // ust kenarin y'si (y yukari artar)
     int mRight = 0;
     int mBottom = 0;
-    bool Contains(int pX, int pY) const
+    bool contains(int pX, int pY) const
     {
         return pX >= mLeft && pX < mRight && pY >= mBottom && pY < mTop;
     }
-    int Width() const
+    int width() const
     {
         return mRight - mLeft;
     }
-    int Height() const
+    int height() const
     {
         return mTop - mBottom;
     }
@@ -81,27 +81,27 @@ struct Rect
 class UiPlugin
 {
 public:
-    void Enable();
-    void Disable();
+    void enable();
+    void disable();
 
 private:
     // XPLM callback'leri (statik; refcon = this)
-    static void DrawCallback(XPLMWindowID pWindow, void* pRefcon);
-    static int ClickCallback(XPLMWindowID pWindow, int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon);
-    static void KeyCallback(XPLMWindowID pWindow, char pKey, XPLMKeyFlags pFlags, char pVirtualKey, void* pRefcon,
+    static void drawCallback(XPLMWindowID pWindow, void* pRefcon);
+    static int clickCallback(XPLMWindowID pWindow, int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon);
+    static void keyCallback(XPLMWindowID pWindow, char pKey, XPLMKeyFlags pFlags, char pVirtualKey, void* pRefcon,
                             int pLosingFocus);
-    static XPLMCursorStatus CursorCallback(XPLMWindowID pWindow, int pX, int pY, void* pRefcon);
-    static int WheelCallback(XPLMWindowID pWindow, int pX, int pY, int pWheel, int pClicks, void* pRefcon);
+    static XPLMCursorStatus cursorCallback(XPLMWindowID pWindow, int pX, int pY, void* pRefcon);
+    static int wheelCallback(XPLMWindowID pWindow, int pX, int pY, int pWheel, int pClicks, void* pRefcon);
 
-    void ReadWindowRect(XPLMWindowID pWindow);
-    void Layout();                        // dugme dikdortgenlerini pencereye gore hesaplar
-    void Draw();
-    void DrawButton(const Rect& pRect, const char* pLabel, bool pHighlighted);
-    void FillRect(const Rect& pRect, float pR, float pG, float pB, float pA) const;
-    void FrameRect(const Rect& pRect, float pR, float pG, float pB) const;
-    void DrawCenteredText(int pCenterX, int pCenterY, const char* pText, float pColor[3]) const;
-    int HandleClick(int pX, int pY, XPLMMouseStatus pStatus);
-    void Press(Button pButton);           // dugmeye basildi (API'ye baglaninca islem buraya gelecek)
+    void readWindowRect(XPLMWindowID pWindow);
+    void layout();                        // dugme dikdortgenlerini pencereye gore hesaplar
+    void draw();
+    void drawButton(const Rect& pRect, const char* pLabel, bool pHighlighted);
+    void fillRect(const Rect& pRect, float pR, float pG, float pB, float pA) const;
+    void frameRect(const Rect& pRect, float pR, float pG, float pB) const;
+    void drawCenteredText(int pCenterX, int pCenterY, const char* pText, float pColor[3]) const;
+    int handleClick(int pX, int pY, XPLMMouseStatus pStatus);
+    void press(Button pButton);           // dugmeye basildi (API'ye baglaninca islem buraya gelecek)
 
     XPLMWindowID mWindow = nullptr;
     Rect mWindowRect;                     // son okunan pencere yeri
@@ -109,20 +109,20 @@ private:
     Rect mButtons[static_cast<int>(Button::Count)];
     // SDK_BOUND: harita erisimi (Init / Open / Pan / Zoom ... hepsi bu siniftan)
     MapApiCalls mApi;
-    // 0.23: coklu harita / fabrika ozelliklerinin X-Plane icindeki otomatik testi; sadece eklenti
+    // 0.24: coklu harita / fabrika ozelliklerinin X-Plane icindeki otomatik testi; sadece eklenti
     // klasorunde "selftest.flag" dosyasi varsa calisir (sonuclar Log.txt: "SELFTEST PASS / FAIL")
     std::unique_ptr<MultiMapSelfTest> mSelfTest;
     // SDK_BOUND: pencere boyutlanirsa haritayi yeniden yerlestirmek icin son gonderilen yer
     prime::Geometry mSentGeometry;
     bool mHasSentGeometry = false;
-    Button mPressed = Button::PanUp;
+    Button mPressed = Button::panUp;
     double mPressTime = -1000.0;          // son basma zamani (vurgu icin)
     std::string mStatus = "Starting map...";
 };
 
 // --- Yasam dongusu -------------------------------------------------------------
 
-void UiPlugin::Enable()
+void UiPlugin::enable()
 {
     XPLMCreateWindow_t tParams;
     std::memset(&tParams, 0, sizeof(tParams));
@@ -134,11 +134,11 @@ void UiPlugin::Enable()
     tParams.bottom = 380;
     tParams.visible = 1;
     // SDK notu: tum callback'ler verilmeli, hicbiri null birakilmamali
-    tParams.drawWindowFunc = DrawCallback;
-    tParams.handleKeyFunc = KeyCallback;
-    tParams.handleMouseClickFunc = ClickCallback;
-    tParams.handleCursorFunc = CursorCallback;
-    tParams.handleMouseWheelFunc = WheelCallback;
+    tParams.drawWindowFunc = drawCallback;
+    tParams.handleKeyFunc = keyCallback;
+    tParams.handleMouseClickFunc = clickCallback;
+    tParams.handleCursorFunc = cursorCallback;
+    tParams.handleMouseWheelFunc = wheelCallback;
     tParams.refcon = this;
     // Kendi cercevemizi kendimiz ciziyoruz (xplm_WindowDecorationNone = cizimsiz kare)
     tParams.decorateAsFloatingWindow = xplm_WindowDecorationNone;
@@ -154,35 +154,35 @@ void UiPlugin::Enable()
     XPLMDebugString("[plugin-api-test] window created\n");
 
     // SDK_BOUND: kutuphaneyi baslat ve haritayi harita alaninin yerine ac.
-    //   - InitLibrary: MapLibrary::Init; veri yuklemesi arka planda baslar.
+    //   - initLibrary: XMapManager::Init; veri yuklemesi arka planda baslar.
     //     mLogPrefix: Log.txt satirlari "[plugin-api-test-lib]" ile baslar.
     //     mCacheDirectory: bos = bu eklentinin klasoru/cache/ (zemin onbellegi oraya yazilir).
-    //   - OpenMap: Map::Open; Embedded stil = cercevesiz pencere, bizim harita alaninin
+    //   - openMap: XMap::Open; Embedded stil = cercevesiz pencere, bizim harita alaninin
     //     ustune oturur. UI kapali (haritaya kendi paneli gelmez), fare kapali.
-    if (mApi.InitLibrary("[plugin-api-test]"))
+    if (mApi.initLibrary("[plugin-api-test]"))
     {
-        ReadWindowRect(mWindow);
-        Layout();
-        const prime::Geometry tGeometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
-                                           mMapRect.Height()};
-        if (mApi.OpenMap(tGeometry, prime::WindowStyle::Embedded, false, false))
+        readWindowRect(mWindow);
+        layout();
+        const prime::Geometry tGeometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.width(),
+                                           mMapRect.height()};
+        if (mApi.openMap(tGeometry, prime::WindowStyle::Embedded, false, false))
         {
             // SDK_BOUND: baslangic gorunumu (KSEA)
-            mApi.SetCenter(47.45, -122.30);
-            mApi.SetZoom(11.0);
+            mApi.setCenter(47.45, -122.30);
+            mApi.setZoom(11.0);
             mSentGeometry = tGeometry;
             mHasSentGeometry = true;
-            mStatus = "Map embedded: Scenery mode, zoom 11, centered on KSEA";
-        }
-        // Veri klasoru = bu eklentinin klasoru (InitConfig::mDataDirectory bos birakildi)
-        mSelfTest = std::make_unique<MultiMapSelfTest>();
-        if (!mSelfTest->StartIfRequested(prime::MapLibrary::Get().GetDataDirectory()))
-        {
-            mSelfTest.reset();
+            mStatus = "XMap embedded: Scenery mode, zoom 11, centered on KSEA";
         }
         else
         {
-            mStatus = "Map open FAILED (see Log.txt)";
+            mStatus = "XMap open FAILED (see Log.txt)";
+        }
+        // Veri klasoru: kutuphane varsayilani (%LOCALAPPDATA%/prime/prime-xmap); bayrak dosyasi orada aranir
+        mSelfTest = std::make_unique<MultiMapSelfTest>();
+        if (!mSelfTest->startIfRequested(mApi.manager()->getDataDirectory(), mApi.manager()))
+        {
+            mSelfTest.reset();
         }
     }
     else
@@ -191,12 +191,12 @@ void UiPlugin::Enable()
     }
 }
 
-void UiPlugin::Disable()
+void UiPlugin::disable()
 {
     // SDK_BOUND: once harita pencereleri kapanir, sonra kutuphane durdurulur (siralama onemli)
     mSelfTest.reset();
-    mApi.CloseMap();
-    mApi.ShutdownLibrary();
+    mApi.closeMap();
+    mApi.shutdownLibrary();
     if (mWindow)
     {
         XPLMDestroyWindow(mWindow);
@@ -206,7 +206,7 @@ void UiPlugin::Disable()
 
 // --- Yerlesim -------------------------------------------------------------------
 
-void UiPlugin::ReadWindowRect(XPLMWindowID pWindow)
+void UiPlugin::readWindowRect(XPLMWindowID pWindow)
 {
     XPLMGetWindowGeometry(pWindow, &mWindowRect.mLeft, &mWindowRect.mTop, &mWindowRect.mRight,
                           &mWindowRect.mBottom);
@@ -214,7 +214,7 @@ void UiPlugin::ReadWindowRect(XPLMWindowID pWindow)
 
 // Dugmeleri pencere boyutuna gore dizer: harita alani ortada, kaydirma dugmeleri
 // etrafinda (yukarida / asagida / solda / sagda), zoom alt seritte, durum en sagda.
-void UiPlugin::Layout()
+void UiPlugin::layout()
 {
     const int tWindowBottom = mWindowRect.mBottom;
     const int tWindowTop = mWindowRect.mTop;
@@ -240,17 +240,17 @@ void UiPlugin::Layout()
         tRect.mTop = pCenterY + kButtonHalfH;
     };
 
-    tSetButton(Button::PanUp, tMapCenterX, tTopRowCenterY);
-    tSetButton(Button::PanDown, tMapCenterX, tBottomRowCenterY);
-    tSetButton(Button::PanLeft, tWindowLeft + kMargin + kSideWidth / 2, tMapCenterY);
-    tSetButton(Button::PanRight, tWindowRight - kMargin - kSideWidth / 2, tMapCenterY);
-    tSetButton(Button::ZoomIn, mMapRect.mLeft + 60, tBottomRowCenterY);
-    tSetButton(Button::ZoomOut, mMapRect.mLeft + 180, tBottomRowCenterY);
+    tSetButton(Button::panUp, tMapCenterX, tTopRowCenterY);
+    tSetButton(Button::panDown, tMapCenterX, tBottomRowCenterY);
+    tSetButton(Button::panLeft, tWindowLeft + kMargin + kSideWidth / 2, tMapCenterY);
+    tSetButton(Button::panRight, tWindowRight - kMargin - kSideWidth / 2, tMapCenterY);
+    tSetButton(Button::zoomIn, mMapRect.mLeft + 60, tBottomRowCenterY);
+    tSetButton(Button::zoomOut, mMapRect.mLeft + 180, tBottomRowCenterY);
 }
 
 // --- Cizim -----------------------------------------------------------------------
 
-void UiPlugin::FillRect(const Rect& pRect, float pR, float pG, float pB, float pA) const
+void UiPlugin::fillRect(const Rect& pRect, float pR, float pG, float pB, float pA) const
 {
     glColor4f(pR, pG, pB, pA);
     glBegin(GL_QUADS);
@@ -261,7 +261,7 @@ void UiPlugin::FillRect(const Rect& pRect, float pR, float pG, float pB, float p
     glEnd();
 }
 
-void UiPlugin::FrameRect(const Rect& pRect, float pR, float pG, float pB) const
+void UiPlugin::frameRect(const Rect& pRect, float pR, float pG, float pB) const
 {
     glColor4f(pR, pG, pB, 1.0f);
     glBegin(GL_LINE_LOOP);
@@ -272,42 +272,42 @@ void UiPlugin::FrameRect(const Rect& pRect, float pR, float pG, float pB) const
     glEnd();
 }
 
-void UiPlugin::DrawCenteredText(int pCenterX, int pCenterY, const char* pText, float pColor[3]) const
+void UiPlugin::drawCenteredText(int pCenterX, int pCenterY, const char* pText, float pColor[3]) const
 {
     const float tWidth = XPLMMeasureString(xplmFont_Basic, pText, static_cast<int>(std::strlen(pText)));
     XPLMDrawString(pColor, pCenterX - static_cast<int>(tWidth / 2.0f), pCenterY - 6,
                    const_cast<char*>(pText), nullptr, xplmFont_Basic);
 }
 
-void UiPlugin::DrawButton(const Rect& pRect, const char* pLabel, bool pHighlighted)
+void UiPlugin::drawButton(const Rect& pRect, const char* pLabel, bool pHighlighted)
 {
     if (pHighlighted)
     {
-        FillRect(pRect, 0.30f, 0.50f, 0.34f, 1.0f);
+        fillRect(pRect, 0.30f, 0.50f, 0.34f, 1.0f);
     }
     else
     {
-        FillRect(pRect, 0.26f, 0.29f, 0.33f, 1.0f);
+        fillRect(pRect, 0.26f, 0.29f, 0.33f, 1.0f);
     }
-    FrameRect(pRect, 0.55f, 0.58f, 0.62f);
+    frameRect(pRect, 0.55f, 0.58f, 0.62f);
     float tWhite[3] = {1.0f, 1.0f, 1.0f};
-    DrawCenteredText((pRect.mLeft + pRect.mRight) / 2, (pRect.mTop + pRect.mBottom) / 2, pLabel, tWhite);
+    drawCenteredText((pRect.mLeft + pRect.mRight) / 2, (pRect.mTop + pRect.mBottom) / 2, pLabel, tWhite);
 }
 
-void UiPlugin::Draw()
+void UiPlugin::draw()
 {
-    ReadWindowRect(mWindow);
-    Layout();
+    readWindowRect(mWindow);
+    layout();
 
     // SDK_BOUND: pencere boyutu degistiyse haritayi yeni harita alanina yerlestir.
-    // (SetGeometry her karede cagrilmaz; sadece yer degistiginde cagrilir.)
+    // (setGeometry her karede cagrilmaz; sadece yer degistiginde cagrilir.)
     if (!mHasSentGeometry || mSentGeometry.mLeft != mMapRect.mLeft || mSentGeometry.mTop != mMapRect.mTop
-        || mSentGeometry.mWidth != mMapRect.Width() || mSentGeometry.mHeight != mMapRect.Height())
+        || mSentGeometry.mWidth != mMapRect.width() || mSentGeometry.mHeight != mMapRect.height())
     {
-        mApi.SetGeometry(prime::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
-                                            mMapRect.Height()});
-        mSentGeometry = prime::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.Width(),
-                                           mMapRect.Height()};
+        mApi.setGeometry(prime::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.width(),
+                                            mMapRect.height()});
+        mSentGeometry = prime::Geometry{mMapRect.mLeft, mMapRect.mTop, mMapRect.width(),
+                                           mMapRect.height()};
         mHasSentGeometry = true;
     }
 
@@ -321,19 +321,19 @@ void UiPlugin::Draw()
     XPLMDrawTranslucentDarkBox(mWindowRect.mLeft, mWindowRect.mTop, mWindowRect.mRight, mWindowRect.mBottom);
 
     // Harita alani: cerceve; harita aciksa ortasindaki "bos" yazisini cizme (harita ustte)
-    FillRect(mMapRect, 0.09f, 0.11f, 0.13f, 1.0f);
-    FrameRect(mMapRect, 0.45f, 0.48f, 0.52f);
+    fillRect(mMapRect, 0.09f, 0.11f, 0.13f, 1.0f);
+    frameRect(mMapRect, 0.45f, 0.48f, 0.52f);
     float tGray[3] = {0.70f, 0.72f, 0.75f};
-    if (!mApi.IsOpen())
+    if (!mApi.isOpen())
     {
-        DrawCenteredText((mMapRect.mLeft + mMapRect.mRight) / 2, (mMapRect.mTop + mMapRect.mBottom) / 2,
+        drawCenteredText((mMapRect.mLeft + mMapRect.mRight) / 2, (mMapRect.mTop + mMapRect.mBottom) / 2,
                          "MAP AREA (empty for now)", tGray);
     }
 
     // Baslik: ust seritte yukari dugmesinin solunda
     float tWhite[3] = {1.0f, 1.0f, 1.0f};
     XPLMDrawString(tWhite, mWindowRect.mLeft + kMargin, mWindowRect.mTop - kMargin - 16,
-                   const_cast<char*>("Map API UI Test - step 2 (API connected)"), nullptr, xplmFont_Basic);
+                   const_cast<char*>("XMap API UI Test - step 2 (API connected)"), nullptr, xplmFont_Basic);
 
     // Dugmeler
     const double tNow = XPLMGetElapsedTime();
@@ -341,7 +341,7 @@ void UiPlugin::Draw()
     {
         const bool tHighlighted =
             static_cast<Button>(tIndex) == mPressed && (tNow - mPressTime) < kPressFlash;
-        DrawButton(mButtons[tIndex], kButtonLabels[tIndex], tHighlighted);
+        drawButton(mButtons[tIndex], kButtonLabels[tIndex], tHighlighted);
     }
 
     // Durum satiri: alt seritte zoom dugmelerinin saginda
@@ -356,42 +356,42 @@ void UiPlugin::Draw()
 
 // --- Fare / klavye ----------------------------------------------------------------
 
-void UiPlugin::Press(Button pButton)
+void UiPlugin::press(Button pButton)
 {
     mPressed = pButton;
     mPressTime = XPLMGetElapsedTime();
-    // SDK_BOUND: dugmeler artik Prime Map API cagrilari (MapApiCalls uzerinden).
+    // SDK_BOUND: dugmeler artik Prime XMap API cagrilari (MapApiCalls uzerinden).
     // Butun cagrilarin listesi: docs\API_LISTESI.md; sarmalayici: src\MapApiCalls.cpp
     switch (pButton)
     {
-        case Button::PanUp:
+        case Button::panUp:
         {
-            mApi.PanUp();
+            mApi.panUp();
             break;
         }
-        case Button::PanDown:
+        case Button::panDown:
         {
-            mApi.PanDown();
+            mApi.panDown();
             break;
         }
-        case Button::PanLeft:
+        case Button::panLeft:
         {
-            mApi.PanLeft();
+            mApi.panLeft();
             break;
         }
-        case Button::PanRight:
+        case Button::panRight:
         {
-            mApi.PanRight();
+            mApi.panRight();
             break;
         }
-        case Button::ZoomIn:
+        case Button::zoomIn:
         {
-            mApi.ZoomIn();
+            mApi.zoomIn();
             break;
         }
-        case Button::ZoomOut:
+        case Button::zoomOut:
         {
-            mApi.ZoomOut();
+            mApi.zoomOut();
             break;
         }
         default:
@@ -405,15 +405,15 @@ void UiPlugin::Press(Button pButton)
     XPLMDebugString("\n");
 }
 
-int UiPlugin::HandleClick(int pX, int pY, XPLMMouseStatus pStatus)
+int UiPlugin::handleClick(int pX, int pY, XPLMMouseStatus pStatus)
 {
     if (pStatus == xplm_MouseDown)
     {
         for (int tIndex = 0; tIndex < static_cast<int>(Button::Count); ++tIndex)
         {
-            if (mButtons[tIndex].Contains(pX, pY))
+            if (mButtons[tIndex].contains(pX, pY))
             {
-                Press(static_cast<Button>(tIndex));
+                press(static_cast<Button>(tIndex));
                 return 1;
             }
         }
@@ -423,27 +423,27 @@ int UiPlugin::HandleClick(int pX, int pY, XPLMMouseStatus pStatus)
 
 // --- XPLM callback araci ----------------------------------------------------------
 
-void UiPlugin::DrawCallback(XPLMWindowID /*pWindow*/, void* pRefcon)
+void UiPlugin::drawCallback(XPLMWindowID /*pWindow*/, void* pRefcon)
 {
-    static_cast<UiPlugin*>(pRefcon)->Draw();
+    static_cast<UiPlugin*>(pRefcon)->draw();
 }
 
-int UiPlugin::ClickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon)
+int UiPlugin::clickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon)
 {
-    return static_cast<UiPlugin*>(pRefcon)->HandleClick(pX, pY, pStatus);
+    return static_cast<UiPlugin*>(pRefcon)->handleClick(pX, pY, pStatus);
 }
 
-void UiPlugin::KeyCallback(XPLMWindowID /*pWindow*/, char /*pKey*/, XPLMKeyFlags /*pFlags*/, char /*pVirtualKey*/,
+void UiPlugin::keyCallback(XPLMWindowID /*pWindow*/, char /*pKey*/, XPLMKeyFlags /*pFlags*/, char /*pVirtualKey*/,
                            void* /*pRefcon*/, int /*pLosingFocus*/)
 {
 }
 
-XPLMCursorStatus UiPlugin::CursorCallback(XPLMWindowID /*pWindow*/, int /*pX*/, int /*pY*/, void* /*pRefcon*/)
+XPLMCursorStatus UiPlugin::cursorCallback(XPLMWindowID /*pWindow*/, int /*pX*/, int /*pY*/, void* /*pRefcon*/)
 {
     return xplm_CursorDefault;
 }
 
-int UiPlugin::WheelCallback(XPLMWindowID /*pWindow*/, int /*pX*/, int /*pY*/, int /*pWheel*/, int /*pClicks*/,
+int UiPlugin::wheelCallback(XPLMWindowID /*pWindow*/, int /*pX*/, int /*pY*/, int /*pWheel*/, int /*pClicks*/,
                             void* /*pRefcon*/)
 {
     return 0;  // tekerlek su an kullanilmiyor; ileride zoom'a baglanabilir
@@ -459,7 +459,7 @@ PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescr
 {
     std::strcpy(pOutName, "Plugin API Test");
     std::strcpy(pOutSignature, "prime.plugin_api_test");
-    std::strcpy(pOutDescription, "UI skeleton for testing the Prime Map API");
+    std::strcpy(pOutDescription, "UI skeleton for testing the Prime XMap API");
     return 1;
 }
 
@@ -470,7 +470,7 @@ PLUGIN_API void XPluginStop()
 PLUGIN_API int XPluginEnable()
 {
     gPlugin = std::make_unique<UiPlugin>();
-    gPlugin->Enable();
+    gPlugin->enable();
     return 1;
 }
 
@@ -478,7 +478,7 @@ PLUGIN_API void XPluginDisable()
 {
     if (gPlugin)
     {
-        gPlugin->Disable();
+        gPlugin->disable();
         gPlugin.reset();
     }
 }

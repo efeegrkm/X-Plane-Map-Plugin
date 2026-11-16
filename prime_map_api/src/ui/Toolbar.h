@@ -1,14 +1,6 @@
-// Toolbar.h
-// Haritanin ust kenarindaki ince, yari saydam arac seridi.
-//
-//   [Layers] [Map: VFR] | [Follow aircraft] [Center on aircraft] [Go to airport] | [Draw tools]
-//                                                                ...   [Pop out] [Hide]
-//
-// Cizim araclari (Pan/Point/Route/Region, Finish/Undo/Clear) artik seritte
-// degil, yuzen ToolPalette panelinde; "Draw tools" o paneli gosterir/gizler.
-// Gruplar arasinda ince ayirici cizgi var. Pencere cok darsa pencere
-// dugmeleri ikinci satira iner. Serit sadece cizer ve hangi dugmeye
-// tiklandigini soyler; ne yapilacagina MapWindow karar verir.
+// Haritanin ust kenarindaki ince, yari saydam arac seridi. Serit sadece cizer
+// ve hangi dugmeye tiklandigini soyler; ne yapilacagina XMapWindow karar verir.
+// Ornek: [Layers] [XMap: VFR] | [Follow aircraft] [Center on aircraft] | [Draw tools]
 #pragma once
 
 #include <vector>
@@ -25,11 +17,11 @@ enum class ToolbarAction
 {
     None,
     Layers,          // katman panelini ac/kapat
-    MapMode,         // harita modu listesini ac/kapat ("Map: VFR")
+    MapMode,         // harita modu listesini ac/kapat ("XMap: VFR")
     FollowAircraft,  // ucagi takip et (ac/kapat)
     CenterAircraft,  // haritayi bir kez ucaga ortala
-    GoToAirport,     // havalimani arama panelini ac/kapat (0.18; sadece harita gider, ucak degil)
-    DrawTools,       // cizim araclari paletini goster/gizle
+    goToAirport,     // havalimani arama panelini ac/kapat (0.18; sadece harita gider, ucak degil)
+    drawTools,       // cizim araclari paletini goster/gizle
     ModePan,         // cizim araclari (ToolPalette): gezin
     ModePoint,       //                  nokta
     ModeRoute,       //                  rota
@@ -37,7 +29,7 @@ enum class ToolbarAction
     Finish,          // yarim kalan rota/bolgeyi bitir
     Undo,            // son kose / son sekil
     Clear,           // tum cizimleri sil
-    PopOut,          // pencereyi X-Plane disina al / geri al
+    popOut,          // pencereyi X-Plane disina al / geri al
     HideControls,    // tum kontrolleri gizle
 };
 
@@ -47,7 +39,7 @@ struct ToolbarState
     bool mLayersOpen = false;
     bool mModesOpen = false;
     bool mSearchOpen = false;  // "Go to airport" paneli acik
-    const char* mModeLabel = "Map: Scenery";  // MapWindow doldurur (statik metin)
+    const char* mModeLabel = "XMap: Scenery";  // XMapWindow doldurur (statik metin)
     bool mFollowing = false;
     bool mHasAircraft = false;
     bool mPoppedOut = false;
@@ -64,19 +56,19 @@ public:
 
     // Seridi pArea'nin ust kenarina yerlestirir, dugmeleri dizer.
     // Her cizimden once cagrilir (pencere boyutu degisebilir).
-    void Layout(const RectI& pArea, const ToolbarState& pState);
+    void layout(const RectI& pArea, const ToolbarState& pState);
 
-    void Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const;
+    void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const;
 
     // Tiklanan dugme (dugme yoksa veya pasifse None)
-    ToolbarAction HitTest(int pX, int pY, const ToolbarState& pState) const;
+    ToolbarAction hitTest(int pX, int pY, const ToolbarState& pState) const;
 
-    bool Contains(int pX, int pY) const;
-    const RectI& Strip() const;
-    int Height() const;  // son Layout'a gore: bir veya iki satir
+    bool contains(int pX, int pY) const;
+    const RectI& strip() const;
+    int height() const;  // son Layout'a gore: bir veya iki satir
 
     // Bir dugmenin yeri (katman panelini "Layers"in altina koymak icin)
-    RectI ButtonRect(ToolbarAction pAction) const;
+    RectI buttonRect(ToolbarAction pAction) const;
 
 private:
     struct Item
@@ -87,12 +79,12 @@ private:
     };
 
     // pActions'i pY satirinda pX'ten saga (pRightToLeft ise sola) dizer; bitis x'ini doner
-    int PlaceRow(const std::vector<ToolbarAction>& pActions, int pX, int pTop, bool pRightToLeft,
+    int placeRow(const std::vector<ToolbarAction>& pActions, int pX, int pTop, bool pRightToLeft,
                  const ToolbarState& pState);
-    static int RowWidth(const std::vector<ToolbarAction>& pActions, const ToolbarState& pState);
-    static bool IsActive(ToolbarAction pAction, const ToolbarState& pState);
-    static bool IsEnabled(ToolbarAction pAction, const ToolbarState& pState);
-    static const char* LabelFor(ToolbarAction pAction, const ToolbarState& pState);
+    static int rowWidth(const std::vector<ToolbarAction>& pActions, const ToolbarState& pState);
+    static bool isActive(ToolbarAction pAction, const ToolbarState& pState);
+    static bool isEnabled(ToolbarAction pAction, const ToolbarState& pState);
+    static const char* labelFor(ToolbarAction pAction, const ToolbarState& pState);
 
     std::vector<Item> mItems;
     std::vector<int> mDividers;  // gruplar arasi ince dikey cizgilerin x'i

@@ -1,4 +1,3 @@
-// RoadLayer.cpp
 #include "layers/RoadLayer.h"
 
 #include <algorithm>
@@ -22,46 +21,46 @@ const int kMaxVisibleTiles = 16;   // daha uzakta yol cizilmez (zaten esiklerin 
 const size_t kMaxGpuTiles = 12;    // GPU'da tutulan karo (yerel yollarla karo basina ~10-20 MB)
 const uint64_t kKeepFrames = 300;  // bu kadar karedir cizilmeyen karo atilabilir
 
-double MinVisibleZoom()
+double minVisibleZoom()
 {
     return *std::min_element(std::begin(kMinZoom), std::end(kMinZoom));
 }
 
-}  // namespace
+}
 
 RoadLayer::RoadLayer(TerrainHub& pHub)
     : Layer("roads", "Roads and railways", true)
     , mHub(pHub)
-    , mUser(pHub.AddUser())
+    , mUser(pHub.addUser())
 {
-    mParts[static_cast<int>(VectorLineKind::Motorway)] = AddSubLayer("motorways", "Motorways");
-    mParts[static_cast<int>(VectorLineKind::Primary)] = AddSubLayer("primary", "Primary roads");
-    mParts[static_cast<int>(VectorLineKind::Secondary)] = AddSubLayer("secondary", "Secondary roads");
-    mParts[static_cast<int>(VectorLineKind::Local)] = AddSubLayer("local", "Local roads");
-    mParts[static_cast<int>(VectorLineKind::Railway)] = AddSubLayer("railways", "Railways");
-    mParts[static_cast<int>(VectorLineKind::PowerLine)] = AddSubLayer("power_lines", "Power lines", false);
+    mParts[static_cast<int>(VectorLineKind::Motorway)] = addSubLayer("motorways", "Motorways");
+    mParts[static_cast<int>(VectorLineKind::Primary)] = addSubLayer("primary", "Primary roads");
+    mParts[static_cast<int>(VectorLineKind::Secondary)] = addSubLayer("secondary", "Secondary roads");
+    mParts[static_cast<int>(VectorLineKind::Local)] = addSubLayer("local", "Local roads");
+    mParts[static_cast<int>(VectorLineKind::Railway)] = addSubLayer("railways", "Railways");
+    mParts[static_cast<int>(VectorLineKind::PowerLine)] = addSubLayer("power_lines", "Power lines", false);
 }
 
 RoadLayer::~RoadLayer()
 {
-    mHub.RemoveUser(mUser);  // bu haritanin vektor isaretleri kalkar
+    mHub.removeUser(mUser);  // bu haritanin vektor isaretleri kalkar
 }
 
-bool RoadLayer::PrepareFrame()
+bool RoadLayer::prepareFrame()
 {
     // Vektorler ortak: baska bir haritanin aldigi karolar da bu harita icin "yeni veri"dir
-    mHub.TakeReadyVectors();
-    const bool tChanged = mHub.VectorGeneration() != mSeenGeneration;
-    mSeenGeneration = mHub.VectorGeneration();
+    mHub.takeReadyVectors();
+    const bool tChanged = mHub.vectorGeneration() != mSeenGeneration;
+    mSeenGeneration = mHub.vectorGeneration();
     return tChanged;
 }
 
-void RoadLayer::Upload(GpuTile& pTile, const MapTheme& pTheme)
+void RoadLayer::upload(GpuTile& pTile, const MapTheme& pTheme)
 {
-    pTile.mOriginX = Mercator::LonToX(pTile.mWest);
-    pTile.mOriginY = Mercator::LatToY(pTile.mSouth);
+    pTile.mOriginX = Mercator::lonToX(pTile.mWest);
+    pTile.mOriginY = Mercator::latToY(pTile.mSouth);
     std::array<std::vector<Gfx::ColorVertex>, kVectorLineKindCount> tVertices;
-    for (const VectorLine& tLine : pTile.mVectors->Lines())
+    for (const VectorLine& tLine : pTile.mVectors->lines())
     {
         const int tKind = static_cast<int>(tLine.mKind);
         std::vector<Gfx::ColorVertex>& tOut = tVertices[tKind];
@@ -71,8 +70,8 @@ void RoadLayer::Upload(GpuTile& pTile, const MapTheme& pTheme)
         for (size_t tIndex = 0; tIndex < tLine.mX.size(); ++tIndex)
         {
             // Mercator, karo orijinine gore (float hassasiyeti yeter: karo ~1/360)
-            const float tX = static_cast<float>(Mercator::LonToX(pTile.mWest + tLine.mX[tIndex]) - pTile.mOriginX);
-            const float tY = static_cast<float>(Mercator::LatToY(pTile.mSouth + tLine.mY[tIndex]) - pTile.mOriginY);
+            const float tX = static_cast<float>(Mercator::lonToX(pTile.mWest + tLine.mX[tIndex]) - pTile.mOriginX);
+            const float tY = static_cast<float>(Mercator::latToY(pTile.mSouth + tLine.mY[tIndex]) - pTile.mOriginY);
             if (tIndex > 0)
             {
                 tOut.push_back({tPreviousX, tPreviousY, tColor});
@@ -87,13 +86,13 @@ void RoadLayer::Upload(GpuTile& pTile, const MapTheme& pTheme)
         pTile.mMeshes[tKind] = Gfx::StaticMesh();
         if (!tVertices[tKind].empty())
         {
-            pTile.mMeshes[tKind].Upload(tVertices[tKind], Gfx::Primitive::Lines);
+            pTile.mMeshes[tKind].upload(tVertices[tKind], Gfx::Primitive::Lines);
         }
     }
     pTile.mUploadedTheme = &pTheme;
 }
 
-void RoadLayer::EvictUnused()
+void RoadLayer::evictUnused()
 {
     while (mTiles.size() > kMaxGpuTiles)
     {
@@ -110,22 +109,22 @@ void RoadLayer::EvictUnused()
         {
             return;  // hepsi yakinda kullanildi
         }
-        mHub.ReleaseVectors(tOldest->second.mWest, tOldest->second.mSouth, mUser);  // kimse tutmuyorsa atilir
+        mHub.releaseVectors(tOldest->second.mWest, tOldest->second.mSouth, mUser);  // kimse tutmuyorsa atilir
         mTiles.erase(tOldest);
     }
 }
 
-void RoadLayer::Draw(const DrawContext& pContext)
+void RoadLayer::draw(const drawContext& pContext)
 {
     ++mFrame;
-    mHub.TakeReadyVectors();
-    mSeenGeneration = mHub.VectorGeneration();
-    const MapView& tView = *pContext.mView;
-    if (tView.Zoom() < MinVisibleZoom())
+    mHub.takeReadyVectors();
+    mSeenGeneration = mHub.vectorGeneration();
+    const XMapView& tView = *pContext.mView;
+    if (tView.zoom() < minVisibleZoom())
     {
         return;
     }
-    const GeoBounds tBounds = tView.VisibleBounds();
+    const GeoBounds tBounds = tView.visibleBounds();
     const int tSouth = std::max(-90, static_cast<int>(std::floor(tBounds.mSouth)));
     const int tNorth = std::min(89, static_cast<int>(std::floor(tBounds.mNorth)));
     const int tWest = static_cast<int>(std::floor(tBounds.mWest));
@@ -134,18 +133,18 @@ void RoadLayer::Draw(const DrawContext& pContext)
     {
         return;
     }
-    const double tScale = tView.WorldSize();  // Mercator birimi -> boxel
+    const double tScale = tView.worldSize();  // Mercator birimi -> boxel
     std::vector<GpuTile*> tVisible;
     for (int tLat = tSouth; tLat <= tNorth; ++tLat)
     {
         for (int tColumn = tWest; tColumn <= tEast; ++tColumn)
         {
             const int tLon = ((tColumn + 180) % 360 + 360) % 360 - 180;
-            auto tFound = mTiles.find(SceneryIndex::TileKey(tLon, tLat));
+            auto tFound = mTiles.find(SceneryIndex::tileKey(tLon, tLat));
             if (tFound == mTiles.end())
             {
                 // Ortak depoda varsa al (GPU kopyasi bu haritanin); yoksa isciden istenir
-                const std::shared_ptr<const TerrainVectors> tVectors = mHub.UseVectors(tLon, tLat, mUser);
+                const std::shared_ptr<const TerrainVectors> tVectors = mHub.useVectors(tLon, tLat, mUser);
                 if (!tVectors)
                 {
                     continue;
@@ -154,13 +153,13 @@ void RoadLayer::Draw(const DrawContext& pContext)
                 tNew.mWest = tLon;
                 tNew.mSouth = tLat;
                 tNew.mVectors = tVectors;
-                tFound = mTiles.emplace(SceneryIndex::TileKey(tLon, tLat), std::move(tNew)).first;
+                tFound = mTiles.emplace(SceneryIndex::tileKey(tLon, tLat), std::move(tNew)).first;
             }
             GpuTile& tTile = tFound->second;
             tTile.mLastFrame = mFrame;
             if (tTile.mUploadedTheme != pContext.mTheme)
             {
-                Upload(tTile, *pContext.mTheme);
+                upload(tTile, *pContext.mTheme);
             }
             tVisible.push_back(&tTile);
         }
@@ -168,7 +167,7 @@ void RoadLayer::Draw(const DrawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     for (const int tKind : kDrawOrder)
     {
-        if (!IsSubLayerDrawn(mParts[tKind]) || tView.Zoom() < kMinZoom[tKind])
+        if (!isSubLayerDrawn(mParts[tKind]) || tView.zoom() < kMinZoom[tKind])
         {
             continue;
         }
@@ -176,12 +175,12 @@ void RoadLayer::Draw(const DrawContext& pContext)
             std::max(1.0f, std::round(kWidthPixels[tKind] * static_cast<float>(pContext.mPixelsPerBoxel)));
         for (GpuTile* tTile : tVisible)
         {
-            if (!tTile->mMeshes[tKind].IsEmpty())
+            if (!tTile->mMeshes[tKind].isEmpty())
             {
-                tCanvas.DrawStatic(tTile->mMeshes[tKind], tView.MercatorToScreen(tTile->mOriginX, tTile->mOriginY),
+                tCanvas.drawStatic(tTile->mMeshes[tKind], tView.mercatorToScreen(tTile->mOriginX, tTile->mOriginY),
                                    tScale, tWidth);
             }
         }
     }
-    EvictUnused();
+    evictUnused();
 }

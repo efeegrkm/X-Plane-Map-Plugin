@@ -1,4 +1,3 @@
-// AirportGeometryStore.cpp
 #include "data/AirportGeometryStore.h"
 
 #include <utility>
@@ -17,25 +16,25 @@ AirportGeometryStore::~AirportGeometryStore()
     }
 }
 
-void AirportGeometryStore::StartLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory)
+void AirportGeometryStore::startLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory)
 {
     if (mLoading || mReady || !mSource)
     {
         return;
     }
-    mSource->SetCacheDirectory(pCacheDirectory);
+    mSource->setCacheDirectory(pCacheDirectory);
     mLoading = true;
     mFinished.store(false);
     mThread = std::thread(
         [this, pXPlaneDirectory]()
         {
             // ARKA PLAN THREAD'i: burada XPLM fonksiyonu cagrilmaz
-            mPendingSucceeded = mSource->LoadAll(pXPlaneDirectory, mCancel, mPending, mPendingReport);
+            mPendingSucceeded = mSource->loadAll(pXPlaneDirectory, mCancel, mPending, mPendingReport);
             mFinished.store(true);
         });
 }
 
-bool AirportGeometryStore::Poll()
+bool AirportGeometryStore::poll()
 {
     if (!mLoading || !mFinished.load())
     {
@@ -43,11 +42,11 @@ bool AirportGeometryStore::Poll()
     }
     mThread.join();  // thread bitti; join ayrica yazdiklarinin gorunur olmasini garanti eder
     mLoading = false;
-    TakeResult();
+    takeResult();
     return true;
 }
 
-void AirportGeometryStore::TakeResult()
+void AirportGeometryStore::takeResult()
 {
     mAirports = std::move(mPending.mAirports);
     mFiles = std::move(mPending.mFiles);
@@ -59,7 +58,7 @@ void AirportGeometryStore::TakeResult()
     mRunwayCount = 0;
     std::vector<GridItem> tItems;
     tItems.reserve(mAirports.size());
-    for (int tIndex = 0; tIndex < Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < count(); ++tIndex)
     {
         AirportGeometry& tAirport = mAirports[tIndex];
         if (tAirport.mReference.mLat == 0.0 && tAirport.mReference.mLon == 0.0 && !tAirport.mRunways.empty())
@@ -82,66 +81,66 @@ void AirportGeometryStore::TakeResult()
         tItems.push_back({static_cast<uint32_t>(tIndex), static_cast<float>(tAirport.mReference.mLat),
                           static_cast<float>(tAirport.mReference.mLon)});
     }
-    mGrid.Build(tItems);
+    mGrid.build(tItems);
     mReady = true;
 }
 
-bool AirportGeometryStore::IsLoading() const
+bool AirportGeometryStore::isLoading() const
 {
     return mLoading;
 }
 
-bool AirportGeometryStore::IsReady() const
+bool AirportGeometryStore::isReady() const
 {
     return mReady;
 }
 
-bool AirportGeometryStore::LastLoadSucceeded() const
+bool AirportGeometryStore::lastLoadSucceeded() const
 {
     return mSucceeded;
 }
 
-const std::string& AirportGeometryStore::LastReport() const
+const std::string& AirportGeometryStore::lastReport() const
 {
     return mReport;
 }
 
-const char* AirportGeometryStore::SourceName() const
+const char* AirportGeometryStore::sourceName() const
 {
-    return mSource ? mSource->Name() : "(no source)";
+    return mSource ? mSource->name() : "(no source)";
 }
 
-int AirportGeometryStore::Count() const
+int AirportGeometryStore::count() const
 {
     return static_cast<int>(mAirports.size());
 }
 
-int AirportGeometryStore::RunwayCount() const
+int AirportGeometryStore::runwayCount() const
 {
     return mRunwayCount;
 }
 
-const AirportGeometry& AirportGeometryStore::At(int pIndex) const
+const AirportGeometry& AirportGeometryStore::at(int pIndex) const
 {
     return mAirports[pIndex];
 }
 
-const AirportGeometry* AirportGeometryStore::Find(const std::string& pId) const
+const AirportGeometry* AirportGeometryStore::find(const std::string& pId) const
 {
     const auto tFound = mById.find(pId);
     return tFound == mById.end() ? nullptr : &mAirports[tFound->second];
 }
 
-const std::string& AirportGeometryStore::FilePath(int pFile) const
+const std::string& AirportGeometryStore::filePath(int pFile) const
 {
     static const std::string kNone;
     return (pFile >= 0 && pFile < static_cast<int>(mFiles.size())) ? mFiles[pFile] : kNone;
 }
 
-void AirportGeometryStore::Query(const GeoBounds& pBounds, std::vector<int>& pOut) const
+void AirportGeometryStore::query(const GeoBounds& pBounds, std::vector<int>& pOut) const
 {
     if (mReady)
     {
-        mGrid.Query(pBounds, pOut);
+        mGrid.query(pBounds, pOut);
     }
 }

@@ -1,4 +1,3 @@
-// ElevationCodec.cpp
 #include "data/ElevationCodec.h"
 
 #include <cstdlib>
@@ -15,24 +14,24 @@ const unsigned kLzmaDictionary = 1u << 22;  // 4 MB: bir karonun butun verisi (2
 const size_t kPropsSize = LZMA_PROPS_SIZE;  // 5
 const size_t kHeaderSize = kPropsSize + 4;  // ozellikler + ham boyut
 
-void* LzmaAlloc(ISzAllocPtr /*pAllocator*/, size_t pSize)
+void* lzmaAlloc(ISzAllocPtr /*pAllocator*/, size_t pSize)
 {
     return std::malloc(pSize);
 }
 
-void LzmaFree(ISzAllocPtr /*pAllocator*/, void* pAddress)
+void lzmaFree(ISzAllocPtr /*pAllocator*/, void* pAddress)
 {
     std::free(pAddress);
 }
 
-const ISzAlloc kAllocator = {LzmaAlloc, LzmaFree};
+const ISzAlloc kAllocator = {lzmaAlloc, lzmaFree};
 
 }  // namespace
 
 namespace ElevationCodec
 {
 
-bool PackBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut)
+bool packBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut)
 {
     CLzmaEncProps tProps;
     LzmaEncProps_Init(&tProps);
@@ -58,7 +57,7 @@ bool PackBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut)
     return true;
 }
 
-bool UnpackBytes(const uint8_t* pData, size_t pSize, std::vector<uint8_t>* pOut)
+bool unpackBytes(const uint8_t* pData, size_t pSize, std::vector<uint8_t>* pOut)
 {
     if (pSize < kHeaderSize)
     {
@@ -82,7 +81,7 @@ bool UnpackBytes(const uint8_t* pData, size_t pSize, std::vector<uint8_t>* pOut)
     return tResult == SZ_OK && tDestinationSize == tRawSize;
 }
 
-bool Compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std::vector<uint8_t>* pOut)
+bool compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std::vector<uint8_t>* pOut)
 {
     const size_t tCount = static_cast<size_t>(pWidth) * static_cast<size_t>(pHeight);
     if (pWidth <= 0 || pHeight <= 0 || pValues.size() != tCount)
@@ -132,7 +131,7 @@ bool Compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std:
     return true;
 }
 
-bool Decompress(const uint8_t* pData, size_t pSize, int pWidth, int pHeight, std::vector<int16_t>* pOut)
+bool decompress(const uint8_t* pData, size_t pSize, int pWidth, int pHeight, std::vector<int16_t>* pOut)
 {
     const size_t tCount = static_cast<size_t>(pWidth) * static_cast<size_t>(pHeight);
     if (pWidth <= 0 || pHeight <= 0 || pSize < kHeaderSize)

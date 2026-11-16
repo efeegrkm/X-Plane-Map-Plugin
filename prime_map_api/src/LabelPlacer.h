@@ -1,11 +1,5 @@
-// LabelPlacer.h
-// Etiket (ve sembol) seyreltme: ekrana konan kutulari hatirlar, yeni kutu
-// oncekilerden biriyle cakisiyorsa reddeder. X-Plane'e bagimli DEGIL.
-//
-// Her karede Reset ile bosaltilir. Kim once yer isterse o kazanir; bu yuzden
-// katmanlar etiketlerini onem sirasiyla ister (havalimani once, fix en son).
-// Hizli olsun diye alan 32 boxel'lik hucrelere bolunur; yeni kutu sadece
-// degdigi hucrelerdeki kutularla karsilastirilir.
+// Etiket seyreltme: yerlesen kutulari hatirlar, cakisan yeni kutuyu reddeder.
+// X-Plane'e bagimli DEGIL.
 #pragma once
 
 #include <vector>
@@ -15,21 +9,19 @@
 class LabelPlacer
 {
 public:
-    // pArea disina tasan kutu kabul edilmez
-    void Reset(const RectD& pArea);
+    // pArea disina tasan kutu reddedilir
+    void reset(const RectD& pArea);
 
-    // Kutu bossa yerini ayirir ve true doner; cakisiyorsa false
-    bool TryPlace(const RectD& pBox);
+    bool tryPlace(const RectD& pBox);
 
-    // Kutuyu kontrol etmeden ayirir (sembollerin yeri: etiketler bunlarin
-    // ustune binmesin). Alanin disina tasan kismi kirpilir.
-    void Reserve(const RectD& pBox);
+    // Kontrolsuz ayirma (sembollerin yeri): etiketler bunlarin ustune binmesin
+    void reserve(const RectD& pBox);
 
-    int PlacedCount() const;
+    int placedCount() const;
 
 private:
-    void Insert(const RectD& pBox);  // kontrolsuz ekleme (kutu alanin icinde olmali)
-    void CellRange(const RectD& pBox, int* pColumnFirst, int* pColumnLast, int* pRowFirst, int* pRowLast) const;
+    void insert(const RectD& pBox);  // kontrolsuz ekleme (kutu alanin icinde olmali)
+    void cellRange(const RectD& pBox, int* pColumnFirst, int* pColumnLast, int* pRowFirst, int* pRowLast) const;
 
     RectD mArea;
     int mColumns = 0;

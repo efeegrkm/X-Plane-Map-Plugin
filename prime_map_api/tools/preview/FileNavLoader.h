@@ -1,4 +1,3 @@
-// FileNavLoader.h
 // Onizleme araci icin: nav verisini X-Plane SDK'si yerine dogrudan
 // dosyalardan okur (earth_nav.dat, earth_fix.dat, apt.dat basliklari).
 // Eklentinin kendisi bunu KULLANMAZ: eklentide veri SDK'dan gelir (NavLoader).

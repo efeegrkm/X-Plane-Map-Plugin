@@ -1,4 +1,3 @@
-// TrackLayer.cpp
 #include "layers/TrackLayer.h"
 
 #include <algorithm>
@@ -19,7 +18,7 @@ const int kMaxPoints = 20000;         // ~5.5 saatlik ucus
 const float kMinScreenStep = 1.5f;    // ekranda bundan yakin noktalar atlanir (boxel)
 const Rgba kTrackColor = {0.98f, 0.78f, 0.05f, 0.95f};
 
-}  // namespace
+}
 
 TrackLayer::TrackLayer(const AircraftData& pAircraft)
     : Layer("track", "Flight track", true)
@@ -27,7 +26,7 @@ TrackLayer::TrackLayer(const AircraftData& pAircraft)
 {
 }
 
-void TrackLayer::Update(float pNow)
+void TrackLayer::update(float pNow)
 {
     if (pNow - mLastSampleTime < kSampleInterval)
     {
@@ -35,14 +34,14 @@ void TrackLayer::Update(float pNow)
     }
     mLastSampleTime = pNow;
 
-    const AircraftState& tState = mAircraft.State();
+    const AircraftState& tState = mAircraft.state();
     if (!tState.mValid)
     {
         return;
     }
     if (!mSegments.empty() && !mSegments.back().empty())
     {
-        const double tMoved = DistanceNm(mSegments.back().back(), tState.mPosition);
+        const double tMoved = distanceNm(mSegments.back().back(), tState.mPosition);
         if (tMoved < kMinMoveNm)
         {
             return;
@@ -60,11 +59,11 @@ void TrackLayer::Update(float pNow)
     ++mPointCount;
     if (mPointCount > kMaxPoints)
     {
-        TrimOldest();
+        trimOldest();
     }
 }
 
-void TrackLayer::TrimOldest()
+void TrackLayer::trimOldest()
 {
     // En eski parcanin ilk %5'ini sil (her noktada silmek yavas olurdu)
     std::vector<LatLon>& tOldest = mSegments.front();
@@ -79,7 +78,7 @@ void TrackLayer::TrimOldest()
     mPointCount -= static_cast<int>(tRemove);
 }
 
-void TrackLayer::Draw(const DrawContext& pContext)
+void TrackLayer::draw(const drawContext& pContext)
 {
     Gfx::OutlinedLines tLines;
     for (const std::vector<LatLon>& tSegment : mSegments)
@@ -88,7 +87,7 @@ void TrackLayer::Draw(const DrawContext& pContext)
         tScreen.reserve(tSegment.size());
         for (const LatLon& tPoint : tSegment)
         {
-            const Gfx::Point tNew = pContext.mView->ToScreen(tPoint);
+            const Gfx::Point tNew = pContext.mView->toScreen(tPoint);
             if (!tScreen.empty() && std::fabs(tNew.mX - tScreen.back().mX) < kMinScreenStep &&
                 std::fabs(tNew.mY - tScreen.back().mY) < kMinScreenStep)
             {
@@ -96,18 +95,18 @@ void TrackLayer::Draw(const DrawContext& pContext)
             }
             tScreen.push_back(tNew);
         }
-        tLines.AddPolyline(tScreen, false, 2.0f, kTrackColor);
+        tLines.addPolyline(tScreen, false, 2.0f, kTrackColor);
     }
-    pContext.mCanvas->Draw(tLines);
+    pContext.mCanvas->draw(tLines);
 }
 
-void TrackLayer::Clear()
+void TrackLayer::clear()
 {
     mSegments.clear();
     mPointCount = 0;
 }
 
-int TrackLayer::PointCount() const
+int TrackLayer::pointCount() const
 {
     return mPointCount;
 }

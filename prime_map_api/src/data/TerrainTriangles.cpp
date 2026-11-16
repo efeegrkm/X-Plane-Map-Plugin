@@ -1,4 +1,3 @@
-// TerrainTriangles.cpp
 #include "data/TerrainTriangles.h"
 
 #include <algorithm>
@@ -7,14 +6,14 @@
 namespace
 {
 
-int ClampChunk(int pValue)
+int clampChunk(int pValue)
 {
     return std::min(std::max(pValue, 0), TerrainTriangles::kChunksPerSide - 1);
 }
 
 }  // namespace
 
-void TerrainTriangles::Reset(int pWest, int pSouth)
+void TerrainTriangles::reset(int pWest, int pSouth)
 {
     mWest = pWest;
     mSouth = pSouth;
@@ -23,17 +22,17 @@ void TerrainTriangles::Reset(int pWest, int pSouth)
     mChunks.assign(static_cast<size_t>(kChunksPerSide) * kChunksPerSide, {});
 }
 
-int TerrainTriangles::West() const
+int TerrainTriangles::west() const
 {
     return mWest;
 }
 
-int TerrainTriangles::South() const
+int TerrainTriangles::south() const
 {
     return mSouth;
 }
 
-void TerrainTriangles::Add(const double pLon[3], const double pLat[3], TerrainClass pClass)
+void TerrainTriangles::add(const double pLon[3], const double pLat[3], TerrainClass pClass)
 {
     const uint32_t tIndex = static_cast<uint32_t>(mClasses.size());
     double tMinX = 1e9;
@@ -54,10 +53,10 @@ void TerrainTriangles::Add(const double pLon[3], const double pLat[3], TerrainCl
     }
     mClasses.push_back(static_cast<uint8_t>(pClass));
 
-    const int tFirstColumn = ClampChunk(static_cast<int>(std::floor(tMinX * kChunksPerSide)));
-    const int tLastColumn = ClampChunk(static_cast<int>(std::floor(tMaxX * kChunksPerSide)));
-    const int tFirstRow = ClampChunk(static_cast<int>(std::floor(tMinRow * kChunksPerSide)));
-    const int tLastRow = ClampChunk(static_cast<int>(std::floor(tMaxRow * kChunksPerSide)));
+    const int tFirstColumn = clampChunk(static_cast<int>(std::floor(tMinX * kChunksPerSide)));
+    const int tLastColumn = clampChunk(static_cast<int>(std::floor(tMaxX * kChunksPerSide)));
+    const int tFirstRow = clampChunk(static_cast<int>(std::floor(tMinRow * kChunksPerSide)));
+    const int tLastRow = clampChunk(static_cast<int>(std::floor(tMaxRow * kChunksPerSide)));
     for (int tRow = tFirstRow; tRow <= tLastRow; ++tRow)
     {
         for (int tColumn = tFirstColumn; tColumn <= tLastColumn; ++tColumn)
@@ -67,12 +66,12 @@ void TerrainTriangles::Add(const double pLon[3], const double pLat[3], TerrainCl
     }
 }
 
-size_t TerrainTriangles::TriangleCount() const
+size_t TerrainTriangles::triangleCount() const
 {
     return mClasses.size();
 }
 
-size_t TerrainTriangles::MemoryBytes() const
+size_t TerrainTriangles::memoryBytes() const
 {
     size_t tBytes = mCoords.capacity() * sizeof(float) + mClasses.capacity();
     for (const std::vector<uint32_t>& tChunk : mChunks)
@@ -82,12 +81,12 @@ size_t TerrainTriangles::MemoryBytes() const
     return tBytes;
 }
 
-const std::vector<uint32_t>& TerrainTriangles::TrianglesIn(int pChunk) const
+const std::vector<uint32_t>& TerrainTriangles::trianglesIn(int pChunk) const
 {
     return mChunks[static_cast<size_t>(pChunk)];
 }
 
-void TerrainTriangles::Corners(uint32_t pIndex, double pLon[3], double pLat[3]) const
+void TerrainTriangles::corners(uint32_t pIndex, double pLon[3], double pLat[3]) const
 {
     const float* tCoords = mCoords.data() + static_cast<size_t>(pIndex) * 6;
     for (int tCorner = 0; tCorner < 3; ++tCorner)
@@ -97,7 +96,7 @@ void TerrainTriangles::Corners(uint32_t pIndex, double pLon[3], double pLat[3]) 
     }
 }
 
-TerrainClass TerrainTriangles::ClassOf(uint32_t pIndex) const
+TerrainClass TerrainTriangles::classOf(uint32_t pIndex) const
 {
     return static_cast<TerrainClass>(mClasses[pIndex]);
 }

@@ -1,4 +1,3 @@
-// SceneryIndex.cpp
 #include "data/SceneryIndex.h"
 
 #include <algorithm>
@@ -15,34 +14,34 @@ namespace
 
 namespace Fs = std::filesystem;
 
-int FloorTo10(int pValue)
+int floorTo10(int pValue)
 {
     return static_cast<int>(std::floor(pValue / 10.0)) * 10;
 }
 
-int FolderKey(int pWest, int pSouth)
+int folderKey(int pWest, int pSouth)
 {
-    return SceneryIndex::TileKey(FloorTo10(pWest), FloorTo10(pSouth));
+    return SceneryIndex::tileKey(floorTo10(pWest), floorTo10(pSouth));
 }
 
 }  // namespace
 
-int SceneryIndex::TileKey(int pWest, int pSouth)
+int SceneryIndex::tileKey(int pWest, int pSouth)
 {
     return (pSouth + 90) * 360 + (pWest + 180);
 }
 
-std::string SceneryIndex::TileName(int pWest, int pSouth)
+std::string SceneryIndex::tileName(int pWest, int pSouth)
 {
     return std::format("{:+03d}{:+04d}", pSouth, pWest);  // "+47-123"
 }
 
-std::string SceneryIndex::FolderName(int pWest, int pSouth)
+std::string SceneryIndex::folderName(int pWest, int pSouth)
 {
-    return TileName(FloorTo10(pWest), FloorTo10(pSouth));
+    return tileName(floorTo10(pWest), floorTo10(pSouth));
 }
 
-bool SceneryIndex::ParseTileName(const std::string& pFileName, int* pOutWest, int* pOutSouth)
+bool SceneryIndex::parseTileName(const std::string& pFileName, int* pOutWest, int* pOutSouth)
 {
     // Bicim: isaret + 2 hane enlem, isaret + 3 hane boylam, ".dsf" (buyuk/kucuk harf)
     if (pFileName.size() != 11)
@@ -79,7 +78,7 @@ bool SceneryIndex::ParseTileName(const std::string& pFileName, int* pOutWest, in
     return *pOutSouth >= -90 && *pOutSouth < 90 && *pOutWest >= -180 && *pOutWest < 180;
 }
 
-void SceneryIndex::Build(const std::string& pXPlaneDirectory)
+void SceneryIndex::build(const std::string& pXPlaneDirectory)
 {
     std::vector<std::string> tGlobalPacks;
     std::error_code tError;
@@ -92,44 +91,44 @@ void SceneryIndex::Build(const std::string& pXPlaneDirectory)
         }
     }
     std::sort(tGlobalPacks.begin(), tGlobalPacks.end());
-    BuildFromPacks(ReadSceneryPacks(pXPlaneDirectory), tGlobalPacks);
+    buildFromPacks(readSceneryPacks(pXPlaneDirectory), tGlobalPacks);
 
     // Dunya tablosu: deniz / veri yok ayrimi (yoksa yedek kural)
     WorldTileMap tMap;
     const std::string tMapPath = (Fs::path(pXPlaneDirectory) / "Resources" / "dsf_files").string();
-    if (tMap.Load(tMapPath))
+    if (tMap.load(tMapPath))
     {
-        SetWorldMap(tMap);
+        setWorldMap(tMap);
     }
     else
     {
-        SetWorldMap(WorldTileMap());
+        setWorldMap(WorldTileMap());
         mWorldMapReport = "world tile map not used (missing or unexpected size): " + tMapPath +
                           "; sea / no data from 10-degree folders";
     }
 }
 
-void SceneryIndex::BuildFromPacks(const std::vector<std::string>& pCustomPacks,
+void SceneryIndex::buildFromPacks(const std::vector<std::string>& pCustomPacks,
                                   const std::vector<std::string>& pGlobalPacks)
 {
     mTiles.clear();
     mInstalledFolders.clear();
     mGlobalTiles.clear();
-    mWorldMap.Clear();
+    mWorldMap.clear();
     mWorldMapReport.clear();
     mFileCount = 0;
     mPackCount = 0;
     for (const std::string& tPack : pCustomPacks)
     {
-        ScanPack(tPack, false);
+        scanPack(tPack, false);
     }
     for (const std::string& tPack : pGlobalPacks)
     {
-        ScanPack(tPack, true);
+        scanPack(tPack, true);
     }
 }
 
-void SceneryIndex::ScanPack(const std::string& pPackDirectory, bool pGlobal)
+void SceneryIndex::scanPack(const std::string& pPackDirectory, bool pGlobal)
 {
     // <paket>/Earth nav data/<10x10 klasor>/<karo>.dsf
     std::error_code tError;
@@ -143,15 +142,15 @@ void SceneryIndex::ScanPack(const std::string& pPackDirectory, bool pGlobal)
         }
         int tFolderWest = 0;
         int tFolderSouth = 0;
-        if (pGlobal && ParseTileName(tFolder.path().filename().string() + ".dsf", &tFolderWest, &tFolderSouth))
+        if (pGlobal && parseTileName(tFolder.path().filename().string() + ".dsf", &tFolderWest, &tFolderSouth))
         {
-            mInstalledFolders.insert(TileKey(tFolderWest, tFolderSouth));
+            mInstalledFolders.insert(tileKey(tFolderWest, tFolderSouth));
         }
         for (const Fs::directory_entry& tFile : Fs::directory_iterator(tFolder.path(), tError))
         {
             int tWest = 0;
             int tSouth = 0;
-            if (!tFile.is_regular_file(tError) || !ParseTileName(tFile.path().filename().string(), &tWest, &tSouth))
+            if (!tFile.is_regular_file(tError) || !parseTileName(tFile.path().filename().string(), &tWest, &tSouth))
             {
                 continue;
             }
@@ -159,10 +158,10 @@ void SceneryIndex::ScanPack(const std::string& pPackDirectory, bool pGlobal)
             tCandidate.mPath = tFile.path().string();
             tCandidate.mSize = static_cast<uint64_t>(tFile.file_size(tError));
             tCandidate.mModified = static_cast<int64_t>(tFile.last_write_time(tError).time_since_epoch().count());
-            mTiles[TileKey(tWest, tSouth)].push_back(tCandidate);
+            mTiles[tileKey(tWest, tSouth)].push_back(tCandidate);
             if (pGlobal)
             {
-                mGlobalTiles.insert(TileKey(tWest, tSouth));
+                mGlobalTiles.insert(tileKey(tWest, tSouth));
             }
             ++mFileCount;
             tAny = true;
@@ -174,35 +173,35 @@ void SceneryIndex::ScanPack(const std::string& pPackDirectory, bool pGlobal)
     }
 }
 
-const std::vector<DsfCandidate>* SceneryIndex::CandidatesFor(int pWest, int pSouth) const
+const std::vector<DsfCandidate>* SceneryIndex::candidatesFor(int pWest, int pSouth) const
 {
-    const auto tFound = mTiles.find(TileKey(pWest, pSouth));
+    const auto tFound = mTiles.find(tileKey(pWest, pSouth));
     return tFound == mTiles.end() ? nullptr : &tFound->second;
 }
 
-TileCoverage SceneryIndex::CoverageOf(int pWest, int pSouth) const
+TileCoverage SceneryIndex::coverageOf(int pWest, int pSouth) const
 {
-    if (CandidatesFor(pWest, pSouth))
+    if (candidatesFor(pWest, pSouth))
     {
-        return TileCoverage::HasDsf;
+        return TileCoverage::hasDsf;
     }
-    return NoBaseCoverage(pWest, pSouth);
+    return noBaseCoverage(pWest, pSouth);
 }
 
-TileCoverage SceneryIndex::NoBaseCoverage(int pWest, int pSouth) const
+TileCoverage SceneryIndex::noBaseCoverage(int pWest, int pSouth) const
 {
-    if (mWorldMap.IsLoaded())
+    if (mWorldMap.isLoaded())
     {
         // Global sahnede DSF'i olan karo kara / kiyidir: burada kurulu degilse veri yok
-        return mWorldMap.HasDsf(pWest, pSouth) ? TileCoverage::NoData : TileCoverage::Ocean;
+        return mWorldMap.hasDsf(pWest, pSouth) ? TileCoverage::NoData : TileCoverage::Ocean;
     }
-    return IsRegionInstalled(pWest, pSouth) ? TileCoverage::Ocean : TileCoverage::NoData;
+    return isRegionInstalled(pWest, pSouth) ? TileCoverage::Ocean : TileCoverage::NoData;
 }
 
-void SceneryIndex::SetWorldMap(const WorldTileMap& pMap)
+void SceneryIndex::setWorldMap(const WorldTileMap& pMap)
 {
-    mWorldMap.Clear();
-    if (!pMap.IsLoaded())
+    mWorldMap.clear();
+    if (!pMap.isLoaded())
     {
         mWorldMapReport = "world tile map not used";
         return;
@@ -213,7 +212,7 @@ void SceneryIndex::SetWorldMap(const WorldTileMap& pMap)
     {
         const int tWest = tKey % 360 - 180;
         const int tSouth = tKey / 360 - 90;
-        tMismatches += pMap.HasDsf(tWest, tSouth) ? 0 : 1;
+        tMismatches += pMap.hasDsf(tWest, tSouth) ? 0 : 1;
     }
     const int tChecked = static_cast<int>(mGlobalTiles.size());
     const int tAllowed = std::max(1, tChecked / 50);  // %2 (ozel bolge paketleri icin pay)
@@ -227,35 +226,35 @@ void SceneryIndex::SetWorldMap(const WorldTileMap& pMap)
     mWorldMap = pMap;
     mWorldMapReport = std::format("world tile map: {} land tiles, checked against {} installed global tiles "
                                   "({} mismatches)",
-                                  pMap.LandTileCount(), tChecked, tMismatches);
+                                  pMap.landTileCount(), tChecked, tMismatches);
 }
 
-bool SceneryIndex::UsesWorldMap() const
+bool SceneryIndex::usesWorldMap() const
 {
-    return mWorldMap.IsLoaded();
+    return mWorldMap.isLoaded();
 }
 
-const std::string& SceneryIndex::WorldMapReport() const
+const std::string& SceneryIndex::worldMapReport() const
 {
     return mWorldMapReport;
 }
 
-bool SceneryIndex::IsRegionInstalled(int pWest, int pSouth) const
+bool SceneryIndex::isRegionInstalled(int pWest, int pSouth) const
 {
-    return mInstalledFolders.count(FolderKey(pWest, pSouth)) > 0;
+    return mInstalledFolders.count(folderKey(pWest, pSouth)) > 0;
 }
 
-int SceneryIndex::TileCount() const
+int SceneryIndex::tileCount() const
 {
     return static_cast<int>(mTiles.size());
 }
 
-int SceneryIndex::FileCount() const
+int SceneryIndex::fileCount() const
 {
     return mFileCount;
 }
 
-int SceneryIndex::PackCount() const
+int SceneryIndex::packCount() const
 {
     return mPackCount;
 }

@@ -1,6 +1,4 @@
-// GlInclude.h
-// OpenGL basliklarini her platformda dogru sekilde dahil eder.
-// Sadece gfx/ klasorundeki dosyalar (ve onizleme araci) kullanir.
+// openGL basliklarini her platformda dogru sekilde dahil eder.
 #pragma once
 
 #if IBM
@@ -14,7 +12,7 @@
 #endif
 
 #if APL
-#include <OpenGL/gl.h>
+#include <openGL/gl.h>
 #else
 #include <GL/gl.h>
 #endif

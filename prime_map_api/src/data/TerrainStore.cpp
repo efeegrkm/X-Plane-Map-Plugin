@@ -1,4 +1,3 @@
-// TerrainStore.cpp
 #include "data/TerrainStore.h"
 #include "data/TerrainProfile.h"
 
@@ -39,18 +38,18 @@ const char* kCacheVersion = "terrain-v1";
 
 using Clock = std::chrono::steady_clock;
 
-double MillisecondsSince(Clock::time_point pStart)
+double millisecondsSince(Clock::time_point pStart)
 {
     return std::chrono::duration<double, std::milli>(Clock::now() - pStart).count();
 }
 
-int WrapWest(int pWest)
+int wrapWest(int pWest)
 {
     return pWest < -180 ? pWest + 360 : (pWest > 179 ? pWest - 360 : pWest);
 }
 
 // Onbellek anahtari: karonun butun aday DSF'leri (yol, boyut, degisiklik zamani)
-std::string CacheKey(const std::vector<DsfCandidate>& pCandidates)
+std::string cacheKey(const std::vector<DsfCandidate>& pCandidates)
 {
     std::string tKey = kCacheVersion;
     for (const DsfCandidate& tCandidate : pCandidates)
@@ -63,7 +62,7 @@ std::string CacheKey(const std::vector<DsfCandidate>& pCandidates)
 
 // "Temel mesh yok" sonucu da onbellege yazilir (yoksa sadece havalimani overlay'i
 // olan binlerce karo her acilista yeniden acilirdi). Dosyada sadece anahtar var.
-bool HasNoBaseMarker(const std::string& pPath, const std::string& pKey)
+bool hasNoBaseMarker(const std::string& pPath, const std::string& pKey)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     if (!tFile)
@@ -74,16 +73,16 @@ bool HasNoBaseMarker(const std::string& pPath, const std::string& pKey)
     return tKey == pKey;
 }
 
-void WriteNoBaseMarker(const std::string& pPath, const std::string& pKey)
+void writeNoBaseMarker(const std::string& pPath, const std::string& pKey)
 {
     std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
     tFile << pKey;
 }
 
-// Istegin (karo / parca) ortasinin odaga uzakligi; tanimi asagida (PickRequest'in yaninda)
-double FocusDistance(const TerrainImageKey& pKey, double pFocusLat, double pFocusLon);
+// istegin(karo / parca) ortasinin odaga uzakligi; tanimi asagida (pickRequest'in yaninda)
+double focusDistance(const TerrainImageKey& pKey, double pFocusLat, double pFocusLon);
 
-bool ReadWholeFile(const std::string& pPath, std::vector<uint8_t>* pOut)
+bool readWholeFile(const std::string& pPath, std::vector<uint8_t>* pOut)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     if (!tFile)
@@ -96,13 +95,13 @@ bool ReadWholeFile(const std::string& pPath, std::vector<uint8_t>* pOut)
 
 }  // namespace
 
-int TerrainStore::ImageSize(int pLevel)
+int TerrainStore::imageSize(int pLevel)
 {
     const int kSizes[kLevelCount] = {64, 256, 1024, 1024, 1024, 1024};
     return kSizes[pLevel];
 }
 
-int TerrainStore::ChunksPerSide(int pLevel)
+int TerrainStore::chunksPerSide(int pLevel)
 {
     if (pLevel == kDetailLevel)
     {
@@ -119,10 +118,10 @@ TerrainStore::TerrainStore() = default;
 
 TerrainStore::~TerrainStore()
 {
-    Stop();
+    stop();
 }
 
-void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory,
+void TerrainStore::start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory,
                          const TerrainPalette& pPalette, const std::vector<TerrainImageStyle>& pStyles)
 {
     if (mThread.joinable())
@@ -132,7 +131,7 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
     mXPlaneDirectory = pXPlaneDirectory;
     mCacheDirectory = pCacheDirectory;
     {
-        // Palet 0 = verilen palet. Start'tan once AddPalette ile eklenenler (1, 2 ...) korunur.
+        // Palet 0 = verilen palet. Start'tan once addPalette ile eklenenler (1, 2 ...) korunur.
         std::lock_guard<std::mutex> tLock(mMutex);
         if (mPalettes.empty())
         {
@@ -148,7 +147,7 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
     mThread = std::thread(
         [this]()
         {
-            WorkerLoop();
+            workerLoop();
         });
 #if defined(_WIN32)
     // Dusuk oncelik: isci X-Plane'in kare suresinden pay almasin (ekran istekleri yine once gelir)
@@ -156,7 +155,7 @@ void TerrainStore::Start(const std::string& pXPlaneDirectory, const std::string&
 #endif
 }
 
-void TerrainStore::SetCacheLimit(uint64_t pBytes)
+void TerrainStore::setCacheLimit(uint64_t pBytes)
 {
     if (mCacheLimit.exchange(pBytes) != pBytes)
     {
@@ -165,24 +164,24 @@ void TerrainStore::SetCacheLimit(uint64_t pBytes)
     }
 }
 
-void TerrainStore::SetMemoryScale(double pScale)
+void TerrainStore::setMemoryScale(double pScale)
 {
     mMemoryScale.store(std::max(1.0, pScale));
 }
 
-size_t TerrainStore::ScaledLimit(size_t pBase) const
+size_t TerrainStore::scaledLimit(size_t pBase) const
 {
     return static_cast<size_t>(std::lround(static_cast<double>(pBase) * mMemoryScale.load()));
 }
 
-int TerrainStore::AddPalette(const TerrainPalette& pPalette)
+int TerrainStore::addPalette(const TerrainPalette& pPalette)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     mPalettes.push_back(pPalette);  // ilk eklenen 0 numarayi alir (Start ayni paleti 0'a yazar)
     return static_cast<int>(mPalettes.size()) - 1;
 }
 
-void TerrainStore::TrimCache()
+void TerrainStore::trimCache()
 {
     // ISCI thread'i: dosyalari sadece isci okur/yazar, silmek guvenli
     mCacheGrew = false;
@@ -191,24 +190,24 @@ void TerrainStore::TrimCache()
     {
         return;
     }
-    const CacheTrimResult tResult = TrimTileCache(mCacheDirectory, tLimit);
+    const CacheTrimResult tResult = trimTileCache(mCacheDirectory, tLimit);
     if (tResult.mRemovedTiles > 0)
     {
-        AddLog(std::format("terrain cache: {:.0f} MB over the {:.0f} MB limit, removed {} least recently used tiles "
+        addLog(std::format("terrain cache: {:.0f} MB over the {:.0f} MB limit, removed {} least recently used tiles "
                            "({:.0f} MB)",
                            tResult.mTotalBytes / 1048576.0, tLimit / 1048576.0, tResult.mRemovedTiles,
                            tResult.mRemovedBytes / 1048576.0));
     }
 }
 
-void TerrainStore::SetFocus(double pLat, double pLon)
+void TerrainStore::setFocus(double pLat, double pLon)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     mFocusLat = pLat;
     mFocusLon = pLon;
 }
 
-void TerrainStore::SetPrefetchTiles(const std::vector<int>& pTiles)
+void TerrainStore::setPrefetchTiles(const std::vector<int>& pTiles)
 {
     {
         std::lock_guard<std::mutex> tLock(mMutex);
@@ -217,7 +216,7 @@ void TerrainStore::SetPrefetchTiles(const std::vector<int>& pTiles)
     mWake.notify_one();
 }
 
-void TerrainStore::StartPrecache(const std::vector<int>& pTiles)
+void TerrainStore::startPrecache(const std::vector<int>& pTiles)
 {
     {
         std::lock_guard<std::mutex> tLock(mMutex);
@@ -228,14 +227,14 @@ void TerrainStore::StartPrecache(const std::vector<int>& pTiles)
     mWake.notify_one();
 }
 
-void TerrainStore::CancelPrecache()
+void TerrainStore::cancelPrecache()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     mPrecache.clear();
     mPrecacheTotal = mPrecacheDone;  // bitmis sayilir
 }
 
-bool TerrainStore::PrecacheProgress(int* pDone, int* pTotal) const
+bool TerrainStore::precacheProgress(int* pDone, int* pTotal) const
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     *pDone = mPrecacheDone;
@@ -243,7 +242,7 @@ bool TerrainStore::PrecacheProgress(int* pDone, int* pTotal) const
     return mPrecacheDone < mPrecacheTotal;
 }
 
-bool TerrainStore::ServeBackgroundTile()
+bool TerrainStore::serveBackgroundTile()
 {
     // ISCI thread'i. Ekranin istegi varken calismaz (dusuk oncelik): bir karo ~0,5-1 s surer.
     int tKey = -1;
@@ -291,8 +290,8 @@ bool TerrainStore::ServeBackgroundTile()
         std::string tLog;
         TerrainTileState tState = TerrainTileState::Unknown;
         const Clock::time_point tBackgroundStart = Clock::now();
-        BuildRaster(mIndex, tWest, tSouth, mCacheDirectory, &tRaster, &tLog, &tState, &tElevation, &tVectors);
-        const double tBackgroundMs = MillisecondsSince(tBackgroundStart);
+        buildRaster(mIndex, tWest, tSouth, mCacheDirectory, &tRaster, &tLog, &tState, &tElevation, &tVectors);
+        const double tBackgroundMs = millisecondsSince(tBackgroundStart);
         mStats.mBackgroundMs += tBackgroundMs;
         ++mStats.mBackgroundCount;
         {
@@ -306,9 +305,9 @@ bool TerrainStore::ServeBackgroundTile()
         if (!tLog.empty())
         {
             tLog.pop_back();
-            AddLog((tPrecache ? "pre-cache: " : "prefetch: ") + tLog);
+            addLog((tPrecache ? "pre-cache: " : "prefetch: ") + tLog);
         }
-        SetState(tWest, tSouth, tState);
+        setState(tWest, tSouth, tState);
         mCacheGrew = true;
     }
     std::lock_guard<std::mutex> tLock(mMutex);
@@ -320,7 +319,7 @@ bool TerrainStore::ServeBackgroundTile()
     return true;
 }
 
-void TerrainStore::Stop()
+void TerrainStore::stop()
 {
     {
         std::lock_guard<std::mutex> tLock(mMutex);
@@ -333,28 +332,28 @@ void TerrainStore::Stop()
     }
 }
 
-bool TerrainStore::IsIndexReady() const
+bool TerrainStore::isIndexReady() const
 {
     return mIndexReady.load();
 }
 
-TileCoverage TerrainStore::CoverageOf(int pWest, int pSouth) const
+TileCoverage TerrainStore::coverageOf(int pWest, int pSouth) const
 {
     if (!mIndexReady.load())
     {
         return TileCoverage::NoData;
     }
-    return mIndex.CoverageOf(pWest, pSouth);  // dizin hazir olduktan sonra degismez
+    return mIndex.coverageOf(pWest, pSouth);  // dizin hazir olduktan sonra degismez
 }
 
-TerrainTileState TerrainStore::StateOf(int pWest, int pSouth) const
+TerrainTileState TerrainStore::stateOf(int pWest, int pSouth) const
 {
     std::lock_guard<std::mutex> tLock(mMutex);
-    const auto tFound = mStates.find(SceneryIndex::TileKey(pWest, pSouth));
+    const auto tFound = mStates.find(SceneryIndex::tileKey(pWest, pSouth));
     return tFound == mStates.end() ? TerrainTileState::Unknown : tFound->second;
 }
 
-void TerrainStore::BeginFrame()
+void TerrainStore::beginFrame()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     ++mFrame;
@@ -377,8 +376,8 @@ void TerrainStore::Request(const TerrainImageKey& pKey)
         }
         const auto [tEntry, tInserted] = mRequests.try_emplace(pKey);
         tEntry->second.mFrame = mFrame;
-        // Uzaklik istek aninda: isteyen haritanin merkezi (SetFocus, o haritanin Draw'inda) gecerli
-        tEntry->second.mDistance = FocusDistance(pKey, mFocusLat, mFocusLon);
+        // Uzaklik istek aninda: isteyen haritanin merkezi (setFocus, o haritanin Draw'inda) gecerli
+        tEntry->second.mDistance = focusDistance(pKey, mFocusLat, mFocusLon);
         if (tInserted)
         {
             tEntry->second.mFirst = Clock::now();
@@ -387,18 +386,18 @@ void TerrainStore::Request(const TerrainImageKey& pKey)
     mWake.notify_one();
 }
 
-void TerrainStore::SetDiagnostics(bool pOn)
+void TerrainStore::setDiagnostics(bool pOn)
 {
     mDiagnostics.store(pOn);
 }
 
-bool TerrainStore::HasElevation(int pWest, int pSouth) const
+bool TerrainStore::hasElevation(int pWest, int pSouth) const
 {
     std::lock_guard<std::mutex> tLock(mMutex);
-    return mElevationReady.count(SceneryIndex::TileKey(pWest, pSouth)) > 0;
+    return mElevationReady.count(SceneryIndex::tileKey(pWest, pSouth)) > 0;
 }
 
-bool TerrainStore::PopImage(TerrainImage* pOut)
+bool TerrainStore::popImage(TerrainImage* pOut)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     if (mResults.empty())
@@ -411,7 +410,7 @@ bool TerrainStore::PopImage(TerrainImage* pOut)
     return true;
 }
 
-bool TerrainStore::IsIdle() const
+bool TerrainStore::isIdle() const
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     // Uretilmekte olan goruntu de is sayilir: katman ayni istegi tekrarlasa bile kuyruga girmez (Request)
@@ -419,11 +418,11 @@ bool TerrainStore::IsIdle() const
            !mHasInFlight && mStatus.empty() && mIndexReady.load();
 }
 
-void TerrainStore::RequestVectors(int pWest, int pSouth)
+void TerrainStore::requestVectors(int pWest, int pSouth)
 {
     {
         std::lock_guard<std::mutex> tLock(mMutex);
-        const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+        const int tKey = SceneryIndex::tileKey(pWest, pSouth);
         if (mVectorsServed.count(tKey))
         {
             return;  // verildi; katman kendi kopyasini tutar (atinca ForgetVectors ile yeniden ister)
@@ -433,7 +432,7 @@ void TerrainStore::RequestVectors(int pWest, int pSouth)
     mWake.notify_one();
 }
 
-bool TerrainStore::PopVectors(std::shared_ptr<const TerrainVectors>* pOut)
+bool TerrainStore::popVectors(std::shared_ptr<const TerrainVectors>* pOut)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     if (mVectorResults.empty())
@@ -445,13 +444,13 @@ bool TerrainStore::PopVectors(std::shared_ptr<const TerrainVectors>* pOut)
     return true;
 }
 
-std::string TerrainStore::StatusText() const
+std::string TerrainStore::statusText() const
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     return mStatus;
 }
 
-std::string TerrainStore::TakeLogLines()
+std::string TerrainStore::takeLogLines()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     std::string tLines;
@@ -459,25 +458,25 @@ std::string TerrainStore::TakeLogLines()
     return tLines;
 }
 
-void TerrainStore::AddLog(const std::string& pLine)
+void TerrainStore::addLog(const std::string& pLine)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     mLog += pLine + "\n";
 }
 
-void TerrainStore::SetState(int pWest, int pSouth, TerrainTileState pState)
+void TerrainStore::setState(int pWest, int pSouth, TerrainTileState pState)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
-    mStates[SceneryIndex::TileKey(pWest, pSouth)] = pState;
+    mStates[SceneryIndex::tileKey(pWest, pSouth)] = pState;
 }
 
 namespace
 {
 
-// Istegin (karo / parca) ortasinin odaga uzakligi (derece^2, boylam enleme gore kisalir)
-double FocusDistance(const TerrainImageKey& pKey, double pFocusLat, double pFocusLon)
+// istegin(karo / parca) ortasinin odaga uzakligi (derece^2, boylam enleme gore kisalir)
+double focusDistance(const TerrainImageKey& pKey, double pFocusLat, double pFocusLon)
 {
-    const int tCount = TerrainStore::ChunksPerSide(pKey.mLevel);
+    const int tCount = TerrainStore::chunksPerSide(pKey.mLevel);
     const int tColumn = tCount > 1 ? pKey.mChunk % tCount : 0;
     const int tRow = tCount > 1 ? pKey.mChunk / tCount : 0;
     const double tLon = pKey.mWest + (tColumn + 0.5) / tCount;
@@ -491,10 +490,10 @@ double FocusDistance(const TerrainImageKey& pKey, double pFocusLat, double pFocu
 
 }  // namespace
 
-bool TerrainStore::PickRequest(TerrainImageKey* pOut)
+bool TerrainStore::pickRequest(TerrainImageKey* pOut)
 {
     // mMutex kilitliyken cagrilir. En son istenen; esitlikte kaba seviye once (once bulanik ama
-    // hizli bir goruntu, sonra keskini); o da esitse ekran merkezine yakin olan (Asama 4).
+    // hizli bir goruntu, sonra keskini); o da esitse ekran merkezine yakin olan.
     bool tFound = false;
     uint64_t tBestFrame = 0;
     int tBestLevel = 0;
@@ -530,48 +529,48 @@ bool TerrainStore::PickRequest(TerrainImageKey* pOut)
     return tFound;
 }
 
-bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
+bool TerrainStore::buildRaster(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
                                TerrainRaster* pOut, std::string* pLog, TerrainTileState* pState,
                                ElevationGrid* pElevation, TerrainVectors* pVectors)
 {
     // Temel mesh yoksa: deniz ya da veri yok (SceneryIndex: dunya tablosu, yoksa 10 derece klasor kurali)
-    const TerrainTileState tNoBaseState = pIndex.NoBaseCoverage(pWest, pSouth) == TileCoverage::Ocean
+    const TerrainTileState tNoBaseState = pIndex.noBaseCoverage(pWest, pSouth) == TileCoverage::Ocean
                                               ? TerrainTileState::Ocean
                                               : TerrainTileState::NoData;
-    const std::vector<DsfCandidate>* tCandidates = pIndex.CandidatesFor(pWest, pSouth);
+    const std::vector<DsfCandidate>* tCandidates = pIndex.candidatesFor(pWest, pSouth);
     if (!tCandidates)
     {
         *pState = tNoBaseState;
         return false;
     }
-    const std::string tName = SceneryIndex::TileName(pWest, pSouth);
+    const std::string tName = SceneryIndex::tileName(pWest, pSouth);
     const std::string tCachePath = pCacheDirectory + tName + ".terrain";
     const std::string tElevationPath = pCacheDirectory + tName + ".elevation";
     const std::string tVectorsPath = pCacheDirectory + tName + ".vectors";
     const std::string tNoBasePath = pCacheDirectory + tName + ".nobase";
-    const std::string tKey = CacheKey(*tCandidates);
+    const std::string tKey = cacheKey(*tCandidates);
     auto tLoadRaster = [&]()
     {
-        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::LoadRaster);
-        return pOut->Load(tCachePath, tKey);
+        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::loadRaster);
+        return pOut->load(tCachePath, tKey);
     };
     auto tLoadElevation = [&]()
     {
-        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::LoadElevation);
-        return !pElevation || pElevation->Load(tElevationPath, tKey);
+        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::loadElevation);
+        return !pElevation || pElevation->load(tElevationPath, tKey);
     };
     auto tLoadVectors = [&]()
     {
-        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::LoadVectors);
-        return !pVectors || pVectors->Load(tVectorsPath, tKey);
+        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::loadVectors);
+        return !pVectors || pVectors->load(tVectorsPath, tKey);
     };
     if (!pCacheDirectory.empty() && tLoadRaster() && tLoadElevation() && tLoadVectors())
     {
         *pState = TerrainTileState::Ready;
-        TouchCacheFile(tCachePath);  // en son kullanilan (disk siniri: CacheTrim)
+        touchCacheFile(tCachePath);  // en son kullanilan (disk siniri: CacheTrim)
         return true;  // onbellek guncel: DSF'e hic dokunulmadi
     }
-    if (!pCacheDirectory.empty() && HasNoBaseMarker(tNoBasePath, tKey))
+    if (!pCacheDirectory.empty() && hasNoBaseMarker(tNoBasePath, tKey))
     {
         *pState = tNoBaseState;  // daha once bakildi: bu karoda sadece overlay var
         return false;
@@ -581,34 +580,34 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
     std::vector<uint8_t> tData;
     DsfReader tReader;
     std::string tPath;
-    if (!OpenBaseMesh(*tCandidates, tName, &tData, &tReader, &tPath, pLog))
+    if (!openBaseMesh(*tCandidates, tName, &tData, &tReader, &tPath, pLog))
     {
         // Sadece overlay DSF'leri var (veya hepsi okunamadi): temel mesh yok
         *pState = tNoBaseState;
         if (!pCacheDirectory.empty())
         {
-            WriteNoBaseMarker(tNoBasePath, tKey);
+            writeNoBaseMarker(tNoBasePath, tKey);
         }
         *pLog += "terrain " + tName + ": no base mesh (only overlays)\n";
         return false;
     }
 
-    // Arazi turu indeksi -> sinif
+    // Arazi turu indeksi siniflara cevrilir
     std::vector<TerrainClass> tClasses;
-    for (const std::string& tTerrain : tReader.Info().mTerrainNames)
+    for (const std::string& tTerrain : tReader.info().mTerrainNames)
     {
-        tClasses.push_back(ClassifyTerrain(tTerrain));
+        tClasses.push_back(classifyTerrain(tTerrain));
     }
-    pOut->Reset(pWest, pSouth);
+    pOut->reset(pWest, pSouth);
     std::string tError;
     std::optional<TerrainProfile::ScopedStage> tTriangleStage(TerrainProfile::Stage::DsfTriangles);
-    const bool tOk = tReader.ForEachTriangle(
+    const bool tOk = tReader.forEachTriangle(
         [&](const DsfTriangle& pTriangle)
         {
             if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0 && pTriangle.mTerrain >= 0 &&
                 pTriangle.mTerrain < static_cast<int>(tClasses.size()))
             {
-                pOut->FillTriangle(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
+                pOut->fillTriangle(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
             }
         },
         &tError);
@@ -619,16 +618,16 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
         return false;
     }
     tTriangleStage.reset();
-    // Vektorler (Asama 2): temel mesh'in poligon / zincirleri + overlay DSF'lerinin dislama alanlari
+    // vektorler: temel mesh'in poligon / zincirleri + overlay DSF'lerinin dislama alanlari
     std::optional<TerrainProfile::ScopedStage> tVectorStage(TerrainProfile::Stage::DsfVectors);
     TerrainVectors tLocalVectors;
     TerrainVectors& tVectors = pVectors ? *pVectors : tLocalVectors;
-    tVectors.Reset(pWest, pSouth);
+    tVectors.reset(pWest, pSouth);
     std::string tVectorError;
-    if (!tVectors.AddFromDsf(tReader, &tVectorError))
+    if (!tVectors.addFromDsf(tReader, &tVectorError))
     {
         *pLog += "terrain " + tName + ": vectors skipped: " + tVectorError + "\n";
-        tVectors.Reset(pWest, pSouth);
+        tVectors.reset(pWest, pSouth);
     }
     tVectorStage.emplace(TerrainProfile::Stage::Overlays);
     for (const DsfCandidate& tCandidate : *tCandidates)
@@ -640,34 +639,34 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
         std::vector<uint8_t> tOverlayData;
         DsfReader tOverlay;
         std::string tOverlayError;
-        if (!ReadWholeFile(tCandidate.mPath, &tOverlayData))
+        if (!readWholeFile(tCandidate.mPath, &tOverlayData))
         {
             continue;
         }
-        if (SevenZip::IsArchive(tOverlayData.data(), tOverlayData.size()))
+        if (SevenZip::isArchive(tOverlayData.data(), tOverlayData.size()))
         {
             std::vector<uint8_t> tPlain;
-            if (!SevenZip::ExtractFirstFile(tOverlayData, &tPlain, &tOverlayError))
+            if (!SevenZip::extractFirstFile(tOverlayData, &tPlain, &tOverlayError))
             {
                 continue;
             }
             tOverlayData.swap(tPlain);
         }
-        if (tOverlay.Open(tOverlayData, &tOverlayError) && tOverlay.Info().mOverlay)
+        if (tOverlay.open(tOverlayData, &tOverlayError) && tOverlay.info().mOverlay)
         {
-            tVectors.AddExclusions(tOverlay.Info());
+            tVectors.addExclusions(tOverlay.info());
         }
     }
-    tVectors.ApplyNetworkExclusions();
+    tVectors.applyNetworkExclusions();
     tVectorStage.emplace(TerrainProfile::Stage::FillAreas);
-    pOut->FillAreas(tVectors);
+    pOut->fillAreas(tVectors);
     tVectorStage.emplace(TerrainProfile::Stage::CacheSave);
-    if (!pCacheDirectory.empty() && !tVectors.Save(tVectorsPath, tKey))
+    if (!pCacheDirectory.empty() && !tVectors.save(tVectorsPath, tKey))
     {
         *pLog += "terrain " + tName + ": cannot write cache " + tVectorsPath + "\n";
     }
 
-    if (!pCacheDirectory.empty() && !pOut->Save(tCachePath, tKey))
+    if (!pCacheDirectory.empty() && !pOut->save(tCachePath, tKey))
     {
         *pLog += "terrain " + tName + ": cannot write cache " + tCachePath + "\n";
     }
@@ -682,9 +681,9 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
         bool tHasSea = false;
         {
             TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::ElevationBuild);
-            const bool tHasDem = tReader.ReadRaster("elevation", &tDem);
-            tHasSea = tReader.ReadRaster("sea_level", &tSeaLevel);
-            if (!tHasDem || !pElevation->Build(tDem, tHasSea ? &tSeaLevel : nullptr))
+            const bool tHasDem = tReader.readRaster("elevation", &tDem);
+            tHasSea = tReader.readRaster("sea_level", &tSeaLevel);
+            if (!tHasDem || !pElevation->build(tDem, tHasSea ? &tSeaLevel : nullptr))
             {
                 *pElevation = ElevationGrid();
             }
@@ -692,41 +691,41 @@ bool TerrainStore::BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth
         const Clock::time_point tPackStart = Clock::now();
         {
             TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::ElevationPack);
-            if (!pCacheDirectory.empty() && !pElevation->Save(tElevationPath, tKey))
+            if (!pCacheDirectory.empty() && !pElevation->save(tElevationPath, tKey))
             {
                 *pLog += "terrain " + tName + ": cannot write cache " + tElevationPath + "\n";
             }
         }
-        if (!pElevation->IsEmpty())
+        if (!pElevation->isEmpty())
         {
             std::error_code tSizeError;
             const uintmax_t tBytes = std::filesystem::file_size(tElevationPath, tSizeError);
             tElevationText = std::format("elevation {} posts, sea_level {}, packed {:.2f} MB in {:.0f} ms",
-                                         pElevation->Size(0), tHasSea ? "yes" : "no",
-                                         tSizeError ? 0.0 : tBytes / 1048576.0, MillisecondsSince(tPackStart));
+                                         pElevation->size(0), tHasSea ? "yes" : "no",
+                                         tSizeError ? 0.0 : tBytes / 1048576.0, millisecondsSince(tPackStart));
         }
     }
     *pLog += std::format("terrain {}: built from {} in {:.1f} s (water {:.0f}%, {}, vectors {} areas {} lines)\n",
                          tName, tPath, std::chrono::duration<double>(Clock::now() - tStart).count(),
-                         100.0 * pOut->CountOf(TerrainClass::Water) / (TerrainRaster::kSize * TerrainRaster::kSize),
-                         tElevationText, tVectors.Areas().size(), tVectors.Lines().size());
+                         100.0 * pOut->countOf(TerrainClass::Water) / (TerrainRaster::kSize * TerrainRaster::kSize),
+                         tElevationText, tVectors.areas().size(), tVectors.lines().size());
     *pState = TerrainTileState::Ready;
     return true;
 }
 
-bool TerrainStore::LoadElevation(const SceneryIndex& pIndex, int pWest, int pSouth,
+bool TerrainStore::loadElevation(const SceneryIndex& pIndex, int pWest, int pSouth,
                                  const std::string& pCacheDirectory, ElevationGrid* pOut)
 {
-    const std::vector<DsfCandidate>* tCandidates = pIndex.CandidatesFor(pWest, pSouth);
+    const std::vector<DsfCandidate>* tCandidates = pIndex.candidatesFor(pWest, pSouth);
     if (!tCandidates || pCacheDirectory.empty())
     {
         return false;
     }
-    const std::string tPath = pCacheDirectory + SceneryIndex::TileName(pWest, pSouth) + ".elevation";
-    return pOut->Load(tPath, CacheKey(*tCandidates));
+    const std::string tPath = pCacheDirectory + SceneryIndex::tileName(pWest, pSouth) + ".elevation";
+    return pOut->load(tPath, cacheKey(*tCandidates));
 }
 
-bool TerrainStore::OpenBaseMesh(const std::vector<DsfCandidate>& pCandidates, const std::string& pName,
+bool TerrainStore::openBaseMesh(const std::vector<DsfCandidate>& pCandidates, const std::string& pName,
                                 std::vector<uint8_t>* pData, DsfReader* pReader, std::string* pPath,
                                 std::string* pLog)
 {
@@ -734,28 +733,28 @@ bool TerrainStore::OpenBaseMesh(const std::vector<DsfCandidate>& pCandidates, co
     TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::DsfUnpack);  // okuma + 7z acma + baslik
     for (const DsfCandidate& tCandidate : pCandidates)
     {
-        if (!ReadWholeFile(tCandidate.mPath, pData))
+        if (!readWholeFile(tCandidate.mPath, pData))
         {
             *pLog += "terrain " + pName + ": cannot read " + tCandidate.mPath + "\n";
             continue;
         }
         std::string tError;
-        if (SevenZip::IsArchive(pData->data(), pData->size()))
+        if (SevenZip::isArchive(pData->data(), pData->size()))
         {
             std::vector<uint8_t> tPlain;
-            if (!SevenZip::ExtractFirstFile(*pData, &tPlain, &tError))
+            if (!SevenZip::extractFirstFile(*pData, &tPlain, &tError))
             {
                 *pLog += "terrain " + pName + ": " + tError + " (" + tCandidate.mPath + ")\n";
                 continue;
             }
             pData->swap(tPlain);
         }
-        if (!pReader->Open(*pData, &tError))
+        if (!pReader->open(*pData, &tError))
         {
             *pLog += "terrain " + pName + ": " + tError + " (" + tCandidate.mPath + ")\n";
             continue;
         }
-        if (pReader->Info().mOverlay)
+        if (pReader->info().mOverlay)
         {
             continue;  // ustune serilen katman (havalimani, nesneler): zemin degil
         }
@@ -765,37 +764,37 @@ bool TerrainStore::OpenBaseMesh(const std::vector<DsfCandidate>& pCandidates, co
     return false;
 }
 
-bool TerrainStore::LoadTriangles(const SceneryIndex& pIndex, int pWest, int pSouth, TerrainTriangles* pOut,
+bool TerrainStore::loadTriangles(const SceneryIndex& pIndex, int pWest, int pSouth, TerrainTriangles* pOut,
                                  std::string* pLog)
 {
-    const std::vector<DsfCandidate>* tCandidates = pIndex.CandidatesFor(pWest, pSouth);
+    const std::vector<DsfCandidate>* tCandidates = pIndex.candidatesFor(pWest, pSouth);
     if (!tCandidates)
     {
         return false;
     }
-    const std::string tName = SceneryIndex::TileName(pWest, pSouth);
+    const std::string tName = SceneryIndex::tileName(pWest, pSouth);
     const Clock::time_point tStart = Clock::now();
     std::vector<uint8_t> tData;
     DsfReader tReader;
     std::string tPath;
-    if (!OpenBaseMesh(*tCandidates, tName, &tData, &tReader, &tPath, pLog))
+    if (!openBaseMesh(*tCandidates, tName, &tData, &tReader, &tPath, pLog))
     {
         return false;
     }
     std::vector<TerrainClass> tClasses;
-    for (const std::string& tTerrain : tReader.Info().mTerrainNames)
+    for (const std::string& tTerrain : tReader.info().mTerrainNames)
     {
-        tClasses.push_back(ClassifyTerrain(tTerrain));
+        tClasses.push_back(classifyTerrain(tTerrain));
     }
-    pOut->Reset(pWest, pSouth);
+    pOut->reset(pWest, pSouth);
     std::string tError;
-    const bool tOk = tReader.ForEachTriangle(
+    const bool tOk = tReader.forEachTriangle(
         [&](const DsfTriangle& pTriangle)
         {
             if ((pTriangle.mPatchFlags & DsfReader::kPatchFlagOverlay) == 0 && pTriangle.mTerrain >= 0 &&
                 pTriangle.mTerrain < static_cast<int>(tClasses.size()))
             {
-                pOut->Add(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
+                pOut->add(pTriangle.mLon, pTriangle.mLat, tClasses[pTriangle.mTerrain]);
             }
         },
         &tError);
@@ -804,15 +803,15 @@ bool TerrainStore::LoadTriangles(const SceneryIndex& pIndex, int pWest, int pSou
         *pLog += "terrain detail " + tName + ": " + tError + " (" + tPath + ")\n";
         return false;
     }
-    *pLog += std::format("terrain detail {}: {} triangles, {:.0f} MB in {:.1f} s\n", tName, pOut->TriangleCount(),
-                         pOut->MemoryBytes() / 1048576.0,
+    *pLog += std::format("terrain detail {}: {} triangles, {:.0f} MB in {:.1f} s\n", tName, pOut->triangleCount(),
+                         pOut->memoryBytes() / 1048576.0,
                          std::chrono::duration<double>(Clock::now() - tStart).count());
     return true;
 }
 
-TerrainTriangles* TerrainStore::TrianglesFor(int pWest, int pSouth)
+TerrainTriangles* TerrainStore::trianglesFor(int pWest, int pSouth)
 {
-    const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+    const int tKey = SceneryIndex::tileKey(pWest, pSouth);
     for (auto tIterator = mTriangles.begin(); tIterator != mTriangles.end(); ++tIterator)
     {
         if (tIterator->first == tKey)
@@ -823,34 +822,34 @@ TerrainTriangles* TerrainStore::TrianglesFor(int pWest, int pSouth)
     }
     {
         std::lock_guard<std::mutex> tLock(mMutex);
-        mStatus = "Loading terrain detail " + SceneryIndex::TileName(pWest, pSouth);
+        mStatus = "Loading terrain detail " + SceneryIndex::tileName(pWest, pSouth);
     }
     std::unique_ptr<TerrainTriangles> tTriangles = std::make_unique<TerrainTriangles>();
     std::string tLog;
     const Clock::time_point tTriangleStart = Clock::now();
-    const bool tOk = LoadTriangles(mIndex, pWest, pSouth, tTriangles.get(), &tLog);
+    const bool tOk = loadTriangles(mIndex, pWest, pSouth, tTriangles.get(), &tLog);
     ++mStats.mTriangleLoads[tKey];
-    mStats.mTriangleMs += MillisecondsSince(tTriangleStart);
+    mStats.mTriangleMs += millisecondsSince(tTriangleStart);
     if (!tLog.empty())
     {
         tLog.pop_back();
-        AddLog(tLog);
+        addLog(tLog);
     }
     if (!tOk)
     {
         return nullptr;
     }
     mTriangles.emplace_front(tKey, std::move(tTriangles));
-    while (mTriangles.size() > ScaledLimit(kMaxTriangleTiles))
+    while (mTriangles.size() > scaledLimit(kMaxTriangleTiles))
     {
         mTriangles.pop_back();
     }
     return mTriangles.front().second.get();
 }
 
-TerrainRaster* TerrainStore::RasterFor(int pWest, int pSouth)
+TerrainRaster* TerrainStore::rasterFor(int pWest, int pSouth)
 {
-    const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+    const int tKey = SceneryIndex::tileKey(pWest, pSouth);
     for (auto tIterator = mRasters.begin(); tIterator != mRasters.end(); ++tIterator)
     {
         if (tIterator->first == tKey)
@@ -861,7 +860,7 @@ TerrainRaster* TerrainStore::RasterFor(int pWest, int pSouth)
     }
     {
         std::lock_guard<std::mutex> tLock(mMutex);
-        mStatus = "Building terrain " + SceneryIndex::TileName(pWest, pSouth);
+        mStatus = "Building terrain " + SceneryIndex::tileName(pWest, pSouth);
     }
     std::unique_ptr<TerrainRaster> tRaster = std::make_unique<TerrainRaster>();
     std::unique_ptr<ElevationGrid> tElevation = std::make_unique<ElevationGrid>();
@@ -869,38 +868,38 @@ TerrainRaster* TerrainStore::RasterFor(int pWest, int pSouth)
     std::string tLog;
     TerrainTileState tState = TerrainTileState::Unknown;
     const Clock::time_point tMissStart = Clock::now();
-    const bool tOk = BuildRaster(mIndex, pWest, pSouth, mCacheDirectory, tRaster.get(), &tLog, &tState,
+    const bool tOk = buildRaster(mIndex, pWest, pSouth, mCacheDirectory, tRaster.get(), &tLog, &tState,
                                  tElevation.get(), tVectors.get());
     ++mStats.mRasterMisses[tKey];
-    mStats.mRasterMissMs += MillisecondsSince(tMissStart);
+    mStats.mRasterMissMs += millisecondsSince(tMissStart);
     if (!tLog.empty())
     {
         tLog.pop_back();
-        AddLog(tLog);
+        addLog(tLog);
     }
-    SetState(pWest, pSouth, tState);
+    setState(pWest, pSouth, tState);
     if (!tOk)
     {
         return nullptr;
     }
     mCacheGrew = true;  // (onbellekten okunduysa da zarari yok: kirpma ucuz)
-    KeepElevation(pWest, pSouth, std::move(tElevation));
+    keepElevation(pWest, pSouth, std::move(tElevation));
     mVectors.emplace_front(tKey, std::move(tVectors));
-    while (mVectors.size() > ScaledLimit(kMaxVectorTiles))
+    while (mVectors.size() > scaledLimit(kMaxVectorTiles))
     {
         mVectors.pop_back();
     }
     mRasters.emplace_front(tKey, std::move(tRaster));
-    while (mRasters.size() > ScaledLimit(kMaxRastersInMemory))
+    while (mRasters.size() > scaledLimit(kMaxRastersInMemory))
     {
         mRasters.pop_back();
     }
     return mRasters.front().second.get();
 }
 
-void TerrainStore::KeepElevation(int pWest, int pSouth, std::unique_ptr<ElevationGrid> pGrid)
+void TerrainStore::keepElevation(int pWest, int pSouth, std::unique_ptr<ElevationGrid> pGrid)
 {
-    const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+    const int tKey = SceneryIndex::tileKey(pWest, pSouth);
     auto tRemove = [tKey](std::list<std::pair<int, std::unique_ptr<ElevationGrid>>>& pList)
     {
         for (auto tIterator = pList.begin(); tIterator != pList.end(); ++tIterator)
@@ -915,22 +914,22 @@ void TerrainStore::KeepElevation(int pWest, int pSouth, std::unique_ptr<Elevatio
     tRemove(mElevations);
     tRemove(mCoarseElevations);  // tam izgara varken kaba kopyasi gereksiz
     mElevations.emplace_front(tKey, std::move(pGrid));
-    if (mElevations.size() > ScaledLimit(kMaxElevationTiles))
+    if (mElevations.size() > scaledLimit(kMaxElevationTiles))
     {
         // En eski tam izgara silinmez: kucultulup kaba listeye gecer (uzak zoom'da yeniden diskten okunmasin)
         std::pair<int, std::unique_ptr<ElevationGrid>> tOldest = std::move(mElevations.back());
         mElevations.pop_back();
-        tOldest.second->DropFineLevels(kCoarseElevationLevel);
-        KeepCoarseElevation(tOldest.first, std::move(tOldest.second));
+        tOldest.second->dropFineLevels(kCoarseElevationLevel);
+        keepCoarseElevation(tOldest.first, std::move(tOldest.second));
     }
     std::lock_guard<std::mutex> tLock(mMutex);
     mElevationReady.insert(tKey);
 }
 
-void TerrainStore::KeepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> pGrid)
+void TerrainStore::keepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> pGrid)
 {
     mCoarseElevations.emplace_front(pKey, std::move(pGrid));
-    while (mCoarseElevations.size() > ScaledLimit(kMaxCoarseElevationTiles))
+    while (mCoarseElevations.size() > scaledLimit(kMaxCoarseElevationTiles))
     {
         mCoarseElevations.pop_back();
     }
@@ -938,9 +937,9 @@ void TerrainStore::KeepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> 
     mElevationReady.insert(pKey);
 }
 
-const ElevationGrid* TerrainStore::ElevationFor(int pWest, int pSouth, int pLevel)
+const ElevationGrid* TerrainStore::elevationFor(int pWest, int pSouth, int pLevel)
 {
-    const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+    const int tKey = SceneryIndex::tileKey(pWest, pSouth);
     // Bellekte: once tam izgara, kaba seviye yetiyorsa kaba izgara
     auto tFind = [tKey](std::list<std::pair<int, std::unique_ptr<ElevationGrid>>>& pList) -> const ElevationGrid*
     {
@@ -970,29 +969,29 @@ const ElevationGrid* TerrainStore::ElevationFor(int pWest, int pSouth, int pLeve
     std::unique_ptr<ElevationGrid> tGrid = std::make_unique<ElevationGrid>();
     const Clock::time_point tStart = Clock::now();
     {
-        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::LoadElevation);
-        if (!LoadElevation(mIndex, pWest, pSouth, mCacheDirectory, tGrid.get()))
+        TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::loadElevation);
+        if (!loadElevation(mIndex, pWest, pSouth, mCacheDirectory, tGrid.get()))
         {
             return nullptr;
         }
     }
     ++mStats.mElevationLoads;
-    AddLog(std::format("terrain {}: elevation from cache in {:.0f} ms ({})", SceneryIndex::TileName(pWest, pSouth),
-                       MillisecondsSince(tStart), tCoarseIsEnough ? "coarse" : "full"));
+    addLog(std::format("terrain {}: elevation from cache in {:.0f} ms ({})", SceneryIndex::tileName(pWest, pSouth),
+                       millisecondsSince(tStart), tCoarseIsEnough ? "coarse" : "full"));
     if (tCoarseIsEnough)
     {
-        tGrid->DropFineLevels(kCoarseElevationLevel);  // uzak zoom: tam izgara listesini doldurmasin
-        KeepCoarseElevation(tKey, std::move(tGrid));
+        tGrid->dropFineLevels(kCoarseElevationLevel);  // uzak zoom: tam izgara listesini doldurmasin
+        keepCoarseElevation(tKey, std::move(tGrid));
         return mCoarseElevations.front().second.get();
     }
-    KeepElevation(pWest, pSouth, std::move(tGrid));
+    keepElevation(pWest, pSouth, std::move(tGrid));
     return mElevations.front().second.get();
 }
 
-void TerrainStore::BuildImageFor(const TerrainImageKey& pKey, const TerrainRaster& pRaster, TerrainImage* pOut)
+void TerrainStore::buildImageFor(const TerrainImageKey& pKey, const TerrainRaster& pRaster, TerrainImage* pOut)
 {
     // Rakim: karo ve 8 komsusu. Komsu sadece goruntu o kenara degiyorsa gerekir.
-    const int tChunks = ChunksPerSide(pKey.mLevel);
+    const int tChunks = chunksPerSide(pKey.mLevel);
     const int tChunkColumn = pKey.mChunk % tChunks;
     const int tChunkRow = pKey.mChunk / tChunks;
     const bool tTouches[3][3] = {
@@ -1003,27 +1002,27 @@ void TerrainStore::BuildImageFor(const TerrainImageKey& pKey, const TerrainRaste
     };
     // Goruntunun okuyacagi piramit seviyesi (ComposeImage ile ayni piksel boyu: 1 derece / (parca x boyut))
     const double tMetersPerPixel = 111320.0 / (static_cast<double>(tChunks) * pOut->mSize);
-    const int tLevel = ElevationGrid::NominalLevelFor(tMetersPerPixel);
+    const int tLevel = ElevationGrid::nominalLevelFor(tMetersPerPixel);
     ElevationTiles tTiles;
-    tTiles.mTiles[1][1] = ElevationFor(pKey.mWest, pKey.mSouth, tLevel);
+    tTiles.mTiles[1][1] = elevationFor(pKey.mWest, pKey.mSouth, tLevel);
     for (int tRow = 0; tRow < 3 && tTiles.mTiles[1][1]; ++tRow)
     {
         for (int tColumn = 0; tColumn < 3; ++tColumn)
         {
-            const int tWest = WrapWest(pKey.mWest + tColumn - 1);
+            const int tWest = wrapWest(pKey.mWest + tColumn - 1);
             const int tSouth = pKey.mSouth + 1 - tRow;  // satir 0 = kuzey komsu
             if ((tRow == 1 && tColumn == 1) || !tTouches[tRow][tColumn] || tSouth < -90 || tSouth > 89 ||
-                mIndex.CoverageOf(tWest, tSouth) != TileCoverage::HasDsf)
+                mIndex.coverageOf(tWest, tSouth) != TileCoverage::hasDsf)
             {
                 continue;  // gerekmiyor ya da hic olmayacak (deniz / veri yok): tek tarafli fark kalici
             }
-            tTiles.mTiles[tRow][tColumn] = ElevationFor(tWest, tSouth, tLevel);
+            tTiles.mTiles[tRow][tColumn] = elevationFor(tWest, tSouth, tLevel);
             // Eksik say: sadece henuz hic hazir olmamis komsu. Bir kez hazir olup simdi bulunamayan
             // (bellekten atilmis, onbellege yazilamamis) komsu beklenmez: yoksa katman bu goruntuyu
             // her karede yeniden ister, sonsuz yeniden uretim olur.
-            if (!tTiles.mTiles[tRow][tColumn] && !HasElevation(tWest, tSouth))
+            if (!tTiles.mTiles[tRow][tColumn] && !hasElevation(tWest, tSouth))
             {
-                pOut->mMissingNeighbors.push_back(SceneryIndex::TileKey(tWest, tSouth));
+                pOut->mMissingNeighbors.push_back(SceneryIndex::tileKey(tWest, tSouth));
             }
         }
     }
@@ -1047,28 +1046,28 @@ void TerrainStore::BuildImageFor(const TerrainImageKey& pKey, const TerrainRaste
     if (pKey.mLevel >= kDetailLevel)
     {
         // Yakin zoom: parca raster'dan degil, dogrudan DSF ucgenlerinden boyanir
-        const TerrainTriangles* tTriangles = TrianglesFor(pKey.mWest, pKey.mSouth);
+        const TerrainTriangles* tTriangles = trianglesFor(pKey.mWest, pKey.mSouth);
         if (!tTriangles)
         {
             pOut->mRgba.clear();
             return;
         }
         const std::shared_ptr<TerrainVectors> tVectors =
-            pKey.mAreas != 0 ? VectorsFor(pKey.mWest, pKey.mSouth) : nullptr;
-        pRaster.BuildDetailImage(*tTriangles, tChunks, pKey.mChunk, pOut->mSize, tPalette, tStyle, &pOut->mRgba,
+            pKey.mAreas != 0 ? vectorsFor(pKey.mWest, pKey.mSouth) : nullptr;
+        pRaster.buildDetailImage(*tTriangles, tChunks, pKey.mChunk, pOut->mSize, tPalette, tStyle, &pOut->mRgba,
                                  tElevation, tVectors.get(), pKey.mAreas);
         return;
     }
     const int tSpan = TerrainRaster::kSize / tChunks;
     const int tX0 = tChunkColumn * tSpan;
     const int tY0 = tChunkRow * tSpan;
-    pRaster.BuildImage(tX0, tY0, tX0 + tSpan, tY0 + tSpan, pOut->mSize, tPalette, tStyle, &pOut->mRgba, tElevation,
+    pRaster.buildImage(tX0, tY0, tX0 + tSpan, tY0 + tSpan, pOut->mSize, tPalette, tStyle, &pOut->mRgba, tElevation,
                        pKey.mAreas);
 }
 
-std::shared_ptr<TerrainVectors> TerrainStore::VectorsFor(int pWest, int pSouth)
+std::shared_ptr<TerrainVectors> TerrainStore::vectorsFor(int pWest, int pSouth)
 {
-    const int tKey = SceneryIndex::TileKey(pWest, pSouth);
+    const int tKey = SceneryIndex::tileKey(pWest, pSouth);
     for (auto tIterator = mVectors.begin(); tIterator != mVectors.end(); ++tIterator)
     {
         if (tIterator->first == tKey)
@@ -1077,51 +1076,50 @@ std::shared_ptr<TerrainVectors> TerrainStore::VectorsFor(int pWest, int pSouth)
             return mVectors.front().second;
         }
     }
-    // Onbellekten (raster ile her zaman birlikte yazilir). Raster bellekten SILINMEZ: cagiran (yakin zoom
+    // onbellekten(raster ile her zaman birlikte yazilir). Raster bellekten SILINMEZ: cagiran (yakin zoom
     // goruntusu) o anda ona basvuruyor olabilir.
     std::shared_ptr<TerrainVectors> tVectors = std::make_shared<TerrainVectors>();
     ++mStats.mVectorMisses[tKey];
-    if (!LoadVectors(mIndex, pWest, pSouth, mCacheDirectory, tVectors.get()))
+    if (!loadVectors(mIndex, pWest, pSouth, mCacheDirectory, tVectors.get()))
     {
         // Onbellek yoksa karo henuz uretilmemistir: uretilirken (RasterFor) vektorler de gelir
-        if (!RasterFor(pWest, pSouth) || mVectors.empty() || mVectors.front().first != tKey)
+        if (!rasterFor(pWest, pSouth) || mVectors.empty() || mVectors.front().first != tKey)
         {
             return nullptr;
         }
         return mVectors.front().second;
     }
     mVectors.emplace_front(tKey, tVectors);
-    while (mVectors.size() > ScaledLimit(kMaxVectorTiles))
+    while (mVectors.size() > scaledLimit(kMaxVectorTiles))
     {
         mVectors.pop_back();
     }
     return tVectors;
 }
 
-bool TerrainStore::LoadVectors(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
+bool TerrainStore::loadVectors(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
                                TerrainVectors* pOut)
 {
-    const std::vector<DsfCandidate>* tCandidates = pIndex.CandidatesFor(pWest, pSouth);
+    const std::vector<DsfCandidate>* tCandidates = pIndex.candidatesFor(pWest, pSouth);
     if (!tCandidates || pCacheDirectory.empty())
     {
         return false;
     }
-    const std::string tPath = pCacheDirectory + SceneryIndex::TileName(pWest, pSouth) + ".vectors";
-    return pOut->Load(tPath, CacheKey(*tCandidates));
+    const std::string tPath = pCacheDirectory + SceneryIndex::tileName(pWest, pSouth) + ".vectors";
+    return pOut->load(tPath, cacheKey(*tCandidates));
 }
 
-void TerrainStore::ForgetVectors(int pWest, int pSouth)
+void TerrainStore::forgetVectors(int pWest, int pSouth)
 {
     std::lock_guard<std::mutex> tLock(mMutex);
-    mVectorsServed.erase(SceneryIndex::TileKey(pWest, pSouth));
+    mVectorsServed.erase(SceneryIndex::tileKey(pWest, pSouth));
 }
 
-bool TerrainStore::ServeVectorRequest()
+bool TerrainStore::serveVectorRequest()
 {
     int tKey = 0;
     {
         std::lock_guard<std::mutex> tLock(mMutex);
-        // Bayat istekleri at, en son istenen once
         uint64_t tBestFrame = 0;
         bool tFound = false;
         for (auto tIterator = mVectorRequests.begin(); tIterator != mVectorRequests.end();)
@@ -1152,7 +1150,7 @@ bool TerrainStore::ServeVectorRequest()
             return true;  // deniz / veri yok: vektor yok
         }
     }
-    const std::shared_ptr<TerrainVectors> tVectors = VectorsFor(tKey % 360 - 180, tKey / 360 - 90);
+    const std::shared_ptr<TerrainVectors> tVectors = vectorsFor(tKey % 360 - 180, tKey / 360 - 90);
     if (tVectors)
     {
         std::lock_guard<std::mutex> tLock(mMutex);
@@ -1161,7 +1159,7 @@ bool TerrainStore::ServeVectorRequest()
     return true;
 }
 
-void TerrainStore::NoteImageTime(int pLevel, double pMilliseconds)
+void TerrainStore::noteImageTime(int pLevel, double pMilliseconds)
 {
     if (pLevel >= 0 && pLevel < kLevelCount)
     {
@@ -1170,9 +1168,8 @@ void TerrainStore::NoteImageTime(int pLevel, double pMilliseconds)
     }
 }
 
-void TerrainStore::LogImageTimes()
+void TerrainStore::logImageTimes()
 {
-    // Is bitti (kuyruk bos): bu turdaki goruntu surelerinin ozeti, seviye basina ortalama
     std::string tText;
     for (int tLevel = 0; tLevel < kLevelCount; ++tLevel)
     {
@@ -1186,10 +1183,9 @@ void TerrainStore::LogImageTimes()
     }
     if (!tText.empty())
     {
-        AddLog("terrain images (count x average):" + tText);
+        addLog("terrain images (count x average):" + tText);
     }
-    // Teshis: asama sureleri, bellekten dusup yeniden yuklenen karolar, istek bekleme sureleri
-    const std::string tStages = TerrainProfile::TakeReport();
+    const std::string tStages = TerrainProfile::takeReport();
     WorkStats tStats;
     std::swap(tStats, mStats);
     if (!mDiagnostics.load())
@@ -1198,7 +1194,7 @@ void TerrainStore::LogImageTimes()
     }
     if (!tStages.empty())
     {
-        AddLog("terrain profile stages (count x avg ms = total):" + tStages);
+        addLog("terrain profile stages (count x avg ms = total):" + tStages);
     }
     auto tTiles = [](const std::map<int, int>& pCounts)
     {
@@ -1207,11 +1203,11 @@ void TerrainStore::LogImageTimes()
         for (const auto& [tKey, tCount] : pCounts)
         {
             tTotal += tCount;
-            tList += std::format(" {}x{}", SceneryIndex::TileName(tKey % 360 - 180, tKey / 360 - 90), tCount);
+            tList += std::format(" {}x{}", SceneryIndex::tileName(tKey % 360 - 180, tKey / 360 - 90), tCount);
         }
         return std::format("{}{}", tTotal, tList);
     };
-    AddLog(std::format("terrain profile reloads: raster {} ({:.0f} ms); triangles {} ({:.0f} ms); vectors {}; "
+    addLog(std::format("terrain profile reloads: raster {} ({:.0f} ms); triangles {} ({:.0f} ms); vectors {}; "
                        "elevation from disk {}",
                        tTiles(tStats.mRasterMisses), tStats.mRasterMissMs, tTiles(tStats.mTriangleLoads),
                        tStats.mTriangleMs, tTiles(tStats.mVectorMisses), tStats.mElevationLoads));
@@ -1226,12 +1222,12 @@ void TerrainStore::LogImageTimes()
                                  tStats.mReadyMaxMs[tLevel]);
         }
     }
-    AddLog(std::format("terrain profile waits (avg from first request):{} background tiles {} ({:.0f} ms), "
+    addLog(std::format("terrain profile waits (avg from first request):{} background tiles {} ({:.0f} ms), "
                        "screen blocked by background {} times (<= {:.0f} ms)",
                        tWait, tStats.mBackgroundCount, tStats.mBackgroundMs, tStats.mBlockedCount, tStats.mBlockedMs));
 }
 
-void TerrainStore::WorkerLoop()
+void TerrainStore::workerLoop()
 {
     // ARKA PLAN THREAD'i: XPLM yok. Log satirlari biriktirilir, ana thread yazar.
     {
@@ -1241,12 +1237,12 @@ void TerrainStore::WorkerLoop()
     std::error_code tError;
     std::filesystem::create_directories(mCacheDirectory, tError);
     const Clock::time_point tStart = Clock::now();
-    mIndex.Build(mXPlaneDirectory);
+    mIndex.build(mXPlaneDirectory);
     mIndexReady.store(true);
-    AddLog(std::format("terrain index: {} DSF files in {} packs, {} tiles ({:.1f} s)", mIndex.FileCount(),
-                       mIndex.PackCount(), mIndex.TileCount(),
+    addLog(std::format("terrain index: {} DSF files in {} packs, {} tiles ({:.1f} s)", mIndex.fileCount(),
+                       mIndex.packCount(), mIndex.tileCount(),
                        std::chrono::duration<double>(Clock::now() - tStart).count()));
-    AddLog(mIndex.WorldMapReport());
+    addLog(mIndex.worldMapReport());
     mCacheGrew = true;  // acilista bir kez: onceki oturumlardan sinir asilmis olabilir
 
     while (true)
@@ -1259,20 +1255,20 @@ void TerrainStore::WorkerLoop()
             mHasInFlight = false;
             tIdle = mRequests.empty() && mVectorRequests.empty();
         }
-        if (ServeVectorRequest())
+        if (serveVectorRequest())
         {
             continue;  // vektor istekleri kucuk ve yol katmani bekliyor: once onlar
         }
-        if (ServeBackgroundTile())
+        if (serveBackgroundTile())
         {
             continue;  // ekranin istegi yok: bolge onbellegi / onceden yukleme
         }
         if (tIdle)
         {
-            LogImageTimes();  // bekleme oncesi: bu turun ozeti
+            logImageTimes();
             if (mCacheGrew || mTrimWanted.exchange(false))
             {
-                TrimCache();
+                trimCache();
             }
         }
         {
@@ -1289,11 +1285,11 @@ void TerrainStore::WorkerLoop()
             {
                 return;
             }
-            if (!PickRequest(&tKey))
+            if (!pickRequest(&tKey))
             {
                 continue;  // sadece vektor istegi vardi (dongunun basinda karsilanir)
             }
-            const auto tState = mStates.find(SceneryIndex::TileKey(tKey.mWest, tKey.mSouth));
+            const auto tState = mStates.find(SceneryIndex::tileKey(tKey.mWest, tKey.mSouth));
             if (tState != mStates.end() && tState->second != TerrainTileState::Ready &&
                 tState->second != TerrainTileState::Unknown)
             {
@@ -1303,31 +1299,31 @@ void TerrainStore::WorkerLoop()
             mInFlight = tKey;
             tPickedFirst = mPickedFirst;
         }
-        const double tQueueMs = MillisecondsSince(tPickedFirst);
+        const double tQueueMs = millisecondsSince(tPickedFirst);
 
-        const TerrainRaster* tRaster = RasterFor(tKey.mWest, tKey.mSouth);
+        const TerrainRaster* tRaster = rasterFor(tKey.mWest, tKey.mSouth);
         if (!tRaster)
         {
             continue;
         }
         TerrainImage tImage;
         tImage.mKey = tKey;
-        tImage.mSize = ImageSize(tKey.mLevel);
+        tImage.mSize = imageSize(tKey.mLevel);
         const Clock::time_point tImageStart = Clock::now();
-        BuildImageFor(tKey, *tRaster, &tImage);
+        buildImageFor(tKey, *tRaster, &tImage);
         if (tImage.mRgba.empty())
         {
             continue;  // yakin zoom ucgenleri okunamadi
         }
-        NoteImageTime(tKey.mLevel, MillisecondsSince(tImageStart));
+        noteImageTime(tKey.mLevel, millisecondsSince(tImageStart));
         {
             TerrainProfile::ScopedStage tStage(TerrainProfile::Stage::Bleed);
-            TerrainRaster::BleedTransparent(tImage.mSize, &tImage.mRgba);  // mipmap kenarlari koyulasmasin
+            TerrainRaster::bleedTransparent(tImage.mSize, &tImage.mRgba);  // mipmap kenarlari koyulasmasin
         }
-        // Bekleme: ilk istekten iscinin almasina (kuyruk) ve sonucun hazir olmasina kadar
+        // Gecikme olcumu: ilk istekten sonuca kadar
         if (tKey.mLevel >= 0 && tKey.mLevel < kLevelCount)
         {
-            const double tReadyMs = MillisecondsSince(tPickedFirst);
+            const double tReadyMs = millisecondsSince(tPickedFirst);
             ++mStats.mLatencyCount[tKey.mLevel];
             mStats.mQueueMs[tKey.mLevel] += tQueueMs;
             mStats.mReadyMs[tKey.mLevel] += tReadyMs;

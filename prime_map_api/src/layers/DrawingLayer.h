@@ -1,14 +1,6 @@
-// DrawingLayer.h
 // Kullanicinin haritaya cizdikleri (Drawings modeli): noktalar, rotalar,
-// bolgeler ve yarim kalan cizim.
-//
-//   nokta : beyaz halkali camgobegi isaret, etiket "P1"
-//   rota  : camgobegi cizgi (buyuk daire boyunca), etiket "R1  123.4 NM"
-//   bolge : yari saydam yesil dolgu + kenar, etiket "A1  45.6 NM2"
-//   yarim : turuncu; son koseden imlece kesikli "lastik" cizgi
-//
-// Etiketler diger katmanlarinkinden oncelikli: yerleri geometri asamasinda
-// (Draw) ayrilir, yazilari DrawLabels'ta cizilir.
+// bolgeler ve yarim kalan cizim. Etiketler diger katmanlarinkinden oncelikli:
+// yerleri Draw'da ayrilir, yazilari drawLabels'ta cizilir.
 #pragma once
 
 #include <string>
@@ -18,7 +10,7 @@
 #include "gfx/Mesh.h"
 
 class Drawings;
-class MapView;
+class XMapView;
 struct LatLon;
 
 class DrawingLayer : public Layer
@@ -26,10 +18,10 @@ class DrawingLayer : public Layer
 public:
     explicit DrawingLayer(const Drawings& pDrawings);
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
     // Yarim kalan cizim varken imlece giden kesikli cizgi her karede degisir: o surece ustte cizilir
-    bool IsOverlay() const override;
+    bool isOverlay() const override;
 
 private:
     struct PendingLabel
@@ -40,12 +32,12 @@ private:
     };
 
     // Lat/lon listesini, uzun parcalari buyuk daire boyunca bolerek ekrana cevirir
-    static std::vector<Gfx::Point> ProjectPath(const MapView& pView, const std::vector<LatLon>& pPoints,
+    static std::vector<Gfx::Point> projectPath(const XMapView& pView, const std::vector<LatLon>& pPoints,
                                                bool pClosed);
-    static Gfx::Point Project(const MapView& pView, const LatLon& pPoint);
-    void AddLabel(const DrawContext& pContext, const std::string& pText, const Gfx::Point& pAnchor);
+    static Gfx::Point project(const XMapView& pView, const LatLon& pPoint);
+    void addLabel(const drawContext& pContext, const std::string& pText, const Gfx::Point& pAnchor);
     // Kesikli cizgi (yarim cizimin son kosesinden imlece "lastik")
-    static void AddDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::OutlinedLines& pLines);
+    static void addDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::OutlinedLines& pLines);
 
     const Drawings& mDrawings;
     std::vector<PendingLabel> mLabels;

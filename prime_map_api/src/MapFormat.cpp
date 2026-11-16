@@ -1,4 +1,3 @@
-// MapFormat.cpp
 #include "MapFormat.h"
 
 #include <array>
@@ -16,13 +15,13 @@ const auto kGridSteps = std::to_array<double>({
 
 }  // namespace
 
-std::string FormatLatLon(const LatLon& pPoint)
+std::string formatLatLon(const LatLon& pPoint)
 {
     return std::format("{:.5f} {}  {:.5f} {}", std::fabs(pPoint.mLat), pPoint.mLat >= 0 ? 'N' : 'S',
                        std::fabs(pPoint.mLon), pPoint.mLon >= 0 ? 'E' : 'W');
 }
 
-std::string FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees)
+std::string formatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegrees)
 {
     char tHemisphere;
     if (pIsLatitude)
@@ -50,7 +49,7 @@ std::string FormatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegre
     return std::format("{} {:04.1f}{}", tWholeDegrees, tMinutes, tHemisphere);
 }
 
-double ChooseGridStepDeg(double pBoxelsPerDegree, double pMinSpacing)
+double chooseGridStepDeg(double pBoxelsPerDegree, double pMinSpacing)
 {
     for (double tStep : kGridSteps)
     {
@@ -62,7 +61,7 @@ double ChooseGridStepDeg(double pBoxelsPerDegree, double pMinSpacing)
     return 30.0;
 }
 
-double ChooseScaleBarNm(double pNmPerBoxel, double pMaxBoxels)
+double chooseScaleBarNm(double pNmPerBoxel, double pMaxBoxels)
 {
     if (pNmPerBoxel <= 0.0)
     {

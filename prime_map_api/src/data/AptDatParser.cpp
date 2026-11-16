@@ -1,4 +1,3 @@
-// AptDatParser.cpp
 #include "data/AptDatParser.h"
 
 #include "data/AptLine.h"
@@ -52,19 +51,19 @@ enum RowCode
 
 const size_t kSkippedExampleCount = 3;
 
-bool ReadLatLon(AptLine& pLine, LatLon& pOut)
+bool readLatLon(AptLine& pLine, LatLon& pOut)
 {
-    return pLine.Double(pOut.mLat) && pLine.Double(pOut.mLon);
+    return pLine.readDouble(pOut.mLat) && pLine.readDouble(pOut.mLon);
 }
 
 // Pist ucu: "<no> <enlem> <boylam> <kayik esik> <overrun> <isaret> <yaklasma> <TDZ> <REIL>"
-bool ReadRunwayEnd(AptLine& pLine, RunwayEnd& pOut)
+bool readRunwayEnd(AptLine& pLine, RunwayEnd& pOut)
 {
     int tTouchdown = 0;
-    const bool tOk = pLine.Token(pOut.mName) && ReadLatLon(pLine, pOut.mPosition) &&
-                     pLine.Double(pOut.mDisplacedThresholdM) && pLine.Double(pOut.mOverrunM) &&
-                     pLine.Int(pOut.mMarkings) && pLine.Int(pOut.mApproachLights) && pLine.Int(tTouchdown) &&
-                     pLine.Int(pOut.mReil);
+    const bool tOk = pLine.token(pOut.mName) && readLatLon(pLine, pOut.mPosition) &&
+                     pLine.readDouble(pOut.mDisplacedThresholdM) && pLine.readDouble(pOut.mOverrunM) &&
+                     pLine.readInt(pOut.mMarkings) && pLine.readInt(pOut.mApproachLights) && pLine.readInt(tTouchdown) &&
+                     pLine.readInt(pOut.mReil);
     pOut.mTouchdownLights = tTouchdown != 0;
     return tOk;
 }
@@ -87,33 +86,33 @@ public:
     {
     }
 
-    void Begin(Target pTarget)
+    void begin(Target pTarget)
     {
-        Flush();
+        flush();
         mTarget = pTarget;
     }
 
     // Dugum satiri geldi. Baslik yoksa false (sahipsiz dugum).
-    bool AddNode(int pCode, AptLine& pLine)
+    bool addNode(int pCode, AptLine& pLine)
     {
         if (mTarget == Target::None)
         {
             return false;
         }
         AptNode tNode;
-        if (!ReadLatLon(pLine, tNode.mPosition))
+        if (!readLatLon(pLine, tNode.mPosition))
         {
             return false;
         }
         tNode.mHasControl = (pCode == kNodeBezier || pCode == kNodeBezierClose || pCode == kNodeBezierEnd);
-        if (tNode.mHasControl && !ReadLatLon(pLine, tNode.mControl))
+        if (tNode.mHasControl && !readLatLon(pLine, tNode.mControl))
         {
             return false;
         }
         // Stil degerleri: 1-99 boya cizgisi (en fazla 2), 101-108 isik
         int tStyle = 0;
         int tLineCount = 0;
-        while (pLine.Int(tStyle))
+        while (pLine.readInt(tStyle))
         {
             if (tStyle >= 101 && tStyle <= 199)
             {
@@ -129,18 +128,18 @@ public:
         if (pCode == kNodeClose || pCode == kNodeBezierClose)
         {
             mChain.mClosed = true;
-            Flush();
+            flush();
         }
         else if (pCode == kNodeEnd || pCode == kNodeBezierEnd)
         {
             mChain.mClosed = false;
-            Flush();
+            flush();
         }
         return true;
     }
 
     // Yarim kalan zinciri (bitis dugumu gelmeden baska satir geldiyse) sahibine ver
-    void Flush()
+    void flush()
     {
         if (mChain.mNodes.empty())
         {
@@ -163,9 +162,9 @@ public:
         mChain = AptChain();
     }
 
-    void End()
+    void end()
     {
-        Flush();
+        flush();
         mTarget = Target::None;
     }
 
@@ -175,7 +174,7 @@ private:
     AptChain mChain;
 };
 
-AptFrequencyKind FrequencyKind(int pOffset)
+AptFrequencyKind frequencyKind(int pOffset)
 {
     switch (pOffset)
     {
@@ -196,15 +195,14 @@ AptFrequencyKind FrequencyKind(int pOffset)
     }
 }
 
-// Tek bir satiri ayrintiya ekler. Taninmadiysa / bozuksa false.
-bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportDetail& pDetail,
+bool parseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportDetail& pDetail,
                      ChainBuilder& pChains, bool& pHasModernFrequencies)
 {
     // Zincir disindaki her satir yarim zinciri kapatir
     const bool tIsNode = pCode >= kNode && pCode <= kNodeBezierEnd;
     if (!tIsNode)
     {
-        pChains.End();
+        pChains.end();
     }
 
     switch (pCode)
@@ -212,7 +210,7 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kRunway:
         {
             Runway tRunway;
-            if (!AptDatParser::ParseRunway(pText, &tRunway))
+            if (!AptDatParser::parseRunway(pText, &tRunway))
             {
                 return false;
             }
@@ -222,7 +220,7 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kWaterRunway:
         {
             Runway tRunway;
-            if (!AptDatParser::ParseWaterRunway(pText, &tRunway))
+            if (!AptDatParser::parseWaterRunway(pText, &tRunway))
             {
                 return false;
             }
@@ -234,14 +232,14 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
             AptHelipad tPad;
             double tSmoothness = 0.0;
             int tEdgeLights = 0;
-            if (!pLine.Token(tPad.mName) || !ReadLatLon(pLine, tPad.mCenter) || !pLine.Double(tPad.mHeadingDeg) ||
-                !pLine.Double(tPad.mLengthM) || !pLine.Double(tPad.mWidthM) || !pLine.Int(tPad.mSurfaceCode))
+            if (!pLine.token(tPad.mName) || !readLatLon(pLine, tPad.mCenter) || !pLine.readDouble(tPad.mHeadingDeg) ||
+                !pLine.readDouble(tPad.mLengthM) || !pLine.readDouble(tPad.mWidthM) || !pLine.readInt(tPad.mSurfaceCode))
             {
                 return false;
             }
             // Isaret, omuz, puruzsuzluk, kenar isigi: eski dosyalarda eksik olabilir
-            if (pLine.Int(tPad.mMarkings) && pLine.Int(tPad.mShoulderCode) && pLine.Double(tSmoothness) &&
-                pLine.Int(tEdgeLights))
+            if (pLine.readInt(tPad.mMarkings) && pLine.readInt(tPad.mShoulderCode) && pLine.readDouble(tSmoothness) &&
+                pLine.readInt(tEdgeLights))
             {
                 tPad.mEdgeLights = tEdgeLights != 0;
             }
@@ -251,30 +249,30 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kPavement:
         {
             AptPavement tPavement;
-            if (!pLine.Int(tPavement.mSurfaceCode) || !pLine.Double(tPavement.mSmoothness) ||
-                !pLine.Double(tPavement.mTextureHeadingDeg))
+            if (!pLine.readInt(tPavement.mSurfaceCode) || !pLine.readDouble(tPavement.mSmoothness) ||
+                !pLine.readDouble(tPavement.mTextureHeadingDeg))
             {
                 return false;
             }
-            tPavement.mName = pLine.Rest();
+            tPavement.mName = pLine.rest();
             pDetail.mPavements.push_back(std::move(tPavement));
-            pChains.Begin(ChainBuilder::Target::Pavement);
+            pChains.begin(ChainBuilder::Target::Pavement);
             return true;
         }
         case kLinearFeature:
         {
             AptLinearFeature tFeature;
-            tFeature.mName = pLine.Rest();
+            tFeature.mName = pLine.rest();
             pDetail.mLinearFeatures.push_back(std::move(tFeature));
-            pChains.Begin(ChainBuilder::Target::Linear);
+            pChains.begin(ChainBuilder::Target::Linear);
             return true;
         }
         case kBoundary:
         {
             AptBoundary tBoundary;
-            tBoundary.mName = pLine.Rest();
+            tBoundary.mName = pLine.rest();
             pDetail.mBoundaries.push_back(std::move(tBoundary));
-            pChains.Begin(ChainBuilder::Target::Boundary);
+            pChains.begin(ChainBuilder::Target::Boundary);
             return true;
         }
         case kNode:
@@ -283,40 +281,40 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kNodeBezierClose:
         case kNodeEnd:
         case kNodeBezierEnd:
-            return pChains.AddNode(pCode, pLine);
+            return pChains.addNode(pCode, pLine);
         case kViewpoint:
         {
             AptViewpoint tView;
             int tDeprecated = 0;
-            if (!ReadLatLon(pLine, tView.mPosition) || !pLine.Double(tView.mHeightFt))
+            if (!readLatLon(pLine, tView.mPosition) || !pLine.readDouble(tView.mHeightFt))
             {
                 return false;
             }
-            pLine.Int(tDeprecated);
-            tView.mName = pLine.Rest();
+            pLine.readInt(tDeprecated);
+            tView.mName = pLine.rest();
             pDetail.mViewpoints.push_back(tView);
             return true;
         }
         case kLegacyStart:
         {
             AptStartLocation tStart;
-            if (!ReadLatLon(pLine, tStart.mPosition) || !pLine.Double(tStart.mHeadingDeg))
+            if (!readLatLon(pLine, tStart.mPosition) || !pLine.readDouble(tStart.mHeadingDeg))
             {
                 return false;
             }
-            tStart.mName = pLine.Rest();
+            tStart.mName = pLine.rest();
             pDetail.mStartLocations.push_back(tStart);
             return true;
         }
         case kStartLocation:
         {
             AptStartLocation tStart;
-            if (!ReadLatLon(pLine, tStart.mPosition) || !pLine.Double(tStart.mHeadingDeg) ||
-                !pLine.Token(tStart.mType) || !pLine.Token(tStart.mAircraftTypes))
+            if (!readLatLon(pLine, tStart.mPosition) || !pLine.readDouble(tStart.mHeadingDeg) ||
+                !pLine.token(tStart.mType) || !pLine.token(tStart.mAircraftTypes))
             {
                 return false;
             }
-            tStart.mName = pLine.Rest();
+            tStart.mName = pLine.rest();
             pDetail.mStartLocations.push_back(tStart);
             return true;
         }
@@ -327,21 +325,21 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
                 return false;
             }
             AptStartLocation& tStart = pDetail.mStartLocations.back();
-            if (!pLine.Token(tStart.mIcaoWidth) || !pLine.Token(tStart.mOperation))
+            if (!pLine.token(tStart.mIcaoWidth) || !pLine.token(tStart.mOperation))
             {
                 return false;
             }
-            tStart.mAirlines = pLine.Rest();
+            tStart.mAirlines = pLine.rest();
             return true;
         }
         case kBeacon:
         {
             AptBeacon tBeacon;
-            if (!ReadLatLon(pLine, tBeacon.mPosition) || !pLine.Int(tBeacon.mType))
+            if (!readLatLon(pLine, tBeacon.mPosition) || !pLine.readInt(tBeacon.mType))
             {
                 return false;
             }
-            tBeacon.mName = pLine.Rest();
+            tBeacon.mName = pLine.rest();
             pDetail.mBeacons.push_back(tBeacon);
             return true;
         }
@@ -349,12 +347,12 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         {
             AptWindsock tSock;
             int tLit = 0;
-            if (!ReadLatLon(pLine, tSock.mPosition) || !pLine.Int(tLit))
+            if (!readLatLon(pLine, tSock.mPosition) || !pLine.readInt(tLit))
             {
                 return false;
             }
             tSock.mLit = tLit != 0;
-            tSock.mName = pLine.Rest();
+            tSock.mName = pLine.rest();
             pDetail.mWindsocks.push_back(tSock);
             return true;
         }
@@ -362,23 +360,23 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         {
             AptSign tSign;
             int tReserved = 0;
-            if (!ReadLatLon(pLine, tSign.mPosition) || !pLine.Double(tSign.mHeadingDeg) || !pLine.Int(tReserved) ||
-                !pLine.Int(tSign.mSize))
+            if (!readLatLon(pLine, tSign.mPosition) || !pLine.readDouble(tSign.mHeadingDeg) || !pLine.readInt(tReserved) ||
+                !pLine.readInt(tSign.mSize))
             {
                 return false;
             }
-            tSign.mText = pLine.Rest();
+            tSign.mText = pLine.rest();
             pDetail.mSigns.push_back(tSign);
             return true;
         }
         case kLightObject:
         {
             AptLightObject tLight;
-            if (!ReadLatLon(pLine, tLight.mPosition) || !pLine.Int(tLight.mType) || !pLine.Double(tLight.mHeadingDeg))
+            if (!readLatLon(pLine, tLight.mPosition) || !pLine.readInt(tLight.mType) || !pLine.readDouble(tLight.mHeadingDeg))
             {
                 return false;
             }
-            pLine.Double(tLight.mGlideslopeDeg);  // eski dosyalarda olmayabilir
+            pLine.readDouble(tLight.mGlideslopeDeg);  // eski dosyalarda olmayabilir
             pDetail.mLightObjects.push_back(tLight);
             return true;
         }
@@ -387,11 +385,11 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kTaxiNode:
         {
             AptTaxiNode tNode;
-            if (!ReadLatLon(pLine, tNode.mPosition) || !pLine.Token(tNode.mUsage) || !pLine.Int(tNode.mId))
+            if (!readLatLon(pLine, tNode.mPosition) || !pLine.token(tNode.mUsage) || !pLine.readInt(tNode.mId))
             {
                 return false;
             }
-            tNode.mName = pLine.Rest();
+            tNode.mName = pLine.rest();
             pDetail.mTaxiNodes.push_back(tNode);
             return true;
         }
@@ -400,14 +398,14 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         {
             AptTaxiEdge tEdge;
             std::string_view tDirection;
-            if (!pLine.Int(tEdge.mFrom) || !pLine.Int(tEdge.mTo) || !pLine.Token(tDirection))
+            if (!pLine.readInt(tEdge.mFrom) || !pLine.readInt(tEdge.mTo) || !pLine.token(tDirection))
             {
                 return false;
             }
             tEdge.mOneWay = (tDirection == "oneway");
             tEdge.mGroundVehicles = (pCode == kTruckEdge);
             std::string_view tKind;
-            if (!tEdge.mGroundVehicles && pLine.Token(tKind))
+            if (!tEdge.mGroundVehicles && pLine.token(tKind))
             {
                 // "taxiway", "runway" veya GERCEK VERI: "taxiway_A".."taxiway_F" (genislik sinifi)
                 tEdge.mRunway = (tKind == "runway");
@@ -415,7 +413,7 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
                 {
                     tEdge.mWidthClass = tKind[8];
                 }
-                tEdge.mName = pLine.Rest();
+                tEdge.mName = pLine.rest();
             }
             pDetail.mTaxiEdges.push_back(std::move(tEdge));
             return true;
@@ -428,7 +426,7 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
             }
             std::string tZone;
             std::string tRunways;
-            if (!pLine.Token(tZone) || !pLine.Token(tRunways))
+            if (!pLine.token(tZone) || !pLine.token(tRunways))
             {
                 return false;
             }
@@ -438,35 +436,35 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kTruckParking:
         {
             AptTruckParking tParking;
-            if (!ReadLatLon(pLine, tParking.mPosition) || !pLine.Double(tParking.mHeadingDeg) ||
-                !pLine.Token(tParking.mType) || !pLine.Int(tParking.mCount))
+            if (!readLatLon(pLine, tParking.mPosition) || !pLine.readDouble(tParking.mHeadingDeg) ||
+                !pLine.token(tParking.mType) || !pLine.readInt(tParking.mCount))
             {
                 return false;
             }
-            tParking.mName = pLine.Rest();
+            tParking.mName = pLine.rest();
             pDetail.mTruckParkings.push_back(tParking);
             return true;
         }
         case kTruckDestination:
         {
             AptTruckDestination tDestination;
-            if (!ReadLatLon(pLine, tDestination.mPosition) || !pLine.Double(tDestination.mHeadingDeg) ||
-                !pLine.Token(tDestination.mTypes))
+            if (!readLatLon(pLine, tDestination.mPosition) || !pLine.readDouble(tDestination.mHeadingDeg) ||
+                !pLine.token(tDestination.mTypes))
             {
                 return false;
             }
-            tDestination.mName = pLine.Rest();
+            tDestination.mName = pLine.rest();
             pDetail.mTruckDestinations.push_back(tDestination);
             return true;
         }
         case kAirportMetadata:
         {
             std::string tKey;
-            if (!pLine.Token(tKey))
+            if (!pLine.token(tKey))
             {
                 return false;
             }
-            pDetail.mMetadata.emplace_back(tKey, pLine.Rest());
+            pDetail.mMetadata.emplace_back(tKey, pLine.rest());
             return true;
         }
         case kTrafficFlow:
@@ -482,25 +480,25 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
     {
         AptFrequency tFrequency;
         int tTensOfKhz = 0;
-        if (!pLine.Int(tTensOfKhz))
+        if (!pLine.readInt(tTensOfKhz))
         {
             return false;
         }
-        tFrequency.mKind = FrequencyKind(pCode - kLegacyFrequencyFirst);
+        tFrequency.mKind = frequencyKind(pCode - kLegacyFrequencyFirst);
         tFrequency.mKhz = tTensOfKhz * 10;  // 12775 -> 127750 kHz
-        tFrequency.mName = pLine.Rest();
+        tFrequency.mName = pLine.rest();
         pDetail.mFrequencies.push_back(tFrequency);
         return true;
     }
     if (pCode >= kFrequencyFirst && pCode <= kFrequencyLast)
     {
         AptFrequency tFrequency;
-        if (!pLine.Int(tFrequency.mKhz))
+        if (!pLine.readInt(tFrequency.mKhz))
         {
             return false;
         }
-        tFrequency.mKind = FrequencyKind(pCode - kFrequencyFirst);
-        tFrequency.mName = pLine.Rest();
+        tFrequency.mKind = frequencyKind(pCode - kFrequencyFirst);
+        tFrequency.mName = pLine.rest();
         if (!pHasModernFrequencies)
         {
             // Spesifikasyon: 1050'li satirlar varsa 50'li (eski) satirlar yok sayilir
@@ -519,14 +517,14 @@ bool ParseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
 namespace AptDatParser
 {
 
-bool ParseHeader(std::string_view pLine, AirportType* pOutType, int* pOutElevationFt, std::string* pOutId,
+bool parseHeader(std::string_view pLine, AirportType* pOutType, int* pOutElevationFt, std::string* pOutId,
                  std::string* pOutName)
 {
     AptLine tLine(pLine);
     int tCode = 0;
     int tDeprecated = 0;
-    if (!tLine.Int(tCode) || !tLine.Int(*pOutElevationFt) || !tLine.Int(tDeprecated) || !tLine.Int(tDeprecated) ||
-        !tLine.Token(*pOutId))
+    if (!tLine.readInt(tCode) || !tLine.readInt(*pOutElevationFt) || !tLine.readInt(tDeprecated) || !tLine.readInt(tDeprecated) ||
+        !tLine.token(*pOutId))
     {
         return false;
     }
@@ -544,35 +542,35 @@ bool ParseHeader(std::string_view pLine, AirportType* pOutType, int* pOutElevati
         default:
             return false;
     }
-    *pOutName = tLine.Rest();
+    *pOutName = tLine.rest();
     return true;
 }
 
-bool ParseRunway(std::string_view pLine, Runway* pOut)
+bool parseRunway(std::string_view pLine, Runway* pOut)
 {
     AptLine tLine(pLine);
     int tCode = 0;
     double tSmoothness = 0.0;
     int tCenterLights = 0;
     int tDistanceSigns = 0;
-    if (!tLine.Int(tCode) || tCode != kRunway || !tLine.Double(pOut->mWidthM) || !tLine.Int(pOut->mSurfaceCode) ||
-        !tLine.Int(pOut->mShoulderCode) || !tLine.Double(tSmoothness) || !tLine.Int(tCenterLights) ||
-        !tLine.Int(pOut->mEdgeLights) || !tLine.Int(tDistanceSigns))
+    if (!tLine.readInt(tCode) || tCode != kRunway || !tLine.readDouble(pOut->mWidthM) || !tLine.readInt(pOut->mSurfaceCode) ||
+        !tLine.readInt(pOut->mShoulderCode) || !tLine.readDouble(tSmoothness) || !tLine.readInt(tCenterLights) ||
+        !tLine.readInt(pOut->mEdgeLights) || !tLine.readInt(tDistanceSigns))
     {
         return false;
     }
-    pOut->mSurface = SurfaceFromAptCode(pOut->mSurfaceCode);
+    pOut->mSurface = surfaceFromAptCode(pOut->mSurfaceCode);
     pOut->mCenterLights = tCenterLights != 0;
     pOut->mWater = false;
-    return ReadRunwayEnd(tLine, pOut->mEnds[0]) && ReadRunwayEnd(tLine, pOut->mEnds[1]);
+    return readRunwayEnd(tLine, pOut->mEnds[0]) && readRunwayEnd(tLine, pOut->mEnds[1]);
 }
 
-bool ParseWaterRunway(std::string_view pLine, Runway* pOut)
+bool parseWaterRunway(std::string_view pLine, Runway* pOut)
 {
     AptLine tLine(pLine);
     int tCode = 0;
     int tBuoys = 0;
-    if (!tLine.Int(tCode) || tCode != kWaterRunway || !tLine.Double(pOut->mWidthM) || !tLine.Int(tBuoys))
+    if (!tLine.readInt(tCode) || tCode != kWaterRunway || !tLine.readDouble(pOut->mWidthM) || !tLine.readInt(tBuoys))
     {
         return false;
     }
@@ -581,7 +579,7 @@ bool ParseWaterRunway(std::string_view pLine, Runway* pOut)
     pOut->mWater = true;
     for (RunwayEnd& tEnd : pOut->mEnds)
     {
-        if (!tLine.Token(tEnd.mName) || !ReadLatLon(tLine, tEnd.mPosition))
+        if (!tLine.token(tEnd.mName) || !readLatLon(tLine, tEnd.mPosition))
         {
             return false;
         }
@@ -589,7 +587,7 @@ bool ParseWaterRunway(std::string_view pLine, Runway* pOut)
     return true;
 }
 
-AirportDetail ParseAirport(std::string_view pText)
+AirportDetail parseAirport(std::string_view pText)
 {
     AirportDetail tDetail;
     ChainBuilder tChains(tDetail);
@@ -609,7 +607,7 @@ AirportDetail ParseAirport(std::string_view pText)
 
         AptLine tLine(tText);
         int tCode = 0;
-        if (!tLine.Int(tCode))
+        if (!tLine.readInt(tCode))
         {
             continue;  // bos satir veya yorum
         }
@@ -619,14 +617,14 @@ AirportDetail ParseAirport(std::string_view pText)
             {
                 break;  // sonraki havalimani basladi
             }
-            tHasHeader = ParseHeader(tText, &tDetail.mType, &tDetail.mElevationFt, &tDetail.mId, &tDetail.mName);
+            tHasHeader = parseHeader(tText, &tDetail.mType, &tDetail.mElevationFt, &tDetail.mId, &tDetail.mName);
             continue;
         }
         if (tCode == 99)
         {
             break;  // dosya sonu
         }
-        if (!tHasHeader || !ParseDetailLine(tCode, tLine, tText, tDetail, tChains, tHasModernFrequencies))
+        if (!tHasHeader || !parseDetailLine(tCode, tLine, tText, tDetail, tChains, tHasModernFrequencies))
         {
             ++tDetail.mSkippedLineCount;
             if (tDetail.mSkippedExamples.size() < kSkippedExampleCount)
@@ -635,11 +633,11 @@ AirportDetail ParseAirport(std::string_view pText)
             }
         }
     }
-    tChains.End();
+    tChains.end();
     return tDetail;
 }
 
-bool HasLeadingLatLon(int pRowCode)
+bool hasLeadingLatLon(int pRowCode)
 {
     switch (pRowCode)
     {

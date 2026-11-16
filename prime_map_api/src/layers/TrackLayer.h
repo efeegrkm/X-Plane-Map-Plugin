@@ -1,7 +1,5 @@
-// TrackLayer.h
-// Ucus izi: ucagin gectigi yerler, sari cizgi. Saniyede bir ornek alinir;
-// ucak 50 m'den az hareket ettiyse kaydedilmez, 20 NM'den buyuk bir sicrama
-// (konum degistirme, yeni ucus) yeni bir iz parcasi baslatir.
+// Ucus izi: saniyede bir ornek alinir; 50 m'den az hareket kaydedilmez,
+// 20 NM'den buyuk sicrama (yeni ucus) yeni iz parcasi baslatir.
 // En fazla kMaxPoints nokta tutulur (en eskiler silinir).
 #pragma once
 
@@ -17,18 +15,18 @@ class TrackLayer : public Layer
 public:
     explicit TrackLayer(const AircraftData& pAircraft);
 
-    void Update(float pNow) override;
-    void Draw(const DrawContext& pContext) override;
-    bool IsOverlay() const override
+    void update(float pNow) override;
+    void draw(const drawContext& pContext) override;
+    bool isOverlay() const override
     {
         return true;  // ucu ucakla birlikte ilerler
     }
 
-    void Clear();
-    int PointCount() const;
+    void clear();
+    int pointCount() const;
 
 private:
-    void TrimOldest();
+    void trimOldest();
 
     const AircraftData& mAircraft;
     std::vector<std::vector<LatLon>> mSegments;

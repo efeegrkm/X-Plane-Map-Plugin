@@ -1,4 +1,3 @@
-// TerrainPaletteSource.cpp
 #include "data/TerrainPaletteSource.h"
 
 #include <algorithm>
@@ -18,14 +17,14 @@ namespace Fs = std::filesystem;
 const int kMaxMipSide = 64;  // bu kenardan kucuk ilk mip seviyesi okunur (birkac KB)
 const char* kTerrainFolder = "Resources/default scenery/1000 world terrain/terrain10";
 
-uint32_t U32At(const uint8_t* pData)
+uint32_t u32At(const uint8_t* pData)
 {
     return static_cast<uint32_t>(pData[0]) | (static_cast<uint32_t>(pData[1]) << 8) |
            (static_cast<uint32_t>(pData[2]) << 16) | (static_cast<uint32_t>(pData[3]) << 24);
 }
 
 // RGB565 -> 8 bit kanallar
-void Expand565(uint16_t pValue, int pRgb[3])
+void expand565(uint16_t pValue, int pRgb[3])
 {
     pRgb[0] = ((pValue >> 11) & 31) * 255 / 31;
     pRgb[1] = ((pValue >> 5) & 63) * 255 / 63;
@@ -33,13 +32,13 @@ void Expand565(uint16_t pValue, int pRgb[3])
 }
 
 // DXT renk blogu (8 bayt): 4x4 pikselin renklerini toplar. pFourColor: DXT3/5 her zaman 4 renk
-void AddColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long long* pCount)
+void addColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long long* pCount)
 {
     const uint16_t tC0 = static_cast<uint16_t>(pBlock[0] | (pBlock[1] << 8));
     const uint16_t tC1 = static_cast<uint16_t>(pBlock[2] | (pBlock[3] << 8));
     int tPalette[4][3];
-    Expand565(tC0, tPalette[0]);
-    Expand565(tC1, tPalette[1]);
+    expand565(tC0, tPalette[0]);
+    expand565(tC1, tPalette[1]);
     const bool tFour = pFourColor || tC0 > tC1;
     for (int tChannel = 0; tChannel < 3; ++tChannel)
     {
@@ -54,7 +53,7 @@ void AddColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long 
             tPalette[3][tChannel] = 0;  // DXT1 3 renk modu: 3 = saydam (sayilmaz)
         }
     }
-    const uint32_t tIndices = U32At(pBlock + 4);
+    const uint32_t tIndices = u32At(pBlock + 4);
     for (int tPixel = 0; tPixel < 16; ++tPixel)
     {
         const int tIndex = (tIndices >> (2 * tPixel)) & 3;
@@ -71,7 +70,7 @@ void AddColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long 
 }
 
 // .ter dosyasindan BASE_TEX yolu (dosyanin klasorune gore); yoksa bos
-std::string BaseTexture(const Fs::path& pTerPath)
+std::string baseTexture(const Fs::path& pTerPath)
 {
     std::ifstream tFile(pTerPath);
     std::string tLine;
@@ -91,7 +90,7 @@ std::string BaseTexture(const Fs::path& pTerPath)
 
 }  // namespace
 
-bool AverageDdsColor(const std::string& pPath, TerrainColor* pOut)
+bool averageDdsColor(const std::string& pPath, TerrainColor* pOut)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     uint8_t tHeader[128];
@@ -99,13 +98,13 @@ bool AverageDdsColor(const std::string& pPath, TerrainColor* pOut)
     {
         return false;
     }
-    const int tHeight = static_cast<int>(U32At(tHeader + 12));
-    const int tWidth = static_cast<int>(U32At(tHeader + 16));
-    const int tMipCount = std::max(1, static_cast<int>(U32At(tHeader + 28)));
-    const uint32_t tFormatFlags = U32At(tHeader + 80);
+    const int tHeight = static_cast<int>(u32At(tHeader + 12));
+    const int tWidth = static_cast<int>(u32At(tHeader + 16));
+    const int tMipCount = std::max(1, static_cast<int>(u32At(tHeader + 28)));
+    const uint32_t tFormatFlags = u32At(tHeader + 80);
     const bool tFourCc = (tFormatFlags & 0x4) != 0;
     const std::string tCode(reinterpret_cast<const char*>(tHeader + 84), 4);
-    const int tBitCount = static_cast<int>(U32At(tHeader + 88));
+    const int tBitCount = static_cast<int>(u32At(tHeader + 88));
     int tBlockBytes = 0;  // 0: sikistirmasiz 32 bit
     if (tFourCc)
     {
@@ -150,7 +149,7 @@ bool AverageDdsColor(const std::string& pPath, TerrainColor* pOut)
         const size_t tColorOffset = (tBlockBytes == 16) ? 8 : 0;  // DXT3/5: once 8 bayt alfa
         for (size_t tBlock = 0; tBlock + tBlockBytes <= tData.size(); tBlock += tBlockBytes)
         {
-            AddColorBlock(tData.data() + tBlock + tColorOffset, tBlockBytes == 16, tSum, &tCount);
+            addColorBlock(tData.data() + tBlock + tColorOffset, tBlockBytes == 16, tSum, &tCount);
         }
     }
     else
@@ -172,7 +171,7 @@ bool AverageDdsColor(const std::string& pPath, TerrainColor* pOut)
     return true;
 }
 
-bool LoadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::string& pCachePath,
+bool loadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::string& pCachePath,
                            XPlaneClassColors* pOut, std::string* pLog)
 {
     std::error_code tError;
@@ -227,14 +226,14 @@ bool LoadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::strin
     int tRead = 0;
     for (const Fs::path& tTer : tTerFiles)
     {
-        const TerrainClass tClass = ClassifyTerrain(tTer.filename().string());
+        const TerrainClass tClass = classifyTerrain(tTer.filename().string());
         if (tClass == TerrainClass::None || tClass == TerrainClass::Water)
         {
             continue;
         }
-        const std::string tTexture = BaseTexture(tTer);
+        const std::string tTexture = baseTexture(tTer);
         TerrainColor tColor;
-        if (tTexture.empty() || !AverageDdsColor(tTexture, &tColor))
+        if (tTexture.empty() || !averageDdsColor(tTexture, &tColor))
         {
             continue;  // PNG / bilinmeyen bicim: sayilmaz
         }

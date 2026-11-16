@@ -1,8 +1,4 @@
-// Geo.h
-// Cografi yardimcilar. X-Plane'e bagimli DEGIL, saf hesap:
-//   - iki nokta arasi mesafe (deniz mili)
-//   - buyuk daire (great circle) uzerinde ara nokta uretme
-//   - bir bolgeyi (poligonu) ucgenlere bolme (dolgu cizimi icin)
+// Cografi yardimcilar. X-Plane'e bagimli DEGIL, saf hesap (mesafe, buyuk daire, ucgenleme).
 #pragma once
 
 #include <vector>
@@ -13,32 +9,26 @@ struct LatLon
     double mLon;  // derece, dogu +
 };
 
-// Iki nokta arasi buyuk daire mesafesi, deniz mili (NM)
-double DistanceNm(const LatLon& pFrom, const LatLon& pTo);
+// deniz mili (NM)
+double distanceNm(const LatLon& pFrom, const LatLon& pTo);
 
-// pFrom ile pTo arasinda, buyuk daire uzerinde pFraction oraninda (0..1) nokta
-LatLon GreatCircleInterpolate(const LatLon& pFrom, const LatLon& pTo, double pFraction);
+// buyuk daire uzerinde pFraction oraninda (0..1) nokta
+LatLon greatCircleInterpolate(const LatLon& pFrom, const LatLon& pTo, double pFraction);
 
-// pFrom'dan pBearingDeg yonunde (gercek, saat yonunde, 0 = kuzey) pDistanceNm
-// deniz mili gidince varilan nokta (buyuk daire)
-LatLon DestinationPoint(const LatLon& pFrom, double pBearingDeg, double pDistanceNm);
+// pBearingDeg: gercek yon, 0 = kuzey, saat yonunde; pDistanceNm: deniz mili
+LatLon destinationPoint(const LatLon& pFrom, double pBearingDeg, double pDistanceNm);
 
-// pFrom'dan pTo'ya baslangic yonu (gercek, 0..360, 0 = kuzey)
-double InitialBearingDeg(const LatLon& pFrom, const LatLon& pTo);
+// gercek yon, 0..360, 0 = kuzey
+double initialBearingDeg(const LatLon& pFrom, const LatLon& pTo);
 
-// Iki yon arasindaki en kucuk aci farki (0..180)
-double AngleDifferenceDeg(double pFirst, double pSecond);
+// (0..180)
+double angleDifferenceDeg(double pFirst, double pSecond);
 
-// pFrom -> pTo dogrusunu haritada dogru egriyle cizebilmek icin ara noktalar uretir.
-// pOut sonuna pFrom'u ve pMaxStepNm'den uzun araliklarla ara noktalari ekler
-// (pTo'yu EKLEMEZ; bir sonraki segmentin ilk noktasi olarak eklenir).
-void DensifySegment(const LatLon& pFrom, const LatLon& pTo, double pMaxStepNm, std::vector<LatLon>& pOut);
+// pTo'yu EKLEMEZ (sonraki segmentin ilk noktasi); araliklar pMaxStepNm'yi gecmez
+void densifySegment(const LatLon& pFrom, const LatLon& pTo, double pMaxStepNm, std::vector<LatLon>& pOut);
 
-// Poligonun yaklasik alani, deniz mili kare (NM^2). Kucuk alanlar icin
-// (birkac yuz NM'ye kadar) duz kabul edilir: boylam cos(ortalama enlem) ile olceklenir.
-double PolygonAreaNm2(const std::vector<LatLon>& pPolygon);
+// yaklasik alan, NM^2. Kucuk alanlarda duz kabul: boylam cos(ortalama enlem) ile olceklenir.
+double polygonAreaNm2(const std::vector<LatLon>& pPolygon);
 
-// Basit bir poligonu (kendini kesmeyen) ucgenlere boler.
-// Sonuc: pOutTriangles icinde 3'erli indeks gruplari (pPolygon'daki sirayla).
-// Basarisizsa (kendini kesen poligon vb.) false doner.
-bool TriangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& pOutTriangles);
+// 3'erli indeks gruplari uretir; kendini kesen poligonda false
+bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& pOutTriangles);

@@ -1,4 +1,3 @@
-// TaxiRouteLayer.cpp
 #include "layers/TaxiRouteLayer.h"
 
 #include <cmath>
@@ -21,7 +20,7 @@ const Rgba kRunwayCrossing = {1.00f, 0.35f, 0.35f, 0.75f};
 const Rgba kLabel = {0.95f, 0.80f, 1.00f, 1.0f};
 
 // Nokta - dogru parcasi uzakligi
-double SegmentDistance(const PointF& pFrom, const PointF& pTo, double pX, double pY)
+double segmentDistance(const PointF& pFrom, const PointF& pTo, double pX, double pY)
 {
     const double tDx = pTo.mX - pFrom.mX;
     const double tDy = pTo.mY - pFrom.mY;
@@ -31,7 +30,7 @@ double SegmentDistance(const PointF& pFrom, const PointF& pTo, double pX, double
     return std::hypot(pFrom.mX + tT * tDx - pX, pFrom.mY + tT * tDy - pY);
 }
 
-}  // namespace
+}
 
 TaxiRouteLayer::TaxiRouteLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails)
     : Layer("taxi_routes", "Taxi routes", false)
@@ -40,26 +39,26 @@ TaxiRouteLayer::TaxiRouteLayer(const AirportGeometryStore& pSummaries, AirportDe
 {
 }
 
-void TaxiRouteLayer::Draw(const DrawContext& pContext)
+void TaxiRouteLayer::draw(const drawContext& pContext)
 {
     mEdges.clear();
-    const MapView& tView = *pContext.mView;
-    if (tView.Zoom() < kMinZoom)
+    const XMapView& tView = *pContext.mView;
+    if (tView.zoom() < kMinZoom)
     {
         return;
     }
-    FindVisibleAirports(tView, mSummaries, mQuery, mVisible);
-    const float tScale = static_cast<float>(tView.WorldSize());
+    findVisibleAirports(tView, mSummaries, mQuery, mVisible);
+    const float tScale = static_cast<float>(tView.worldSize());
     Gfx::Mesh tLines;
     for (int tIndex : mVisible)
     {
-        const LoadedAirport* tLoaded = mDetails.Use(tIndex);
+        const LoadedAirport* tLoaded = mDetails.use(tIndex);
         if (!tLoaded)
         {
             continue;
         }
         const AirportShapes& tShapes = tLoaded->mShapes;
-        const PointF tOffset = tView.MercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
+        const PointF tOffset = tView.mercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
         for (const TaxiEdgeShape& tEdge : tShapes.mTaxiEdges)
         {
             ScreenEdge tScreen;
@@ -68,14 +67,14 @@ void TaxiRouteLayer::Draw(const DrawContext& pContext)
             tScreen.mName = &tEdge.mName;
             tScreen.mRunway = tEdge.mRunway;
             tScreen.mOneWay = tEdge.mOneWay;
-            tLines.AddLine(tScreen.mFrom, tScreen.mTo, 1.5f, tEdge.mRunway ? kRunwayCrossing : kTaxiway);
+            tLines.addLine(tScreen.mFrom, tScreen.mTo, 1.5f, tEdge.mRunway ? kRunwayCrossing : kTaxiway);
             mEdges.push_back(tScreen);
         }
     }
-    pContext.mCanvas->Draw(tLines);
+    pContext.mCanvas->draw(tLines);
 }
 
-void TaxiRouteLayer::DrawLabels(const DrawContext& pContext)
+void TaxiRouteLayer::drawLabels(const drawContext& pContext)
 {
     if (!pContext.mLabels)
     {
@@ -89,17 +88,17 @@ void TaxiRouteLayer::DrawLabels(const DrawContext& pContext)
             continue;
         }
         // Ayni adli komsu kenarlar ust uste binmesin: etiket yerlestirici eler
-        MapSymbols::DrawLabelCentered(*pContext.mLabels, (tEdge.mFrom.mX + tEdge.mTo.mX) * 0.5f,
+        MapSymbols::drawLabelCentered(*pContext.mLabels, (tEdge.mFrom.mX + tEdge.mTo.mX) * 0.5f,
                                       (tEdge.mFrom.mY + tEdge.mTo.mY) * 0.5f, *tEdge.mName, kLabel,
-                                      pContext.LabelShadow());
+                                      pContext.labelShadow());
     }
 }
 
-std::string TaxiRouteLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+std::string TaxiRouteLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
 {
     for (const ScreenEdge& tEdge : mEdges)
     {
-        if (SegmentDistance(tEdge.mFrom, tEdge.mTo, pX, pY) <= 3.0)
+        if (segmentDistance(tEdge.mFrom, tEdge.mTo, pX, pY) <= 3.0)
         {
             const std::string tName = tEdge.mName->empty() ? "(unnamed)" : *tEdge.mName;
             return std::string(tEdge.mRunway ? "Taxi route on runway " : "Taxi route ") + tName +

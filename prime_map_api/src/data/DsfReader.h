@@ -1,18 +1,5 @@
-// DsfReader.h
-// X-Plane DSF (sahne) dosyasi okuyucu: ozellikler, arazi turu adlari ve
-// arazi ucgenleri. X-Plane'e bagimli DEGIL; arka plan thread'inde calisir.
-//
-// Bicim: https://developer.x-plane.com/article/dsf-file-format-specification/
-//   baslik  : "XPLNEDSF" + uint32 surum (1)
-//   atomlar : uint32 kimlik + uint32 boyut (baslik dahil); kucuk-endian, kimlik
-//             harfleri dosyada ters ("HEAD" -> "DAEH")
-//   son     : 16 bayt MD5
-//   HEAD/PROP: ad/deger dizgi ciftleri (sim/west, sim/overlay ...)
-//   DEFN/TERT: arazi turu dosya adlari (sira numarasi = arazi indeksi)
-//   GEOD/POOL+SCAL: 16 bitlik nokta havuzlari (duzlem duzlem; ham / delta /
-//             RLE / RLE+delta kodlu) ve duzlem basina olcek + kaydirma
-//   CMDS    : komut akisi; terrain patch + ucgen / serit / yelpaze komutlari
-//
+// X-Plane DSF (sahne) dosyasi okuyucu. X-Plane'e bagimli DEGIL; arka plan
+// thread'inde calisir. Bicim: https://developer.x-plane.com/article/dsf-file-format-specification/
 // Veri 7z ile sikistirilmissa once SevenZip ile acilmalidir.
 #pragma once
 
@@ -106,33 +93,31 @@ public:
 
     // pData: acilmis (sikistirilmamis) DSF baytlari; okuma boyunca yasamali.
     // Ozellikleri, arazi adlarini ve nokta havuzlarini okur.
-    bool Open(const std::vector<uint8_t>& pData, std::string* pError);
+    bool open(const std::vector<uint8_t>& pData, std::string* pError);
 
-    const DsfInfo& Info() const;
+    const DsfInfo& info() const;
 
     // Komut akisindaki butun arazi ucgenlerini gezer (overlay'ler dahil;
     // ayiklamak cagiranin isi). Bicim hatasinda false.
-    bool ForEachTriangle(const std::function<void(const DsfTriangle&)>& pVisitor, std::string* pError) const;
+    bool forEachTriangle(const std::function<void(const DsfTriangle&)>& pVisitor, std::string* pError) const;
 
     // Adi verilen raster katmanini okur (XP11: "elevation", "sea_level", "bathymetry")
-    bool ReadRaster(const std::string& pName, DsfRaster* pOut) const;
+    bool readRaster(const std::string& pName, DsfRaster* pOut) const;
     // Dosyadaki raster katmanlarinin adlari (DEMN sirasiyla)
-    const std::vector<std::string>& RasterNames() const;
+    const std::vector<std::string>& rasterNames() const;
 
-    // Poligonlari ve ag zincirlerini koordinatlariyla gezer (Asama 2 vektor katmanlari).
+    // Poligonlari ve ag zincirlerini koordinatlariyla gezer (DSF vektor katmanlari).
     // Poligonlar 16 bitlik havuzlardan (POOL), zincirler 32 bitlik havuzlardan (PO32) okunur.
     // Ziyaretcilerden biri bos olabilir. Bicim hatasinda false.
-    bool ForEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
+    bool forEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
                        const std::function<void(const DsfChain&)>& pChainVisitor, std::string* pError) const;
 
     // Teshis icin: nokta havuzu sayisi
-    int PoolCount() const;
+    int poolCount() const;
 
     // Teshis / envanter: komut akisindaki nesne, poligon ve ag komutlarini
-    // tanim basina sayar (koordinat okumaz). Bicim hatasinda false.
-    // NOT: atlama mantigi ForEachTriangle ile ayni; Asama 2'de (overlay okuyucu)
-    // iki dongu tek bir komut gezgininde birlestirilecek.
-    bool CountCommands(DsfCommandStatistics* pOut, std::string* pError) const;
+    // tanim basina sayar (koordinat okumaz). Atlama mantigi ForEachTriangle ile ayni.
+    bool countCommands(DsfCommandStatistics* pOut, std::string* pError) const;
 
 private:
     struct Pool
@@ -154,12 +139,12 @@ private:
         double mOffset[2] = {0.0, 0.0};
     };
 
-    bool ReadPool(const uint8_t* pData, size_t pSize, Pool* pOut) const;
-    bool ReadPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) const;
-    bool ReadScale(const uint8_t* pData, size_t pSize, Pool* pPool) const;
-    void ReadProperties(const uint8_t* pData, size_t pSize);
-    static std::vector<std::string> ReadStringTable(const uint8_t* pData, size_t pSize);
-    double PlaneValue(const Pool& pPool, int pPlane, int pIndex) const;
+    bool readPool(const uint8_t* pData, size_t pSize, Pool* pOut) const;
+    bool readPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) const;
+    bool readScale(const uint8_t* pData, size_t pSize, Pool* pPool) const;
+    void readProperties(const uint8_t* pData, size_t pSize);
+    static std::vector<std::string> readStringTable(const uint8_t* pData, size_t pSize);
+    double planeValue(const Pool& pPool, int pPlane, int pIndex) const;
 
     const std::vector<uint8_t>* mData = nullptr;
     DsfInfo mInfo;

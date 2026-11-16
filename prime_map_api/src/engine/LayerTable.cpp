@@ -1,4 +1,3 @@
-// LayerTable.cpp
 #include "engine/LayerTable.h"
 
 #include <array>
@@ -27,7 +26,7 @@ const MapLayer kNone = MapLayer::Count;
 
 // Sira enum ile AYNI olmali (testte kontrol edilir)
 const auto kTable = std::to_array<LayerEntry>({
-    {MapLayer::MapGroup, LayerKind::Group, kNone, "group.map", "Map", "Map"},
+    {MapLayer::MapGroup, LayerKind::Group, kNone, "group.map", "XMap", "XMap"},
     {MapLayer::Terrain, LayerKind::Layer, MapLayer::MapGroup, "terrain", "Terrain (scenery)", nullptr},
     {MapLayer::TerrainForests, LayerKind::SubLayer, MapLayer::Terrain, "terrain.forests", "Forests", nullptr},
     {MapLayer::TerrainBuiltUp, LayerKind::SubLayer, MapLayer::Terrain, "terrain.built_up", "Built-up areas",
@@ -105,7 +104,7 @@ const auto kTable = std::to_array<LayerEntry>({
 
 static_assert(kTable.size() == static_cast<size_t>(MapLayer::Count), "MapLayer table must cover the enum");
 
-const LayerEntry* EntryOf(MapLayer pLayer)
+const LayerEntry* entryOf(MapLayer pLayer)
 {
     const size_t tIndex = static_cast<size_t>(pLayer);
     if (tIndex >= kTable.size())
@@ -116,12 +115,12 @@ const LayerEntry* EntryOf(MapLayer pLayer)
 }
 
 // Temanin ayari yoksa katmanin kendi varsayilani (Layer yapicilari): sadece bunlar kapali
-bool BuiltInDefault(std::string_view pKey)
+bool builtInDefault(std::string_view pKey)
 {
     return pKey != "taxi_routes" && pKey != "fix" && pKey != "roads.power_lines";
 }
 
-bool ThemeDefaultOf(const MapTheme& pTheme, std::string_view pKey)
+bool themeDefaultOf(const MapTheme& pTheme, std::string_view pKey)
 {
     for (const LayerDefault& tDefault : pTheme.mLayerDefaults)
     {
@@ -130,21 +129,20 @@ bool ThemeDefaultOf(const MapTheme& pTheme, std::string_view pKey)
             return tDefault.mVisible;
         }
     }
-    return BuiltInDefault(pKey);
+    return builtInDefault(pKey);
 }
 
 }  // namespace
 
-// ============================================================================
-// Genel API'nin serbest fonksiyonlari (PrimeMap.h)
-// ============================================================================
-
-namespace prime
+namespace LayerRules
 {
 
-std::optional<MapLayer> ParentOf(MapLayer pLayer)
+using prime::LayerKind;
+using prime::MapLayer;
+
+std::optional<MapLayer> parentOf(MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry || tEntry->mParent == kNone)
     {
         return std::nullopt;
@@ -152,7 +150,7 @@ std::optional<MapLayer> ParentOf(MapLayer pLayer)
     return tEntry->mParent;
 }
 
-std::vector<MapLayer> ChildrenOf(MapLayer pLayer)
+std::vector<MapLayer> childrenOf(MapLayer pLayer)
 {
     std::vector<MapLayer> tChildren;
     for (const LayerEntry& tEntry : kTable)
@@ -165,7 +163,7 @@ std::vector<MapLayer> ChildrenOf(MapLayer pLayer)
     return tChildren;
 }
 
-std::vector<MapLayer> TopLevelLayers()
+std::vector<MapLayer> topLevelLayers()
 {
     std::vector<MapLayer> tTop;
     for (const LayerEntry& tEntry : kTable)
@@ -178,25 +176,25 @@ std::vector<MapLayer> TopLevelLayers()
     return tTop;
 }
 
-LayerKind KindOf(MapLayer pLayer)
+LayerKind kindOf(MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     return tEntry ? tEntry->mKind : LayerKind::Layer;
 }
 
-const char* LayerName(MapLayer pLayer)
+const char* layerName(MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     return tEntry ? tEntry->mName : "";
 }
 
-const char* LayerKey(MapLayer pLayer)
+const char* layerKey(MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     return tEntry ? tEntry->mKey : "";
 }
 
-std::optional<MapLayer> LayerFromKey(std::string_view pKey)
+std::optional<MapLayer> layerFromKey(std::string_view pKey)
 {
     for (const LayerEntry& tEntry : kTable)
     {
@@ -208,69 +206,65 @@ std::optional<MapLayer> LayerFromKey(std::string_view pKey)
     return std::nullopt;
 }
 
-bool IsLayerDefaultVisible(MapLayer pLayer, MapMode pMode)
+bool isLayerDefaultVisible(MapLayer pLayer, prime::MapMode pMode)
 {
-    const MapTheme& tTheme = ThemeFor(static_cast<::MapMode>(pMode));
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const MapTheme& tTheme = themeFor(static_cast<::MapMode>(pMode));
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry)
     {
         return false;
     }
     if (tEntry->mKind == LayerKind::Group)
     {
-        for (MapLayer tChild : ChildrenOf(pLayer))
+        for (MapLayer tChild : childrenOf(pLayer))
         {
-            if (ThemeDefaultOf(tTheme, LayerKey(tChild)))
+            if (themeDefaultOf(tTheme, layerKey(tChild)))
             {
                 return true;
             }
         }
         return false;
     }
-    return ThemeDefaultOf(tTheme, tEntry->mKey);
+    return themeDefaultOf(tTheme, tEntry->mKey);
 }
 
-}  // namespace prime
-
-// ============================================================================
-// Kurallar
-// ============================================================================
+}  // namespace LayerRules
 
 namespace LayerRules
 {
 
-Layer* FindLayer(const LayerManager& pLayers, MapLayer pLayer)
+Layer* findLayer(const LayerManager& pLayers, MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry || tEntry->mKind == LayerKind::Group)
     {
         return nullptr;
     }
     const MapLayer tOwner = tEntry->mKind == LayerKind::SubLayer ? tEntry->mParent : pLayer;
-    const std::string_view tId = prime::LayerKey(tOwner);
-    for (int tIndex = 0; tIndex < pLayers.Count(); ++tIndex)
+    const std::string_view tId = LayerRules::layerKey(tOwner);
+    for (int tIndex = 0; tIndex < pLayers.count(); ++tIndex)
     {
-        if (pLayers.At(tIndex)->Id() == tId)
+        if (pLayers.at(tIndex)->id() == tId)
         {
-            return pLayers.At(tIndex);
+            return pLayers.at(tIndex);
         }
     }
     return nullptr;
 }
 
-int SubLayerIndex(const LayerManager& pLayers, MapLayer pLayer)
+int subLayerIndex(const LayerManager& pLayers, MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
-    const Layer* tLayer = FindLayer(pLayers, pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
+    const Layer* tLayer = findLayer(pLayers, pLayer);
     if (!tEntry || !tLayer || tEntry->mKind != LayerKind::SubLayer)
     {
         return -1;
     }
     const std::string_view tKey = tEntry->mKey;
     const std::string_view tSubId = tKey.substr(tKey.find('.') + 1);
-    for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+    for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
     {
-        if (tLayer->SubLayerAt(tSub).mId == tSubId)
+        if (tLayer->subLayerAt(tSub).mId == tSubId)
         {
             return tSub;
         }
@@ -278,33 +272,33 @@ int SubLayerIndex(const LayerManager& pLayers, MapLayer pLayer)
     return -1;
 }
 
-bool IsVisible(const LayerManager& pLayers, MapLayer pLayer)
+bool isVisible(const LayerManager& pLayers, MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry)
     {
         return false;
     }
     if (tEntry->mKind == LayerKind::Group)
     {
-        return State(pLayers, pLayer) != prime::LayerState::Off;
+        return state(pLayers, pLayer) != prime::LayerState::Off;
     }
-    const Layer* tLayer = FindLayer(pLayers, pLayer);
+    const Layer* tLayer = findLayer(pLayers, pLayer);
     if (!tLayer)
     {
         return false;
     }
     if (tEntry->mKind == LayerKind::SubLayer)
     {
-        return tLayer->IsVisible() && tLayer->IsSubLayerVisible(SubLayerIndex(pLayers, pLayer));
+        return tLayer->isVisible() && tLayer->isSubLayerVisible(subLayerIndex(pLayers, pLayer));
     }
-    return tLayer->IsVisible();
+    return tLayer->isVisible();
 }
 
-prime::LayerState State(const LayerManager& pLayers, MapLayer pLayer)
+prime::LayerState state(const LayerManager& pLayers, MapLayer pLayer)
 {
     using prime::LayerState;
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry)
     {
         return LayerState::Off;
@@ -314,97 +308,97 @@ prime::LayerState State(const LayerManager& pLayers, MapLayer pLayer)
         // Panelle ayni: gruptaki katmanlarin kac tanesi acik (alt katmanlara bakilmaz)
         int tOn = 0;
         int tAll = 0;
-        for (MapLayer tChild : prime::ChildrenOf(pLayer))
+        for (MapLayer tChild : LayerRules::childrenOf(pLayer))
         {
-            const Layer* tLayer = FindLayer(pLayers, tChild);
+            const Layer* tLayer = findLayer(pLayers, tChild);
             if (tLayer)
             {
                 ++tAll;
-                tOn += tLayer->IsVisible() ? 1 : 0;
+                tOn += tLayer->isVisible() ? 1 : 0;
             }
         }
         return tOn == 0 ? LayerState::Off : (tOn == tAll ? LayerState::On : LayerState::Mixed);
     }
-    const Layer* tLayer = FindLayer(pLayers, pLayer);
+    const Layer* tLayer = findLayer(pLayers, pLayer);
     if (!tLayer)
     {
         return LayerState::Off;
     }
     if (tEntry->mKind == LayerKind::SubLayer)
     {
-        return IsVisible(pLayers, pLayer) ? LayerState::On : LayerState::Off;
+        return isVisible(pLayers, pLayer) ? LayerState::On : LayerState::Off;
     }
-    if (!tLayer->IsVisible())
+    if (!tLayer->isVisible())
     {
         return LayerState::Off;
     }
-    return tLayer->VisibleSubLayerCount() < tLayer->SubLayerCount() ? LayerState::Mixed : LayerState::On;
+    return tLayer->visibleSubLayerCount() < tLayer->subLayerCount() ? LayerState::Mixed : LayerState::On;
 }
 
 namespace
 {
 
-bool SetLayerOnly(Layer& pLayer, bool pVisible)
+bool setLayerOnly(Layer& pLayer, bool pVisible)
 {
-    bool tChanged = pLayer.IsVisible() != pVisible;
-    pLayer.SetVisible(pVisible);
+    bool tChanged = pLayer.isVisible() != pVisible;
+    pLayer.setVisible(pVisible);
     // Butun alt katmanlari kapali bir katman acilirsa hepsini ac (bos katman gostermesin)
-    if (pVisible && pLayer.SubLayerCount() > 0 && pLayer.VisibleSubLayerCount() == 0)
+    if (pVisible && pLayer.subLayerCount() > 0 && pLayer.visibleSubLayerCount() == 0)
     {
-        for (int tSub = 0; tSub < pLayer.SubLayerCount(); ++tSub)
+        for (int tSub = 0; tSub < pLayer.subLayerCount(); ++tSub)
         {
-            pLayer.SetSubLayerVisible(tSub, true);
+            pLayer.setSubLayerVisible(tSub, true);
         }
         tChanged = true;
     }
     return tChanged;
 }
 
-bool SetSubLayer(Layer& pLayer, int pSub, bool pVisible)
+bool setSubLayer(Layer& pLayer, int pSub, bool pVisible)
 {
     if (pSub < 0)
     {
         return false;
     }
-    const bool tWasVisible = pLayer.IsVisible() && pLayer.IsSubLayerVisible(pSub);
+    const bool tWasVisible = pLayer.isVisible() && pLayer.isSubLayerVisible(pSub);
     if (tWasVisible == pVisible)
     {
         return false;
     }
-    if (pVisible && !pLayer.IsVisible())
+    if (pVisible && !pLayer.isVisible())
     {
         // Kapali katmanin bir alt katmani acildi: sadece o acilsin, eski alt katman ayarlari geri gelmesin
-        for (int tSub = 0; tSub < pLayer.SubLayerCount(); ++tSub)
+        for (int tSub = 0; tSub < pLayer.subLayerCount(); ++tSub)
         {
-            pLayer.SetSubLayerVisible(tSub, false);
+            pLayer.setSubLayerVisible(tSub, false);
         }
     }
-    pLayer.SetSubLayerVisible(pSub, pVisible);
+    pLayer.setSubLayerVisible(pSub, pVisible);
     if (pVisible)
     {
-        pLayer.SetVisible(true);
+        pLayer.setVisible(true);
     }
-    else if (pLayer.VisibleSubLayerCount() == 0)
+    else if (pLayer.visibleSubLayerCount() == 0)
     {
-        pLayer.SetVisible(false);  // son alt katman kapandi: kutu "bos" gorunsun
+        pLayer.setVisible(false);  // son alt katman kapandi: kutu "bos" gorunsun
     }
     return true;
 }
 
 // Grubun bu moddaki varsayilan acik katmanlari (hic yoksa hepsi)
-std::vector<Layer*> GroupDefaultLayers(const LayerManager& pLayers, const MapTheme& pTheme, MapLayer pGroup)
+std::vector<Layer*> groupDefaultLayers(const LayerManager& pLayers, const MapTheme& pTheme, MapLayer pGroup)
 {
     std::vector<Layer*> tAll;
     std::vector<Layer*> tDefaultOn;
-    for (MapLayer tChild : prime::ChildrenOf(pGroup))
+    for (MapLayer tChild : LayerRules::childrenOf(pGroup))
     {
-        Layer* tLayer = FindLayer(pLayers, tChild);
+        Layer* tLayer = findLayer(pLayers, tChild);
         if (!tLayer)
         {
             continue;
         }
         tAll.push_back(tLayer);
-        if (LayerManager::ThemeDefault(*tLayer, pTheme))
+        if (LayerManager::themeDefault(*tLayer, pTheme))
         {
             tDefaultOn.push_back(tLayer);
         }
@@ -414,9 +408,9 @@ std::vector<Layer*> GroupDefaultLayers(const LayerManager& pLayers, const MapThe
 
 }  // namespace
 
-bool SetVisible(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer, bool pVisible)
+bool setVisible(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer, bool pVisible)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry)
     {
         return false;
@@ -426,39 +420,39 @@ bool SetVisible(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer, 
         bool tChanged = false;
         if (pVisible)
         {
-            for (Layer* tLayer : GroupDefaultLayers(pLayers, pTheme, pLayer))
+            for (Layer* tLayer : groupDefaultLayers(pLayers, pTheme, pLayer))
             {
-                tChanged = SetLayerOnly(*tLayer, true) || tChanged;
+                tChanged = setLayerOnly(*tLayer, true) || tChanged;
             }
         }
         else
         {
-            for (MapLayer tChild : prime::ChildrenOf(pLayer))
+            for (MapLayer tChild : LayerRules::childrenOf(pLayer))
             {
-                Layer* tLayer = FindLayer(pLayers, tChild);
+                Layer* tLayer = findLayer(pLayers, tChild);
                 if (tLayer)
                 {
-                    tChanged = SetLayerOnly(*tLayer, false) || tChanged;
+                    tChanged = setLayerOnly(*tLayer, false) || tChanged;
                 }
             }
         }
         return tChanged;
     }
-    Layer* tLayer = FindLayer(pLayers, pLayer);
+    Layer* tLayer = findLayer(pLayers, pLayer);
     if (!tLayer)
     {
         return false;
     }
     if (tEntry->mKind == LayerKind::SubLayer)
     {
-        return SetSubLayer(*tLayer, SubLayerIndex(pLayers, pLayer), pVisible);
+        return setSubLayer(*tLayer, subLayerIndex(pLayers, pLayer), pVisible);
     }
-    return SetLayerOnly(*tLayer, pVisible);
+    return setLayerOnly(*tLayer, pVisible);
 }
 
-bool Toggle(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer)
+bool toggle(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer)
 {
-    const LayerEntry* tEntry = EntryOf(pLayer);
+    const LayerEntry* tEntry = entryOf(pLayer);
     if (!tEntry)
     {
         return false;
@@ -467,42 +461,42 @@ bool Toggle(LayerManager& pLayers, const MapTheme& pTheme, MapLayer pLayer)
     {
         // Varsayilan acik katmanlardan biri kapaliysa onlari ac; hepsi aciksa gruptaki her seyi kapat
         bool tTurnOn = false;
-        for (Layer* tLayer : GroupDefaultLayers(pLayers, pTheme, pLayer))
+        for (Layer* tLayer : groupDefaultLayers(pLayers, pTheme, pLayer))
         {
-            tTurnOn = tTurnOn || !tLayer->IsVisible();
+            tTurnOn = tTurnOn || !tLayer->isVisible();
         }
-        return SetVisible(pLayers, pTheme, pLayer, tTurnOn);
+        return setVisible(pLayers, pTheme, pLayer, tTurnOn);
     }
-    return SetVisible(pLayers, pTheme, pLayer, !IsVisible(pLayers, pLayer));
+    return setVisible(pLayers, pTheme, pLayer, !isVisible(pLayers, pLayer));
 }
 
-void ShowOnly(LayerManager& pLayers, const MapTheme& pTheme, const MapLayer* pBegin, const MapLayer* pEnd)
+void showOnly(LayerManager& pLayers, const MapTheme& pTheme, const MapLayer* pBegin, const MapLayer* pEnd)
 {
-    for (int tIndex = 0; tIndex < pLayers.Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < pLayers.count(); ++tIndex)
     {
-        pLayers.At(tIndex)->SetVisible(false);
+        pLayers.at(tIndex)->setVisible(false);
     }
     for (const MapLayer* tItem = pBegin; tItem != pEnd; ++tItem)
     {
-        if (prime::KindOf(*tItem) == LayerKind::Layer)
+        if (LayerRules::kindOf(*tItem) == LayerKind::Layer)
         {
             // Acikca istenen katman: butun alt katmanlariyla
-            Layer* tLayer = FindLayer(pLayers, *tItem);
+            Layer* tLayer = findLayer(pLayers, *tItem);
             if (tLayer)
             {
-                tLayer->SetVisible(true);
-                for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+                tLayer->setVisible(true);
+                for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
                 {
-                    tLayer->SetSubLayerVisible(tSub, true);
+                    tLayer->setSubLayerVisible(tSub, true);
                 }
             }
             continue;
         }
-        SetVisible(pLayers, pTheme, *tItem, true);
+        setVisible(pLayers, pTheme, *tItem, true);
     }
 }
 
-std::optional<MapLayer> GroupFromPanelName(std::string_view pName)
+std::optional<MapLayer> groupFromPanelName(std::string_view pName)
 {
     for (const LayerEntry& tEntry : kTable)
     {

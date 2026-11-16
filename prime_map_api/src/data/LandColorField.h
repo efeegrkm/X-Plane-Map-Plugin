@@ -1,4 +1,3 @@
-// LandColorField.h
 // Zemin dokusunda arazi siniflari arasi yumusak gecis icin kara renklerinin
 // yumusatilmis alani (normalize evrisim). X-Plane'e bagimli DEGIL.
 //
@@ -27,27 +26,27 @@ struct LandBlendPlan
 
 // pMeters: [blend] meters. pMetersPerPixelX/Y: dokunun bir pikselinin yerdeki boyu.
 // Erim 1,5 pikselden kucukse bos plan (uzak seviyelerde filtre kendiliginden kapanir).
-LandBlendPlan PlanLandBlend(double pMeters, double pMetersPerPixelX, double pMetersPerPixelY,
+LandBlendPlan planLandBlend(double pMeters, double pMetersPerPixelX, double pMetersPerPixelY,
                             double pMaxReachPixels);
 
 class LandColorField
 {
 public:
     // pPixels: payli dokunun kenari (piksel). Hucre sayisi = ceil(pPixels / pFactor).
-    void Reset(int pPixels, int pFactor);
+    void reset(int pPixels, int pFactor);
 
     // (pPixelX, pPixelY) payli dokunun pikseli; pWeight: o pikseldeki kara ornek sayisi
-    void Add(int pPixelX, int pPixelY, const TerrainColor& pColor, float pWeight);
+    void add(int pPixelX, int pPixelY, const TerrainColor& pColor, float pWeight);
 
     // 3 x (yatay + dikey) kutu bulanikligi (~Gaussian). Kenar disi = veri yok.
-    void Blur(int pHalfX, int pHalfY);
+    void blur(int pHalfX, int pHalfY);
 
     // Payli dokunun piksel MERKEZINDEKI yumusatilmis kara rengi (cift dogrusal).
     // Cevrede hic kara yoksa false.
-    bool ColorAt(int pPixelX, int pPixelY, double pRgb[3]) const;
+    bool colorAt(int pPixelX, int pPixelY, double pRgb[3]) const;
 
 private:
-    static void BoxPass(std::vector<float>& pData, int pCells, int pHalf, bool pHorizontal);
+    static void boxPass(std::vector<float>& pData, int pCells, int pHalf, bool pHorizontal);
 
     int mCells = 0;
     int mFactor = 1;

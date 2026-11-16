@@ -1,4 +1,4 @@
-// MapTheme.cpp
+
 #include "MapTheme.h"
 
 namespace
@@ -7,9 +7,8 @@ namespace
 // Ortak acik tema parcalari (VFR / IFR): beyaz kontur, koyu yazi
 const Rgba kWhiteHalo = {1.0f, 1.0f, 1.0f, 0.85f};
 
-// Varsayilan katman gorunurlugu, mod basina (ayar dosyasinda deger yoksa kullanilir).
-// Scenery / VFR / IFR: kullanicinin 2026-11-07'de X-Plane'de kaydettigi ayarlar (0.18'de varsayilan yapildi).
-// Dark: minimal harita + hava yollari (kullanici karari). Listede olmayan katman Layer'in kendi varsayilanini alir.
+// Varsayilan katman gorunurlugu, mod basina (ayar dosyasinda deger yoksa).
+// Listede olmayan katman Layer'in kendi varsayilanini alir.
 const LayerDefault kSceneryLayers[] = {
     {"aircraft", true}, {"airport_objects", false}, {"airport_objects.approach_lights", false},
     {"airport_objects.beacons", false}, {"airport_objects.gates", false}, {"airport_objects.hangars", false},
@@ -94,7 +93,6 @@ const LayerDefault kDarkLayers[] = {
     {"runways.unpaved", true}, {"runways.water", true}, {"taxi_routes", false}, {"terrain", true},
     {"terrain.built_up", false}, {"terrain.forests", false}, {"track", true}, {"vor", true},
 };
-
 
 const MapTheme kScenery = {
     MapMode::Scenery,
@@ -278,8 +276,7 @@ const MapTheme kIfrHigh = {
     {0.93f, 0.88f, 0.74f, 1.0f},  // yerlesim: soluk bej
 };
 
-// Dark (0.18): ucus kontrol / radar ekrani tarzi tam siyah minimal harita. Zemin sadece
-// kara (siyah) ve su (koyu lacivert); kabartma, sinif, yol, orman yok. Parlak ama
+// dark: ucus kontrol / radar ekrani tarzi tam siyah minimal harita. Parlak ama
 // doygun olmayan renkler: karanlik IOS odasinda goz yormasin.
 const MapTheme kDark = {
     MapMode::Dark,
@@ -332,7 +329,7 @@ const MapTheme kDark = {
 
 }  // namespace
 
-const MapTheme& ThemeFor(MapMode pMode)
+const MapTheme& themeFor(MapMode pMode)
 {
     switch (pMode)
     {
@@ -349,9 +346,41 @@ const MapTheme& ThemeFor(MapMode pMode)
     }
 }
 
-TerrainImageStyle TerrainStyleFor(MapMode pMode)
+Rgba* themeLayerColor(MapTheme& pTheme, prime::MapLayer pLayer)
 {
-    const MapTheme& tTheme = ThemeFor(pMode);
+    using prime::MapLayer;
+    switch (pLayer)
+    {
+        case MapLayer::Grid:
+            return &pTheme.mGridLine;
+        case MapLayer::RoadsMotorways:
+        case MapLayer::RoadsPrimary:
+        case MapLayer::RoadsSecondary:
+        case MapLayer::RoadsLocal:
+        case MapLayer::RoadsRailways:
+        case MapLayer::RoadsPowerLines:
+            return &pTheme.mRoads[static_cast<int>(pLayer) - static_cast<int>(MapLayer::RoadsMotorways)];
+        case MapLayer::TerrainBuiltUp:
+            return &pTheme.mBuiltUp;
+        case MapLayer::Vor:
+        case MapLayer::Ndb:
+        case MapLayer::Ils:
+        case MapLayer::Fixes:
+            return &pTheme.mNavaid[static_cast<int>(pLayer) - static_cast<int>(MapLayer::Vor)];
+        case MapLayer::AirwaysLow:
+            return &pTheme.mAirwayLow;
+        case MapLayer::AirwaysHigh:
+            return &pTheme.mAirwayHigh;
+        case MapLayer::Runways:
+            return &pTheme.mRunwayEdge;
+        default:
+            return nullptr;
+    }
+}
+
+TerrainImageStyle terrainStyleFor(MapMode pMode)
+{
+    const MapTheme& tTheme = themeFor(pMode);
     auto tToByte = [](float pValue)
     {
         return static_cast<uint8_t>(pValue * 255.0f + 0.5f);
@@ -365,22 +394,22 @@ TerrainImageStyle TerrainStyleFor(MapMode pMode)
     return tStyle;
 }
 
-std::vector<TerrainImageStyle> AllTerrainStyles()
+std::vector<TerrainImageStyle> allTerrainStyles()
 {
     std::vector<TerrainImageStyle> tStyles;
     for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
     {
-        tStyles.push_back(TerrainStyleFor(static_cast<MapMode>(tIndex)));
+        tStyles.push_back(terrainStyleFor(static_cast<MapMode>(tIndex)));
     }
     return tStyles;
 }
 
-MapMode ModeFromId(std::string_view pId, MapMode pFallback)
+MapMode modeFromId(std::string_view pId, MapMode pFallback)
 {
     for (int tIndex = 0; tIndex < kMapModeCount; ++tIndex)
     {
         const MapMode tMode = static_cast<MapMode>(tIndex);
-        if (pId == ThemeFor(tMode).mId)
+        if (pId == themeFor(tMode).mId)
         {
             return tMode;
         }
@@ -388,12 +417,12 @@ MapMode ModeFromId(std::string_view pId, MapMode pFallback)
     return pFallback;
 }
 
-MapMode NextMode(MapMode pMode)
+MapMode nextMode(MapMode pMode)
 {
     return static_cast<MapMode>((static_cast<int>(pMode) + 1) % kMapModeCount);
 }
 
-std::string_view LayerSectionFor(MapMode pMode)
+std::string_view layerSectionFor(MapMode pMode)
 {
     switch (pMode)
     {

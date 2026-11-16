@@ -1,16 +1,13 @@
-// TerrainProfile.h
 // Zemin iscisinin asama sureleri (olcum icin). X-Plane'e bagimli DEGIL.
+// Sureler thread'e ozel (thread_local) toplanir: zemin iscisi, onizleme ve
+// testler birbirini bozmaz, kilit yok. takeReport ozet alir, sayaclar sifirlanir.
 //
-// Her asama "ScopedStage" ile olculur; sureler thread'e ozel (thread_local) toplanir:
-// zemin iscisi, onizleme ve testler birbirini bozmaz, kilit yok. Isci bosta kalinca
-// TakeReport ile ozet satiri alinir ve sayaclar sifirlanir.
-//
-//   tek karo uretimi : DsfUnpack -> DsfTriangles -> DsfVectors -> Overlays -> FillAreas -> CacheSave
-//                      -> ElevationBuild -> ElevationPack
-//   onbellekten      : LoadRaster, LoadElevation, LoadVectors
-//   yakin zoom       : Triangles (DSF ucgenleri)
-//   doku             : ImageClasses (sinif ornekleme + bukme), ImageBlur, ImageCoast (kiyi cizgisi + uzaklik),
-//                      ImageCompose (renk, kabartma, VFR, su), ImageDetail (ucgenlerden boyama), Bleed
+//   tek karo uretimi : DsfUnpack -> DsfTriangles -> DsfVectors -> Overlays
+//                      -> FillAreas -> CacheSave -> ElevationBuild -> ElevationPack
+//   onbellekten      : loadRaster, loadElevation, loadVectors
+//   yakin zoom       : triangles(DSF ucgenleri)
+//   doku             : imageClasses, ImageBlur, imageCoast, imageCompose,
+//                      imageDetail, Bleed
 #pragma once
 
 #include <chrono>
@@ -29,9 +26,9 @@ enum class Stage
     CacheSave,
     ElevationBuild,
     ElevationPack,
-    LoadRaster,
-    LoadElevation,
-    LoadVectors,
+    loadRaster,
+    loadElevation,
+    loadVectors,
     Triangles,
     ImageClasses,
     ImageBlur,
@@ -42,10 +39,10 @@ enum class Stage
     Count,
 };
 
-void Add(Stage pStage, double pMilliseconds);
+void add(Stage pStage, double pMilliseconds);
 
 // "asama adet x ortalama ms (toplam)" satiri; bossa "". Sayaclari sifirlar.
-std::string TakeReport();
+std::string takeReport();
 
 class ScopedStage
 {

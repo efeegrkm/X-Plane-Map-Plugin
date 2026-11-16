@@ -1,57 +1,56 @@
-// WorldTileMap.cpp
 #include "data/WorldTileMap.h"
 
 #include <fstream>
 #include <iterator>
 
-bool WorldTileMap::Load(const std::string& pPath)
+bool WorldTileMap::load(const std::string& pPath)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     if (!tFile)
     {
-        Clear();
+        clear();
         return false;
     }
     const std::vector<uint8_t> tBytes((std::istreambuf_iterator<char>(tFile)), std::istreambuf_iterator<char>());
-    return LoadBytes(tBytes);
+    return loadBytes(tBytes);
 }
 
-bool WorldTileMap::LoadBytes(const std::vector<uint8_t>& pBytes)
+bool WorldTileMap::loadBytes(const std::vector<uint8_t>& pBytes)
 {
     if (pBytes.size() != kFileSize)
     {
-        Clear();  // beklenmeyen bicim: tahmin etme, kullanma
+        clear();  // beklenmeyen bicim: tahmin etme, kullanma
         return false;
     }
     mTiles.assign(pBytes.begin() + kHeaderSize, pBytes.end());
     return true;
 }
 
-bool WorldTileMap::IsLoaded() const
+bool WorldTileMap::isLoaded() const
 {
     return !mTiles.empty();
 }
 
-void WorldTileMap::Clear()
+void WorldTileMap::clear()
 {
     mTiles.clear();
 }
 
-size_t WorldTileMap::IndexOf(int pWest, int pSouth)
+size_t WorldTileMap::indexOf(int pWest, int pSouth)
 {
     return static_cast<size_t>(pWest + 180) * 180 + static_cast<size_t>(pSouth + 90);
 }
 
-bool WorldTileMap::HasDsf(int pWest, int pSouth) const
+bool WorldTileMap::hasDsf(int pWest, int pSouth) const
 {
     if (mTiles.empty() || pWest < -180 || pWest > 179 || pSouth < -90 || pSouth > 89)
     {
         return false;
     }
-    return mTiles[IndexOf(pWest, pSouth)] != 0;
+    return mTiles[indexOf(pWest, pSouth)] != 0;
 }
 
-int WorldTileMap::LandTileCount() const
+int WorldTileMap::landTileCount() const
 {
     int tCount = 0;
     for (const uint8_t tValue : mTiles)

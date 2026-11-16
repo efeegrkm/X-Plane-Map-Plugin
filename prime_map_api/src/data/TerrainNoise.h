@@ -1,11 +1,7 @@
-// TerrainNoise.h
-// Zemin dokusunda arazi sinifi sinirlarini dogal gostermek icin cografi koordinata
-// bagli, deterministik yumusak gurultu (deger gurultusu + fBm). X-Plane'e bagimli DEGIL.
-//
-// Neden: DSF arazi turu ucgen basina; yakin zoom'da duz kenarlar ve sivri koseler
-// gorunur. Sinif okunurken bakilan nokta bu gurultuyle birkac on metre kaydirilir
-// ("domain warp"): sinirlar kivrilir, zemin keskin kalir. Gurultu enlem/boylamdan
-// uretildigi icin her seviyede ve her parcada ayni sonucu verir (dikis / sicrama yok).
+// Arazi sinifi sinirlarini dogal gostermek icin deterministik yumusak gurultu
+// (deger gurultusu + fBm). Neden: DSF arazi turu ucgen basina; sinif okunurken
+// nokta birkac on metre kaydirilir ("domain warp"), sinirlar kivrilir. Gurultu
+// enlem/boylamdan uretildigi icin her seviyede ayni sonucu verir (dikis yok).
 #pragma once
 
 #include <cstdint>
@@ -18,7 +14,7 @@ struct TerrainWarpParams
 };
 
 // Noktanin kayma vektoru (metre; dogu ve kuzey). |kayma| <= mAmplitudeMeters.
-void TerrainWarpOffset(double pLon, double pLat, const TerrainWarpParams& pParams, double* pEastMeters,
+void terrainWarpOffset(double pLon, double pLat, const TerrainWarpParams& pParams, double* pEastMeters,
                        double* pNorthMeters);
 
 // Test ve ayar icin: tek kanal fBm degeri, yaklasik [-1, 1]
@@ -34,5 +30,5 @@ struct TerrainWarpPlan
 
 // pMetersPerPixelX/Y: dokunun pikselinin yerdeki boyu (metre). Stiller arasindan Scenery
 // (Classes) bukmeye uygundur; stil kontrolunu cagiran taraf yapar.
-TerrainWarpPlan TerrainPlanWarp(const TerrainWarpParams& pParams, double pMetersPerPixelX,
+TerrainWarpPlan terrainPlanWarp(const TerrainWarpParams& pParams, double pMetersPerPixelX,
                                 double pMetersPerPixelY);

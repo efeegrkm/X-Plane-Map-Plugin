@@ -1,7 +1,5 @@
-// AircraftLayer.h
-// Kullanicinin ucagi: konumunda, burun yonune donmus bir ucak sembolu ve
-// onunde kisa bir yon cizgisi. Ekranda sabit boyutta cizilir (zoom'dan
-// bagimsiz). Katman listesinin en ustunde olmali.
+// Kullanicinin ucagi: burun yonune donmus sembol + yon cizgisi; ekranda
+// sabit boyutta (zoom'dan bagimsiz). Katman listesinin en ustunde olmali.
 #pragma once
 
 #include "Layer.h"
@@ -13,8 +11,8 @@ class AircraftLayer : public Layer
 public:
     explicit AircraftLayer(const AircraftData& pAircraft);
 
-    void Draw(const DrawContext& pContext) override;
-    bool IsOverlay() const override
+    void draw(const drawContext& pContext) override;
+    bool isOverlay() const override
     {
         return true;  // her karede hareket eder: harita resminin ustune
     }

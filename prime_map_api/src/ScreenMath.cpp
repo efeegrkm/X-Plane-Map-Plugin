@@ -1,4 +1,3 @@
-// ScreenMath.cpp
 #include "ScreenMath.h"
 
 #include <algorithm>
@@ -8,7 +7,7 @@ namespace
 {
 
 // 4x4 sutun oncelikli carpim: pOut = pFirst * pSecond
-void MatMul4(const float* pFirst, const float* pSecond, double* pOut)
+void matMul4(const float* pFirst, const float* pSecond, double* pOut)
 {
     for (int tCol = 0; tCol < 4; ++tCol)
     {
@@ -26,12 +25,12 @@ void MatMul4(const float* pFirst, const float* pSecond, double* pOut)
 
 }  // namespace
 
-bool AffineFromGL(const float pModelview[16], const float pProjection[16], const int pViewport[4],
+bool affineFromGL(const float pModelview[16], const float pProjection[16], const int pViewport[4],
                   Affine2D* pOut)
 {
     // M = Projection * ModelView : cizim koordinati -> "clip" koordinati
     double tM[16];
-    MatMul4(pProjection, pModelview, tM);
+    matMul4(pProjection, pModelview, tM);
 
     // 2B (ortografik) cizimde w her zaman sabittir: m[3] = m[7] = 0.
     if (std::fabs(tM[3]) > 1e-9 || std::fabs(tM[7]) > 1e-9 || std::fabs(tM[15]) < 1e-12)
@@ -56,7 +55,7 @@ bool AffineFromGL(const float pModelview[16], const float pProjection[16], const
     return true;
 }
 
-Affine2D Compose(const Affine2D& pSecond, const Affine2D& pFirst)
+Affine2D compose(const Affine2D& pSecond, const Affine2D& pFirst)
 {
     // s(f(p)) = S_lin * (F_lin * p + F_t) + S_t
     Affine2D tResult;
@@ -69,7 +68,7 @@ Affine2D Compose(const Affine2D& pSecond, const Affine2D& pFirst)
     return tResult;
 }
 
-bool Invert(const Affine2D& pMatrix, Affine2D* pOut)
+bool invert(const Affine2D& pMatrix, Affine2D* pOut)
 {
     const double tDet = pMatrix.mA * pMatrix.mD - pMatrix.mB * pMatrix.mC;
     if (std::fabs(tDet) < 1e-18)
@@ -87,14 +86,14 @@ bool Invert(const Affine2D& pMatrix, Affine2D* pOut)
     return true;
 }
 
-RectD TransformRectBBox(const Affine2D& pMatrix, const RectD& pRect)
+RectD transformRectBBox(const Affine2D& pMatrix, const RectD& pRect)
 {
     double tXs[4];
     double tYs[4];
-    pMatrix.Apply(pRect.mLeft, pRect.mTop, &tXs[0], &tYs[0]);
-    pMatrix.Apply(pRect.mRight, pRect.mTop, &tXs[1], &tYs[1]);
-    pMatrix.Apply(pRect.mRight, pRect.mBottom, &tXs[2], &tYs[2]);
-    pMatrix.Apply(pRect.mLeft, pRect.mBottom, &tXs[3], &tYs[3]);
+    pMatrix.apply(pRect.mLeft, pRect.mTop, &tXs[0], &tYs[0]);
+    pMatrix.apply(pRect.mRight, pRect.mTop, &tXs[1], &tYs[1]);
+    pMatrix.apply(pRect.mRight, pRect.mBottom, &tXs[2], &tYs[2]);
+    pMatrix.apply(pRect.mLeft, pRect.mBottom, &tXs[3], &tYs[3]);
     RectD tResult;
     tResult.mLeft = *std::min_element(tXs, tXs + 4);
     tResult.mRight = *std::max_element(tXs, tXs + 4);
@@ -103,7 +102,7 @@ RectD TransformRectBBox(const Affine2D& pMatrix, const RectD& pRect)
     return tResult;
 }
 
-bool IntersectRect(const RectD& pFirst, const RectD& pSecond, RectD* pOut)
+bool intersectRect(const RectD& pFirst, const RectD& pSecond, RectD* pOut)
 {
     RectD tResult;
     tResult.mLeft = std::max(pFirst.mLeft, pSecond.mLeft);
@@ -118,7 +117,7 @@ bool IntersectRect(const RectD& pFirst, const RectD& pSecond, RectD* pOut)
     return true;
 }
 
-RectD ToRectD(const RectI& pRect)
+RectD toRectD(const RectI& pRect)
 {
     RectD tResult;
     tResult.mLeft = pRect.mLeft;

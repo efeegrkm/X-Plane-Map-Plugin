@@ -1,20 +1,5 @@
-// MapTheme.h
 // Harita modlari ve her modun gorunumu (renkler, zemin bicimi, varsayilan
 // katmanlar). X-Plane'e bagimli DEGIL.
-//
-//   Scenery  : arazi siniflari + kabartma (bugunku gorunum, X-Plane'de yok)
-//   VFR      : rakima gore zemin renkleri, kuleli havalimani mavi / kulesiz
-//              macenta, VOR pusula gulu, acik mavi Victor hava yollari
-//   IFR Low  : zemin sadece kara / su (iki duz renk); alcak hava yollari, VOR/NDB/fix
-//   IFR High : ayni zemin; yuksek hava yollari, sadece buyuk havalimanlari
-//   Dark     : (0.18) tam siyah, minimal (ucus kontrol ekrani tarzi): kara siyah, su koyu lacivert,
-//              havalimanlari, pistler, navaid'ler, ILS, hava yollari; arazi ayrintisi yok
-//
-// Katmanlar renkleri DrawContext::mTheme'den okur. Scenery temasi eski
-// sabitlerin birebir aynisidir (gorunum degismesin).
-//
-// Renkler ilk surum: FAA harita geleneklerinden (sectional / enroute).
-// X-Plane'in kendi haritasindan alinan ekran goruntuleriyle ayarlanacak.
 #pragma once
 
 #include <array>
@@ -23,6 +8,7 @@
 #include <vector>
 
 #include "Color.h"
+#include "PrimeMap.h"
 #include "data/TerrainClasses.h"
 
 enum class MapMode
@@ -83,30 +69,33 @@ struct MapTheme
     // Katman ve alt katman ("<katman>.<alt>") varsayilanlari; listede olmayan: Layer'in kendi varsayilani
     std::span<const LayerDefault> mLayerDefaults;
 
-    // 0.16: "veri yok" karosu (kara ama sahnesi bu bilgisayarda kurulu degil; dsf_files).
-    // Deniz gibi boyanmasin diye notr, sudan ve arka plandan farkli bir renk.
+    // "veri yok" karosu (kara ama sahnesi bu bilgisayarda kurulu degil):
+    // sudan ve arka plandan farkli notr renk.
     Rgba mNoData;
 
-    // Asama 2: DSF yol agi (sira VectorLineKind: otoyol, ana, tali, yerel, demiryolu, enerji hatti)
+    // DSF yol agi (sira VectorLineKind: otoyol, ana, tali, yerel, demiryolu, enerji hatti)
     std::array<Rgba, 6> mRoads;
     // Yerlesim alanlari VFR / IFR'da bu renge karisir (sectional sarisi); Scenery'de sinif rengi kullanilir
     Rgba mBuiltUp;
 };
 
-const MapTheme& ThemeFor(MapMode pMode);
+const MapTheme& themeFor(MapMode pMode);
+
+// API setColor: katmanin tema rengini temsilen yazma yuvasi (yoksa nullptr).
+// Sadece dogrudan tema rengi olan katmanlar eslenir; nullptr donen katmanin rengi degistirilemez.
+Rgba* themeLayerColor(MapTheme& pTheme, prime::MapLayer pLayer);
 
 // Zemin iscisine verilecek goruntu bicimi (kara = arka plan, su = mWater)
-TerrainImageStyle TerrainStyleFor(MapMode pMode);
+TerrainImageStyle terrainStyleFor(MapMode pMode);
 
-// Butun modlarin bicimleri, MapMode sirasiyla (TerrainStore::Start'a verilir;
-// TerrainImageKey::mStyle = static_cast<int>(MapMode))
-std::vector<TerrainImageStyle> AllTerrainStyles();
+// TerrainImageKey::mStyle = static_cast<int>(MapMode) eslesir
+std::vector<TerrainImageStyle> allTerrainStyles();
 
 // "vfr" -> MapMode::Vfr; taninmayan deger pFallback
-MapMode ModeFromId(std::string_view pId, MapMode pFallback);
+MapMode modeFromId(std::string_view pId, MapMode pFallback);
 
 // Siradaki mod (dongusel): komut prime/map/next_mode
-MapMode NextMode(MapMode pMode);
+MapMode nextMode(MapMode pMode);
 
 // Katman gorunurlugunun saklandigi ayar bolumu: "layers.vfr" ...
-std::string_view LayerSectionFor(MapMode pMode);
+std::string_view layerSectionFor(MapMode pMode);

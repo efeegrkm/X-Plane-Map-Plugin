@@ -1,4 +1,3 @@
-// MapInstance.cpp
 #include "engine/MapInstance.h"
 
 #include <algorithm>
@@ -14,6 +13,7 @@
 #include "Log.h"
 #include "MapTheme.h"
 #include "Settings.h"
+#include "engine/LayerTable.h"
 #include "engine/MapData.h"
 #include "layers/AircraftLayer.h"
 #include "layers/AirportLayer.h"
@@ -38,20 +38,22 @@ const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainFileName = "terrain_colors.ini";
 const char* kWindowSection = "window";
 const char* kSourcesSection = "sources";
+const char* kLayerColorsSection = "layer_colors";
 const int kMinStandaloneWidth = 400;   // Standalone pencerenin kullanilabilir en kucuk boyutu (boxel)
 const int kMinStandaloneHeight = 260;
 
 const char* kSettingsComment =
-    "Prime Map settings of ONE map (written by the library; safe to edit while X-Plane is closed).\n"
+    "Prime XMap settings of ONE map (written by the library; safe to edit while X-Plane is closed).\n"
     "[window] left/top/right/bottom/visible: restored only for Standalone maps (the host places Embedded maps).\n"
     "[view] mode (scenery|vfr|ifr_low|ifr_high|dark), center_lat, center_lon, zoom, follow_aircraft,\n"
     "show_controls, mouse_input, min_zoom, max_zoom, zoom_step, pan_step.\n"
     "[render] cache (1: map image cache / FBO), max_fps (map image redraw rate). [text] renderer = atlas | xplane.\n"
     "[tools]: drawing palette. [layers.<mode>]: <layer or layer.sublayer> = 1/0, per map mode.\n"
     "[layer_zoom]: <layer or layer.sublayer> = <min zoom> <max zoom> (only limited layers are listed).\n"
-    "[sources] aircraft / route = xplane | host.";
+    "[sources] aircraft / route = xplane | host.\n"
+    "[layer_colors] <layer key> = <r g b> (0..255): API setColor overrides.";
 
-bool ReadTextFile(const std::string& pPath, std::string* pText)
+bool readTextFile(const std::string& pPath, std::string* pText)
 {
     std::ifstream tFile(pPath);
     if (!tFile)
@@ -64,7 +66,7 @@ bool ReadTextFile(const std::string& pPath, std::string* pText)
     return true;
 }
 
-bool WriteTextFile(const std::string& pPath, const std::string& pText)
+bool writeTextFile(const std::string& pPath, const std::string& pText)
 {
     // Once gecici dosyaya, sonra yeniden adlandir: yarim yazilmis dosya kalmasin
     const std::string tTemporary = pPath + ".tmp";
@@ -85,19 +87,19 @@ bool WriteTextFile(const std::string& pPath, const std::string& pText)
     return !tError;
 }
 
-void ScreenBounds(int* pLeft, int* pTop, int* pRight, int* pBottom)
+void screenBounds(int* pLeft, int* pTop, int* pRight, int* pBottom)
 {
     XPLMGetScreenBoundsGlobal(pLeft, pTop, pRight, pBottom);
 }
 
 // Ana X-Plane penceresinin ortasinda, ekranin %70'i (en fazla 1000x700)
-RectI DefaultGeometry()
+RectI defaultGeometry()
 {
     int tLeft = 0;
     int tTop = 0;
     int tRight = 0;
     int tBottom = 0;
-    ScreenBounds(&tLeft, &tTop, &tRight, &tBottom);
+    screenBounds(&tLeft, &tTop, &tRight, &tBottom);
     const int tWidth = std::clamp((tRight - tLeft) * 7 / 10, kMinStandaloneWidth, 1000);
     const int tHeight = std::clamp((tTop - tBottom) * 7 / 10, kMinStandaloneHeight, 700);
     RectI tGeometry;
@@ -110,9 +112,9 @@ RectI DefaultGeometry()
 
 // Standalone pencere: boyut yeterli ve baslik cubugu ekranda mi (monitor sokulmus /
 // cozunurluk degismis olabilir)
-bool IsStandaloneGeometryUsable(const RectI& pGeometry)
+bool isStandaloneGeometryUsable(const RectI& pGeometry)
 {
-    if (pGeometry.Width() < kMinStandaloneWidth || pGeometry.Height() < kMinStandaloneHeight)
+    if (pGeometry.width() < kMinStandaloneWidth || pGeometry.height() < kMinStandaloneHeight)
     {
         return false;
     }
@@ -120,7 +122,7 @@ bool IsStandaloneGeometryUsable(const RectI& pGeometry)
     int tTop = 0;
     int tRight = 0;
     int tBottom = 0;
-    ScreenBounds(&tLeft, &tTop, &tRight, &tBottom);
+    screenBounds(&tLeft, &tTop, &tRight, &tBottom);
     const int tTitleBar = 30;
     const bool tTitleVisible = pGeometry.mTop + tTitleBar <= tTop && pGeometry.mTop >= tBottom + 20;
     const bool tHorizontalVisible = pGeometry.mRight >= tLeft + 100 && pGeometry.mLeft <= tRight - 100;
@@ -129,79 +131,77 @@ bool IsStandaloneGeometryUsable(const RectI& pGeometry)
 
 }  // namespace
 
-MapInstance::MapInstance(MapData& pData, int pId)
+XMapInstance::XMapInstance(XMapData& pData, int pId)
     : mData(pData)
     , mId(pId)
-    , mWindow(mLayers, mAircraft, mDrawings, pData.Airports())
+    , mWindow(mLayers, mAircraft, mDrawings, pData.airports())
 {
-    mAircraft.Init();
-    mPaletteId = mData.RegisterPalette(&mPalette);  // varsayilan zemin ayarlari (cogu zaman palet 0)
-    CreateLayers();
-    // MapWindow, katmanlar eklenmeden kuruldu: modun varsayilan katman durumunu simdi uygula
-    mLayers.ResetToDefaults(ThemeFor(mWindow.GetMapMode()));
-    mData.AddInstance(this);
+    mAircraft.init();
+    mPaletteId = mData.registerPalette(&mPalette);  // varsayilan zemin ayarlari (cogu zaman palet 0)
+    createLayers();
+    // XMapWindow, katmanlar eklenmeden kuruldu: modun varsayilan katman durumunu simdi uygula
+    mLayers.resetToDefaults(themeFor(mWindow.getMapMode()));
+    mData.addInstance(this);
 }
 
-MapInstance::~MapInstance()
+XMapInstance::~XMapInstance()
 {
-    Close();
-    mData.RemoveInstance(this);
+    close();
+    mData.removeInstance(this);
 }
 
-void MapInstance::CreateLayers()
+void XMapInstance::createLayers()
 {
     // Alttan uste cizim sirasi (ayrinti: MIMARI.pdf bolum 7). Etiketler de bu sirayla
     // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
     // kullanici cizimleri etiketlerinin yerini onceden ayirir).
-    // Veri depolari ortak (MapData); katman nesneleri ve durumlari bu haritanin.
-    AirportGeometryStore& tAirports = mData.AirportGeometry();
-    AirportDetailStore& tDetails = mData.AirportDetails();
-    std::unique_ptr<TerrainLayer> tTerrain = std::make_unique<TerrainLayer>(mData.Hub(), mPalette, mPaletteId);
+    // Veri depolari ortak (XMapData); katman nesneleri ve durumlari bu haritanin.
+    AirportGeometryStore& tAirports = mData.airportGeometry();
+    AirportDetailStore& tDetails = mData.airportDetails();
+    std::unique_ptr<TerrainLayer> tTerrain = std::make_unique<TerrainLayer>(mData.hub(), mPalette, mPaletteId);
     mTerrainLayer = tTerrain.get();
-    mLayers.Add(std::move(tTerrain));  // en altta: zemin
-    mLayers.Add(std::make_unique<RoadLayer>(mData.Hub()));  // DSF yollari: zeminin ustu, yuzeylerin alti
-    mLayers.Add(std::make_unique<AirportSurfaceLayer>(tAirports, tDetails));
-    mLayers.Add(std::make_unique<GridLayer>());
+    mLayers.add(std::move(tTerrain));  // en altta: zemin
+    mLayers.add(std::make_unique<RoadLayer>(mData.hub()));  // DSF yollari: zeminin ustu, yuzeylerin alti
+    mLayers.add(std::make_unique<AirportSurfaceLayer>(tAirports, tDetails));
+    mLayers.add(std::make_unique<GridLayer>());
     // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
-    mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ils, mData.Navs(), &tAirports));
-    mLayers.Add(std::make_unique<RunwayLayer>(tAirports));
-    mLayers.Add(std::make_unique<TaxiRouteLayer>(tAirports, tDetails));  // varsayilan kapali
-    mLayers.Add(std::make_unique<AirportObjectsLayer>(tAirports, tDetails));  // pistlerin ustunde
+    mLayers.add(std::make_unique<NavaidLayer>(NavaidType::Ils, mData.navs(), &tAirports));
+    mLayers.add(std::make_unique<RunwayLayer>(tAirports));
+    mLayers.add(std::make_unique<TaxiRouteLayer>(tAirports, tDetails));  // varsayilan kapali
+    mLayers.add(std::make_unique<AirportObjectsLayer>(tAirports, tDetails));  // pistlerin ustunde
     // Hava yollari navaid sembollerinin altinda (cizgiler sembolleri ortmesin)
-    mLayers.Add(std::make_unique<AirwayLayer>(mData.Airways(), false));
-    mLayers.Add(std::make_unique<AirwayLayer>(mData.Airways(), true));
-    mLayers.Add(std::make_unique<AirportLayer>(mData.Navs(), &tAirports));
-    mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Vor, mData.Navs()));
-    mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mData.Navs()));
-    mLayers.Add(std::make_unique<NavaidLayer>(NavaidType::Fix, mData.Navs()));
+    mLayers.add(std::make_unique<AirwayLayer>(mData.airways(), false));
+    mLayers.add(std::make_unique<AirwayLayer>(mData.airways(), true));
+    mLayers.add(std::make_unique<AirportLayer>(mData.navs(), &tAirports));
+    mLayers.add(std::make_unique<NavaidLayer>(NavaidType::Vor, mData.navs()));
+    mLayers.add(std::make_unique<NavaidLayer>(NavaidType::Ndb, mData.navs()));
+    mLayers.add(std::make_unique<NavaidLayer>(NavaidType::Fix, mData.navs()));
     std::unique_ptr<FmsLayer> tFms = std::make_unique<FmsLayer>();
     mFmsLayer = tFms.get();
-    mLayers.Add(std::move(tFms));
+    mLayers.add(std::move(tFms));
     std::unique_ptr<TrackLayer> tTrack = std::make_unique<TrackLayer>(mAircraft);
     mTrackLayer = tTrack.get();
-    mLayers.Add(std::move(tTrack));
-    mLayers.Add(std::make_unique<AircraftLayer>(mAircraft));
-    mLayers.Add(std::make_unique<DrawingLayer>(mDrawings));
+    mLayers.add(std::move(tTrack));
+    mLayers.add(std::make_unique<AircraftLayer>(mAircraft));
+    mLayers.add(std::make_unique<DrawingLayer>(mDrawings));
 }
 
-// --- Kimlik ve dosyalar --------------------------------------------------------------
-
-int MapInstance::Id() const
+int XMapInstance::id() const
 {
     return mId;
 }
 
-const std::string& MapInstance::Name() const
+const std::string& XMapInstance::name() const
 {
     return mName;
 }
 
-void MapInstance::SetName(const std::string& pName)
+void XMapInstance::setName(const std::string& pName)
 {
     mName = pName;
 }
 
-std::string MapInstance::SafeFolderName(const std::string& pName)
+std::string XMapInstance::safeFolderName(const std::string& pName)
 {
     std::string tSafe;
     for (const char tChar : pName)
@@ -218,110 +218,106 @@ std::string MapInstance::SafeFolderName(const std::string& pName)
     return tSafe;
 }
 
-std::string MapInstance::FolderName() const
+std::string XMapInstance::folderName() const
 {
-    const std::string tSafe = SafeFolderName(mName);
+    const std::string tSafe = safeFolderName(mName);
     return tSafe.empty() ? std::format("map_{}", mId) : tSafe;
 }
 
-std::string MapInstance::Directory() const
+std::string XMapInstance::directory() const
 {
-    return mData.MapsDirectory() + FolderName() + "/";
+    return mData.mapsDirectory() + folderName() + "/";
 }
 
-void MapInstance::SetPersistence(MapPersistence pPersistence)
+void XMapInstance::setPersistence(MapPersistence pPersistence)
 {
     mPersistence = pPersistence;
 }
 
-MapPersistence MapInstance::Persistence() const
+MapPersistence XMapInstance::persistence() const
 {
     return mPersistence;
 }
 
-// --- Acma / kapama -------------------------------------------------------------------
-
-bool MapInstance::Open()
+bool XMapInstance::open()
 {
-    if (mWindow.IsCreated())
+    if (mWindow.isCreated())
     {
         return true;
     }
     if (mPersistence == MapPersistence::LoadAndSave)
     {
-        LoadFiles();
+        loadFiles();
     }
     // Yer verilmemisse (ya da Standalone pencere ekran disinda kalacaksa) varsayilan yer
-    const RectI tGeometry = mWindow.GetGeometry();
-    const bool tUsable = mWindow.IsEmbedded() ? (tGeometry.Width() > 0 && tGeometry.Height() > 0)
-                                              : IsStandaloneGeometryUsable(tGeometry);
+    const RectI tGeometry = mWindow.getGeometry();
+    const bool tUsable = mWindow.isEmbedded() ? (tGeometry.width() > 0 && tGeometry.height() > 0)
+                                              : isStandaloneGeometryUsable(tGeometry);
     if (!tUsable)
     {
-        mWindow.SetGeometry(DefaultGeometry());
+        mWindow.setGeometry(defaultGeometry());
     }
-    mFloatingGeometry = mWindow.GetGeometry();
-    mWindow.Create();
-    if (!mWindow.IsCreated())
+    mFloatingGeometry = mWindow.getGeometry();
+    mWindow.create();
+    if (!mWindow.isCreated())
     {
         return false;
     }
-    mData.OpenMapsChanged();  // ortak onbellek sinirlari acik harita sayisina gore buyur
+    mData.openMapsChanged();  // ortak onbellek sinirlari acik harita sayisina gore buyur
     if (mPersistence != MapPersistence::Off)
     {
         // Dosyalar ilk acilista olussun (kullanici acip duzenleyebilsin)
         std::error_code tError;
-        std::filesystem::create_directories(Directory(), tError);
-        const std::string tTerrainPath = Directory() + kTerrainFileName;
-        if (!std::filesystem::exists(tTerrainPath, tError) || !mPalette.LoadedCurrentVersion())
+        std::filesystem::create_directories(directory(), tError);
+        const std::string tTerrainPath = directory() + kTerrainFileName;
+        if (!std::filesystem::exists(tTerrainPath, tError) || !mPalette.loadedCurrentVersion())
         {
-            WriteTerrainFile();
+            writeTerrainFile();
         }
-        WriteSettingsFile();
+        writeSettingsFile();
     }
-    mSavedSettings = mWindow.SettingsRevision();
-    mSavedDrawings = mWindow.DrawingsRevision();
-    mSavedState = StateSignature();
+    mSavedSettings = mWindow.settingsRevision();
+    mSavedDrawings = mWindow.drawingsRevision();
+    mSavedState = stateSignature();
     mSavedExtra = mExtraRevision;
-    Log("map {} '{}' opened ({})", mId, FolderName(),
-        mPersistence == MapPersistence::Off ? std::string("no settings files") : "settings: " + Directory());
+    log("map {} '{}' opened ({})", mId, folderName(),
+        mPersistence == MapPersistence::Off ? std::string("no settings files") : "settings: " + directory());
     return true;
 }
 
-void MapInstance::Close()
+void XMapInstance::close()
 {
-    if (!mWindow.IsCreated())
+    if (!mWindow.isCreated())
     {
         return;
     }
-    if (!mWindow.IsPoppedOut())
+    if (!mWindow.isPoppedOut())
     {
-        mFloatingGeometry = mWindow.GetGeometry();
+        mFloatingGeometry = mWindow.getGeometry();
     }
-    SaveNow();
-    mWindow.Destroy();
-    mData.OpenMapsChanged();
-    Log("map {} '{}' closed", mId, FolderName());
+    saveNow();
+    mWindow.destroy();
+    mData.openMapsChanged();
+    log("map {} '{}' closed", mId, folderName());
 }
 
-bool MapInstance::IsOpen() const
+bool XMapInstance::isOpen() const
 {
-    return mWindow.IsCreated();
+    return mWindow.isCreated();
 }
 
-// --- Her kare ------------------------------------------------------------------------
-
-void MapInstance::Update(float pNow)
+void XMapInstance::update(float pNow)
 {
-    mAircraft.Refresh();
-    mLayers.UpdateAll(pNow);
+    mAircraft.refresh();
+    mLayers.updateAll(pNow);
 
     // Alt seritteki yazi: ortak durum + BU haritanin zemin durumu. Ekranda istenen kalitede olmayan
     // (kaba yedek / bos) doku oldugu surece yaz; isci bosta ise bekleyen bir sey yoktur (uretilemeyen
     // parca): yazma, takili kalmasin.
-    std::string tText = mData.SharedStatusText();
-    std::string tTerrain = mData.TerrainWorkerStatus();
-    const int tPending = PendingTerrainImages();
-    if (tPending > 0 && !mData.IsTerrainIdle())
+    std::string tText = mData.sharedStatusText();
+    std::string tTerrain = mData.terrainWorkerStatus();
+    const int tPending = pendingTerrainImages();
+    if (tPending > 0 && !mData.isTerrainIdle())
     {
         const std::string tLoading = std::format("Loading terrain: {} image{}", tPending, tPending == 1 ? "" : "s");
         tTerrain = tTerrain.empty() ? tLoading : tLoading + " (" + tTerrain + ")";
@@ -332,105 +328,109 @@ void MapInstance::Update(float pNow)
         tText += tTerrain;
     }
     mStatusText = tText;
-    mWindow.SetStatusMessage(mStatusText);
-    mWindow.SetDataBusy(mData.IsBusy());
+    mWindow.setStatusMessage(mStatusText);
+    mWindow.setDataBusy(mData.isBusy());
 
-    if (!mWindow.IsCreated())
+    // isDataLoaded: ortak veri hazir ve bu haritada bekleyen doku yok
+    if (mDataLoadedFlag)
+    {
+        const MapDataStatus& tData = mData.status();
+        *mDataLoadedFlag = tData.mNavReady && tData.mAirportsReady && tData.mAirwaysReady &&
+                           tData.mTerrainIndexReady && tPending == 0;
+    }
+
+    if (!mWindow.isCreated())
     {
         return;
     }
-    mWindow.Update(pNow);
-    if (!mWindow.IsPoppedOut())
+    mWindow.update(pNow);
+    if (!mWindow.isPoppedOut())
     {
-        mFloatingGeometry = mWindow.GetGeometry();
+        mFloatingGeometry = mWindow.getGeometry();
     }
 
     // Otomatik kayit: bir sey degistiyse, en erken autosave_seconds arayla
-    const prime::LibrarySettings& tLibrary = mData.LibrarySettings();
+    const prime::MapManagerSettings& tLibrary = mData.managerSettings();
     if (mPersistence == MapPersistence::Off || !tLibrary.mAutoSave ||
         pNow - mLastSaveTime < static_cast<float>(tLibrary.mAutoSaveSeconds))
     {
         return;
     }
-    if (mWindow.SettingsRevision() != mSavedSettings || StateSignature() != mSavedState ||
+    if (mWindow.settingsRevision() != mSavedSettings || stateSignature() != mSavedState ||
         mExtraRevision != mSavedExtra)
     {
         mLastSaveTime = pNow;
-        if (!WriteSettingsFile())
+        if (!writeSettingsFile())
         {
-            Log("WARNING: could not write {}{}", Directory(), kSettingsFileName);
+            log("WARNING: could not write {}{}", directory(), kSettingsFileName);
         }
     }
-    if (mWindow.DrawingsRevision() != mSavedDrawings)
+    if (mWindow.drawingsRevision() != mSavedDrawings)
     {
         mLastSaveTime = pNow;
-        if (!WriteDrawingsFile())
+        if (!writeDrawingsFile())
         {
-            Log("WARNING: could not write {}{}", Directory(), kDrawingsFileName);
+            log("WARNING: could not write {}{}", directory(), kDrawingsFileName);
         }
     }
 }
 
-// --- Parcalar ------------------------------------------------------------------------
-
-MapWindow& MapInstance::Window()
+XMapWindow& XMapInstance::window()
 {
     return mWindow;
 }
 
-const MapWindow& MapInstance::Window() const
+const XMapWindow& XMapInstance::window() const
 {
     return mWindow;
 }
 
-LayerManager& MapInstance::Layers()
+LayerManager& XMapInstance::layers()
 {
     return mLayers;
 }
 
-Drawings& MapInstance::UserDrawings()
+Drawings& XMapInstance::userDrawings()
 {
     return mDrawings;
 }
 
-AircraftData& MapInstance::Aircraft()
+AircraftData& XMapInstance::aircraft()
 {
     return mAircraft;
 }
 
-FmsLayer* MapInstance::Fms()
+FmsLayer* XMapInstance::fms()
 {
     return mFmsLayer;
 }
 
-TrackLayer* MapInstance::Track()
+TrackLayer* XMapInstance::track()
 {
     return mTrackLayer;
 }
 
-MapData& MapInstance::Data()
+XMapData& XMapInstance::data()
 {
     return mData;
 }
 
-// --- Ayarlar -------------------------------------------------------------------------
-
-RectI MapInstance::SavedGeometry() const
+RectI XMapInstance::savedGeometry() const
 {
-    return mWindow.IsCreated() && !mWindow.IsPoppedOut() ? mWindow.GetGeometry() : mFloatingGeometry;
+    return mWindow.isCreated() && !mWindow.isPoppedOut() ? mWindow.getGeometry() : mFloatingGeometry;
 }
 
-uint64_t MapInstance::StateSignature() const
+uint64_t XMapInstance::stateSignature() const
 {
     // Kullanicinin fareyle yaptigi, revizyon sayacini artirmayan degisiklik: pencerenin yeri / boyutu.
-    // Gorunum (merkez, zoom) bilerek YOK: ucak takibinde her karede degisir, dosya surekli yazilirdi.
+    // gorunum(merkez, zoom) bilerek YOK: ucak takibinde her karede degisir, dosya surekli yazilirdi.
     // Gorunum, baska bir ayar degistiginde ve harita kapanirken yazilir.
     uint64_t tHash = 1469598103934665603ull;
     auto tMix = [&tHash](uint64_t pValue)
     {
         tHash = (tHash ^ pValue) * 1099511628211ull;
     };
-    const RectI tGeometry = SavedGeometry();
+    const RectI tGeometry = savedGeometry();
     tMix(static_cast<uint64_t>(static_cast<int64_t>(tGeometry.mLeft)));
     tMix(static_cast<uint64_t>(static_cast<int64_t>(tGeometry.mTop)));
     tMix(static_cast<uint64_t>(static_cast<int64_t>(tGeometry.mRight)));
@@ -438,208 +438,258 @@ uint64_t MapInstance::StateSignature() const
     return tHash;
 }
 
-void MapInstance::StoreExtraSections()
+void XMapInstance::storeExtraSections()
 {
-    Settings& tStore = mWindow.SettingsStore();
-    const RectI tGeometry = SavedGeometry();
-    tStore.SetInt(kWindowSection, "left", tGeometry.mLeft);
-    tStore.SetInt(kWindowSection, "top", tGeometry.mTop);
-    tStore.SetInt(kWindowSection, "right", tGeometry.mRight);
-    tStore.SetInt(kWindowSection, "bottom", tGeometry.mBottom);
-    tStore.SetBool(kWindowSection, "visible", mWindow.IsCreated() ? mWindow.IsVisible() : mWindow.WantsVisible());
-    tStore.SetString(kSourcesSection, "aircraft", mAircraft.IsFromHost() ? "host" : "xplane");
-    tStore.SetString(kSourcesSection, "route", mFmsLayer && mFmsLayer->IsFromHost() ? "host" : "xplane");
+    Settings& tStore = mWindow.settingsStore();
+    const RectI tGeometry = savedGeometry();
+    tStore.setInt(kWindowSection, "left", tGeometry.mLeft);
+    tStore.setInt(kWindowSection, "top", tGeometry.mTop);
+    tStore.setInt(kWindowSection, "right", tGeometry.mRight);
+    tStore.setInt(kWindowSection, "bottom", tGeometry.mBottom);
+    tStore.setBool(kWindowSection, "visible", mWindow.isCreated() ? mWindow.isVisible() : mWindow.wantsVisible());
+    tStore.setString(kSourcesSection, "aircraft", mAircraft.isFromHost() ? "host" : "xplane");
+    tStore.setString(kSourcesSection, "route", mFmsLayer && mFmsLayer->isFromHost() ? "host" : "xplane");
+
+    // [layer_colors]: API setColor ile degistirilen katman renkleri (tema uzerine yazmalar)
+    tStore.clearSection(kLayerColorsSection);
+    for (const auto& [tLayer, tColor] : mWindow.layerColors())
+    {
+        const auto tChannel = [](float pValue)
+        {
+            return std::clamp(static_cast<int>(pValue * 255.0f + 0.5f), 0, 255);
+        };
+        tStore.setString(kLayerColorsSection, LayerRules::layerKey(tLayer),
+                         std::format("{} {} {}", tChannel(tColor.mR), tChannel(tColor.mG), tChannel(tColor.mB)));
+    }
 }
 
-void MapInstance::ApplyWindowSection()
+void XMapInstance::applyWindowSection()
 {
     // Sadece Standalone: kullanici pencereyi tasir / kapatir, bir sonraki acilista ayni yerde bulur.
     // Embedded haritanin yerini ve gorunurlugunu host belirler (kendi arayuzunun bir parcasi).
-    if (mWindow.IsEmbedded())
+    if (mWindow.isEmbedded())
     {
         return;
     }
-    const Settings& tStore = mWindow.SettingsStore();
-    if (tStore.Has(kWindowSection, "left") && tStore.Has(kWindowSection, "right"))
+    const Settings& tStore = mWindow.settingsStore();
+    if (tStore.has(kWindowSection, "left") && tStore.has(kWindowSection, "right"))
     {
         RectI tGeometry;
-        tGeometry.mLeft = tStore.GetInt(kWindowSection, "left", 0);
-        tGeometry.mTop = tStore.GetInt(kWindowSection, "top", 0);
-        tGeometry.mRight = tStore.GetInt(kWindowSection, "right", 0);
-        tGeometry.mBottom = tStore.GetInt(kWindowSection, "bottom", 0);
-        if (IsStandaloneGeometryUsable(tGeometry))
+        tGeometry.mLeft = tStore.getInt(kWindowSection, "left", 0);
+        tGeometry.mTop = tStore.getInt(kWindowSection, "top", 0);
+        tGeometry.mRight = tStore.getInt(kWindowSection, "right", 0);
+        tGeometry.mBottom = tStore.getInt(kWindowSection, "bottom", 0);
+        if (isStandaloneGeometryUsable(tGeometry))
         {
-            mWindow.SetGeometry(tGeometry);
+            mWindow.setGeometry(tGeometry);
             mFloatingGeometry = tGeometry;
         }
     }
-    if (tStore.Has(kWindowSection, "visible"))
+    if (tStore.has(kWindowSection, "visible"))
     {
-        const bool tVisible = tStore.GetBool(kWindowSection, "visible", true);
-        if (tVisible != (mWindow.IsCreated() ? mWindow.IsVisible() : mWindow.WantsVisible()))
+        const bool tVisible = tStore.getBool(kWindowSection, "visible", true);
+        if (tVisible != (mWindow.isCreated() ? mWindow.isVisible() : mWindow.wantsVisible()))
         {
-            mWindow.SetVisible(tVisible);
+            mWindow.setVisible(tVisible);
         }
     }
 }
 
-void MapInstance::ApplySourcesSection()
+void XMapInstance::applySourcesSection()
 {
-    const Settings& tStore = mWindow.SettingsStore();
-    if (tStore.Has(kSourcesSection, "aircraft"))
+    const Settings& tStore = mWindow.settingsStore();
+    if (tStore.has(kSourcesSection, "aircraft"))
     {
-        mAircraft.SetFromHost(tStore.GetString(kSourcesSection, "aircraft", "xplane") == "host");
+        mAircraft.setFromHost(tStore.getString(kSourcesSection, "aircraft", "xplane") == "host");
     }
-    if (tStore.Has(kSourcesSection, "route") && mFmsLayer)
+    if (tStore.has(kSourcesSection, "route") && mFmsLayer)
     {
-        mFmsLayer->SetFromHost(tStore.GetString(kSourcesSection, "route", "xplane") == "host");
+        mFmsLayer->setFromHost(tStore.getString(kSourcesSection, "route", "xplane") == "host");
     }
 }
 
-std::string MapInstance::ExportSettings()
+std::string XMapInstance::exportSettings()
 {
-    StoreExtraSections();
-    mWindow.SaveSettings();  // gorunum, mod, katmanlar ... bellekteki ayarlara
-    return mWindow.SettingsStore().ToText({kWindowSection, "view", "render", "text", "tools", "layers*",
-                                           "layer_zoom", kSourcesSection});
+    storeExtraSections();
+    mWindow.saveSettings();
+    return mWindow.settingsStore().toText({kWindowSection, "view", "render", "text", "tools", "layers*",
+                                           "layer_zoom", kSourcesSection, kLayerColorsSection});
 }
 
-void MapInstance::ImportSettings(const std::string& pText)
+void XMapInstance::importSettings(const std::string& pText)
 {
-    mWindow.ImportSettings(pText);
-    // [window] / [sources] sadece metinde varsa uygulanir (ImportSettings bellekteki ayarlara ekledi)
+    mWindow.importSettings(pText);
+    // [window] / [sources] sadece metinde varsa uygulanir (importSettings bellekteki ayarlara ekledi)
     Settings tGiven;
-    tGiven.LoadText(pText);
-    if (tGiven.Has(kWindowSection, "left") || tGiven.Has(kWindowSection, "visible"))
+    tGiven.loadText(pText);
+    if (tGiven.has(kWindowSection, "left") || tGiven.has(kWindowSection, "visible"))
     {
-        ApplyWindowSection();
+        applyWindowSection();
     }
-    ApplySourcesSection();
+    applySourcesSection();
+    applyLayerColorsSection(tGiven);
 }
 
-void MapInstance::ImportTerrainSettings(const std::string& pText)
+void XMapInstance::applyLayerColorsSection(const Settings& pStore)
+{
+    const auto* tSection = pStore.findSection(kLayerColorsSection);
+    if (!tSection)
+    {
+        return;
+    }
+    std::map<prime::MapLayer, Rgba> tColors;
+    for (const auto& [tKey, tValue] : *tSection)
+    {
+        const std::optional<prime::MapLayer> tLayer = LayerRules::layerFromKey(tKey);
+        std::istringstream tStream(tValue);
+        int tR = 0;
+        int tG = 0;
+        int tB = 0;
+        if (!(tStream >> tR >> tG >> tB))
+        {
+            log("WARNING: map {} '{}': bad [layer_colors] entry '{}'", mId, folderName(), tKey);
+            continue;
+        }
+        if (!tLayer)
+        {
+            log("WARNING: map {} '{}': unknown [layer_colors] key '{}'", mId, folderName(), tKey);
+            continue;
+        }
+        const auto tNorm = [](int pChannel)
+        {
+            return std::clamp(pChannel, 0, 255) / 255.0f;
+        };
+        tColors[*tLayer] = Rgba{tNorm(tR), tNorm(tG), tNorm(tB), 1.0f};
+    }
+    mWindow.setLayerColors(tColors);
+}
+
+void XMapInstance::importTerrainSettings(const std::string& pText)
 {
     Settings tColors;
-    tColors.LoadText(pText);
+    tColors.loadText(pText);
     TerrainPalette tPalette;
-    tPalette.Load(tColors);
+    tPalette.load(tColors);
     mPalette = tPalette;
-    mPaletteId = mData.RegisterPalette(&mPalette);  // X-Plane renkleri uygulanir; ayni ayar = ayni numara
+    mPaletteId = mData.registerPalette(&mPalette);  // X-Plane renkleri uygulanir; ayni ayar = ayni numara
     if (mTerrainLayer)
     {
-        mTerrainLayer->SetPalette(mPalette, mPaletteId);  // yeni dokular yeni paletle istenir (hemen)
+        mTerrainLayer->setPalette(mPalette, mPaletteId);  // yeni dokular yeni paletle istenir (hemen)
     }
-    mWindow.InvalidateImage();  // onbellekteki harita resmi eski renklerle: hemen yeniden ciz
-    MarkChanged();
-    if (mWindow.IsCreated() && mPersistence != MapPersistence::Off)
+    mWindow.invalidateImage();  // onbellekteki harita resmi eski renklerle: hemen yeniden ciz
+    markChanged();
+    if (mWindow.isCreated() && mPersistence != MapPersistence::Off)
     {
-        WriteTerrainFile();
+        writeTerrainFile();
     }
 }
 
-std::string MapInstance::ExportTerrainSettings() const
+std::string XMapInstance::exportTerrainSettings() const
 {
     Settings tColors;
-    mPalette.Save(tColors);
-    tColors.SetComment(MapData::TerrainSettingsComment());
-    return tColors.ToText({});
+    mPalette.save(tColors);
+    tColors.setComment(XMapData::terrainSettingsComment());
+    return tColors.toText({});
 }
 
-const TerrainPalette& MapInstance::Palette() const
+const TerrainPalette& XMapInstance::palette() const
 {
     return mPalette;
 }
 
-void MapInstance::MarkChanged()
+void XMapInstance::markChanged()
 {
     ++mExtraRevision;
 }
 
-void MapInstance::LoadFiles()
+void XMapInstance::loadFiles()
 {
-    const std::string tDirectory = Directory();
+    const std::string tDirectory = directory();
     std::string tText;
-    if (ReadTextFile(tDirectory + kTerrainFileName, &tText))
+    if (readTextFile(tDirectory + kTerrainFileName, &tText))
     {
-        ImportTerrainSettings(tText);
+        importTerrainSettings(tText);
     }
-    if (ReadTextFile(tDirectory + kSettingsFileName, &tText))
+    if (readTextFile(tDirectory + kSettingsFileName, &tText))
     {
-        ImportSettings(tText);
-        Log("map {} '{}': settings loaded from {}", mId, FolderName(), tDirectory + kSettingsFileName);
+        importSettings(tText);
+        log("map {} '{}': settings loaded from {}", mId, folderName(), tDirectory + kSettingsFileName);
     }
     else
     {
-        Log("map {} '{}': no settings file yet, using the values given through the API", mId, FolderName());
+        log("map {} '{}': no settings file yet, using the values given through the API", mId, folderName());
     }
-    if (ReadTextFile(tDirectory + kDrawingsFileName, &tText))
+    if (readTextFile(tDirectory + kDrawingsFileName, &tText))
     {
-        mDrawings.Deserialize(tText);
-        mWindow.DrawingsChanged();
+        mDrawings.deserialize(tText);
+        mWindow.drawingsChanged();
     }
 }
 
-bool MapInstance::WriteSettingsFile()
+bool XMapInstance::writeSettingsFile()
 {
     std::error_code tError;
-    std::filesystem::create_directories(Directory(), tError);
+    std::filesystem::create_directories(directory(), tError);
     Settings tFile;
-    tFile.LoadText(ExportSettings());
-    tFile.SetComment(kSettingsComment);
-    const bool tOk = WriteTextFile(Directory() + kSettingsFileName, tFile.ToText({}));
-    mSavedSettings = mWindow.SettingsRevision();  // ExportSettings sayaci artirir: sonra oku
-    mSavedState = StateSignature();
+    tFile.loadText(exportSettings());
+    tFile.setComment(kSettingsComment);
+    const bool tOk = writeTextFile(directory() + kSettingsFileName, tFile.toText({}));
+    mSavedSettings = mWindow.settingsRevision();  // exportSettings sayaci artirir: sonra oku
+    mSavedState = stateSignature();
     mSavedExtra = mExtraRevision;
     return tOk;
 }
 
-bool MapInstance::WriteDrawingsFile()
+bool XMapInstance::writeDrawingsFile()
 {
     std::error_code tError;
-    std::filesystem::create_directories(Directory(), tError);
-    const bool tOk = WriteTextFile(Directory() + kDrawingsFileName, mDrawings.Serialize());
-    mSavedDrawings = mWindow.DrawingsRevision();
+    std::filesystem::create_directories(directory(), tError);
+    const bool tOk = writeTextFile(directory() + kDrawingsFileName, mDrawings.serialize());
+    mSavedDrawings = mWindow.drawingsRevision();
     return tOk;
 }
 
-bool MapInstance::WriteTerrainFile()
+bool XMapInstance::writeTerrainFile()
 {
     std::error_code tError;
-    std::filesystem::create_directories(Directory(), tError);
-    return WriteTextFile(Directory() + kTerrainFileName, ExportTerrainSettings());
+    std::filesystem::create_directories(directory(), tError);
+    return writeTextFile(directory() + kTerrainFileName, exportTerrainSettings());
 }
 
-bool MapInstance::SaveNow()
+bool XMapInstance::saveNow()
 {
     if (mPersistence == MapPersistence::Off)
     {
         return false;
     }
-    bool tOk = WriteSettingsFile();
-    tOk = WriteDrawingsFile() && tOk;
-    tOk = WriteTerrainFile() && tOk;
+    bool tOk = writeSettingsFile();
+    tOk = writeDrawingsFile() && tOk;
+    tOk = writeTerrainFile() && tOk;
     if (!tOk)
     {
-        Log("WARNING: map {} '{}': could not write the settings files in {}", mId, FolderName(), Directory());
+        log("WARNING: map {} '{}': could not write the settings files in {}", mId, folderName(), directory());
     }
     return tOk;
 }
 
-// --- Durum ---------------------------------------------------------------------------
-
-int MapInstance::PendingTerrainImages() const
+int XMapInstance::pendingTerrainImages() const
 {
-    return (mTerrainLayer && mTerrainLayer->IsVisible() && mWindow.IsVisible())
-               ? mTerrainLayer->PendingTextureCount()
+    return (mTerrainLayer && mTerrainLayer->isVisible() && mWindow.isVisible())
+               ? mTerrainLayer->pendingTextureCount()
                : 0;
 }
 
-const std::string& MapInstance::StatusText() const
+const std::string& XMapInstance::statusText() const
 {
     return mStatusText;
 }
 
-bool MapInstance::IsDiagnosticsOn() const
+bool XMapInstance::isDiagnosticsOn() const
 {
-    return mWindow.IsDiagnosticsOn();
+    return mWindow.isDiagnosticsOn();
+}
+
+void XMapInstance::setDataLoadedFlag(std::atomic<bool>* pFlag)
+{
+    mDataLoadedFlag = pFlag;
 }

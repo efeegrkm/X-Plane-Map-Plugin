@@ -1,18 +1,8 @@
-// AirportDetail.h
 // Bir havalimaninin AYRINTISI: apt.dat'taki satirlarin birebir karsiligi.
-// X-Plane'e bagimli DEGIL. Sadece ekrandaki havalimanlari icin okunur
-// (data/AirportDetailStore). Kaynak: X-Plane apt.dat 1100 spesifikasyonu
-// (rev. 16.11.2021, "1130 Version") + gercek Global Airports dosyasinda
-// gorulen farklar (asagida "GERCEK VERI" notlari).
-//
-// Dugum zincirleri (110 yuzey, 120 cizgi, 130 sinir):
-//   111 dugum, 112 Bezier kontrollu dugum,
-//   113 / 114 halkayi kapatan dugum (ilk dugume baglanir),
-//   115 / 116 zinciri bitiren dugum (acik cizgi).
-// Bezier kurali (spesifikasyonda yazmiyor; gercek veride olculdu: 2000
-// halkada bu kuralla 78, ters kuralla 1719 halka kendini kesiyor):
-//   kontrol noktasi dugumden CIKAN egriye aittir; dugume GELEN egri icin
-//   kontrol noktasinin dugume gore aynasi (2*P - C) kullanilir.
+// X-Plane'e bagimli DEGIL; sadece ekrandaki havalimanlari icin okunur (AirportDetailStore).
+// Kaynak: apt.dat 1100 spesifikasyonu + gercek dosyalarda gorulen farklar ("GERCEK VERI" notlari).
+// Bezier kurali (spesifikasyonda yazmiyor, gercek veride olculdu): kontrol noktasi dugumden
+// CIKAN egriye aittir; dugume GELEN egri icin kontrol noktasinin dugume gore aynasi kullanilir.
 #pragma once
 
 #include <array>

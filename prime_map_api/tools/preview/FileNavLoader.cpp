@@ -1,4 +1,3 @@
-// FileNavLoader.cpp
 #include "tools/preview/FileNavLoader.h"
 
 #include <fstream>

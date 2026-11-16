@@ -1,39 +1,6 @@
-// TerrainStore.h
 // Zemin (DSF arazisi) icin arka plan iscisi. X-Plane'e bagimli DEGIL.
-//
-// Akis:
-//   1. Basta bir kez: SceneryIndex kurulur (hangi karoda hangi DSF'ler var).
-//   2. Katman her karede ekranda gerekli goruntuleri ister (Request).
-//   3. Isci en son istenenden baslayarak: karonun sinif raster'ini bulur
-//      (bellekte -> disk onbellegi -> DSF'ten uretim) ve istenen seviyede bir
-//      RGBA goruntu hazirlar.
-//   4. Ana thread hazir goruntuleri alir (PopImage) ve dokuya yukler.
-//
-// Senkron kalma: disk onbellegindeki her karo, uretildigi DSF'lerin
-// (yol + boyut + degisiklik zamani) listesiyle etiketlidir. Sahne eklenir,
-// cikarilir veya degisirse etiket tutmaz ve karo yeniden uretilir.
-//
-// Seviyeler (goruntu boyutu):  0 = 64, 1 = 256, 2 = 1024 (tum karo),
-//                              3 = 4096'nin 4x4 parcasindan biri (her biri 1024)
-//                              4 = yakin zoom: 32x32 parcadan biri (1/32 derece,
-//                                  1024 px), raster'dan degil DSF ucgenlerinden
-//                                  boyanir (TerrainTriangles) -> keskin kenarlar
-//                              5 = cok yakin zoom: 128x128 parcadan biri (1/128
-//                                  derece, 1024 px; ~0,85 m/piksel), ayni ucgenlerden
-// Her goruntunun saydam pikselleri komsu rengiyle doldurulur (BleedTransparent):
-// mipmap ve dogrusal suzme kenarlarda koyu sacak yapmasin.
-//
-// 0.16 rakim (TerrainElevation): karo DSF'ten uretilirken tam cozunurluklu DEM ayri
-// bir onbellek dosyasina (<karo>.elevation) yazilir. Goruntu uretilirken karonun ve
-// 8 komsusunun rakimi okunur (bellekte en fazla kMaxElevationTiles karo). Komsu
-// rakimi sadece bellekten / onbellekten alinir; komsu icin DSF ACILMAZ. Komsusu
-// henuz uretilmemis bir goruntu "eksik komsu" listesiyle isaretlenir
-// (TerrainImage::mMissingNeighbors); komsu sonradan hazir olunca (HasElevation)
-// katman o goruntuyu yeniden ister, karo sinirinda golge dikisi kalmaz.
-//
-// Asama 2 vektorler (TerrainVectors): karo DSF'ten uretilirken poligon / zincirler ve
-// overlay DSF'lerinin dislama alanlari okunur, <karo>.vectors'a yazilir; alanlar raster'a
-// (FillAreas) taranir. Yol katmani karonun vektorlerini RequestVectors / PopVectors ile alir.
+// Disk onbellegindeki her karo, uretildigi DSF'lerin (yol + boyut + degisiklik zamani)
+// listesiyle etiketlenir; sahne degisirse etiket tutmaz ve karo yeniden uretilir.
 #pragma once
 
 #include <chrono>
@@ -69,8 +36,8 @@ struct TerrainImageKey
     int mChunk = 0;  // seviye 3: 0..15 (satir * 4 + sutun, satir 0 = kuzey); digerlerinde 0
     int mStyle = 0;  // Start'a verilen bicim listesindeki sira (harita modu)
     int mAreas = 0;  // TerrainRaster::kArea... bitleri: vektor alanlari (orman, yerlesim) islensin mi
-    // 0.23 (coklu harita): zemin ayarlari (renk, kabartma, su ...) harita basina olabilir. Her farkli
-    // ayar kumesi depoya bir kez tanitilir (TerrainStore::AddPalette) ve buradaki numarayla istenir.
+    // Zemin ayarlari (renk, kabartma, su ...) harita basina olabilir. Her farkli
+    // ayar kumesi depoya bir kez tanitilir (TerrainStore::addPalette) ve buradaki numarayla istenir.
     int mPalette = 0;
 
     bool operator==(const TerrainImageKey& pOther) const
@@ -86,7 +53,7 @@ struct TerrainImageKeyHash
     size_t operator()(const TerrainImageKey& pKey) const
     {
         // karo * (8 seviye) * (32768 parca; seviye 5 = 16384) * (8 bicim): carpisma yok
-        size_t tHash = static_cast<size_t>(SceneryIndex::TileKey(pKey.mWest, pKey.mSouth));
+        size_t tHash = static_cast<size_t>(SceneryIndex::tileKey(pKey.mWest, pKey.mSouth));
         tHash = tHash * 8 + static_cast<size_t>(pKey.mLevel);
         tHash = tHash * 32768 + static_cast<size_t>(pKey.mChunk);
         tHash = tHash * 8 + static_cast<size_t>(pKey.mStyle);
@@ -120,8 +87,8 @@ public:
     static const int kLevelCount = 6;
     static const int kDetailLevel = 4;  // DSF ucgenlerinden boyanan yakin zoom seviyesi (1/32 derece)
     static const int kFineLevel = 5;    // ayni ucgenlerden daha kucuk parcalar (1/128 derece)
-    static int ImageSize(int pLevel);
-    static int ChunksPerSide(int pLevel);
+    static int imageSize(int pLevel);
+    static int chunksPerSide(int pLevel);
 
     TerrainStore();
     ~TerrainStore();
@@ -129,88 +96,85 @@ public:
     TerrainStore(const TerrainStore&) = delete;
     TerrainStore& operator=(const TerrainStore&) = delete;
 
-    // Isciyi baslatir. pCacheDirectory yoksa olusturulur. pStyles: goruntu
-    // bicimleri (TerrainImageKey::mStyle bu listenin sirasi; bossa hep Classes).
-    void Start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory, const TerrainPalette& pPalette,
+    // Isciyi baslatir. pCacheDirectory yoksa olusturulur.
+    // pStyles: goruntu bicimleri (TerrainImageKey::mStyle bu listenin sirasi; bossa hep Classes).
+    void start(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory, const TerrainPalette& pPalette,
                const std::vector<TerrainImageStyle>& pStyles = {});
-    void Stop();
+    void stop();
 
     // Disk onbelleginin siniri (bayt, 0 = sinirsiz). Isci acilista ve yeni karo urettikten sonra
-    // bosta kalinca en uzun suredir kullanilmayan karolari siler (CacheTrim). 0.23: calisirken de
-    // degistirilebilir (acik harita sayisi degisince sinir yeniden hesaplanir); isci bir sonraki
-    // bos aninda yeni sinira gore kirpar.
-    void SetCacheLimit(uint64_t pBytes);
+    // bosta kalinca en uzun suredir kullanilmayan karolari siler (CacheTrim). Calisirken de
+    // degistirilebilir; isci bir sonraki bos aninda yeni sinira gore kirpar.
+    void setCacheLimit(uint64_t pBytes);
 
-    // 0.23 (coklu harita): iscinin bellek ici listelerinin (raster, rakim, vektor, ucgen) boyu
-    // bu oranla carpilir (1.0 = tek harita). Iki harita farkli yerlere bakarken birbirinin
-    // karolarini bellekten itmesin diye acik harita sayisina gore buyutulur. Her an cagrilabilir.
-    void SetMemoryScale(double pScale);
+    // Iscinin bellek ici listelerinin (raster, rakim, vektor, ucgen) boyu bu oranla carpilir
+    // (1.0 = tek harita). Iki harita farkli yerlere bakarken birbirinin karolarini bellekten
+    // itmesin diye acik harita sayisina gore buyutulur. Her an cagrilabilir.
+    void setMemoryScale(double pScale);
 
-    // 0.23: yeni bir zemin ayar kumesi (palet) tanitir, numarasini doner (TerrainImageKey::mPalette).
+    // Yeni bir zemin ayar kumesi (palet) tanitir, numarasini doner (TerrainImageKey::mPalette).
     // Start'a verilen palet 0 numaradir. Her an (ana thread) cagrilabilir; isci goruntuyu uretirken
-    // kendi kopyasini alir. Ayni paleti iki kez eklememek cagiranin isidir (MapData esler).
-    int AddPalette(const TerrainPalette& pPalette);
+    // kendi kopyasini alir. Ayni paleti iki kez eklememek cagiranin isidir.
+    int addPalette(const TerrainPalette& pPalette);
 
-    bool IsIndexReady() const;
-    TileCoverage CoverageOf(int pWest, int pSouth) const;  // dizin hazir degilse NoData
-    TerrainTileState StateOf(int pWest, int pSouth) const;
+    bool isIndexReady() const;
+    TileCoverage coverageOf(int pWest, int pSouth) const;  // dizin hazir degilse NoData
+    TerrainTileState stateOf(int pWest, int pSouth) const;
 
-    // --- Ana thread ---
-    void BeginFrame();                          // her karede Request'lerden once
+    void beginFrame();                          // her karede Request'lerden once
     void Request(const TerrainImageKey& pKey);  // ayni karede tekrar istemek zararsiz
-    bool PopImage(TerrainImage* pOut);
-    bool IsIdle() const;                        // bekleyen istek ve sonuc yok
-    std::string StatusText() const;             // alt seritte gosterilecek kisa durum
-    std::string TakeLogLines();                 // iscinin biriktirdigi log satirlari
+    bool popImage(TerrainImage* pOut);
+    bool isIdle() const;                        // bekleyen istek ve sonuc yok
+    std::string statusText() const;             // alt seritte gosterilecek kisa durum
+    std::string takeLogLines();                 // iscinin biriktirdigi log satirlari
     // Karonun rakimi iscide hazir mi (bir kez hazir olan hazir kalir; eksik komsu yenilemesi icin)
-    bool HasElevation(int pWest, int pSouth) const;
+    bool hasElevation(int pWest, int pSouth) const;
 
-    // Vektorler (yol katmani): istek her karede tekrarlanabilir; hazir olunca PopVectors verir.
+    // vektorler(yol katmani): istek her karede tekrarlanabilir; hazir olunca popVectors verir.
     // Vektoru olmayan karo (deniz, veri yok, sadece overlay) icin hic sonuc gelmez.
-    void RequestVectors(int pWest, int pSouth);
-    bool PopVectors(std::shared_ptr<const TerrainVectors>* pOut);
+    void requestVectors(int pWest, int pSouth);
+    bool popVectors(std::shared_ptr<const TerrainVectors>* pOut);
     // Katman karonun vektorlerini bellekten attiginda: tekrar istenebilsin
-    void ForgetVectors(int pWest, int pSouth);
+    void forgetVectors(int pWest, int pSouth);
 
-    // --- Asama 4 (0.18) ---
     // Ekran merkezi: ayni karede istenen goruntulerden (ayni seviyede) merkeze yakin olan once uretilir
-    void SetFocus(double pLat, double pLon);
+    void setFocus(double pLat, double pLon);
     // Arka plan onbellegi: isci, ekranin istegi yokken bu karolarin disk onbellegini (raster, rakim,
-    // vektor) hazirlar; doku uretmez, bellekteki karolari itmez. Once bolge listesi (StartPrecache),
-    // sonra onceden yukleme listesi (SetPrefetchTiles). Karo = SceneryIndex::TileKey.
-    void SetPrefetchTiles(const std::vector<int>& pTiles);  // oncelik sirasiyla; oncekinin yerine gecer
-    void StartPrecache(const std::vector<int>& pTiles);
-    void CancelPrecache();
+    // vektor) hazirlar; doku uretmez, bellekteki karolari itmez. Once bolge listesi (startPrecache),
+    // sonra onceden yukleme listesi (setPrefetchTiles). Karo = SceneryIndex::TileKey.
+    void setPrefetchTiles(const std::vector<int>& pTiles);  // oncelik sirasiyla; oncekinin yerine gecer
+    void startPrecache(const std::vector<int>& pTiles);
+    void cancelPrecache();
     // Bolge onbellegi calisiyorsa true ve ilerleme
-    bool PrecacheProgress(int* pDone, int* pTotal) const;
+    bool precacheProgress(int* pDone, int* pTotal) const;
 
-    // Teshis (olcum): isci bosta kalinca asama sureleri, yeniden yuklemeler ve istek bekleme
+    // teshis(olcum): isci bosta kalinca asama sureleri, yeniden yuklemeler ve istek bekleme
     // sureleri log'a yazilir ("terrain profile ..."). Sayaclar her zaman tutulur (ucuz).
-    void SetDiagnostics(bool pOn);
+    void setDiagnostics(bool pOn);
 
     // Test ve onizleme icin: karonun raster'ini (ve pElevation verilmisse rakimini) bekleterek
     // hazirlar (iscisiz). Onbellekte ikisi de guncelse DSF'e dokunmaz.
-    static bool BuildRaster(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
+    static bool buildRaster(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
                             TerrainRaster* pOut, std::string* pLog, TerrainTileState* pState,
                             ElevationGrid* pElevation = nullptr, TerrainVectors* pVectors = nullptr);
 
     // Karonun vektorlerini SADECE onbellekten okur (DSF acmaz). Dosya yoksa / eskiyse false.
-    static bool LoadVectors(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
+    static bool loadVectors(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
                             TerrainVectors* pOut);
 
     // Karonun rakimini SADECE onbellekten okur (DSF acmaz). Dosya yoksa / eskiyse false.
-    static bool LoadElevation(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
+    static bool loadElevation(const SceneryIndex& pIndex, int pWest, int pSouth, const std::string& pCacheDirectory,
                               ElevationGrid* pOut);
 
     // Yakin zoom icin karonun temel arazi ucgenlerini DSF'ten okur (diske yazilmaz)
-    static bool LoadTriangles(const SceneryIndex& pIndex, int pWest, int pSouth, TerrainTriangles* pOut,
+    static bool loadTriangles(const SceneryIndex& pIndex, int pWest, int pSouth, TerrainTriangles* pOut,
                               std::string* pLog);
 
 private:
     struct Pending
     {
         // Istegin, ISTENDIGI andaki odaga (isteyen haritanin merkezi) uzakligi. Birden cok harita
-        // ayni depoyu kullanir: her harita kendi merkezine gore siralanir (0.23).
+        // ayni depoyu kullanir: her harita kendi merkezine gore siralanir.
         double mDistance = 0.0;
         uint64_t mFrame;
         std::chrono::steady_clock::time_point mFirst;  // ilk istendigi an (bekleme suresi olcumu)
@@ -235,31 +199,31 @@ private:
         int mBackgroundCount = 0;
     };
 
-    void WorkerLoop();
-    bool PickRequest(TerrainImageKey* pOut);
-    TerrainRaster* RasterFor(int pWest, int pSouth);
+    void workerLoop();
+    bool pickRequest(TerrainImageKey* pOut);
+    TerrainRaster* rasterFor(int pWest, int pSouth);
     // Bellekten ya da onbellekten rakim (DSF acmaz); yoksa nullptr. Bulunursa LRU'nun basina gecer.
     // pLevel: goruntunun okuyacagi piramit seviyesi; kCoarseElevationLevel ve ustu icin kaba
     // (ince seviyeleri birakilmis) izgara yeter.
-    const ElevationGrid* ElevationFor(int pWest, int pSouth, int pLevel);
-    void KeepElevation(int pWest, int pSouth, std::unique_ptr<ElevationGrid> pGrid);
-    void TrimCache();  // isci: disk onbellegini mCacheLimit'e indirir
-    bool ServeBackgroundTile();  // isci: ekran istegi yoksa bir arka plan karosu (true: is yapildi)
-    void KeepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> pGrid);
-    void BuildImageFor(const TerrainImageKey& pKey, const TerrainRaster& pRaster, TerrainImage* pOut);
+    const ElevationGrid* elevationFor(int pWest, int pSouth, int pLevel);
+    void keepElevation(int pWest, int pSouth, std::unique_ptr<ElevationGrid> pGrid);
+    void trimCache();  // isci: disk onbellegini mCacheLimit'e indirir
+    bool serveBackgroundTile();  // isci: ekran istegi yoksa bir arka plan karosu (true: is yapildi)
+    void keepCoarseElevation(int pKey, std::unique_ptr<ElevationGrid> pGrid);
+    void buildImageFor(const TerrainImageKey& pKey, const TerrainRaster& pRaster, TerrainImage* pOut);
     // Vektorler: bellekte yoksa karonun raster'iyla birlikte yuklenir / uretilir (RasterFor)
-    std::shared_ptr<TerrainVectors> VectorsFor(int pWest, int pSouth);
-    bool ServeVectorRequest();  // bekleyen bir vektor istegini karsilar (varsa true)
-    void NoteImageTime(int pLevel, double pMilliseconds);  // seviye basina sure (ozet log)
-    void LogImageTimes();
-    TerrainTriangles* TrianglesFor(int pWest, int pSouth);
+    std::shared_ptr<TerrainVectors> vectorsFor(int pWest, int pSouth);
+    bool serveVectorRequest();  // bekleyen bir vektor istegini karsilar (varsa true)
+    void noteImageTime(int pLevel, double pMilliseconds);  // seviye basina sure (ozet log)
+    void logImageTimes();
+    TerrainTriangles* trianglesFor(int pWest, int pSouth);
 
     // Adaylar icinde overlay olmayan ilk DSF'i acar (pData okuyucu boyunca yasamali)
-    static bool OpenBaseMesh(const std::vector<DsfCandidate>& pCandidates, const std::string& pName,
+    static bool openBaseMesh(const std::vector<DsfCandidate>& pCandidates, const std::string& pName,
                              std::vector<uint8_t>* pData, DsfReader* pReader, std::string* pPath,
                              std::string* pLog);
-    void SetState(int pWest, int pSouth, TerrainTileState pState);
-    void AddLog(const std::string& pLine);
+    void setState(int pWest, int pSouth, TerrainTileState pState);
+    void addLog(const std::string& pLine);
 
     std::string mXPlaneDirectory;
     std::string mCacheDirectory;
@@ -268,7 +232,7 @@ private:
     bool mCacheGrew = false;  // sadece isci: son kirpmadan beri yeni karo uretildi
     std::vector<TerrainPalette> mPalettes;  // mMutex ile; 0 = Start'a verilen
     std::atomic<double> mMemoryScale{1.0};
-    size_t ScaledLimit(size_t pBase) const;  // pBase x mMemoryScale (en az pBase)
+    size_t scaledLimit(size_t pBase) const;  // pBase x mMemoryScale (en az pBase)
     std::vector<TerrainImageStyle> mStyles;
     SceneryIndex mIndex;
     std::atomic<bool> mIndexReady{false};
@@ -284,7 +248,7 @@ private:
     std::string mLog;
     std::string mStatus;
 
-    // Asama 4: odak ve arka plan kuyruklari (mMutex ile)
+    // Odak ve arka plan kuyruklari (mMutex ile)
     double mFocusLat = 0.0;
     double mFocusLon = 0.0;
     std::deque<int> mPrefetch;
@@ -295,7 +259,7 @@ private:
 
     bool mHasInFlight = false;            // isci su an bu goruntuyu uretiyor (ayni istek tekrar alinmaz)
     TerrainImageKey mInFlight;
-    std::unordered_set<int> mElevationReady;  // rakimi hazir olmus karolar (HasElevation)
+    std::unordered_set<int> mElevationReady;  // rakimi hazir olmus karolar (hasElevation)
     std::unordered_map<int, uint64_t> mVectorRequests;  // karo -> son istendigi kare
     std::unordered_set<int> mVectorsServed;             // sonucu verilmis karolar (tekrar uretilmez)
     std::deque<std::shared_ptr<const TerrainVectors>> mVectorResults;
@@ -310,12 +274,12 @@ private:
     std::list<std::pair<int, std::unique_ptr<ElevationGrid>>> mElevations;
     std::list<std::pair<int, std::unique_ptr<ElevationGrid>>> mCoarseElevations;
 
-    // Vektorler (sadece isci; yol katmanina paylasilir, uretildikten sonra degismez), en son kullanilan basta
+    // vektorler(sadece isci; yol katmanina paylasilir, uretildikten sonra degismez), en son kullanilan basta
     std::list<std::pair<int, std::shared_ptr<TerrainVectors>>> mVectors;
 
     WorkStats mStats;
     std::atomic<bool> mDiagnostics{false};
-    std::chrono::steady_clock::time_point mPickedFirst;  // PickRequest'in sectigi istegin ilk zamani
+    std::chrono::steady_clock::time_point mPickedFirst;  // pickRequest'in sectigi istegin ilk zamani
     // Goruntu sureleri (sadece isci): seviye basina adet ve toplam ms; bos kalinca loglanir
     int mImageCounts[kLevelCount] = {};
     double mImageMilliseconds[kLevelCount] = {};

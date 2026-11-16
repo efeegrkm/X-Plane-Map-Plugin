@@ -1,4 +1,3 @@
-// TerrainVectors.cpp
 #include "data/TerrainVectors.h"
 
 #include <algorithm>
@@ -23,8 +22,7 @@ const double kLineToleranceMeters = 2.5;  // yol / demiryolu sadelestirme (z16.5
 const double kAreaToleranceMeters = 4.0;  // orman / yerlesim halkalari
 const float kQuantum = 65535.0f;          // noktalar karo icinde 16 bit (~1,7 m)
 
-// Dosya adinin kucuk harf hali (son '/' sonrasi)
-std::string FileNameLower(const std::string& pPath)
+std::string fileNameLower(const std::string& pPath)
 {
     const size_t tSlash = pPath.find_last_of("/\\");
     std::string tName = (tSlash == std::string::npos) ? pPath : pPath.substr(tSlash + 1);
@@ -35,19 +33,19 @@ std::string FileNameLower(const std::string& pPath)
     return tName;
 }
 
-bool EndsWith(const std::string& pText, const char* pSuffix)
+bool endsWith(const std::string& pText, const char* pSuffix)
 {
     const size_t tLength = std::strlen(pSuffix);
     return pText.size() >= tLength && pText.compare(pText.size() - tLength, tLength, pSuffix) == 0;
 }
 
-bool StartsWith(const std::string& pText, const char* pPrefix)
+bool startsWith(const std::string& pText, const char* pPrefix)
 {
     return pText.rfind(pPrefix, 0) == 0;
 }
 
 // Douglas-Peucker: pKeep[i] = noktayi tut. x olcegi pScaleX (boylam -> enlemle ayni metre), tolerans karo birimi.
-void Simplify(const std::vector<double>& pX, const std::vector<double>& pY, double pScaleX, double pTolerance,
+void simplify(const std::vector<double>& pX, const std::vector<double>& pY, double pScaleX, double pTolerance,
               std::vector<uint8_t>* pKeep)
 {
     const size_t tCount = pX.size();
@@ -101,7 +99,7 @@ void Simplify(const std::vector<double>& pX, const std::vector<double>& pY, doub
     }
 }
 
-uint16_t Quantize(float pValue)
+uint16_t quantize(float pValue)
 {
     return static_cast<uint16_t>(std::lround(std::clamp(pValue, 0.0f, 1.0f) * kQuantum));
 }
@@ -127,12 +125,12 @@ struct Writer
             mBytes.push_back(static_cast<uint8_t>((pValue >> tShift) & 0xFF));
         }
     }
-    void Points(const std::vector<float>& pX, const std::vector<float>& pY)
+    void points(const std::vector<float>& pX, const std::vector<float>& pY)
     {
         for (size_t tIndex = 0; tIndex < pX.size(); ++tIndex)
         {
-            U16(Quantize(pX[tIndex]));
-            U16(Quantize(pY[tIndex]));
+            U16(quantize(pX[tIndex]));
+            U16(quantize(pY[tIndex]));
         }
     }
 };
@@ -143,18 +141,18 @@ struct Reader
     size_t mPosition = 0;
     bool mFailed = false;
 
-    bool Has(size_t pCount)
+    bool has(size_t pCount)
     {
         mFailed = mFailed || mPosition + pCount > mBytes.size();
         return !mFailed;
     }
     uint8_t U8()
     {
-        return Has(1) ? mBytes[mPosition++] : 0;
+        return has(1) ? mBytes[mPosition++] : 0;
     }
     uint16_t U16()
     {
-        if (!Has(2))
+        if (!has(2))
         {
             return 0;
         }
@@ -165,15 +163,15 @@ struct Reader
     uint32_t U32()
     {
         uint32_t tValue = 0;
-        for (int tShift = 0; tShift < 32 && Has(1); tShift += 8)
+        for (int tShift = 0; tShift < 32 && has(1); tShift += 8)
         {
             tValue |= static_cast<uint32_t>(mBytes[mPosition++]) << tShift;
         }
         return tValue;
     }
-    void Points(uint32_t pCount, std::vector<float>* pX, std::vector<float>* pY)
+    void points(uint32_t pCount, std::vector<float>* pX, std::vector<float>* pY)
     {
-        if (!Has(static_cast<size_t>(pCount) * 4))
+        if (!has(static_cast<size_t>(pCount) * 4))
         {
             return;
         }
@@ -187,7 +185,7 @@ struct Reader
 
 }  // namespace
 
-void TerrainVectors::Reset(int pWest, int pSouth)
+void TerrainVectors::reset(int pWest, int pSouth)
 {
     mWest = pWest;
     mSouth = pSouth;
@@ -196,35 +194,35 @@ void TerrainVectors::Reset(int pWest, int pSouth)
     mExclusions.clear();
 }
 
-int TerrainVectors::West() const
+int TerrainVectors::west() const
 {
     return mWest;
 }
 
-int TerrainVectors::South() const
+int TerrainVectors::south() const
 {
     return mSouth;
 }
 
-TerrainClass TerrainVectors::AreaClassFor(const std::string& pDefinitionName)
+TerrainClass TerrainVectors::areaClassFor(const std::string& pDefinitionName)
 {
-    const std::string tName = FileNameLower(pDefinitionName);
-    if (EndsWith(tName, ".for"))
+    const std::string tName = fileNameLower(pDefinitionName);
+    if (endsWith(tName, ".for"))
     {
         // Orman ailesi: arazi turu on ek kurallari (coni, broad, shrb, wetl, orch ...); digerleri genis yaprakli
-        const TerrainClass tClass = ClassifyTerrain(tName);
+        const TerrainClass tClass = classifyTerrain(tName);
         const bool tVegetation = tClass == TerrainClass::ForestConifer || tClass == TerrainClass::ForestBroadleaf ||
                                  tClass == TerrainClass::Shrub || tClass == TerrainClass::Wetland ||
                                  tClass == TerrainClass::Crop;
         return tVegetation ? tClass : TerrainClass::ForestBroadleaf;
     }
-    if (EndsWith(tName, ".ags"))
+    if (endsWith(tName, ".ags"))
     {
-        if (StartsWith(tName, "urban_") || StartsWith(tName, "ind_") || StartsWith(tName, "com_"))
+        if (startsWith(tName, "urban_") || startsWith(tName, "ind_") || startsWith(tName, "com_"))
         {
             return TerrainClass::Urban;
         }
-        if (StartsWith(tName, "park_"))
+        if (startsWith(tName, "park_"))
         {
             return TerrainClass::Grass;
         }
@@ -232,7 +230,7 @@ TerrainClass TerrainVectors::AreaClassFor(const std::string& pDefinitionName)
     return TerrainClass::None;  // natural.ags, .fac, .bch, .pol, .lin ...
 }
 
-int TerrainVectors::LineKindFor(int pSubtype)
+int TerrainVectors::lineKindFor(int pSubtype)
 {
     if (pSubtype >= 100 && pSubtype <= 131)
     {
@@ -261,24 +259,24 @@ int TerrainVectors::LineKindFor(int pSubtype)
     return -1;
 }
 
-bool TerrainVectors::IsForestClass(TerrainClass pClass)
+bool TerrainVectors::isForestClass(TerrainClass pClass)
 {
     return pClass == TerrainClass::ForestConifer || pClass == TerrainClass::ForestBroadleaf ||
            pClass == TerrainClass::Shrub || pClass == TerrainClass::Wetland || pClass == TerrainClass::Crop;
 }
 
-bool TerrainVectors::AddFromDsf(const DsfReader& pReader, std::string* pError)
+bool TerrainVectors::addFromDsf(const DsfReader& pReader, std::string* pError)
 {
-    const DsfInfo& tInfo = pReader.Info();
+    const DsfInfo& tInfo = pReader.info();
     std::vector<TerrainClass> tAreaClasses;
     for (const std::string& tName : tInfo.mPolygonNames)
     {
-        tAreaClasses.push_back(AreaClassFor(tName));
+        tAreaClasses.push_back(areaClassFor(tName));
     }
     std::vector<bool> tIsRoadNetwork;
     for (const std::string& tName : tInfo.mNetworkNames)
     {
-        tIsRoadNetwork.push_back(EndsWith(FileNameLower(tName), ".net"));
+        tIsRoadNetwork.push_back(endsWith(fileNameLower(tName), ".net"));
     }
     // Sadelestirme toleransi karo biriminde; x, enlem kosinusuyla olceklenir (metre esit)
     const double tScaleX = std::max(0.05, std::cos((mSouth + 0.5) * kPi / 180.0));
@@ -306,7 +304,7 @@ bool TerrainVectors::AddFromDsf(const DsfReader& pReader, std::string* pError)
                 tX.push_back(pPolygon.mRingLon[tRing][tIndex] - mWest);
                 tY.push_back(pPolygon.mRingLat[tRing][tIndex] - mSouth);
             }
-            Simplify(tX, tY, tScaleX, tAreaTolerance, &tKeep);
+            simplify(tX, tY, tScaleX, tAreaTolerance, &tKeep);
             tArea.mRingStarts.push_back(static_cast<uint32_t>(tArea.mX.size()));
             for (size_t tIndex = 0; tIndex < tX.size(); ++tIndex)
             {
@@ -329,7 +327,7 @@ bool TerrainVectors::AddFromDsf(const DsfReader& pReader, std::string* pError)
     };
     auto tOnChain = [&](const DsfChain& pChain)
     {
-        const int tKind = LineKindFor(pChain.mSubtype);
+        const int tKind = lineKindFor(pChain.mSubtype);
         if (tKind < 0 || pChain.mDefinition < 0 || pChain.mDefinition >= static_cast<int>(tIsRoadNetwork.size()) ||
             !tIsRoadNetwork[pChain.mDefinition])
         {
@@ -342,7 +340,7 @@ bool TerrainVectors::AddFromDsf(const DsfReader& pReader, std::string* pError)
             tX.push_back(pChain.mLon[tIndex] - mWest);
             tY.push_back(pChain.mLat[tIndex] - mSouth);
         }
-        Simplify(tX, tY, tScaleX, tLineTolerance, &tKeep);
+        simplify(tX, tY, tScaleX, tLineTolerance, &tKeep);
         VectorLine tLine;
         tLine.mKind = static_cast<VectorLineKind>(tKind);
         for (size_t tIndex = 0; tIndex < tX.size(); ++tIndex)
@@ -355,10 +353,10 @@ bool TerrainVectors::AddFromDsf(const DsfReader& pReader, std::string* pError)
         }
         mLines.push_back(std::move(tLine));
     };
-    return pReader.ForEachVector(tOnPolygon, tOnChain, pError);
+    return pReader.forEachVector(tOnPolygon, tOnChain, pError);
 }
 
-void TerrainVectors::AddExclusions(const DsfInfo& pOverlayInfo)
+void TerrainVectors::addExclusions(const DsfInfo& pOverlayInfo)
 {
     for (const auto& [tName, tValue] : pOverlayInfo.mProperties)
     {
@@ -402,7 +400,7 @@ void TerrainVectors::AddExclusions(const DsfInfo& pOverlayInfo)
     }
 }
 
-void TerrainVectors::ApplyNetworkExclusions()
+void TerrainVectors::applyNetworkExclusions()
 {
     auto tExcluded = [&](float pX, float pY)
     {
@@ -461,19 +459,19 @@ void TerrainVectors::ApplyNetworkExclusions()
     mLines.swap(tResult);
 }
 
-const std::vector<VectorArea>& TerrainVectors::Areas() const
+const std::vector<VectorArea>& TerrainVectors::areas() const
 {
     return mAreas;
 }
 
-const std::vector<VectorLine>& TerrainVectors::Lines() const
+const std::vector<VectorLine>& TerrainVectors::lines() const
 {
     return mLines;
 }
 
-bool TerrainVectors::IsAreaExcluded(TerrainClass pClass, double pX, double pY) const
+bool TerrainVectors::isAreaExcluded(TerrainClass pClass, double pX, double pY) const
 {
-    const uint8_t tKind = IsForestClass(pClass) ? kExcludeForest : kExcludeAutogen;
+    const uint8_t tKind = isForestClass(pClass) ? kExcludeForest : kExcludeAutogen;
     for (const VectorExclusion& tExclusion : mExclusions)
     {
         if ((tExclusion.mKinds & tKind) && pX >= tExclusion.mBounds[0] && pX <= tExclusion.mBounds[2] &&
@@ -485,7 +483,7 @@ bool TerrainVectors::IsAreaExcluded(TerrainClass pClass, double pX, double pY) c
     return false;
 }
 
-size_t TerrainVectors::PointCount() const
+size_t TerrainVectors::pointCount() const
 {
     size_t tCount = 0;
     for (const VectorArea& tArea : mAreas)
@@ -499,7 +497,7 @@ size_t TerrainVectors::PointCount() const
     return tCount;
 }
 
-bool TerrainVectors::Save(const std::string& pPath, const std::string& pKey) const
+bool TerrainVectors::save(const std::string& pPath, const std::string& pKey) const
 {
     Writer tWriter;
     tWriter.U32(static_cast<uint32_t>(mAreas.size()));
@@ -512,14 +510,14 @@ bool TerrainVectors::Save(const std::string& pPath, const std::string& pKey) con
             tWriter.U32(tStart);
         }
         tWriter.U32(static_cast<uint32_t>(tArea.mX.size()));
-        tWriter.Points(tArea.mX, tArea.mY);
+        tWriter.points(tArea.mX, tArea.mY);
     }
     tWriter.U32(static_cast<uint32_t>(mLines.size()));
     for (const VectorLine& tLine : mLines)
     {
         tWriter.U8(static_cast<uint8_t>(tLine.mKind));
         tWriter.U32(static_cast<uint32_t>(tLine.mX.size()));
-        tWriter.Points(tLine.mX, tLine.mY);
+        tWriter.points(tLine.mX, tLine.mY);
     }
     tWriter.U32(static_cast<uint32_t>(mExclusions.size()));
     for (const VectorExclusion& tExclusion : mExclusions)
@@ -533,7 +531,7 @@ bool TerrainVectors::Save(const std::string& pPath, const std::string& pKey) con
         }
     }
     std::vector<uint8_t> tPacked;
-    if (!ElevationCodec::PackBytes(tWriter.mBytes, &tPacked))
+    if (!ElevationCodec::packBytes(tWriter.mBytes, &tPacked))
     {
         return false;
     }
@@ -551,7 +549,7 @@ bool TerrainVectors::Save(const std::string& pPath, const std::string& pKey) con
     return static_cast<bool>(tFile);
 }
 
-bool TerrainVectors::Load(const std::string& pPath, const std::string& pKey)
+bool TerrainVectors::load(const std::string& pPath, const std::string& pKey)
 {
     std::ifstream tFile(pPath, std::ios::binary);
     char tMagic[4] = {0, 0, 0, 0};
@@ -569,11 +567,11 @@ bool TerrainVectors::Load(const std::string& pPath, const std::string& pKey)
     }
     const std::vector<uint8_t> tPacked((std::istreambuf_iterator<char>(tFile)), std::istreambuf_iterator<char>());
     std::vector<uint8_t> tBytes;
-    if (!ElevationCodec::UnpackBytes(tPacked.data(), tPacked.size(), &tBytes))
+    if (!ElevationCodec::unpackBytes(tPacked.data(), tPacked.size(), &tBytes))
     {
         return false;
     }
-    Reset(static_cast<int>(tHeader[2] & 0xFFFF) - 1000, static_cast<int>(tHeader[2] >> 16) - 1000);
+    reset(static_cast<int>(tHeader[2] & 0xFFFF) - 1000, static_cast<int>(tHeader[2] >> 16) - 1000);
     Reader tReader{tBytes};
     const uint32_t tAreaCount = tReader.U32();
     for (uint32_t tIndex = 0; tIndex < tAreaCount && !tReader.mFailed; ++tIndex)
@@ -581,11 +579,11 @@ bool TerrainVectors::Load(const std::string& pPath, const std::string& pKey)
         VectorArea tArea;
         tArea.mClass = static_cast<TerrainClass>(std::min<int>(tReader.U8(), kTerrainClassCount - 1));
         const uint32_t tRings = tReader.U32();
-        for (uint32_t tRing = 0; tRing < tRings && tReader.Has(4); ++tRing)
+        for (uint32_t tRing = 0; tRing < tRings && tReader.has(4); ++tRing)
         {
             tArea.mRingStarts.push_back(tReader.U32());
         }
-        tReader.Points(tReader.U32(), &tArea.mX, &tArea.mY);
+        tReader.points(tReader.U32(), &tArea.mX, &tArea.mY);
         for (size_t tPoint = 0; tPoint < tArea.mX.size(); ++tPoint)
         {
             tArea.mBounds[0] = std::min(tArea.mBounds[0], tArea.mX[tPoint]);
@@ -600,7 +598,7 @@ bool TerrainVectors::Load(const std::string& pPath, const std::string& pKey)
     {
         VectorLine tLine;
         tLine.mKind = static_cast<VectorLineKind>(std::min<int>(tReader.U8(), kVectorLineKindCount - 1));
-        tReader.Points(tReader.U32(), &tLine.mX, &tLine.mY);
+        tReader.points(tReader.U32(), &tLine.mX, &tLine.mY);
         mLines.push_back(std::move(tLine));
     }
     const uint32_t tExclusionCount = tReader.U32();

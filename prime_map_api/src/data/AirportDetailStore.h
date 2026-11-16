@@ -1,18 +1,14 @@
-// AirportDetailStore.h
 // Ekrandaki havalimanlarinin AYRINTISINI (yuzeyler, cizgiler, tabelalar...)
 // arka planda okuyup cizime hazirlayan depo. X-Plane'e bagimli DEGIL.
 //
-// Akis (ana thread):
-//   cizimde, herhangi bir katman:  const LoadedAirport* t = tStore.Use(i);
-//       hazirsa verir; degilse istek listesine yazar
-//   her karede bir kez (flight loop): tStore.Update();
-//       onceki karenin isteklerini isciye gonderir, biten isleri alir
-// Boylece birden fazla katman (yuzeyler, nesneler) ayni depoyu kullanabilir.
+// akis (ana thread):
+//   cizimde, herhangi bir katman:  use(i) -> hazirsa verir, degilse istek listesine yazar
+//   her karede bir kez (flight loop): update() -> istekleri isciye gonderir,
+//       biten isleri alir. Boylece birden fazla katman ayni depoyu kullanabilir.
 //
-// Isci thread'i: havalimaninin dosyadaki bayt araligina dogrudan atlar
-// (AptFileLocation), sadece o satirlari okur, AptDatParser ile ayristirir,
-// AirportShapes ile ucgenler. Bellekte en fazla kMaxLoaded havalimani
-// tutulur; en uzun suredir kullanilmayanlar silinir.
+// Isci thread'i: havalimaninin dosyadaki bayt araligina atlar (AptFileLocation),
+// satirlari okur, AptDatParser ile ayristirir, AirportShapes ile ucgenler.
+// Bellekte en fazla kMaxLoaded havalimani; en uzun suredir kullanilmayan silinir.
 #pragma once
 
 #include <condition_variable>
@@ -49,23 +45,23 @@ public:
     AirportDetailStore(const AirportDetailStore&) = delete;
     AirportDetailStore& operator=(const AirportDetailStore&) = delete;
 
-    // Bellekte tutulan en fazla havalimani (varsayilan kMaxLoaded). 0.23: acik harita sayisina
-    // gore buyutulur (iki harita farkli yerlere bakarken birbirinin havalimanlarini atmasin).
-    void SetMaxLoaded(size_t pCount);
+    // Bellekte tutulan en fazla havalimani (varsayilan kMaxLoaded). Acik harita
+    // sayisina gore buyutulur (iki harita birbirinin havalimanlarini atmasin).
+    void setMaxLoaded(size_t pCount);
 
-    void Start();  // isci thread'ini baslatir (bir kez)
-    void Stop();   // o anki isi bitirip durur
+    void start();  // isci thread'ini baslatir (bir kez)
+    void stop();   // o anki isi bitirip durur
 
     // Her karede bir kez: istekleri isciye gonder, biten isleri al, eskileri sil
-    void Update();
+    void update();
     // Ayrinti hazirsa verir (ve bu karede kullanildi diye isaretler); degilse
     // istek listesine ekler ve nullptr doner. Siralama onemli: once istenen once okunur.
-    const LoadedAirport* Use(int pAirport);
+    const LoadedAirport* use(int pAirport);
 
-    bool IsWaiting(int pAirport) const;  // istendi ama henuz hazir degil
-    int PendingCount() const;            // bu karede istenip bekleyen
-    int LoadedCount() const;
-    std::string TakeLogLines();          // isci raporlari (ana thread loglar)
+    bool isWaiting(int pAirport) const;  // istendi ama henuz hazir degil
+    int pendingCount() const;            // bu karede istenip bekleyen
+    int loadedCount() const;
+    std::string takeLogLines();          // isci raporlari (ana thread loglar)
 
 private:
     struct Request
@@ -90,10 +86,10 @@ private:
         uint64_t mLastFrame = 0;
     };
 
-    void SubmitWanted();  // istek listesini isci kuyruguna yazar
-    void WorkerLoop();
-    std::unique_ptr<LoadedAirport> Load(const Request& pRequest, std::string& pLog) const;
-    void EvictUnused();
+    void submitWanted();  // istek listesini isci kuyruguna yazar
+    void workerLoop();
+    std::unique_ptr<LoadedAirport> load(const Request& pRequest, std::string& pLog) const;
+    void evictUnused();
 
     const AirportGeometryStore& mSummaries;
 

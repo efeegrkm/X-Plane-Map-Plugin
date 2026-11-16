@@ -1,4 +1,3 @@
-// StaticMesh.cpp
 #include "gfx/StaticMesh.h"
 
 #include <cstddef>
@@ -11,14 +10,14 @@ namespace
 
 const GLenum kStaticDraw = 0x88E4;  // GL_STATIC_DRAW: bir kez yazilir, cok kez cizilir
 
-}  // namespace
+}
 
 namespace Gfx
 {
 
 StaticMesh::~StaticMesh()
 {
-    Release();
+    release();
 }
 
 StaticMesh::StaticMesh(StaticMesh&& pOther) noexcept
@@ -35,7 +34,7 @@ StaticMesh& StaticMesh::operator=(StaticMesh&& pOther) noexcept
 {
     if (this != &pOther)
     {
-        Release();
+        release();
         mArray = std::move(pOther.mArray);
         mBuffer = pOther.mBuffer;
         mCount = pOther.mCount;
@@ -46,66 +45,66 @@ StaticMesh& StaticMesh::operator=(StaticMesh&& pOther) noexcept
     return *this;
 }
 
-void StaticMesh::Upload(const std::vector<ColorVertex>& pVertices, Primitive pPrimitive)
+void StaticMesh::upload(const std::vector<ColorVertex>& pVertices, Primitive pPrimitive)
 {
-    Release();
+    release();
     mPrimitive = pPrimitive;
     mCount = static_cast<int>(pVertices.size());
-    if (mCount == 0 || !Gl::IsLoaded())
+    if (mCount == 0 || !Gl::isLoaded())
     {
         mCount = 0;
         return;
     }
     // X-Plane'in bagli tuttugu buffer'i bozmamak icin kaydet. VAO burada
-    // OLUSTURULMAZ: cizim hangi baglamda olacaksa orada olusur (BindVertexArray).
+    // OLUSTURULMAZ: cizim hangi baglamda olacaksa orada olusur.
     GLint tOldBuffer = 0;
     glGetIntegerv(Gl::kArrayBufferBinding, &tOldBuffer);
-    Gl::GenBuffers(1, &mBuffer);
-    Gl::BindBuffer(Gl::kArrayBuffer, mBuffer);
-    Gl::BufferData(Gl::kArrayBuffer, static_cast<GLsizeiptr>(pVertices.size() * sizeof(ColorVertex)),
+    Gl::genBuffers(1, &mBuffer);
+    Gl::bindBuffer(Gl::kArrayBuffer, mBuffer);
+    Gl::bufferData(Gl::kArrayBuffer, static_cast<GLsizeiptr>(pVertices.size() * sizeof(ColorVertex)),
                    pVertices.data(), kStaticDraw);
-    Gl::BindBuffer(Gl::kArrayBuffer, static_cast<GLuint>(tOldBuffer));
+    Gl::bindBuffer(Gl::kArrayBuffer, static_cast<GLuint>(tOldBuffer));
 }
 
-void StaticMesh::BindVertexArray() const
+void StaticMesh::bindVertexArray() const
 {
     const unsigned int tBuffer = mBuffer;
-    mArray.Get(
+    mArray.get(
         [tBuffer]()
         {
-            Gl::BindBuffer(Gl::kArrayBuffer, tBuffer);
-            Gl::EnableVertexAttribArray(0);
-            Gl::VertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mX));
-            Gl::EnableVertexAttribArray(1);
-            Gl::VertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ColorVertex),
+            Gl::bindBuffer(Gl::kArrayBuffer, tBuffer);
+            Gl::enableVertexAttribArray(0);
+            Gl::vertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(ColorVertex), offsetof(ColorVertex, mX));
+            Gl::enableVertexAttribArray(1);
+            Gl::vertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(ColorVertex),
                                     offsetof(ColorVertex, mColor));
         });
 }
 
-bool StaticMesh::IsEmpty() const
+bool StaticMesh::isEmpty() const
 {
     return mCount == 0;
 }
 
-int StaticMesh::VertexCount() const
+int StaticMesh::vertexCount() const
 {
     return mCount;
 }
 
-Primitive StaticMesh::GetPrimitive() const
+Primitive StaticMesh::getPrimitive() const
 {
     return mPrimitive;
 }
 
-void StaticMesh::Release()
+void StaticMesh::release()
 {
-    if (mBuffer != 0 && Gl::IsLoaded())
+    if (mBuffer != 0 && Gl::isLoaded())
     {
-        Gl::DeleteBuffers(1, &mBuffer);
+        Gl::deleteBuffers(1, &mBuffer);
     }
-    mArray.Release();
+    mArray.release();
     mBuffer = 0;
     mCount = 0;
 }
 
-}  // namespace Gfx
+}

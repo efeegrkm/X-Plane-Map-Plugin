@@ -1,4 +1,3 @@
-// MapData.cpp
 #include "engine/MapData.h"
 
 #include <algorithm>
@@ -38,7 +37,7 @@ const float kNoticeSeconds = 8.0f;       // alt seritteki kisa bildirimlerin sur
 const double kNavLoadBudgetMs = 4.0;     // nav verisi okunurken her karede en fazla bu kadar
 
 const char* kSettingsComment =
-    "Prime Map central settings (shared by ALL maps of this X-Plane process).\n"
+    "Prime XMap central settings (shared by ALL maps of this X-Plane process).\n"
     "Per-map settings live in maps/<map name>/ (map_settings.ini, map_drawings.txt, terrain_colors.ini).\n"
     "The cache (cache/terrain, cache/airports) is shared by all maps; its limits grow with the number of\n"
     "OPEN maps:  limit(n) = base x (1 + growth_percent_per_map x (n - 1) / 100), capped by the max_ value.\n"
@@ -51,18 +50,18 @@ const char* kSettingsComment =
     "in RAM by the terrain worker, loaded airport details).\n"
     "[memory] max_texture_mb = ceiling of the grown texture budget, MB (0 = no ceiling).\n"
     "[maps] autosave = 1: per-map files are written automatically when a setting changes; 0: only when\n"
-    "the map is closed or the host calls Map::SaveSettings.\n"
+    "the map is closed or the host calls XMap::saveSettings.\n"
     "[maps] autosave_seconds = shortest time between two automatic writes of the same map.\n"
-    "Edit while X-Plane is closed, or change at run time with MapLibrary::SetSettings.";
+    "Edit while X-Plane is closed, or change at run time with XMapManager::setSettings.";
 
-std::string SystemPath()
+std::string systemPath()
 {
     std::array<char, 2048> tSystemPath = {};
     XPLMGetSystemPath(tSystemPath.data());  // "C:\X-Plane 11\" (sonunda ayirici ile)
     return tSystemPath.data();
 }
 
-void AddPart(std::string* pMessage, const std::string& pPart)
+void addPart(std::string* pMessage, const std::string& pPart)
 {
     if (pPart.empty())
     {
@@ -73,7 +72,7 @@ void AddPart(std::string* pMessage, const std::string& pPart)
 }
 
 // taban x (1 + artis% x (n - 1) / 100); tavan > 0 ise onu gecmez. taban 0 = sinirsiz (0 doner).
-double GrownLimit(double pBase, int pGrowthPercent, double pMax, int pOpenMaps)
+double grownLimit(double pBase, int pGrowthPercent, double pMax, int pOpenMaps)
 {
     if (pBase <= 0.0)
     {
@@ -88,7 +87,7 @@ double GrownLimit(double pBase, int pGrowthPercent, double pMax, int pOpenMaps)
     return tLimit;
 }
 
-prime::LibrarySettings Sanitized(prime::LibrarySettings pSettings)
+prime::MapManagerSettings sanitized(prime::MapManagerSettings pSettings)
 {
     pSettings.mTerrainCacheMb = std::max(0, pSettings.mTerrainCacheMb);
     pSettings.mCacheGrowthPercentPerMap = std::clamp(pSettings.mCacheGrowthPercentPerMap, 0, 1000);
@@ -103,48 +102,46 @@ prime::LibrarySettings Sanitized(prime::LibrarySettings pSettings)
 
 }  // namespace
 
-MapData::MapData(const MapDataConfig& pConfig)
+XMapData::XMapData(const MapDataConfig& pConfig)
     : mConfig(pConfig)
-    , mSettings(Sanitized(pConfig.mDefaults))
+    , mSettings(sanitized(pConfig.mDefaults))
     , mAirportGeometry(std::make_unique<AirportGeometryStore>(std::make_unique<AptDatIndexer>()))
 {
     mAirportDetails = std::make_unique<AirportDetailStore>(*mAirportGeometry);
 }
 
-MapData::~MapData()
+XMapData::~XMapData()
 {
-    Stop();
+    stop();
 }
 
-void MapData::Start()
+void XMapData::start()
 {
-    mXPlaneDirectory = SystemPath();
+    mXPlaneDirectory = systemPath();
     std::error_code tError;
     std::filesystem::create_directories(mConfig.mDataDirectory, tError);
-    LoadLibrarySettings();
+    loadLibrarySettings();
     // Palet 0: varsayilan zemin ayarlari (terrain_colors.ini'si olmayan haritalar bunu kullanir)
-    RegisterPalette(&mDefaultPalette);
-    ApplyLimits();
-    XPLMRegisterFlightLoopCallback(FlightLoopCallback, -1.0f, this);
+    registerPalette(&mDefaultPalette);
+    applyLimits();
+    XPLMRegisterFlightLoopCallback(flightLoopCallback, -1.0f, this);
     mFlightLoopRegistered = true;
     mRunning = true;
 }
 
-void MapData::Stop()
+void XMapData::stop()
 {
     mRunning = false;
     if (mFlightLoopRegistered)
     {
-        XPLMUnregisterFlightLoopCallback(FlightLoopCallback, this);
+        XPLMUnregisterFlightLoopCallback(flightLoopCallback, this);
         mFlightLoopRegistered = false;
     }
-    mTerrainStore.Stop();  // zemin iscisi: o an uretilen karoyu bitirip durur
-    mAirportDetails->Stop();
+    mTerrainStore.stop();  // zemin iscisi: o an uretilen karoyu bitirip durur
+    mAirportDetails->stop();
 }
 
-// --- Haritalar ---------------------------------------------------------------------
-
-void MapData::AddInstance(MapInstance* pInstance)
+void XMapData::addInstance(XMapInstance* pInstance)
 {
     if (pInstance && std::find(mInstances.begin(), mInstances.end(), pInstance) == mInstances.end())
     {
@@ -152,110 +149,106 @@ void MapData::AddInstance(MapInstance* pInstance)
     }
 }
 
-void MapData::RemoveInstance(MapInstance* pInstance)
+void XMapData::removeInstance(XMapInstance* pInstance)
 {
     mInstances.erase(std::remove(mInstances.begin(), mInstances.end(), pInstance), mInstances.end());
-    ApplyLimits();
+    applyLimits();
 }
 
-void MapData::OpenMapsChanged()
+void XMapData::openMapsChanged()
 {
-    ApplyLimits();
+    applyLimits();
 }
 
-int MapData::OpenMapCount() const
+int XMapData::openMapCount() const
 {
     return static_cast<int>(std::count_if(mInstances.begin(), mInstances.end(),
-                                          [](const MapInstance* pInstance)
+                                          [](const XMapInstance* pInstance)
                                           {
-                                              return pInstance->IsOpen();
+                                              return pInstance->isOpen();
                                           }));
 }
 
-// --- Ortak depolar -------------------------------------------------------------------
-
-TerrainHub& MapData::Hub()
+TerrainHub& XMapData::hub()
 {
     return mHub;
 }
 
-TerrainStore& MapData::Terrain()
+TerrainStore& XMapData::terrain()
 {
     return mTerrainStore;
 }
 
-NavDatabase& MapData::Navs()
+NavDatabase& XMapData::navs()
 {
     return mNavDatabase;
 }
 
-AirwayDatabase& MapData::Airways()
+AirwayDatabase& XMapData::airways()
 {
     return mAirways;
 }
 
-AirportGeometryStore& MapData::AirportGeometry()
+AirportGeometryStore& XMapData::airportGeometry()
 {
     return *mAirportGeometry;
 }
 
-AirportDetailStore& MapData::AirportDetails()
+AirportDetailStore& XMapData::airportDetails()
 {
     return *mAirportDetails;
 }
 
-const AirportGeometryStore& MapData::Airports() const
+const AirportGeometryStore& XMapData::airports() const
 {
     return *mAirportGeometry;
 }
 
-const MapDataStatus& MapData::Status() const
+const MapDataStatus& XMapData::status() const
 {
     return mStatus;
 }
 
-// --- Zemin paletleri -------------------------------------------------------------------
-
-int MapData::RegisterPalette(TerrainPalette* pPalette)
+int XMapData::registerPalette(TerrainPalette* pPalette)
 {
-    // Asama 3: sinif renkleri X-Plane'in arazi dokularindan (source = xplane); ilk seferde hesaplanir
-    // (sonra onbellekten), sonuc butun haritalar icin ayni
-    if (pPalette->UsesXPlaneColors())
+    // Sinif renkleri X-Plane'in arazi dokularindan turetilir: ilk seferde hesaplanir,
+    // sonra onbellekten okunur; sonuc butun haritalar icin ayni
+    if (pPalette->usesXPlaneColors())
     {
         if (!mDerivedLoaded)
         {
             mDerivedLoaded = true;
             XPlaneClassColors tDerived;
             std::string tReport;
-            mDerivedOk = LoadXPlaneClassColors(SystemPath(),
+            mDerivedOk = loadXPlaneClassColors(systemPath(),
                                                mConfig.mCacheDirectory + kTerrainCacheFolder + "xplane_palette.txt",
                                                &tDerived, &tReport);
             mDerivedColors = tDerived.mColors;
             mDerivedCounts = tDerived.mTextureCounts;
-            Log("{}", tReport);
+            log("{}", tReport);
         }
         if (mDerivedOk)
         {
-            pPalette->ApplyDerivedColors(mDerivedColors, mDerivedCounts);
+            pPalette->applyDerivedColors(mDerivedColors, mDerivedCounts);
         }
     }
     // Ayni icerik = ayni numara: ayni ayarli haritalar ayni dokulari paylasir
     Settings tText;
-    pPalette->Save(tText);
-    const std::string tKey = tText.ToText({});
+    pPalette->save(tText);
+    const std::string tKey = tText.toText({});
     const auto tFound = mPaletteIds.find(tKey);
     if (tFound != mPaletteIds.end())
     {
         return tFound->second;
     }
-    const int tId = mTerrainStore.AddPalette(*pPalette);
+    const int tId = mTerrainStore.addPalette(*pPalette);
     mPaletteIds.emplace(tKey, tId);
     return tId;
 }
 
-const char* MapData::TerrainSettingsComment()
+const char* XMapData::terrainSettingsComment()
 {
-    return "Prime Map terrain colors and terrain settings of THIS map (each map has its own file).\n"
+    return "Prime XMap terrain colors and terrain settings of THIS map (each map has its own file).\n"
            "[colors]: <class> = R G B (0..255). [shading] strength = 0 (flat) .. 1 (strong relief).\n"
            "[blend] meters = soft transition between land classes in Scenery mode "
            "(0 = off, default 150).\n"
@@ -276,279 +269,272 @@ const char* MapData::TerrainSettingsComment()
            "contour_strength (0.35); band_1 .. band_8 = <lower limit feet> R G B.\n"
            "[palette] source = xplane (land class colors averaged from X-Plane's own terrain "
            "textures) / ini (use the [colors] values below); version: do not edit.\n"
-           "The file is read when the map opens; changes made through the API (SetTerrainSettings) "
+           "The file is read when the map opens; changes made through the API (setTerrainSettings) "
            "apply immediately. The cache/terrain folder does not need to be deleted.\n"
            "Delete this file to get the default colors back.";
 }
 
-// --- Merkezi ayarlar -------------------------------------------------------------------
-
-const prime::LibrarySettings& MapData::LibrarySettings() const
+const prime::MapManagerSettings& XMapData::managerSettings() const
 {
     return mSettings;
 }
 
-void MapData::SetLibrarySettings(const prime::LibrarySettings& pSettings)
+void XMapData::setManagerSettings(const prime::MapManagerSettings& pSettings)
 {
-    mSettings = Sanitized(pSettings);
-    ApplyLimits();
-    if (!SaveLibrarySettings())
+    mSettings = sanitized(pSettings);
+    applyLimits();
+    if (!saveLibrarySettings())
     {
-        Log("WARNING: could not write {}", SettingsPath());
+        log("WARNING: could not write {}", settingsPath());
     }
 }
 
-std::string MapData::SettingsPath() const
+std::string XMapData::settingsPath() const
 {
     return mConfig.mDataDirectory + kSettingsFileName;
 }
 
-const std::string& MapData::DataDirectory() const
+const std::string& XMapData::dataDirectory() const
 {
     return mConfig.mDataDirectory;
 }
 
-const std::string& MapData::CacheDirectory() const
+const std::string& XMapData::cacheDirectory() const
 {
     return mConfig.mCacheDirectory;
 }
 
-std::string MapData::MapsDirectory() const
+std::string XMapData::mapsDirectory() const
 {
     return mConfig.mDataDirectory + kMapsFolder;
 }
 
-void MapData::LoadLibrarySettings()
+void XMapData::loadLibrarySettings()
 {
     // Dosyadaki deger her zaman onceliklidir; dosyada olmayan anahtar host'un verdigi ilk degeri alir.
     // Dosya yoksa (ilk acilis) olusturulur: kullanici acip duzenleyebilsin.
     Settings tFile;
-    const bool tExists = tFile.Load(SettingsPath());
-    prime::LibrarySettings tSettings = mSettings;
-    tSettings.mTerrainCacheMb = tFile.GetInt(kCacheSection, "terrain_mb", tSettings.mTerrainCacheMb);
+    const bool tExists = tFile.load(settingsPath());
+    prime::MapManagerSettings tSettings = mSettings;
+    tSettings.mTerrainCacheMb = tFile.getInt(kCacheSection, "terrain_mb", tSettings.mTerrainCacheMb);
     tSettings.mCacheGrowthPercentPerMap =
-        tFile.GetInt(kCacheSection, "growth_percent_per_map", tSettings.mCacheGrowthPercentPerMap);
-    tSettings.mTerrainCacheMaxMb = tFile.GetInt(kCacheSection, "max_terrain_mb", tSettings.mTerrainCacheMaxMb);
-    tSettings.mPrefetchTiles = tFile.GetInt(kCacheSection, "prefetch_tiles", tSettings.mPrefetchTiles);
-    tSettings.mTextureMemoryMb = tFile.GetInt(kMemorySection, "texture_mb", tSettings.mTextureMemoryMb);
+        tFile.getInt(kCacheSection, "growth_percent_per_map", tSettings.mCacheGrowthPercentPerMap);
+    tSettings.mTerrainCacheMaxMb = tFile.getInt(kCacheSection, "max_terrain_mb", tSettings.mTerrainCacheMaxMb);
+    tSettings.mPrefetchTiles = tFile.getInt(kCacheSection, "prefetch_tiles", tSettings.mPrefetchTiles);
+    tSettings.mTextureMemoryMb = tFile.getInt(kMemorySection, "texture_mb", tSettings.mTextureMemoryMb);
     tSettings.mMemoryGrowthPercentPerMap =
-        tFile.GetInt(kMemorySection, "growth_percent_per_map", tSettings.mMemoryGrowthPercentPerMap);
-    tSettings.mTextureMemoryMaxMb = tFile.GetInt(kMemorySection, "max_texture_mb", tSettings.mTextureMemoryMaxMb);
-    tSettings.mAutoSave = tFile.GetBool(kMapsSection, "autosave", tSettings.mAutoSave);
-    tSettings.mAutoSaveSeconds = tFile.GetDouble(kMapsSection, "autosave_seconds", tSettings.mAutoSaveSeconds);
-    mSettings = Sanitized(tSettings);
-    Log("central settings {}: {}", tExists ? "loaded" : "created", SettingsPath());
-    if (!SaveLibrarySettings())  // eksik anahtarlar ve aciklama dosyada gorunsun
+        tFile.getInt(kMemorySection, "growth_percent_per_map", tSettings.mMemoryGrowthPercentPerMap);
+    tSettings.mTextureMemoryMaxMb = tFile.getInt(kMemorySection, "max_texture_mb", tSettings.mTextureMemoryMaxMb);
+    tSettings.mAutoSave = tFile.getBool(kMapsSection, "autosave", tSettings.mAutoSave);
+    tSettings.mAutoSaveSeconds = tFile.getDouble(kMapsSection, "autosave_seconds", tSettings.mAutoSaveSeconds);
+    mSettings = sanitized(tSettings);
+    log("central settings {}: {}", tExists ? "loaded" : "created", settingsPath());
+    if (!saveLibrarySettings())  // eksik anahtarlar ve aciklama dosyada gorunsun
     {
-        Log("WARNING: could not write {}", SettingsPath());
+        log("WARNING: could not write {}", settingsPath());
     }
 }
 
-bool MapData::SaveLibrarySettings() const
+bool XMapData::saveLibrarySettings() const
 {
     Settings tFile;
-    tFile.SetPath(SettingsPath());
-    tFile.SetComment(kSettingsComment);
-    tFile.SetInt(kCacheSection, "terrain_mb", mSettings.mTerrainCacheMb);
-    tFile.SetInt(kCacheSection, "growth_percent_per_map", mSettings.mCacheGrowthPercentPerMap);
-    tFile.SetInt(kCacheSection, "max_terrain_mb", mSettings.mTerrainCacheMaxMb);
-    tFile.SetInt(kCacheSection, "prefetch_tiles", mSettings.mPrefetchTiles);
-    tFile.SetInt(kMemorySection, "texture_mb", mSettings.mTextureMemoryMb);
-    tFile.SetInt(kMemorySection, "growth_percent_per_map", mSettings.mMemoryGrowthPercentPerMap);
-    tFile.SetInt(kMemorySection, "max_texture_mb", mSettings.mTextureMemoryMaxMb);
-    tFile.SetBool(kMapsSection, "autosave", mSettings.mAutoSave);
-    tFile.SetDouble(kMapsSection, "autosave_seconds", mSettings.mAutoSaveSeconds);
-    return tFile.Save();
+    tFile.setPath(settingsPath());
+    tFile.setComment(kSettingsComment);
+    tFile.setInt(kCacheSection, "terrain_mb", mSettings.mTerrainCacheMb);
+    tFile.setInt(kCacheSection, "growth_percent_per_map", mSettings.mCacheGrowthPercentPerMap);
+    tFile.setInt(kCacheSection, "max_terrain_mb", mSettings.mTerrainCacheMaxMb);
+    tFile.setInt(kCacheSection, "prefetch_tiles", mSettings.mPrefetchTiles);
+    tFile.setInt(kMemorySection, "texture_mb", mSettings.mTextureMemoryMb);
+    tFile.setInt(kMemorySection, "growth_percent_per_map", mSettings.mMemoryGrowthPercentPerMap);
+    tFile.setInt(kMemorySection, "max_texture_mb", mSettings.mTextureMemoryMaxMb);
+    tFile.setBool(kMapsSection, "autosave", mSettings.mAutoSave);
+    tFile.setDouble(kMapsSection, "autosave_seconds", mSettings.mAutoSaveSeconds);
+    return tFile.save();
 }
 
-void MapData::ApplyLimits()
+void XMapData::applyLimits()
 {
-    // Acik harita sayisina gore (en az 1): disk siniri, doku butcesi, iscinin bellek listeleri
-    const int tOpenMaps = std::max(1, OpenMapCount());
-    const double tDiskMb = GrownLimit(mSettings.mTerrainCacheMb, mSettings.mCacheGrowthPercentPerMap,
+    const int tOpenMaps = std::max(1, openMapCount());
+    const double tDiskMb = grownLimit(mSettings.mTerrainCacheMb, mSettings.mCacheGrowthPercentPerMap,
                                       mSettings.mTerrainCacheMaxMb, tOpenMaps);
-    const double tTextureMb = GrownLimit(mSettings.mTextureMemoryMb, mSettings.mMemoryGrowthPercentPerMap,
+    const double tTextureMb = grownLimit(mSettings.mTextureMemoryMb, mSettings.mMemoryGrowthPercentPerMap,
                                          mSettings.mTextureMemoryMaxMb, tOpenMaps);
     const double tMemoryScale = 1.0 + mSettings.mMemoryGrowthPercentPerMap / 100.0 * (tOpenMaps - 1);
-    mTerrainStore.SetCacheLimit(static_cast<uint64_t>(tDiskMb * 1048576.0));
-    mTerrainStore.SetMemoryScale(tMemoryScale);
-    mHub.SetTextureBudget(static_cast<size_t>(tTextureMb * 1048576.0));
-    mAirportDetails->SetMaxLoaded(
+    mTerrainStore.setCacheLimit(static_cast<uint64_t>(tDiskMb * 1048576.0));
+    mTerrainStore.setMemoryScale(tMemoryScale);
+    mHub.setTextureBudget(static_cast<size_t>(tTextureMb * 1048576.0));
+    mAirportDetails->setMaxLoaded(
         static_cast<size_t>(std::lround(static_cast<double>(AirportDetailStore::kMaxLoaded) * tMemoryScale)));
 
     const int tDiskLimit = static_cast<int>(std::lround(tDiskMb));
     const int tTextureLimit = static_cast<int>(std::lround(tTextureMb));
     if (tDiskLimit != mStatus.mTerrainCacheLimitMb || tTextureLimit != mStatus.mTextureLimitMb ||
-        OpenMapCount() != mStatus.mOpenMaps)
+        openMapCount() != mStatus.mOpenMaps)
     {
-        Log("cache limits for {} open map(s): terrain disk {} MB{}, terrain textures {} MB, memory scale {:.2f}",
-            OpenMapCount(), tDiskLimit, tDiskLimit == 0 ? " (no limit)" : "", tTextureLimit, tMemoryScale);
+        log("cache limits for {} open map(s): terrain disk {} MB{}, terrain textures {} MB, memory scale {:.2f}",
+            openMapCount(), tDiskLimit, tDiskLimit == 0 ? " (no limit)" : "", tTextureLimit, tMemoryScale);
     }
     mStatus.mTerrainCacheLimitMb = tDiskLimit;
     mStatus.mTextureLimitMb = tTextureLimit;
-    mStatus.mOpenMaps = OpenMapCount();
+    mStatus.mOpenMaps = openMapCount();
 }
 
-// --- Flight loop -------------------------------------------------------------------
-
-float MapData::FlightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
+float XMapData::flightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
                                   void* pRefcon)
 {
-    return static_cast<MapData*>(pRefcon)->OnFlightLoop();
+    return static_cast<XMapData*>(pRefcon)->onFlightLoop();
 }
 
-float MapData::OnFlightLoop()
+float XMapData::onFlightLoop()
 {
     const float tNow = XPLMGetElapsedTime();
-    StepLoading();
-    mHub.BeginFrame();  // bu karenin doku yukleme hakki (butun haritalar icin ortak)
-    UpdatePrefetch(tNow);
-    UpdateStatus();
+    stepLoading();
+    mHub.beginFrame();  // bu karenin doku yukleme hakki (butun haritalar icin ortak)
+    updatePrefetch(tNow);
+    updateStatus();
     // Haritalar: ucak, katman verisi, durum yazisi, ayar dosyalari. Kopya liste: bir harita
     // guncellenirken (host'un callback'i yok ama ileride olabilir) liste degisirse bozulmasin.
-    const std::vector<MapInstance*> tInstances = mInstances;
+    const std::vector<XMapInstance*> tInstances = mInstances;
     bool tDiagnostics = false;
-    for (MapInstance* tInstance : tInstances)
+    for (XMapInstance* tInstance : tInstances)
     {
-        tInstance->Update(tNow);
-        tDiagnostics = tDiagnostics || tInstance->IsDiagnosticsOn();
+        tInstance->update(tNow);
+        tDiagnostics = tDiagnostics || tInstance->isDiagnosticsOn();
     }
-    mTerrainStore.SetDiagnostics(tDiagnostics);  // asama sureleri sadece teshis modunda loglanir
-    // Toplam bekleyen zemin (API Status): haritalar bu karede guncelledi
+    mTerrainStore.setDiagnostics(tDiagnostics);  // asama sureleri sadece teshis modunda loglanir
     int tPending = 0;
-    for (const MapInstance* tInstance : tInstances)
+    for (const XMapInstance* tInstance : tInstances)
     {
-        tPending += tInstance->PendingTerrainImages();
+        tPending += tInstance->pendingTerrainImages();
     }
     mStatus.mTerrainPendingImages = tPending;
     mStatus.mText = mSharedText;
     if (tPending > 0 && !mTerrainIdle)
     {
-        AddPart(&mStatus.mText, std::format("Loading terrain: {} image{}", tPending, tPending == 1 ? "" : "s"));
+        addPart(&mStatus.mText, std::format("Loading terrain: {} image{}", tPending, tPending == 1 ? "" : "s"));
     }
     return -1.0f;  // her karede tekrar cagir
 }
 
-void MapData::StepLoading()
+void XMapData::stepLoading()
 {
     // Ilk flight loop'ta (X-Plane hazir) arka plan islerini baslat
     if (!mLoadStarted)
     {
         mLoadStarted = true;
-        Log("indexing airports in the background: {}", mAirportGeometry->SourceName());
-        mAirportGeometry->StartLoading(mXPlaneDirectory, mConfig.mCacheDirectory + kAirportCacheFolder);
-        mTerrainStore.Start(mXPlaneDirectory, mConfig.mCacheDirectory + kTerrainCacheFolder, mDefaultPalette,
-                            AllTerrainStyles());
+        log("indexing airports in the background: {}", mAirportGeometry->sourceName());
+        mAirportGeometry->startLoading(mXPlaneDirectory, mConfig.mCacheDirectory + kAirportCacheFolder);
+        mTerrainStore.start(mXPlaneDirectory, mConfig.mCacheDirectory + kTerrainCacheFolder, mDefaultPalette,
+                            allTerrainStyles());
     }
-    LogReport(mTerrainStore.TakeLogLines());
-    mAirportDetails->Update();  // onceki karede istenen havalimani ayrintilari isciye
-    LogReport(mAirportDetails->TakeLogLines());
-    if (mAirportGeometry->Poll())
+    logReport(mTerrainStore.takeLogLines());
+    mAirportDetails->update();  // onceki karede istenen havalimani ayrintilari isciye
+    logReport(mAirportDetails->takeLogLines());
+    if (mAirportGeometry->poll())
     {
-        Log("airport index {}: {} airports, {} runways", mAirportGeometry->LastLoadSucceeded() ? "ready" : "FAILED",
-            mAirportGeometry->Count(), mAirportGeometry->RunwayCount());
-        LogReport(mAirportGeometry->LastReport());
-        mAirportDetails->Start();  // ayrintilar artik dosyadaki yerlerinden okunabilir
+        log("airport index {}: {} airports, {} runways", mAirportGeometry->lastLoadSucceeded() ? "ready" : "FAILED",
+            mAirportGeometry->count(), mAirportGeometry->runwayCount());
+        logReport(mAirportGeometry->lastReport());
+        mAirportDetails->start();  // ayrintilar artik dosyadaki yerlerinden okunabilir
     }
 
     // Nav verisi: ana thread'de, her karede birkac ms
-    if (!mNavLoader.IsDone())
+    if (!mNavLoader.isDone())
     {
-        if (mNavLoader.Step(kNavLoadBudgetMs))
+        if (mNavLoader.step(kNavLoadBudgetMs))
         {
             // Hava yollarinin uc noktalari nav verisinden bulunur: nav bitince basla.
-            // X-Plane'in kurali: once Custom Data (guncel AIRAC), yoksa varsayilan.
-            mAirways.StartLoading({mXPlaneDirectory + "Custom Data/earth_awy.dat",
+            // X-Plane'in kurali: once Custom data(guncel AIRAC), yoksa varsayilan.
+            mAirways.startLoading({mXPlaneDirectory + "Custom Data/earth_awy.dat",
                                    mXPlaneDirectory + "Resources/default data/earth_awy.dat"},
                                   mNavDatabase);
         }
     }
-    if (mAirways.Poll())
+    if (mAirways.poll())
     {
-        Log("airways {}: {}", mAirways.IsReady() ? "ready" : "FAILED", mAirways.LastReport());
+        log("airways {}: {}", mAirways.isReady() ? "ready" : "FAILED", mAirways.lastReport());
     }
 }
 
-void MapData::UpdateStatus()
+void XMapData::updateStatus()
 {
-    mStatus.mNavReady = mNavLoader.IsDone();
-    mStatus.mAirportsReady = !mAirportGeometry->IsLoading() && mAirportGeometry->Count() > 0;
-    mStatus.mAirwaysReady = mAirways.IsReady();
-    mStatus.mTerrainIndexReady = mTerrainStore.IsIndexReady();
+    mStatus.mNavReady = mNavLoader.isDone();
+    mStatus.mAirportsReady = !mAirportGeometry->isLoading() && mAirportGeometry->count() > 0;
+    mStatus.mAirwaysReady = mAirways.isReady();
+    mStatus.mTerrainIndexReady = mTerrainStore.isIndexReady();
 
     // Ortak kisim: her haritanin alt seridinde ayni
     std::string tMessage;
-    if (!mNavLoader.IsDone() && mNavLoader.VisitedCount() > 0)
+    if (!mNavLoader.isDone() && mNavLoader.visitedCount() > 0)
     {
-        AddPart(&tMessage, std::format("Loading nav data: {}", mNavLoader.VisitedCount()));
+        addPart(&tMessage, std::format("Loading nav data: {}", mNavLoader.visitedCount()));
     }
-    if (mAirportGeometry->IsLoading())
+    if (mAirportGeometry->isLoading())
     {
-        AddPart(&tMessage, "Indexing airports...");
+        addPart(&tMessage, "Indexing airports...");
     }
-    if (mAirportDetails->PendingCount() > 0)
+    if (mAirportDetails->pendingCount() > 0)
     {
-        AddPart(&tMessage, std::format("Loading airport details: {}", mAirportDetails->PendingCount()));
+        addPart(&tMessage, std::format("Loading airport details: {}", mAirportDetails->pendingCount()));
     }
-    if (mAirways.IsLoading())
+    if (mAirways.isLoading())
     {
-        AddPart(&tMessage, "Reading airways...");
+        addPart(&tMessage, "Reading airways...");
     }
-    // Bolge onbellegi ilerlemesi ve bitisi
-    const bool tPrecaching = mTerrainStore.PrecacheProgress(&mStatus.mPrecacheDone, &mStatus.mPrecacheTotal);
+    const bool tPrecaching = mTerrainStore.precacheProgress(&mStatus.mPrecacheDone, &mStatus.mPrecacheTotal);
     if (tPrecaching)
     {
-        AddPart(&tMessage, std::format("Pre-caching terrain: {}/{}", mStatus.mPrecacheDone, mStatus.mPrecacheTotal));
+        addPart(&tMessage, std::format("Pre-caching terrain: {}/{}", mStatus.mPrecacheDone, mStatus.mPrecacheTotal));
     }
     else if (mPrecacheRunning)
     {
-        Log("terrain pre-cache finished: {} tiles", mStatus.mPrecacheDone);
-        ShowNotice(std::format("Terrain pre-cache finished: {} tiles", mStatus.mPrecacheDone));
+        log("terrain pre-cache finished: {} tiles", mStatus.mPrecacheDone);
+        showNotice(std::format("Terrain pre-cache finished: {} tiles", mStatus.mPrecacheDone));
     }
     mPrecacheRunning = tPrecaching;
     mStatus.mPrecacheRunning = tPrecaching;
     if (!mNotice.empty() && XPLMGetElapsedTime() < mNoticeUntil)
     {
-        AddPart(&tMessage, mNotice);
+        addPart(&tMessage, mNotice);
     }
     mSharedText = tMessage;
     // Zemin iscisinin o anki isi ("Building terrain +47-123"): haritalar kendi bekleyen sayisiyla yazar
-    mTerrainWorkerText = mTerrainStore.StatusText();
-    mTerrainIdle = mTerrainStore.IsIdle();
-    // Harita resmi onbellegi: veri gelirken resim hiz sinirinda yenilensin (MapImageCache)
-    mBusy = !mNavLoader.IsDone() || mAirportGeometry->IsLoading() || mAirportDetails->PendingCount() > 0 ||
-            mAirways.IsLoading() || !mTerrainIdle;
+    mTerrainWorkerText = mTerrainStore.statusText();
+    mTerrainIdle = mTerrainStore.isIdle();
+    // Harita resmi onbellegi: veri gelirken resim hiz sinirinda yenilensin (XMapImageCache)
+    mBusy = !mNavLoader.isDone() || mAirportGeometry->isLoading() || mAirportDetails->pendingCount() > 0 ||
+            mAirways.isLoading() || !mTerrainIdle;
 }
 
-bool MapData::IsBusy() const
+bool XMapData::isBusy() const
 {
     return mBusy;
 }
 
-const std::string& MapData::SharedStatusText() const
+const std::string& XMapData::sharedStatusText() const
 {
     return mSharedText;
 }
 
-const std::string& MapData::TerrainWorkerStatus() const
+const std::string& XMapData::terrainWorkerStatus() const
 {
     return mTerrainWorkerText;
 }
 
-bool MapData::IsTerrainIdle() const
+bool XMapData::isTerrainIdle() const
 {
     return mTerrainIdle;
 }
 
-void MapData::ShowNotice(const std::string& pText)
+void XMapData::showNotice(const std::string& pText)
 {
     mNotice = pText;
     mNoticeUntil = XPLMGetElapsedTime() + kNoticeSeconds;
 }
 
-void MapData::UpdatePrefetch(float pNow)
+void XMapData::updatePrefetch(float pNow)
 {
-    if (pNow - mLastPrefetch < kPrefetchPeriod || mSettings.mPrefetchTiles <= 0 || !mTerrainStore.IsIndexReady())
+    if (pNow - mLastPrefetch < kPrefetchPeriod || mSettings.mPrefetchTiles <= 0 || !mTerrainStore.isIndexReady())
     {
         return;
     }
@@ -559,25 +545,25 @@ void MapData::UpdatePrefetch(float pNow)
         const int tWest = static_cast<int>(std::floor(pPoint.mLon));
         const int tSouth = static_cast<int>(std::floor(pPoint.mLat));
         if (static_cast<int>(tTiles.size()) >= mSettings.mPrefetchTiles || tSouth < -90 || tSouth > 89 ||
-            mTerrainStore.CoverageOf(tWest, tSouth) != TileCoverage::HasDsf)
+            mTerrainStore.coverageOf(tWest, tSouth) != TileCoverage::hasDsf)
         {
             return;
         }
-        const int tKey = SceneryIndex::TileKey(tWest, tSouth);
+        const int tKey = SceneryIndex::tileKey(tWest, tSouth);
         if (std::find(tTiles.begin(), tTiles.end(), tKey) == tTiles.end())
         {
             tTiles.push_back(tKey);
         }
     };
     // Her acik haritanin ucagi ve rotasi (cogu zaman ayni ucak: tekrarlar tAdd'de elenir)
-    for (MapInstance* tInstance : mInstances)
+    for (XMapInstance* tInstance : mInstances)
     {
-        if (!tInstance->IsOpen())
+        if (!tInstance->isOpen())
         {
             continue;
         }
         // Ucagin onu: hareket ediyorsa gidis yonunde 120 NM'ye kadar
-        const AircraftState& tAircraft = tInstance->Aircraft().State();
+        const AircraftState& tAircraft = tInstance->aircraft().state();
         LatLon tFrom = tAircraft.mPosition;
         if (tAircraft.mValid)
         {
@@ -586,36 +572,36 @@ void MapData::UpdatePrefetch(float pNow)
             {
                 for (double tDistance = 15.0; tDistance <= 120.0; tDistance += 15.0)
                 {
-                    tAdd(DestinationPoint(tAircraft.mPosition, tAircraft.mHeadingDeg, tDistance));
+                    tAdd(destinationPoint(tAircraft.mPosition, tAircraft.mHeadingDeg, tDistance));
                 }
             }
         }
         // FMS rotasinin kalan kismi: bacaklar ~10 NM aralikla orneklenir
-        const std::vector<LatLon> tRoute = tInstance->Fms() ? tInstance->Fms()->RouteAhead() : std::vector<LatLon>();
+        const std::vector<LatLon> tRoute = tInstance->fms() ? tInstance->fms()->routeAhead() : std::vector<LatLon>();
         for (size_t tIndex = 0; tIndex < tRoute.size(); ++tIndex)
         {
             if (tIndex == 0 && !tAircraft.mValid)
             {
                 tFrom = tRoute[0];
             }
-            const double tLength = DistanceNm(tFrom, tRoute[tIndex]);
-            const double tBearing = InitialBearingDeg(tFrom, tRoute[tIndex]);
+            const double tLength = distanceNm(tFrom, tRoute[tIndex]);
+            const double tBearing = initialBearingDeg(tFrom, tRoute[tIndex]);
             for (double tDistance = 0.0; tDistance < tLength; tDistance += 10.0)
             {
-                tAdd(DestinationPoint(tFrom, tBearing, tDistance));
+                tAdd(destinationPoint(tFrom, tBearing, tDistance));
             }
             tAdd(tRoute[tIndex]);
             tFrom = tRoute[tIndex];
         }
     }
-    mTerrainStore.SetPrefetchTiles(tTiles);
+    mTerrainStore.setPrefetchTiles(tTiles);
 }
 
-bool MapData::StartPrecache(const GeoBounds& pBounds)
+bool XMapData::startPrecache(const GeoBounds& pBounds)
 {
-    if (!mTerrainStore.IsIndexReady())
+    if (!mTerrainStore.isIndexReady())
     {
-        ShowNotice("Pre-cache: scenery index is not ready yet");
+        showNotice("Pre-cache: scenery index is not ready yet");
         return false;
     }
     const int tSouth = std::max(-90, static_cast<int>(std::floor(pBounds.mSouth)));
@@ -628,15 +614,15 @@ bool MapData::StartPrecache(const GeoBounds& pBounds)
         for (int tColumn = tWest; tColumn <= tEast; ++tColumn)
         {
             const int tLon = ((tColumn + 180) % 360 + 360) % 360 - 180;
-            if (mTerrainStore.CoverageOf(tLon, tLat) == TileCoverage::HasDsf)
+            if (mTerrainStore.coverageOf(tLon, tLat) == TileCoverage::hasDsf)
             {
-                tTiles.push_back(SceneryIndex::TileKey(tLon, tLat));
+                tTiles.push_back(SceneryIndex::tileKey(tLon, tLat));
             }
         }
     }
     if (tTiles.empty())
     {
-        ShowNotice("Pre-cache: no installed scenery in the visible area");
+        showNotice("Pre-cache: no installed scenery in the visible area");
         return false;
     }
     // Onbellek siniriyla catismasin: sigmayacaksa hic baslama (CacheTrim yeni karolari silerdi)
@@ -644,27 +630,27 @@ bool MapData::StartPrecache(const GeoBounds& pBounds)
     const int tLimitMb = mStatus.mTerrainCacheLimitMb;  // acik harita sayisina gore buyumus sinir
     if (tLimitMb > 0 && tEstimateMb > tLimitMb * kPrecacheLimitShare)
     {
-        ShowNotice(std::format("Pre-cache: area too large ({} tiles, ~{:.0f} MB; cache limit {} MB). Zoom in "
+        showNotice(std::format("Pre-cache: area too large ({} tiles, ~{:.0f} MB; cache limit {} MB). Zoom in "
                                "or raise [cache] terrain_mb in prime_map.ini",
                                tTiles.size(), tEstimateMb, tLimitMb));
         return false;
     }
-    mTerrainStore.StartPrecache(tTiles);
+    mTerrainStore.startPrecache(tTiles);
     mPrecacheRunning = true;
-    Log("terrain pre-cache started: {} tiles (~{:.0f} MB)", tTiles.size(), tEstimateMb);
+    log("terrain pre-cache started: {} tiles (~{:.0f} MB)", tTiles.size(), tEstimateMb);
     return true;
 }
 
-void MapData::CancelPrecache()
+void XMapData::cancelPrecache()
 {
     if (mPrecacheRunning)
     {
-        mTerrainStore.CancelPrecache();
-        ShowNotice("Terrain pre-cache cancelled");
+        mTerrainStore.cancelPrecache();
+        showNotice("Terrain pre-cache cancelled");
     }
 }
 
-void MapData::LogReport(const std::string& pReport)
+void XMapData::logReport(const std::string& pReport)
 {
     // Rapor birden cok satir olabilir: her satiri ayri log satiri yap
     size_t tStart = 0;
@@ -677,7 +663,7 @@ void MapData::LogReport(const std::string& pReport)
         }
         if (tEnd > tStart)
         {
-            Log("  {}", pReport.substr(tStart, tEnd - tStart));
+            log("  {}", pReport.substr(tStart, tEnd - tStart));
         }
         tStart = tEnd + 1;
     }

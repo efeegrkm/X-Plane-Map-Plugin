@@ -1,14 +1,5 @@
-// MapView.h
-// Haritanin "kamerasi": hangi noktaya, hangi zoom ile bakiyoruz ve
-// lat/lon <-> ekran (boxel) donusumu. X-Plane'e bagimli DEGIL.
-//
-// Projeksiyon: Web Mercator (internet haritalarinin ve zemin karolarinin
-// kullandigi projeksiyon). Dunya, zoom 0'da 256x256 boxel'lik bir kare;
-// her zoom adiminda kenar 2 katina cikar. Zoom surekli bir sayidir
-// (7.5 gibi ara degerler olabilir).
-//
-// Icerde konum "Mercator birimi" ile tutulur: dunyanin tamami x ve y
-// yonunde 0..1 araligi. x doguya, y kuzeye dogru artar (boxel ile ayni yon).
+// Haritanin "kamerasi": merkez (lat/lon), zoom, viewport ve lat/lon <-> boxel donusumu.
+// Projeksiyon: Web Mercator; icerde konum Mercator biriminde (0..1, x dogu +, y kuzey +).
 #pragma once
 
 #include "Geo.h"
@@ -19,10 +10,10 @@ namespace Mercator
 
 const double kMaxLat = 85.05112878;  // Web Mercator'un gosterebildigi en kuzey/guney enlem
 
-double LonToX(double pLon);  // boylam -> 0..1
-double LatToY(double pLat);  // enlem -> 0..1 (kuzey +)
-double XToLon(double pX);
-double YToLat(double pY);
+double lonToX(double pLon);  // boylam -> 0..1
+double latToY(double pLat);  // enlem -> 0..1 (kuzey +)
+double xToLon(double pX);
+double yToLat(double pY);
 
 }  // namespace Mercator
 
@@ -36,70 +27,67 @@ struct GeoBounds
     double mEast = 0.0;
 };
 
-class MapView
+class XMapView
 {
 public:
     static constexpr double kMinZoom = 3.0;
-    static constexpr double kMaxZoom = 16.5;  // son 3 tekerlek kademesi kapali (18 - 3 x 0.5): gereksiz yakin bakis
-    // 0.23: zoom sinirlari harita basina daraltilabilir / genisletilebilir (SetZoomLimits). Mutlak
-    // sinirlar: kMinZoom'dan uzak olamaz (dunya pencereden kucuk kalir), kHardMaxZoom'dan yakin olamaz
-    // (zemin dokulari ~0,85 m/piksel: daha yakini sadece bulaniklik).
+    static constexpr double kMaxZoom = 16.5;
+    // 0.23: zoom sinirlari harita basina ayarlanabilir (setZoomLimits). Mutlak sinirlar:
+    // kMinZoom (dunya pencereden kucuk kalmasin), kHardMaxZoom (zemin dokusu ~0,85 m/piksel;
+    // daha yakini bulaniklik).
     static constexpr double kHardMaxZoom = 18.0;
     static constexpr double kTileSize = 256.0;  // zoom 0'da dunyanin kenari (boxel)
 
     // Haritanin cizildigi alan (global boxel). Her cizimde pencereden alinir.
-    void SetViewport(const RectD& pBoxels);
-    const RectD& Viewport() const;
+    void setViewport(const RectD& pBoxels);
+    const RectD& viewport() const;
 
-    void SetCenter(const LatLon& pCenter);
-    LatLon Center() const;
-    // Merkez Mercator biriminde (0..1); MapImageCache resmin gorunumunu bununla kurar
-    double CenterMercatorX() const;
-    double CenterMercatorY() const;
-    void SetCenterMercator(double pX, double pY);
+    void setCenter(const LatLon& pCenter);
+    LatLon center() const;
+    // Merkez Mercator biriminde (0..1); XMapImageCache resmin gorunumunu bununla kurar
+    double centerMercatorX() const;
+    double centerMercatorY() const;
+    void setCenterMercator(double pX, double pY);
 
-    void SetZoom(double pZoom);  // MinZoomLimit..MaxZoomLimit araligina kirpilir (varsayilan kMinZoom..kMaxZoom)
-    double Zoom() const;
+    void setZoom(double pZoom);  // MinZoomLimit..MaxZoomLimit araligina kirpilir (varsayilan kMinZoom..kMaxZoom)
+    double zoom() const;
     // Bu gorunumun zoom sinirlari; kMinZoom..kHardMaxZoom disina tasmaz, gecerli zoom yeni araliga kirpilir
-    void SetZoomLimits(double pMinZoom, double pMaxZoom);
-    double MinZoomLimit() const;
-    double MaxZoomLimit() const;
+    void setZoomLimits(double pMinZoom, double pMaxZoom);
+    double minZoomLimit() const;
+    double maxZoomLimit() const;
 
     // Zoom'daki dunyanin kenar uzunlugu (boxel): 256 * 2^zoom
-    double WorldSize() const;
+    double worldSize() const;
 
     // lat/lon -> boxel. Boylam farki 180'i gecerse dunyanin en yakin
     // kopyasi secilir (180. boylam civarinda cizgiler kopmasin).
-    void LatLonToBoxel(const LatLon& pPoint, double* pX, double* pY) const;
+    void latLonToBoxel(const LatLon& pPoint, double* pX, double* pY) const;
     // Ayni donusum, cizim icin: dogrudan ekran noktasi doner
-    PointF ToScreen(const LatLon& pPoint) const;
+    PointF toScreen(const LatLon& pPoint) const;
     // Mercator koordinatindan (0..1) ekrana; 180. boylam sarilmasi dahil
-    PointF MercatorToScreen(double pX, double pY) const;
-    LatLon BoxelToLatLon(double pX, double pY) const;
+    PointF mercatorToScreen(double pX, double pY) const;
+    LatLon boxelToLatLon(double pX, double pY) const;
 
-    // Goruntuyu pDeltaX/pDeltaY boxel kaydirir (fare ile surukleme:
-    // fare saga giderse harita da saga gider).
-    void PanByBoxels(double pDeltaX, double pDeltaY);
+    void panByBoxels(double pDeltaX, double pDeltaY);  // fare suruklemesi
 
-    // (pX, pY) noktasinin altindaki yer sabit kalacak sekilde zoom'u
-    // pDelta kadar degistirir (fare tekerlegi).
-    void ZoomAt(double pX, double pY, double pDelta);
+    // (pX, pY) altindaki yer sabit kalarak zoom'u pDelta degistirir (fare tekerlegi)
+    void zoomAt(double pX, double pY, double pDelta);
 
-    GeoBounds VisibleBounds() const;
+    GeoBounds visibleBounds() const;
 
-    // Herhangi bir boxel dikdortgeninin cografi siniri (ornek: kenarlardan
-    // biraz tasan sembolleri de bulmak icin genisletilmis alan)
-    GeoBounds BoundsOf(const RectD& pBoxels) const;
+    // Herhangi bir boxel dikdortgeninin cografi siniri (kenardan tasan
+    // sembolleri de yakalamak icin genisletilebilir)
+    GeoBounds boundsOf(const RectD& pBoxels) const;
 
     // Haritanin merkezinde bir boxel kac metre (olcek cubugu icin).
     // Mercator'da olcek enleme gore degisir; merkez enlemi kullanilir.
-    double MetersPerBoxel() const;
+    double metersPerBoxel() const;
 
     // pLat enleminde bir boxel kac metre (pist genisligi gibi yerel olculer icin)
-    double MetersPerBoxelAt(double pLat) const;
+    double metersPerBoxelAt(double pLat) const;
 
 private:
-    void ClampCenter();
+    void clampCenter();
 
     RectD mViewport;
     double mCenterX = 0.5;  // Mercator birimi

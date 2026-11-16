@@ -1,4 +1,3 @@
-// AtlasTextRenderer.cpp
 #include "ui/AtlasTextRenderer.h"
 
 #include <cmath>
@@ -20,7 +19,7 @@ AtlasTextRenderer::AtlasTextRenderer(Gfx::Canvas& pCanvas, int pBoxelHeight)
 {
 }
 
-bool AtlasTextRenderer::Load(const std::string& pFontPath, std::string* pError)
+bool AtlasTextRenderer::load(const std::string& pFontPath, std::string* pError)
 {
     std::ifstream tFile(pFontPath, std::ios::binary);
     if (!tFile)
@@ -29,13 +28,13 @@ bool AtlasTextRenderer::Load(const std::string& pFontPath, std::string* pError)
         return false;
     }
     mFontData.assign(std::istreambuf_iterator<char>(tFile), std::istreambuf_iterator<char>());
-    return BuildAtlas(pError);
+    return buildAtlas(pError);
 }
 
-bool AtlasTextRenderer::BuildAtlas(std::string* pError)
+bool AtlasTextRenderer::buildAtlas(std::string* pError)
 {
     const float tCapPixels = static_cast<float>(mBoxelHeight * mPixelsPerBoxel);
-    if (!mAtlas.Build(mFontData, tCapPixels, pError))
+    if (!mAtlas.build(mFontData, tCapPixels, pError))
     {
         return false;
     }
@@ -43,7 +42,7 @@ bool AtlasTextRenderer::BuildAtlas(std::string* pError)
     return true;
 }
 
-void AtlasTextRenderer::SetPixelsPerBoxel(double pPixelsPerBoxel)
+void AtlasTextRenderer::setPixelsPerBoxel(double pPixelsPerBoxel)
 {
     if (pPixelsPerBoxel <= 0.0 || std::abs(pPixelsPerBoxel - mPixelsPerBoxel) < kRebuildTolerance)
     {
@@ -51,18 +50,18 @@ void AtlasTextRenderer::SetPixelsPerBoxel(double pPixelsPerBoxel)
     }
     mPixelsPerBoxel = pPixelsPerBoxel;
     std::string tError;
-    BuildAtlas(&tError);  // basarisizsa eski atlas kalir (ayni dosya: olmamali)
+    buildAtlas(&tError);  // basarisizsa eski atlas kalir (ayni dosya: olmamali)
 }
 
-void AtlasTextRenderer::Draw(int pX, int pY, std::string_view pText, const Rgba& pColor)
+void AtlasTextRenderer::draw(int pX, int pY, std::string_view pText, const Rgba& pColor)
 {
-    if (!mAtlas.IsBuilt() || pText.empty())
+    if (!mAtlas.isBuilt() || pText.empty())
     {
         return;
     }
     if (mTextureStale)
     {
-        mTexture = Gfx::Texture::FromRgba(mAtlas.Size(), mAtlas.Rgba().data(), false);
+        mTexture = Gfx::Texture::fromRgba(mAtlas.size(), mAtlas.Rgba().data(), false);
         mTextureStale = false;
     }
     // Kalem piksel cinsinden ilerler; her harf tam piksele oturur, sonra boxel'e cevrilir
@@ -73,7 +72,7 @@ void AtlasTextRenderer::Draw(int pX, int pY, std::string_view pText, const Rgba&
     size_t tIndex = 0;
     while (tIndex < pText.size())
     {
-        const Gfx::GlyphInfo* tGlyph = mAtlas.Find(Gfx::FontAtlas::NextCodepoint(pText, &tIndex));
+        const Gfx::GlyphInfo* tGlyph = mAtlas.find(Gfx::FontAtlas::nextCodepoint(pText, &tIndex));
         if (!tGlyph)
         {
             continue;
@@ -94,15 +93,15 @@ void AtlasTextRenderer::Draw(int pX, int pY, std::string_view pText, const Rgba&
         }
         tPenX += tGlyph->mAdvance;
     }
-    mCanvas.QueueText(mTexture, mScratch);
+    mCanvas.queueText(mTexture, mScratch);
 }
 
-int AtlasTextRenderer::Width(std::string_view pText)
+int AtlasTextRenderer::width(std::string_view pText)
 {
-    return static_cast<int>(std::ceil(mAtlas.Measure(pText) / mPixelsPerBoxel));
+    return static_cast<int>(std::ceil(mAtlas.measure(pText) / mPixelsPerBoxel));
 }
 
-int AtlasTextRenderer::Height()
+int AtlasTextRenderer::height()
 {
     return mBoxelHeight;
 }

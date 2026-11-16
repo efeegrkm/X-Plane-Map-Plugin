@@ -1,4 +1,3 @@
-// AirwayDatabase.h
 // Hava yollari: earth_awy.dat (X-Plane 11, 1100 bicimi). X-Plane'e bagimli DEGIL.
 //
 // Dosyanin gercek satiri (her satir bir segment):
@@ -9,11 +8,10 @@
 //   seviye: 1 = alcak (low), 2 = yuksek (high)
 //   adlar: bu segmenti kullanan hava yollari, '-' ile birlesik
 //
-// Uc noktalarin koordinati dosyada YOK: NavDatabase'den (X-Plane'in nav
-// verisi) kimlik + tur ile bulunur. Ayni kimlikte birden cok aday olabilir;
-// birbirine en yakin aday cifti secilir.
+// Uc noktalarin koordinati dosyada YOK: NavDatabase'den kimlik + tur ile
+// bulunur; ayni kimlikte birden cok aday olabilir, birbirine en yakin cift secilir.
 //
-// Okuma arka plan thread'inde yapilir (StartLoading / Poll). NavDatabase o
+// Okuma arka plan thread'inde yapilir (startLoading / Poll). NavDatabase o
 // sirada degismemeli (NavLoader bitmis olmali).
 #pragma once
 
@@ -55,30 +53,30 @@ class AirwayDatabase
 {
 public:
     // Tek satiri ayristirir (baslik, bos ve "99" satirlari icin false)
-    static bool ParseLine(const std::string& pLine, AirwayLine* pOut);
+    static bool parseLine(const std::string& pLine, AirwayLine* pOut);
 
     // Dosyayi okuyup uc noktalari cozer (bekleten islem; testler ve arka plan isi icin).
     // pReport: log'a yazilacak ozet.
-    bool LoadFile(const std::string& pPath, const NavDatabase& pNav, const std::atomic<bool>& pCancel,
+    bool loadFile(const std::string& pPath, const NavDatabase& pNav, const std::atomic<bool>& pCancel,
                   std::string* pReport);
 
     // pPaths'i sirayla dener (ilk var olan okunur); arka planda calisir
-    void StartLoading(const std::vector<std::string>& pPaths, const NavDatabase& pNav);
-    bool Poll();  // ana thread: okuma bu cagrida bittiyse true (bir kez)
+    void startLoading(const std::vector<std::string>& pPaths, const NavDatabase& pNav);
+    bool poll();  // ana thread: okuma bu cagrida bittiyse true (bir kez)
 
-    bool IsLoading() const;
-    bool IsReady() const;
-    const std::string& LastReport() const;
+    bool isLoading() const;
+    bool isReady() const;
+    const std::string& lastReport() const;
 
-    int Count() const;
-    const AirwaySegment& At(int pIndex) const;
+    int count() const;
+    const AirwaySegment& at(int pIndex) const;
 
     // pBounds'a degebilecek segmentler (ayni segment birden cok kez gelebilir:
     // uzun segmentler birden cok hucreye konur; cagiran tekrarlari atmali)
-    void Query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
+    void query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
 private:
-    void BuildGrid();
+    void buildGrid();
 
     std::vector<AirwaySegment> mSegments;
     GeoGrid mGrid;

@@ -1,4 +1,3 @@
-// SevenZip.cpp
 #include "data/SevenZip.h"
 
 #include <cstring>
@@ -25,15 +24,15 @@ struct MemoryInStream
     size_t mPosition;
 };
 
-MemoryInStream* FromInterface(ISeekInStreamPtr pStream)
+MemoryInStream* fromInterface(ISeekInStreamPtr pStream)
 {
     // SDK arayuzu const isaretci verir; okuma konumunu degistirebilmek icin const'u kaldiriyoruz
     return reinterpret_cast<MemoryInStream*>(const_cast<ISeekInStream*>(pStream));
 }
 
-SRes MemoryRead(ISeekInStreamPtr pStream, void* pBuffer, size_t* pSize)
+SRes memoryRead(ISeekInStreamPtr pStream, void* pBuffer, size_t* pSize)
 {
-    MemoryInStream* tStream = FromInterface(pStream);
+    MemoryInStream* tStream = fromInterface(pStream);
     const size_t tLeft = tStream->mSize - tStream->mPosition;
     const size_t tCount = (*pSize < tLeft) ? *pSize : tLeft;
     std::memcpy(pBuffer, tStream->mData + tStream->mPosition, tCount);
@@ -42,9 +41,9 @@ SRes MemoryRead(ISeekInStreamPtr pStream, void* pBuffer, size_t* pSize)
     return SZ_OK;
 }
 
-SRes MemorySeek(ISeekInStreamPtr pStream, Int64* pPosition, ESzSeek pOrigin)
+SRes memorySeek(ISeekInStreamPtr pStream, Int64* pPosition, ESzSeek pOrigin)
 {
-    MemoryInStream* tStream = FromInterface(pStream);
+    MemoryInStream* tStream = fromInterface(pStream);
     Int64 tBase = 0;
     if (pOrigin == SZ_SEEK_CUR)
     {
@@ -74,13 +73,13 @@ std::once_flag gCrcTableOnce;
 namespace SevenZip
 {
 
-bool IsArchive(const uint8_t* pData, size_t pSize)
+bool isArchive(const uint8_t* pData, size_t pSize)
 {
     static const uint8_t kSignature[6] = {'7', 'z', 0xBC, 0xAF, 0x27, 0x1C};
     return pSize >= 6 && std::memcmp(pData, kSignature, 6) == 0;
 }
 
-bool ExtractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>* pOut, std::string* pError)
+bool extractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>* pOut, std::string* pError)
 {
     // SDK: CRC tablosu ilk kullanimdan once bir kez uretilmeli
     std::call_once(gCrcTableOnce,
@@ -90,8 +89,8 @@ bool ExtractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>
                    });
 
     MemoryInStream tMemory;
-    tMemory.mInterface.Read = MemoryRead;
-    tMemory.mInterface.Seek = MemorySeek;
+    tMemory.mInterface.Read = memoryRead;
+    tMemory.mInterface.Seek = memorySeek;
     tMemory.mData = pArchive.data();
     tMemory.mSize = pArchive.size();
     tMemory.mPosition = 0;

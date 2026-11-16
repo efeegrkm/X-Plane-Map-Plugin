@@ -1,7 +1,6 @@
-// AirportGeometry.cpp
 #include "data/AirportGeometry.h"
 
-const char* SurfaceName(int pCode)
+const char* surfaceName(int pCode)
 {
     switch (pCode)
     {
@@ -31,7 +30,7 @@ const char* SurfaceName(int pCode)
     return "asphalt";  // 1 ve X-Plane 12 asfalt turleri
 }
 
-RunwaySurface SurfaceFromAptCode(int pCode)
+RunwaySurface surfaceFromAptCode(int pCode)
 {
     switch (pCode)
     {

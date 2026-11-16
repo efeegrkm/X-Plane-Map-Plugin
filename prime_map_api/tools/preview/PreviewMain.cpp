@@ -1,13 +1,7 @@
-// PreviewMain.cpp
+
 // map_preview: eklentinin harita katmanlarini X-Plane OLMADAN, gercek X-Plane
 // verisiyle bir resme cizer. Gelistirirken gorsel kontrol icin.
-//
-//   map_preview --lat 47.45 --lon -122.31 --zoom 13 --out kSEA.ppm [--size 1200x800]
-//               [--xplane "C:/X-Plane 11/"] [--no-ui] [--demo-drawings] [--fixes] [--cache DIR/]
-//               [--terrain-colors terrain_colors.ini]
-//
-// Cikti PPM (P6). PNG'ye cevirmek icin: magick kSEA.ppm kSEA.png
-// Not: ucak ve FMS onizlemede yok (SDK yok); nav verisi dosyalardan okunur.
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -63,7 +57,7 @@
 namespace
 {
 
-// --- OpenGL 3.0 framebuffer fonksiyonlari (opengl32.dll sadece 1.1 verir) ---
+// OpenGL 3.0 framebuffer fonksiyonlari (opengl32.dll sadece 1.1 verir)
 typedef void(APIENTRY* GenFramebuffersFn)(GLsizei, GLuint*);
 typedef void(APIENTRY* BindFramebufferFn)(GLenum, GLuint);
 typedef void(APIENTRY* GenRenderbuffersFn)(GLsizei, GLuint*);
@@ -77,7 +71,6 @@ const GLenum kGlRenderbuffer = 0x8D41;
 const GLenum kGlColorAttachment0 = 0x8CE0;
 const GLenum kGlRgba8 = 0x8058;
 const GLenum kGlFramebufferComplete = 0x8CD5;
-
 
 struct Options
 {
@@ -357,7 +350,7 @@ int main(int pArgc, char** pArgv)
         }
     }
 
-    // --- Veri ---
+    // Veri
     const std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
     NavDatabase tNav;
     const int tNavCount = LoadNavFromFiles(tOptions.mXPlane, tNav);
@@ -380,7 +373,7 @@ int main(int pArgc, char** pArgv)
     std::printf("data: %d nav records, %d airports with runways (%.1f s)\n", tNavCount, tRunways.Count(),
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count());
 
-    // --- Katmanlar: eklentiyle (Plugin.cpp CreateLayers) ayni sira ---
+    // Katmanlar: eklentiyle (Plugin.cpp CreateLayers) ayni sira
     AircraftData tAircraft;  // onizlemede ucak yok (dataref yok)
     Drawings tDrawings;
     TerrainPalette tPalette;
@@ -399,7 +392,7 @@ int main(int pArgc, char** pArgv)
     }
     if (tPalette.UsesXPlaneColors())
     {
-        // Eklentiyle ayni: sinif renkleri X-Plane'in arazi dokularindan (Asama 3)
+        // Eklentiyle ayni: sinif renkleri X-Plane'in arazi dokularindan
         XPlaneClassColors tDerived;
         std::string tReport;
         if (LoadXPlaneClassColors(tOptions.mXPlane, tOptions.mCache + "xplane_palette.txt", &tDerived, &tReport))
@@ -410,7 +403,7 @@ int main(int pArgc, char** pArgv)
     }
     TerrainStore tTerrain;
     tTerrain.Start(tOptions.mXPlane, tOptions.mCache, tPalette, AllTerrainStyles());
-    // 0.23: dokular / vektorler haritalarin ortak merkezinde. Katmanlardan ONCE tanimli olmali
+    // Dokular / vektorler haritalarin ortak merkezinde. Katmanlardan ONCE tanimli olmali
     // (katman yikicilari merkeze haber verir: merkez onlardan sonra yok olmali).
     TerrainHub tTerrainHub(tTerrain);
     LayerManager tLayers;
@@ -451,7 +444,7 @@ int main(int pArgc, char** pArgv)
         }
     }
 
-    // --- Gorunum: pencere = tum resim, boxel = piksel ---
+    // Gorunum: pencere = tum resim, boxel = piksel
     const int tWidth = tOptions.mWidth;
     const int tHeight = tOptions.mHeight;
     RectI tArea;

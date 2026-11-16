@@ -1,4 +1,3 @@
-// XplmStubs.h
 // Onizleme aracinin XPLM karsiliklari icin kurulum (bkz. XplmStubs.cpp)
 #pragma once
 

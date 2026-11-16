@@ -1,4 +1,3 @@
-// AirportObjectsLayer.cpp
 #include "layers/AirportObjectsLayer.h"
 
 #include <cctype>
@@ -29,7 +28,6 @@ const double kSignMinZoom = 15.5;
 const double kLampMinZoom = 14.5;     // cizgi boyunca isiklar (101-108): 1 tik erken
 const float kHitSlop = 3.0f;  // fare isabeti icin semboller biraz buyuk sayilir
 
-// Alt katmanlar (yapicidaki AddSubLayer sirasi)
 enum ObjectPart
 {
     kPartLighting,
@@ -45,8 +43,7 @@ enum ObjectPart
     kPartSigns,
 };
 
-// Kalkis/park noktasi turu -> alt katman
-int StartPartOf(const std::string& pType)
+int startPartOf(const std::string& pType)
 {
     if (pType == "gate")
     {
@@ -80,9 +77,9 @@ const Rgba kSignBlack = {0.08f, 0.08f, 0.08f, 1.0f};
 const Rgba kPole = {0.80f, 0.80f, 0.80f, 1.0f};
 const Rgba kLabel = {0.80f, 0.90f, 1.00f, 1.0f};
 
-// Sembol koordinati: (pRight, pForward) birimi boxel; ileri = pHeadingDeg yonu
-// (saat yonunde, kuzeyden). Web Mercator acilari korudugu icin gercek yon dogrudan kullanilir.
-PointF Rotated(const PointF& pCenter, double pHeadingDeg, float pRight, float pForward)
+// Sembol koordinati: (pRight, pForward) birimi boxel; ileri = pHeadingDeg yonu.
+// Mercator acilari korudugu icin gercek yon dogrudan kullanilir.
+PointF rotated(const PointF& pCenter, double pHeadingDeg, float pRight, float pForward)
 {
     const float tSin = static_cast<float>(std::sin(pHeadingDeg * kPi / 180.0));
     const float tCos = static_cast<float>(std::cos(pHeadingDeg * kPi / 180.0));
@@ -90,7 +87,7 @@ PointF Rotated(const PointF& pCenter, double pHeadingDeg, float pRight, float pF
 }
 
 // Isik turu (101-108) -> renk. Iki renkli dizilerde (105, 108) lambalar sirayla degisir.
-Rgba LampColor(int pType, size_t pIndex)
+Rgba lampColor(int pType, size_t pIndex)
 {
     const Rgba tGreen = {0.30f, 1.00f, 0.40f, 1.0f};
     const Rgba tBlue = {0.35f, 0.55f, 1.00f, 1.0f};
@@ -114,23 +111,22 @@ Rgba LampColor(int pType, size_t pIndex)
     }
 }
 
-// Burun yonune donuk ok (ucak / park noktasi)
-void AddArrow(Gfx::Mesh& pFill, Gfx::Mesh& pLines, const PointF& pCenter, double pHeadingDeg, float pSize,
+void addArrow(Gfx::Mesh& pFill, Gfx::Mesh& pLines, const PointF& pCenter, double pHeadingDeg, float pSize,
               const Rgba& pColor, bool pFilled)
 {
-    const PointF tTip = Rotated(pCenter, pHeadingDeg, 0.0f, pSize);
-    const PointF tLeft = Rotated(pCenter, pHeadingDeg, -pSize * 0.7f, -pSize * 0.7f);
-    const PointF tNotch = Rotated(pCenter, pHeadingDeg, 0.0f, -pSize * 0.3f);
-    const PointF tRight = Rotated(pCenter, pHeadingDeg, pSize * 0.7f, -pSize * 0.7f);
+    const PointF tTip = rotated(pCenter, pHeadingDeg, 0.0f, pSize);
+    const PointF tLeft = rotated(pCenter, pHeadingDeg, -pSize * 0.7f, -pSize * 0.7f);
+    const PointF tNotch = rotated(pCenter, pHeadingDeg, 0.0f, -pSize * 0.3f);
+    const PointF tRight = rotated(pCenter, pHeadingDeg, pSize * 0.7f, -pSize * 0.7f);
     if (pFilled)
     {
-        pFill.AddTriangle(tTip, tLeft, tNotch, pColor);
-        pFill.AddTriangle(tTip, tNotch, tRight, pColor);
+        pFill.addTriangle(tTip, tLeft, tNotch, pColor);
+        pFill.addTriangle(tTip, tNotch, tRight, pColor);
     }
-    pLines.AddPolyline({tTip, tLeft, tNotch, tRight}, true, 1.2f, pFilled ? Gfx::kOutline : pColor);
+    pLines.addPolyline({tTip, tLeft, tNotch, tRight}, true, 1.2f, pFilled ? Gfx::kOutline : pColor);
 }
 
-std::string StartTypeName(const std::string& pType)
+std::string startTypeName(const std::string& pType)
 {
     if (pType == "gate")
     {
@@ -151,7 +147,7 @@ std::string StartTypeName(const std::string& pType)
     return "Ramp start";
 }
 
-const Rgba& BeaconColor(int pType)
+const Rgba& beaconColor(int pType)
 {
     switch (pType)
     {
@@ -164,7 +160,7 @@ const Rgba& BeaconColor(int pType)
     }
 }
 
-const char* BeaconName(int pType)
+const char* beaconName(int pType)
 {
     switch (pType)
     {
@@ -181,7 +177,7 @@ const char* BeaconName(int pType)
     }
 }
 
-const char* LightObjectName(int pType)
+const char* lightObjectName(int pType)
 {
     switch (pType)
     {
@@ -203,7 +199,7 @@ const char* LightObjectName(int pType)
 }
 
 // "jets|turboprops" -> "jets, turboprops"
-std::string ReadableList(const std::string& pList, bool pUpper)
+std::string readableList(const std::string& pList, bool pUpper)
 {
     std::string tResult;
     for (char tChar : pList)
@@ -221,7 +217,7 @@ std::string ReadableList(const std::string& pList, bool pUpper)
 }
 
 // Tabela metni "{@L}A1{@R}31R-13L" -> okunur hal "A1 31R-13L"
-std::string SignText(const std::string& pText)
+std::string signText(const std::string& pText)
 {
     std::string tResult;
     size_t tAt = 0;
@@ -260,8 +256,7 @@ std::string SignText(const std::string& pText)
     return tResult;
 }
 
-// Tabelanin ilk stil talimati -> zemin rengi
-const Rgba& SignColor(const std::string& pText)
+const Rgba& signColor(const std::string& pText)
 {
     const size_t tStyle = pText.find('@');
     if (tStyle == std::string::npos || tStyle + 1 >= pText.size())
@@ -280,51 +275,51 @@ const Rgba& SignColor(const std::string& pText)
     }
 }
 
-}  // namespace
+}
 
 AirportObjectsLayer::AirportObjectsLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails)
     : Layer("airport_objects", "Airport objects", true)
     , mSummaries(pSummaries)
     , mDetails(pDetails)
 {
-    AddSubLayer("lighting", "Edge / taxi lights");
-    AddSubLayer("helipads", "Helipads");
-    AddSubLayer("beacons", "Beacons");
-    AddSubLayer("windsocks", "Windsocks");
-    AddSubLayer("gates", "Gates");
-    AddSubLayer("tie_downs", "Tie-downs");
-    AddSubLayer("hangars", "Hangars");
-    AddSubLayer("other_starts", "Other start locations");
-    AddSubLayer("start_names", "Parking names");
-    AddSubLayer("approach_lights", "PAPI / VASI");
-    AddSubLayer("signs", "Taxi signs");
+    addSubLayer("lighting", "Edge / taxi lights");
+    addSubLayer("helipads", "Helipads");
+    addSubLayer("beacons", "Beacons");
+    addSubLayer("windsocks", "Windsocks");
+    addSubLayer("gates", "Gates");
+    addSubLayer("tie_downs", "Tie-downs");
+    addSubLayer("hangars", "Hangars");
+    addSubLayer("other_starts", "Other start locations");
+    addSubLayer("start_names", "Parking names");
+    addSubLayer("approach_lights", "PAPI / VASI");
+    addSubLayer("signs", "Taxi signs");
 }
 
-void AirportObjectsLayer::Draw(const DrawContext& pContext)
+void AirportObjectsLayer::draw(const drawContext& pContext)
 {
     mMarkers.clear();
-    const MapView& tView = *pContext.mView;
-    const double tZoom = tView.Zoom();
+    const XMapView& tView = *pContext.mView;
+    const double tZoom = tView.zoom();
     if (tZoom < kHelipadMinZoom)
     {
         return;
     }
-    FindVisibleAirports(tView, mSummaries, mQuery, mVisible, false);  // dugumsuz heliport'lar da
+    findVisibleAirports(tView, mSummaries, mQuery, mVisible, false);  // dugumsuz heliport'lar da
 
-    Gfx::Mesh tFills;  // dolgular (ustune konturlu cizgiler)
+    Gfx::Mesh tFills;
     Gfx::OutlinedLines tLines(MapSymbols::kOutlineExtra);
-    tLines.SetOutlineColor(pContext.mTheme->mHalo);
-    Gfx::Mesh tThin;   // konturu olmayan ince cizgiler
+    tLines.setOutlineColor(pContext.mTheme->mHalo);
+    Gfx::Mesh tThin;
     Gfx::Mesh tLamps;  // isik noktalari (en altta: semboller ustune binsin)
     const RectD& tArea = pContext.mArea;
     auto tOnScreen = [&](const PointF& pPoint)
     {
-        return tArea.Contains(pPoint.mX, pPoint.mY);
+        return tArea.contains(pPoint.mX, pPoint.mY);
     };
 
     for (int tIndex : mVisible)
     {
-        const LoadedAirport* tLoaded = mDetails.Use(tIndex);
+        const LoadedAirport* tLoaded = mDetails.use(tIndex);
         if (!tLoaded)
         {
             continue;  // yuzey katmani "yukleniyor" kutusunu zaten ciziyor
@@ -332,11 +327,11 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         const AirportDetail& tDetail = tLoaded->mDetail;
 
         // Isik dizileri: lambalar GPU'daki sekillerle ayni donusumle (kaydirma + olcek)
-        if (tZoom >= kLampMinZoom && IsSubLayerDrawn(kPartLighting))
+        if (tZoom >= kLampMinZoom && isSubLayerDrawn(kPartLighting))
         {
             const AirportShapes& tShapes = tLoaded->mShapes;
-            const PointF tOffset = tView.MercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
-            const float tScale = static_cast<float>(tView.WorldSize());
+            const PointF tOffset = tView.mercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
+            const float tScale = static_cast<float>(tView.worldSize());
             const double tHalf = tZoom >= 16.5 ? 1.4 : 1.0;
             for (size_t tLamp = 0; tLamp < tShapes.mLights.size(); ++tLamp)
             {
@@ -351,16 +346,16 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
                 tBox.mRight = tPoint.mX + tHalf;
                 tBox.mBottom = tPoint.mY - tHalf;
                 tBox.mTop = tPoint.mY + tHalf;
-                tLamps.AddRect(tBox, LampColor(tLight.mType, tLamp));
+                tLamps.addRect(tBox, lampColor(tLight.mType, tLamp));
             }
         }
-        const double tMetersToBoxels = 1.0 / tView.MetersPerBoxelAt(mSummaries.At(tIndex).mReference.mLat);
+        const double tMetersToBoxels = 1.0 / tView.metersPerBoxelAt(mSummaries.at(tIndex).mReference.mLat);
 
-        // Helipad: gercek boyunda (en az 9 boxel) cember + yone donuk "H"
+        // Helipad: gercek boyunda (en az 11 boxel) cember + yone donuk "H"
         for (const AptHelipad& tPad : tDetail.mHelipads)
         {
-            const PointF tCenter = tView.ToScreen(tPad.mCenter);
-            if (!IsSubLayerDrawn(kPartHelipads) || !tOnScreen(tCenter))
+            const PointF tCenter = tView.toScreen(tPad.mCenter);
+            if (!isSubLayerDrawn(kPartHelipads) || !tOnScreen(tCenter))
             {
                 continue;
             }
@@ -368,8 +363,8 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
             const float tRadius = std::fmax(static_cast<float>(std::fmax(tPad.mLengthM, tPad.mWidthM) * 0.5 *
                                                               tMetersToBoxels),
                                             11.0f);
-            tFills.AddDisc(tCenter, tRadius, kHelipadFill);
-            tLines.AddRing(tCenter, tRadius, 1.4f, kHelipad);
+            tFills.addDisc(tCenter, tRadius, kHelipadFill);
+            tLines.addRing(tCenter, tRadius, 1.4f, kHelipad);
             const float tH = tRadius * 0.42f;
             if (pContext.mLabels)
             {
@@ -378,17 +373,17 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
                 tBox.mRight = tCenter.mX + tRadius;
                 tBox.mBottom = tCenter.mY - tRadius;
                 tBox.mTop = tCenter.mY + tRadius;
-                pContext.mLabels->Reserve(tBox);  // pist numarasi gibi etiketler ustune binmesin
+                pContext.mLabels->reserve(tBox);  // pist numarasi gibi etiketler ustune binmesin
             }
-            tLines.AddLine(Rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, -tH),
-                           Rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, tH), 1.6f, kHelipad);
-            tLines.AddLine(Rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, -tH),
-                           Rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, tH), 1.6f, kHelipad);
-            tLines.AddLine(Rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, 0.0f),
-                           Rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, 0.0f), 1.6f, kHelipad);
+            tLines.addLine(rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, -tH),
+                           rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, tH), 1.6f, kHelipad);
+            tLines.addLine(rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, -tH),
+                           rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, tH), 1.6f, kHelipad);
+            tLines.addLine(rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, 0.0f),
+                           rotated(tCenter, tPad.mHeadingDeg, tH * 0.6f, 0.0f), 1.6f, kHelipad);
             mMarkers.push_back({tCenter, tRadius,
                                 std::format("Helipad {}  {:.0f} x {:.0f} m, {}, heading {:.0f}", tPad.mName,
-                                            tPad.mLengthM, tPad.mWidthM, SurfaceName(tPad.mSurfaceCode),
+                                            tPad.mLengthM, tPad.mWidthM, surfaceName(tPad.mSurfaceCode),
                                             tPad.mHeadingDeg),
                                 ""});
         }
@@ -396,33 +391,33 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
         // Beacon: 8 isinli yildiz, ortada beacon renginde nokta
         for (const AptBeacon& tBeacon : tDetail.mBeacons)
         {
-            const PointF tCenter = tView.ToScreen(tBeacon.mPosition);
-            if (tBeacon.mType == 0 || !IsSubLayerDrawn(kPartBeacons) || !tOnScreen(tCenter))
+            const PointF tCenter = tView.toScreen(tBeacon.mPosition);
+            if (tBeacon.mType == 0 || !isSubLayerDrawn(kPartBeacons) || !tOnScreen(tCenter))
             {
                 continue;
             }
             for (int tRay = 0; tRay < 8; ++tRay)
             {
                 const double tAngle = tRay * 45.0;
-                tLines.AddLine(Rotated(tCenter, tAngle, 0.0f, 4.0f), Rotated(tCenter, tAngle, 0.0f, 8.0f), 1.2f,
+                tLines.addLine(rotated(tCenter, tAngle, 0.0f, 4.0f), rotated(tCenter, tAngle, 0.0f, 8.0f), 1.2f,
                                kBeaconRay);
             }
-            tFills.AddDisc(tCenter, 3.5f, BeaconColor(tBeacon.mType));
-            mMarkers.push_back({tCenter, 8.0f, std::format("Beacon: {}", BeaconName(tBeacon.mType)), ""});
+            tFills.addDisc(tCenter, 3.5f, beaconColor(tBeacon.mType));
+            mMarkers.push_back({tCenter, 8.0f, std::format("Beacon: {}", beaconName(tBeacon.mType)), ""});
         }
 
-        // Ruzgar tulumu: direk + turuncu/beyaz seritli koni
-        if (tZoom >= kWindsockMinZoom && IsSubLayerDrawn(kPartWindsocks))
+        // Ruzgar tulumu
+        if (tZoom >= kWindsockMinZoom && isSubLayerDrawn(kPartWindsocks))
         {
             for (const AptWindsock& tSock : tDetail.mWindsocks)
             {
-                const PointF tBase = tView.ToScreen(tSock.mPosition);
+                const PointF tBase = tView.toScreen(tSock.mPosition);
                 if (!tOnScreen(tBase))
                 {
                     continue;
                 }
                 const PointF tTop = {tBase.mX, tBase.mY + 12.0f};
-                tLines.AddLine(tBase, tTop, 1.2f, kPole);
+                tLines.addLine(tBase, tTop, 1.2f, kPole);
                 // Koni direkten saga dogru daralir: uc serit (turuncu, beyaz, turuncu)
                 for (int tBand = 0; tBand < 3; ++tBand)
                 {
@@ -430,7 +425,7 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
                     const float tX1 = tX0 + 4.0f;
                     const float tHalf0 = 3.0f - tBand * 0.7f;
                     const float tHalf1 = tHalf0 - 0.7f;
-                    tFills.AddQuad({tX0, tTop.mY - tHalf0}, {tX1, tTop.mY - tHalf1}, {tX1, tTop.mY + tHalf1},
+                    tFills.addQuad({tX0, tTop.mY - tHalf0}, {tX1, tTop.mY - tHalf1}, {tX1, tTop.mY + tHalf1},
                                    {tX0, tTop.mY + tHalf0}, tBand == 1 ? kWhite : kOrange);
                 }
                 mMarkers.push_back({{tBase.mX + 6.0f, tBase.mY + 8.0f}, 9.0f,
@@ -438,41 +433,41 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
             }
         }
 
-        // Kalkis / park noktalari: burun yonune donuk ok
+        // Kalkis / park noktalari
         if (tZoom >= kStartMinZoom)
         {
             for (const AptStartLocation& tStart : tDetail.mStartLocations)
             {
-                const PointF tCenter = tView.ToScreen(tStart.mPosition);
-                if (!IsSubLayerDrawn(StartPartOf(tStart.mType)) || !tOnScreen(tCenter))
+                const PointF tCenter = tView.toScreen(tStart.mPosition);
+                if (!isSubLayerDrawn(startPartOf(tStart.mType)) || !tOnScreen(tCenter))
                 {
                     continue;
                 }
-                const std::string tTypeName = StartTypeName(tStart.mType);
+                const std::string tTypeName = startTypeName(tStart.mType);
                 if (tStart.mType == "gate")
                 {
-                    AddArrow(tFills, tThin, tCenter, tStart.mHeadingDeg, 6.0f, kGate, true);
+                    addArrow(tFills, tThin, tCenter, tStart.mHeadingDeg, 6.0f, kGate, true);
                 }
                 else if (tStart.mType == "tie_down" || tStart.mType == "tie-down")
                 {
-                    AddArrow(tFills, tThin, tCenter, tStart.mHeadingDeg, 5.0f, kTieDown, false);
+                    addArrow(tFills, tThin, tCenter, tStart.mHeadingDeg, 5.0f, kTieDown, false);
                 }
                 else if (tStart.mType == "hangar")
                 {
-                    tFills.AddQuad(Rotated(tCenter, tStart.mHeadingDeg, -4.0f, -4.0f),
-                                   Rotated(tCenter, tStart.mHeadingDeg, 4.0f, -4.0f),
-                                   Rotated(tCenter, tStart.mHeadingDeg, 4.0f, 4.0f),
-                                   Rotated(tCenter, tStart.mHeadingDeg, -4.0f, 4.0f), kHangar);
-                    tThin.AddLine(tCenter, Rotated(tCenter, tStart.mHeadingDeg, 0.0f, 9.0f), 1.5f, kHangar);
+                    tFills.addQuad(rotated(tCenter, tStart.mHeadingDeg, -4.0f, -4.0f),
+                                   rotated(tCenter, tStart.mHeadingDeg, 4.0f, -4.0f),
+                                   rotated(tCenter, tStart.mHeadingDeg, 4.0f, 4.0f),
+                                   rotated(tCenter, tStart.mHeadingDeg, -4.0f, 4.0f), kHangar);
+                    tThin.addLine(tCenter, rotated(tCenter, tStart.mHeadingDeg, 0.0f, 9.0f), 1.5f, kHangar);
                 }
                 else
                 {
-                    AddArrow(tFills, tThin, tCenter, tStart.mHeadingDeg, 5.0f, kMiscStart, true);
+                    addArrow(tFills, tThin, tCenter, tStart.mHeadingDeg, 5.0f, kMiscStart, true);
                 }
                 std::string tText = tTypeName + " " + tStart.mName;
                 if (!tStart.mAircraftTypes.empty())
                 {
-                    tText += " (" + ReadableList(tStart.mAircraftTypes, false) + ")";
+                    tText += " (" + readableList(tStart.mAircraftTypes, false) + ")";
                 }
                 if (!tStart.mOperation.empty() && tStart.mOperation != "none")
                 {
@@ -480,77 +475,76 @@ void AirportObjectsLayer::Draw(const DrawContext& pContext)
                 }
                 if (!tStart.mAirlines.empty())
                 {
-                    tText += ": " + ReadableList(tStart.mAirlines, true);
+                    tText += ": " + readableList(tStart.mAirlines, true);
                 }
-                mMarkers.push_back({tCenter, 6.0f, tText, IsSubLayerDrawn(kPartStartNames) ? tStart.mName : ""});
+                mMarkers.push_back({tCenter, 6.0f, tText, isSubLayerDrawn(kPartStartNames) ? tStart.mName : ""});
             }
         }
 
-        // PAPI / VASI / wig-wag: yaklasma yonune dik isik sirasi
-        if (tZoom >= kLightMinZoom && IsSubLayerDrawn(kPartApproachLights))
+        // PAPI / VASI / wig-wag
+        if (tZoom >= kLightMinZoom && isSubLayerDrawn(kPartApproachLights))
         {
             for (const AptLightObject& tLight : tDetail.mLightObjects)
             {
-                const PointF tCenter = tView.ToScreen(tLight.mPosition);
+                const PointF tCenter = tView.toScreen(tLight.mPosition);
                 if (!tOnScreen(tCenter))
                 {
                     continue;
                 }
                 if (tLight.mType == 6)
                 {
-                    tFills.AddDisc(Rotated(tCenter, tLight.mHeadingDeg, -2.5f, 0.0f), 2.0f, kAmber);
-                    tFills.AddDisc(Rotated(tCenter, tLight.mHeadingDeg, 2.5f, 0.0f), 2.0f, kAmber);
+                    tFills.addDisc(rotated(tCenter, tLight.mHeadingDeg, -2.5f, 0.0f), 2.0f, kAmber);
+                    tFills.addDisc(rotated(tCenter, tLight.mHeadingDeg, 2.5f, 0.0f), 2.0f, kAmber);
                 }
                 else
                 {
                     // 4 lamba: soldan ikisi beyaz, ikisi kirmizi (dogru suzulus aci gorunumu)
                     for (int tLamp = 0; tLamp < 4; ++tLamp)
                     {
-                        tFills.AddDisc(Rotated(tCenter, tLight.mHeadingDeg, -6.0f + tLamp * 4.0f, 0.0f), 1.7f,
+                        tFills.addDisc(rotated(tCenter, tLight.mHeadingDeg, -6.0f + tLamp * 4.0f, 0.0f), 1.7f,
                                        tLamp < 2 ? kWhite : kRed);
                     }
                 }
                 const std::string tAngle =
                     tLight.mGlideslopeDeg > 0.0 ? std::format(", {:.2f} deg glide path", tLight.mGlideslopeDeg) : "";
-                mMarkers.push_back({tCenter, 8.0f, std::string(LightObjectName(tLight.mType)) + tAngle, ""});
+                mMarkers.push_back({tCenter, 8.0f, std::string(lightObjectName(tLight.mType)) + tAngle, ""});
             }
         }
 
-        // Tabelalar: rengine gore kucuk dikdortgen; metin fareyle
-        if (tZoom >= kSignMinZoom && IsSubLayerDrawn(kPartSigns))
+        if (tZoom >= kSignMinZoom && isSubLayerDrawn(kPartSigns))
         {
             for (const AptSign& tSign : tDetail.mSigns)
             {
-                const PointF tCenter = tView.ToScreen(tSign.mPosition);
+                const PointF tCenter = tView.toScreen(tSign.mPosition);
                 if (!tOnScreen(tCenter))
                 {
                     continue;
                 }
                 const float tWidth = tSign.mSize >= 3 ? 5.0f : 3.5f;
-                tFills.AddQuad(Rotated(tCenter, tSign.mHeadingDeg, -tWidth, -1.5f),
-                               Rotated(tCenter, tSign.mHeadingDeg, tWidth, -1.5f),
-                               Rotated(tCenter, tSign.mHeadingDeg, tWidth, 1.5f),
-                               Rotated(tCenter, tSign.mHeadingDeg, -tWidth, 1.5f), SignColor(tSign.mText));
-                tThin.AddPolyline({Rotated(tCenter, tSign.mHeadingDeg, -tWidth, -1.5f),
-                                   Rotated(tCenter, tSign.mHeadingDeg, tWidth, -1.5f),
-                                   Rotated(tCenter, tSign.mHeadingDeg, tWidth, 1.5f),
-                                   Rotated(tCenter, tSign.mHeadingDeg, -tWidth, 1.5f)},
+                tFills.addQuad(rotated(tCenter, tSign.mHeadingDeg, -tWidth, -1.5f),
+                               rotated(tCenter, tSign.mHeadingDeg, tWidth, -1.5f),
+                               rotated(tCenter, tSign.mHeadingDeg, tWidth, 1.5f),
+                               rotated(tCenter, tSign.mHeadingDeg, -tWidth, 1.5f), signColor(tSign.mText));
+                tThin.addPolyline({rotated(tCenter, tSign.mHeadingDeg, -tWidth, -1.5f),
+                                   rotated(tCenter, tSign.mHeadingDeg, tWidth, -1.5f),
+                                   rotated(tCenter, tSign.mHeadingDeg, tWidth, 1.5f),
+                                   rotated(tCenter, tSign.mHeadingDeg, -tWidth, 1.5f)},
                                   true, 1.0f, kYellow);
-                mMarkers.push_back({tCenter, 5.0f, "Sign: " + SignText(tSign.mText), ""});
+                mMarkers.push_back({tCenter, 5.0f, "Sign: " + signText(tSign.mText), ""});
             }
         }
     }
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
-    tCanvas.Draw(tLamps);
-    tCanvas.Draw(tFills);
-    tCanvas.Draw(tLines);
-    tCanvas.Draw(tThin);
+    tCanvas.draw(tLamps);
+    tCanvas.draw(tFills);
+    tCanvas.draw(tLines);
+    tCanvas.draw(tThin);
 }
 
-void AirportObjectsLayer::DrawLabels(const DrawContext& pContext)
+void AirportObjectsLayer::drawLabels(const drawContext& pContext)
 {
-    if (!pContext.mLabels || pContext.mView->Zoom() < kStartLabelMinZoom)
+    if (!pContext.mLabels || pContext.mView->zoom() < kStartLabelMinZoom)
     {
         return;
     }
@@ -558,14 +552,14 @@ void AirportObjectsLayer::DrawLabels(const DrawContext& pContext)
     {
         if (!tMarker.mLabel.empty())
         {
-            MapSymbols::DrawLabelNear(*pContext.mLabels, tMarker.mPoint.mX, tMarker.mPoint.mY, tMarker.mRadius + 3.0f,
+            MapSymbols::drawLabelNear(*pContext.mLabels, tMarker.mPoint.mX, tMarker.mPoint.mY, tMarker.mRadius + 3.0f,
                                       tMarker.mLabel, pContext.mTheme->mLight ? pContext.mTheme->mRunwayLabel : kLabel,
-                                      pContext.LabelShadow());
+                                      pContext.labelShadow());
         }
     }
 }
 
-std::string AirportObjectsLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+std::string AirportObjectsLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
 {
     // En yakin isabet (uste binen semboller arasinda imlece en yakini)
     const Marker* tBest = nullptr;

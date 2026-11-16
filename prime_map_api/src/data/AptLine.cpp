@@ -1,15 +1,14 @@
-// AptLine.cpp
 #include "data/AptLine.h"
 
 namespace
 {
 
-bool IsSpace(char pChar)
+bool isSpace(char pChar)
 {
     return pChar == ' ' || pChar == '\t' || pChar == '\r' || pChar == '\n';
 }
 
-bool IsDigit(char pChar)
+bool isDigit(char pChar)
 {
     return pChar >= '0' && pChar <= '9';
 }
@@ -22,17 +21,17 @@ AptLine::AptLine(std::string_view pText)
 {
 }
 
-void AptLine::SkipSpaces()
+void AptLine::skipSpaces()
 {
-    while (mCursor < mEnd && IsSpace(*mCursor))
+    while (mCursor < mEnd && isSpace(*mCursor))
     {
         ++mCursor;
     }
 }
 
-bool AptLine::Int(int& pOut)
+bool AptLine::readInt(int& pOut)
 {
-    SkipSpaces();
+    skipSpaces();
     const char* tAt = mCursor;
     bool tNegative = false;
     if (tAt < mEnd && (*tAt == '-' || *tAt == '+'))
@@ -40,18 +39,18 @@ bool AptLine::Int(int& pOut)
         tNegative = (*tAt == '-');
         ++tAt;
     }
-    if (tAt >= mEnd || !IsDigit(*tAt))
+    if (tAt >= mEnd || !isDigit(*tAt))
     {
         return false;
     }
     int tValue = 0;
-    while (tAt < mEnd && IsDigit(*tAt))
+    while (tAt < mEnd && isDigit(*tAt))
     {
         tValue = tValue * 10 + (*tAt - '0');
         ++tAt;
     }
     // "12.5" gibi ondalik bir alan tamsayi olarak okunmasin
-    if (tAt < mEnd && !IsSpace(*tAt))
+    if (tAt < mEnd && !isSpace(*tAt))
     {
         return false;
     }
@@ -60,9 +59,9 @@ bool AptLine::Int(int& pOut)
     return true;
 }
 
-bool AptLine::Double(double& pOut)
+bool AptLine::readDouble(double& pOut)
 {
-    SkipSpaces();
+    skipSpaces();
     const char* tAt = mCursor;
     bool tNegative = false;
     if (tAt < mEnd && (*tAt == '-' || *tAt == '+'))
@@ -72,7 +71,7 @@ bool AptLine::Double(double& pOut)
     }
     double tValue = 0.0;
     bool tHasDigit = false;
-    while (tAt < mEnd && IsDigit(*tAt))
+    while (tAt < mEnd && isDigit(*tAt))
     {
         tValue = tValue * 10.0 + (*tAt - '0');
         ++tAt;
@@ -82,7 +81,7 @@ bool AptLine::Double(double& pOut)
     {
         ++tAt;
         double tScale = 0.1;
-        while (tAt < mEnd && IsDigit(*tAt))
+        while (tAt < mEnd && isDigit(*tAt))
         {
             tValue += (*tAt - '0') * tScale;
             tScale *= 0.1;
@@ -90,7 +89,7 @@ bool AptLine::Double(double& pOut)
             tHasDigit = true;
         }
     }
-    if (!tHasDigit || (tAt < mEnd && !IsSpace(*tAt)))
+    if (!tHasDigit || (tAt < mEnd && !isSpace(*tAt)))
     {
         return false;
     }
@@ -99,11 +98,11 @@ bool AptLine::Double(double& pOut)
     return true;
 }
 
-bool AptLine::Token(std::string_view& pOut)
+bool AptLine::token(std::string_view& pOut)
 {
-    SkipSpaces();
+    skipSpaces();
     const char* tStart = mCursor;
-    while (mCursor < mEnd && !IsSpace(*mCursor))
+    while (mCursor < mEnd && !isSpace(*mCursor))
     {
         ++mCursor;
     }
@@ -115,10 +114,10 @@ bool AptLine::Token(std::string_view& pOut)
     return true;
 }
 
-bool AptLine::Token(std::string& pOut)
+bool AptLine::token(std::string& pOut)
 {
     std::string_view tToken;
-    if (!Token(tToken))
+    if (!token(tToken))
     {
         return false;
     }
@@ -126,11 +125,11 @@ bool AptLine::Token(std::string& pOut)
     return true;
 }
 
-std::string AptLine::Rest()
+std::string AptLine::rest()
 {
-    SkipSpaces();
+    skipSpaces();
     const char* tStop = mEnd;
-    while (tStop > mCursor && IsSpace(tStop[-1]))
+    while (tStop > mCursor && isSpace(tStop[-1]))
     {
         --tStop;
     }
@@ -139,15 +138,15 @@ std::string AptLine::Rest()
     return tResult;
 }
 
-bool AptLine::AtEnd()
+bool AptLine::atEnd()
 {
-    SkipSpaces();
+    skipSpaces();
     return mCursor >= mEnd;
 }
 
-int AptRowCode(std::string_view pLine)
+int aptRowCode(std::string_view pLine)
 {
     AptLine tLine(pLine);
     int tCode = -1;
-    return tLine.Int(tCode) ? tCode : -1;
+    return tLine.readInt(tCode) ? tCode : -1;
 }

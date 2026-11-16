@@ -1,4 +1,3 @@
-// FontAtlas.cpp
 #include "gfx/FontAtlas.h"
 
 #include <algorithm>
@@ -17,11 +16,10 @@
 namespace
 {
 
-const int kPadding = 1;            // harfler arasi bos piksel (dokuda komsu harf sizmasin)
+const int kPadding = 1;  // harfler arasi bos piksel (komsu harf dokuda sizmasin)
 const int kMaxAtlasSize = 2048;
 
-// Atlasa basilacak harfler
-std::vector<uint32_t> Codepoints()
+std::vector<uint32_t> codepoints()
 {
     std::vector<uint32_t> tList;
     for (uint32_t tCode = 32; tCode <= 126; ++tCode)
@@ -39,12 +37,12 @@ std::vector<uint32_t> Codepoints()
     return tList;
 }
 
-}  // namespace
+}
 
 namespace Gfx
 {
 
-bool FontAtlas::Build(const std::vector<uint8_t>& pFontData, float pCapHeightPixels, std::string* pError)
+bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPixels, std::string* pError)
 {
     mGlyphs.clear();
     mRgba.clear();
@@ -76,7 +74,7 @@ bool FontAtlas::Build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
         GlyphInfo mInfo;
     };
     std::vector<Bitmap> tBitmaps;
-    for (uint32_t tCode : Codepoints())
+    for (uint32_t tCode : codepoints())
     {
         const int tGlyph = stbtt_FindGlyphIndex(&tFont, static_cast<int>(tCode));
         if (tGlyph == 0 && tCode != ' ')
@@ -165,12 +163,12 @@ bool FontAtlas::Build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
     return false;
 }
 
-bool FontAtlas::IsBuilt() const
+bool FontAtlas::isBuilt() const
 {
     return mSize > 0;
 }
 
-int FontAtlas::Size() const
+int FontAtlas::size() const
 {
     return mSize;
 }
@@ -180,7 +178,7 @@ const std::vector<uint8_t>& FontAtlas::Rgba() const
     return mRgba;
 }
 
-const GlyphInfo* FontAtlas::Find(uint32_t pCodepoint) const
+const GlyphInfo* FontAtlas::find(uint32_t pCodepoint) const
 {
     auto tFound = mGlyphs.find(pCodepoint);
     if (tFound == mGlyphs.end())
@@ -190,13 +188,13 @@ const GlyphInfo* FontAtlas::Find(uint32_t pCodepoint) const
     return tFound == mGlyphs.end() ? nullptr : &tFound->second;
 }
 
-float FontAtlas::Measure(std::string_view pText) const
+float FontAtlas::measure(std::string_view pText) const
 {
     float tWidth = 0.0f;
     size_t tIndex = 0;
     while (tIndex < pText.size())
     {
-        const GlyphInfo* tGlyph = Find(NextCodepoint(pText, &tIndex));
+        const GlyphInfo* tGlyph = find(nextCodepoint(pText, &tIndex));
         if (tGlyph)
         {
             tWidth += tGlyph->mAdvance;
@@ -205,7 +203,7 @@ float FontAtlas::Measure(std::string_view pText) const
     return tWidth;
 }
 
-uint32_t FontAtlas::NextCodepoint(std::string_view pText, size_t* pIndex)
+uint32_t FontAtlas::nextCodepoint(std::string_view pText, size_t* pIndex)
 {
     const auto tByte = [&pText](size_t pAt)
     {
@@ -253,4 +251,4 @@ uint32_t FontAtlas::NextCodepoint(std::string_view pText, size_t* pIndex)
     return tCode;
 }
 
-}  // namespace Gfx
+}

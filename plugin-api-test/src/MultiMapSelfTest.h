@@ -1,5 +1,5 @@
 // MultiMapSelfTest.h
-// Prime Map API 0.23'un coklu harita / fabrika ozelliklerini X-Plane ICINDE kendi kendine
+// Prime XMap API 0.24'un coklu harita / fabrika ozelliklerini X-Plane ICINDE kendi kendine
 // dener; her kontrolu Log.txt'ye "[plugin-api-test] SELFTEST PASS/FAIL ..." olarak yazar.
 //
 // Ne zaman calisir: eklenti klasorunde (…/Resources/plugins/plugin-api-test/) "selftest.flag"
@@ -26,19 +26,20 @@ public:
     ~MultiMapSelfTest();
 
     // pPluginDirectory: sonunda ayirici ile. Bayrak dosyasi yoksa false doner, test baslamaz.
-    bool StartIfRequested(const std::string& pPluginDirectory);
+    bool startIfRequested(const std::string& pPluginDirectory, prime::XMapManager* pManager);
 
 private:
-    static float FlightLoopCallback(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
-    float Step();
+    static float flightLoopCallback(float pSinceLastCall, float pSinceLastLoop, int pCounter, void* pRefcon);
+    float step();
     void Check(bool pCondition, const std::string& pName, const std::string& pDetail = "");
-    void RunImmediate();
-    void RunAfterDraw();
-    void RunCleanup();
+    void runImmediate();
+    void runAfterDraw();
+    void runCleanup();
 
-    std::unique_ptr<prime::Map> mFirst;
-    std::unique_ptr<prime::Map> mSecond;
-    prime::LibrarySettings mOriginalSettings;
+    prime::XMap* mFirst = nullptr;   // sahibi yonetici; removeMap ile birakilir
+    prime::XMap* mSecond = nullptr;
+    prime::XMapManager* mManager = nullptr;  // initLibrary'yi yapan eklentinin yoneticisi
+    prime::MapManagerSettings mOriginalSettings;
     int mMapsBefore = 0;
     int mPhase = 0;
     float mPhaseStart = 0.0f;

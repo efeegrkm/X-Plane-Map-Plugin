@@ -1,4 +1,3 @@
-// Texture.cpp
 #include "gfx/Texture.h"
 
 #include "XPLMGraphics.h"
@@ -15,7 +14,7 @@ Texture::Texture(int pId)
 
 Texture::~Texture()
 {
-    Release();
+    release();
 }
 
 Texture::Texture(Texture&& pOther) noexcept
@@ -28,23 +27,23 @@ Texture& Texture::operator=(Texture&& pOther) noexcept
 {
     if (this != &pOther)
     {
-        Release();
+        release();
         mId = pOther.mId;
         pOther.mId = 0;
     }
     return *this;
 }
 
-Texture Texture::FromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps)
+Texture Texture::fromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps)
 {
     int tId = 0;
     XPLMGenerateTextureNumbers(&tId, 1);
     XPLMBindTexture2d(tId, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pSize, pSize, 0, GL_RGBA, GL_UNSIGNED_BYTE, pRgba);
-    if (pMipmaps && Gl::IsLoaded())
+    if (pMipmaps && Gl::isLoaded())
     {
-        Gl::GenerateMipmap(GL_TEXTURE_2D);
+        Gl::generateMipmap(GL_TEXTURE_2D);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(Gl::kLinearMipmapLinear));
     }
     else
@@ -58,7 +57,7 @@ Texture Texture::FromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps)
     return Texture(tId);
 }
 
-Texture Texture::CreateEmpty(int pWidth, int pHeight)
+Texture Texture::createEmpty(int pWidth, int pHeight)
 {
     int tId = 0;
     XPLMGenerateTextureNumbers(&tId, 1);
@@ -72,17 +71,17 @@ Texture Texture::CreateEmpty(int pWidth, int pHeight)
     return Texture(tId);
 }
 
-bool Texture::IsValid() const
+bool Texture::isValid() const
 {
     return mId != 0;
 }
 
-int Texture::Id() const
+int Texture::id() const
 {
     return mId;
 }
 
-void Texture::Release()
+void Texture::release()
 {
     if (mId != 0)
     {
@@ -92,4 +91,4 @@ void Texture::Release()
     }
 }
 
-}  // namespace Gfx
+}

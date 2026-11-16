@@ -1,13 +1,6 @@
-// AirportLayer.h
-// Havalimanlari (X-Plane nav verisinden; XPLMNavigation xplm_Nav_Airport).
-//
-// Kategoriler ve seyreltme (esikler AirportLayer.cpp'deki kCategoryStyles):
-//   buyuk   : kara havalimani, 4 harfli ICAO     zoom 4  (etiket 6,   ad 11)
-//   kucuk   : diger kara havalimanlari           zoom 8  (etiket 9,   ad 12)
-//   deniz   : "[S]" deniz ussu                    zoom 9  (etiket 10.5, ad 13)
-//   heliport: "[H]"                               zoom 11 (etiket 12.5, ad 14)
-//   kapali  : "[X]"                               zoom 11 (etiket 13)
-// Semboller birbirinin ustune binerse sonra gelen atlanir; once buyukler gelir.
+// Havalimanlari (X-Plane nav verisi; XPLMNavigation xplm_Nav_Airport).
+// Kategori/zoom esikleri AirportLayer.cpp'deki kCategoryStyles'ta.
+// Semboller ust uste binerse sonra geleni atlanir; once buyukler gelir.
 #pragma once
 
 #include <vector>
@@ -25,10 +18,10 @@ public:
     // pGeometry: apt.dat ozeti (kule bilgisi icin, VFR renkleri); bos olabilir
     explicit AirportLayer(const NavDatabase& pDatabase, const AirportGeometryStore* pGeometry = nullptr);
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
-    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
-    int LabelPriority() const override
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
+    std::string describe(const drawContext& pContext, double pX, double pY) const override;
+    int labelPriority() const override
     {
         return 10;  // en onemli etiketler
     }
@@ -53,8 +46,8 @@ private:
         Rgba mLabelColor;
     };
 
-    void CollectVisible(const DrawContext& pContext);
-    static Category CategoryOf(AirportKind pAirportKind, bool pMajor);
+    void collectVisible(const drawContext& pContext);
+    static Category categoryOf(AirportKind pAirportKind, bool pMajor);
 
     const NavDatabase& mDatabase;
     const AirportGeometryStore* mGeometry;

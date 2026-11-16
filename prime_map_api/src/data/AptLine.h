@@ -1,4 +1,3 @@
-// AptLine.h
 // apt.dat'in tek bir satirini soldan saga okuyan kucuk yardimci.
 // X-Plane'e bagimli DEGIL.
 //
@@ -7,9 +6,7 @@
 // virgul bekleyebilir.
 //
 //   AptLine tLine("100 29.87 1 0 0.15 ...");
-//   int tCode = 0;
-//   double tWidth = 0.0;
-//   if (tLine.Int(tCode) && tLine.Double(tWidth)) ...
+//   if (tLine.readInt(tCode) && tLine.readDouble(tWidth)) ...
 #pragma once
 
 #include <string>
@@ -21,22 +18,22 @@ public:
     explicit AptLine(std::string_view pText);
 
     // Siradaki alani okur; alan yoksa veya bicim yanlissa false (konum ilerlemez)
-    bool Int(int& pOut);
-    bool Double(double& pOut);
-    bool Token(std::string& pOut);
-    bool Token(std::string_view& pOut);
+    bool readInt(int& pOut);
+    bool readDouble(double& pOut);
+    bool token(std::string& pOut);
+    bool token(std::string_view& pOut);
 
     // Satirin geri kalani, bas/son bosluk atilmis (ad gibi bosluk iceren alanlar)
-    std::string Rest();
+    std::string rest();
 
-    bool AtEnd();  // geriye sadece bosluk kaldi mi
+    bool atEnd();  // geriye sadece bosluk kaldi mi
 
 private:
-    void SkipSpaces();
+    void skipSpaces();
 
     const char* mCursor;
     const char* mEnd;
 };
 
 // Satirin ilk alanini (satir kodu) okur. Bos satir / yorum icin -1.
-int AptRowCode(std::string_view pLine);
+int aptRowCode(std::string_view pLine);

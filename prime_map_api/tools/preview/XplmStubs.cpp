@@ -1,10 +1,6 @@
-// XplmStubs.cpp
-// Onizleme araci icin X-Plane SDK fonksiyonlarinin basit karsiliklari.
-// Eklentinin cizim kodu (katmanlar, arayuz) bunlari cagirir; X-Plane yokken
-// ayni kodu bir OpenGL penceresinde calistirip goruntuyu dosyaya yazabiliriz.
-//
-// Sadece cizim kodunun kullandiklari var. Yazi, Windows'un yazi tipiyle
-// (wglUseFontBitmaps) cizilir; X-Plane'in yazi tipine yakin boyutta.
+// Onizleme araci icin X-Plane SDK fonksiyonlarinin basit karsiliklari: eklentinin
+// cizim kodu bunlari cagirir, X-Plane yokken ayni kod bir OpenGL penceresinde calisir.
+// Yazi, Windows yazi tipiyle (wglUseFontBitmaps) cizilir.
 #include <cstdio>
 #include <cstring>
 

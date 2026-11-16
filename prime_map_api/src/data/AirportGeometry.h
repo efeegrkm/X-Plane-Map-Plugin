@@ -1,14 +1,7 @@
-// AirportGeometry.h
 // Havalimani OZETI: her zaman bellekte duran kisim (kimlik, ad, tur, pistler,
 // kapsadigi alan ve apt.dat dosyasindaki yeri). X-Plane'e bagimli DEGIL.
-//
-// Iki seviyeli veri:
-//   1. Ozet (bu dosya): acilista tum apt.dat dosyalari bir kez taranarak
-//      ~37 bin havalimani icin cikarilir (data/AptDatIndexer). Pist katmani,
-//      ILS eslestirme ve "hangi havalimanlari ekranda" sorusu bununla calisir.
-//   2. Ayrinti (data/AirportDetail.h): yuzeyler, cizgiler, tabelalar, isiklar...
-//      Sadece ekrandaki havalimanlari icin, dosyadaki yerine (mLocation)
-//      dogrudan atlanip arka planda okunur (data/AirportDetailStore).
+// Ayrinti (yuzeyler, cizgiler, isiklar) ekrandaki havalimanlari icin arka planda
+// okunur (AirportDetail / AirportDetailStore).
 #pragma once
 
 #include <atomic>
@@ -98,10 +91,10 @@ public:
     virtual ~IAirportGeometrySource() = default;
 
     // Log'da gorunen ad
-    virtual const char* Name() const = 0;
+    virtual const char* name() const = 0;
 
     // Kaynak diskte onbellek tutabiliyorsa klasoru (sonunda '/' ile). Bos: onbellek yok.
-    virtual void SetCacheDirectory(const std::string& /*pDirectory*/)
+    virtual void setCacheDirectory(const std::string& /*pDirectory*/)
     {
     }
 
@@ -109,12 +102,12 @@ public:
     // icinde XPLM fonksiyonu (Log dahil) cagrilmaz; log'a yazilacaklar
     // pOutReport'a eklenir. pCancel true olursa cabucak false donup cikar.
     // pXPlaneDirectory: "C:\X-Plane 11\" gibi, sonunda ayirici ile.
-    virtual bool LoadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel,
+    virtual bool loadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel,
                          AirportIndex& pOut, std::string& pOutReport) = 0;
 };
 
 // apt.dat yuzey kodunu gruba cevirir (bilinmeyen kod: Paved)
-RunwaySurface SurfaceFromAptCode(int pCode);
+RunwaySurface surfaceFromAptCode(int pCode);
 
 // apt.dat yuzey kodunun Ingilizce adi ("asphalt", "concrete", "grass" ...)
-const char* SurfaceName(int pCode);
+const char* surfaceName(int pCode);

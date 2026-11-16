@@ -1,4 +1,3 @@
-// DsfReader.cpp
 #include "data/DsfReader.h"
 
 #include <cstdlib>
@@ -7,29 +6,29 @@
 namespace
 {
 
-constexpr uint32_t AtomId(char pA, char pB, char pC, char pD)
+constexpr uint32_t atomId(char pA, char pB, char pC, char pD)
 {
     return (static_cast<uint32_t>(pA) << 24) | (static_cast<uint32_t>(pB) << 16) | (static_cast<uint32_t>(pC) << 8) |
            static_cast<uint32_t>(pD);
 }
 
-const uint32_t kAtomHead = AtomId('H', 'E', 'A', 'D');
-const uint32_t kAtomProp = AtomId('P', 'R', 'O', 'P');
-const uint32_t kAtomDefn = AtomId('D', 'E', 'F', 'N');
-const uint32_t kAtomTert = AtomId('T', 'E', 'R', 'T');
-const uint32_t kAtomObjt = AtomId('O', 'B', 'J', 'T');
-const uint32_t kAtomPoly = AtomId('P', 'O', 'L', 'Y');
-const uint32_t kAtomNetw = AtomId('N', 'E', 'T', 'W');
-const uint32_t kAtomGeod = AtomId('G', 'E', 'O', 'D');
-const uint32_t kAtomPool = AtomId('P', 'O', 'O', 'L');
-const uint32_t kAtomScal = AtomId('S', 'C', 'A', 'L');
-const uint32_t kAtomPool32 = AtomId('P', 'O', '3', '2');
-const uint32_t kAtomScal32 = AtomId('S', 'C', '3', '2');
-const uint32_t kAtomCmds = AtomId('C', 'M', 'D', 'S');
-const uint32_t kAtomDemn = AtomId('D', 'E', 'M', 'N');
-const uint32_t kAtomDems = AtomId('D', 'E', 'M', 'S');
-const uint32_t kAtomDemi = AtomId('D', 'E', 'M', 'I');
-const uint32_t kAtomDemd = AtomId('D', 'E', 'M', 'D');
+const uint32_t kAtomHead = atomId('H', 'E', 'A', 'D');
+const uint32_t kAtomProp = atomId('P', 'R', 'O', 'P');
+const uint32_t kAtomDefn = atomId('D', 'E', 'F', 'N');
+const uint32_t kAtomTert = atomId('T', 'E', 'R', 'T');
+const uint32_t kAtomObjt = atomId('O', 'B', 'J', 'T');
+const uint32_t kAtomPoly = atomId('P', 'O', 'L', 'Y');
+const uint32_t kAtomNetw = atomId('N', 'E', 'T', 'W');
+const uint32_t kAtomGeod = atomId('G', 'E', 'O', 'D');
+const uint32_t kAtomPool = atomId('P', 'O', 'O', 'L');
+const uint32_t kAtomScal = atomId('S', 'C', 'A', 'L');
+const uint32_t kAtomPool32 = atomId('P', 'O', '3', '2');
+const uint32_t kAtomScal32 = atomId('S', 'C', '3', '2');
+const uint32_t kAtomCmds = atomId('C', 'M', 'D', 'S');
+const uint32_t kAtomDemn = atomId('D', 'E', 'M', 'N');
+const uint32_t kAtomDems = atomId('D', 'E', 'M', 'S');
+const uint32_t kAtomDemi = atomId('D', 'E', 'M', 'I');
+const uint32_t kAtomDemd = atomId('D', 'E', 'M', 'D');
 
 const size_t kHeaderSize = 12;  // "XPLNEDSF" + uint32 surum
 const size_t kFooterSize = 16;  // MD5
@@ -78,7 +77,7 @@ struct Cursor
     size_t mPosition = 0;
     bool mFailed = false;
 
-    bool Has(size_t pBytes)
+    bool has(size_t pBytes)
     {
         if (mPosition + pBytes > mSize)
         {
@@ -90,7 +89,7 @@ struct Cursor
 
     uint8_t U8()
     {
-        if (!Has(1))
+        if (!has(1))
         {
             return 0;
         }
@@ -99,7 +98,7 @@ struct Cursor
 
     uint16_t U16()
     {
-        if (!Has(2))
+        if (!has(2))
         {
             return 0;
         }
@@ -110,7 +109,7 @@ struct Cursor
 
     uint32_t U32()
     {
-        if (!Has(4))
+        if (!has(4))
         {
             return 0;
         }
@@ -130,18 +129,17 @@ struct Cursor
         return tValue;
     }
 
-    void Skip(size_t pBytes)
+    void skip(size_t pBytes)
     {
-        if (Has(pBytes))
+        if (has(pBytes))
         {
             mPosition += pBytes;
         }
     }
 };
 
-// Atom-of-atoms icindeki alt atomlari gezer
 template <typename tVisitor>
-void ForEachAtom(const uint8_t* pData, size_t pSize, tVisitor pVisitor)
+void forEachAtom(const uint8_t* pData, size_t pSize, tVisitor pVisitor)
 {
     size_t tPosition = 0;
     while (tPosition + kAtomHeaderSize <= pSize)
@@ -158,11 +156,10 @@ void ForEachAtom(const uint8_t* pData, size_t pSize, tVisitor pVisitor)
     }
 }
 
-// Duzlemsel sayi atomunun bir duzlemini cozer (16 bit). pOut bos ise atlanir.
-// Bir duzlemin degerlerini cozer: ham / fark / RLE / RLE + fark. TValue: uint16_t (POOL) veya uint32_t (PO32);
-// kurallar ikisinde ayni, sadece deger genisligi farkli.
+// Duzlem cozumu: ham / fark / RLE / RLE + fark. pOut bos ise atlanir.
+// TValue: uint16_t (POOL) veya uint32_t (PO32); kurallar ayni, sadece deger genisligi farkli.
 template <typename TValue>
-TValue ReadValue(Cursor& pCursor)
+TValue readValue(Cursor& pCursor)
 {
     if constexpr (sizeof(TValue) == 2)
     {
@@ -175,7 +172,7 @@ TValue ReadValue(Cursor& pCursor)
 }
 
 template <typename TValue>
-bool DecodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
+bool decodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
 {
     const uint8_t tEncoding = pCursor.U8();
     const bool tDifferenced = (tEncoding == 1 || tEncoding == 3);
@@ -190,7 +187,7 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
     {
         for (int tIndex = 0; tIndex < pCount; ++tIndex)
         {
-            tValues.push_back(ReadValue<TValue>(pCursor));
+            tValues.push_back(readValue<TValue>(pCursor));
         }
     }
     else
@@ -203,7 +200,7 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
             const int tRun = tControl & 0x7F;
             if (tControl & 0x80)
             {
-                const TValue tValue = ReadValue<TValue>(pCursor);
+                const TValue tValue = readValue<TValue>(pCursor);
                 for (int tRepeat = 0; tRepeat < tRun; ++tRepeat)
                 {
                     tValues.push_back(tValue);
@@ -213,7 +210,7 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
             {
                 for (int tLiteral = 0; tLiteral < tRun; ++tLiteral)
                 {
-                    tValues.push_back(ReadValue<TValue>(pCursor));
+                    tValues.push_back(readValue<TValue>(pCursor));
                 }
             }
         }
@@ -238,7 +235,7 @@ bool DecodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
 
 }  // namespace
 
-bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
+bool DsfReader::open(const std::vector<uint8_t>& pData, std::string* pError)
 {
     mData = &pData;
     mInfo = DsfInfo();
@@ -265,67 +262,67 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
     int tScale32Index = 0;  // k. SC32, k. PO32'ye aittir
     bool tPoolFailed = false;
     const size_t tBodySize = pData.size() - kHeaderSize - kFooterSize;
-    ForEachAtom(pData.data() + kHeaderSize, tBodySize,
+    forEachAtom(pData.data() + kHeaderSize, tBodySize,
                 [&](uint32_t pId, const uint8_t* pAtom, size_t pAtomSize)
                 {
                     if (pId == kAtomHead)
                     {
-                        ForEachAtom(pAtom, pAtomSize,
+                        forEachAtom(pAtom, pAtomSize,
                                     [&](uint32_t pSubId, const uint8_t* pSub, size_t pSubSize)
                                     {
                                         if (pSubId == kAtomProp)
                                         {
-                                            ReadProperties(pSub, pSubSize);
+                                            readProperties(pSub, pSubSize);
                                         }
                                     });
                     }
                     else if (pId == kAtomDefn)
                     {
-                        ForEachAtom(pAtom, pAtomSize,
+                        forEachAtom(pAtom, pAtomSize,
                                     [&](uint32_t pSubId, const uint8_t* pSub, size_t pSubSize)
                                     {
                                         if (pSubId == kAtomTert)
                                         {
-                                            mInfo.mTerrainNames = ReadStringTable(pSub, pSubSize);
+                                            mInfo.mTerrainNames = readStringTable(pSub, pSubSize);
                                         }
                                         else if (pSubId == kAtomObjt)
                                         {
-                                            mInfo.mObjectNames = ReadStringTable(pSub, pSubSize);
+                                            mInfo.mObjectNames = readStringTable(pSub, pSubSize);
                                         }
                                         else if (pSubId == kAtomPoly)
                                         {
-                                            mInfo.mPolygonNames = ReadStringTable(pSub, pSubSize);
+                                            mInfo.mPolygonNames = readStringTable(pSub, pSubSize);
                                         }
                                         else if (pSubId == kAtomNetw)
                                         {
-                                            mInfo.mNetworkNames = ReadStringTable(pSub, pSubSize);
+                                            mInfo.mNetworkNames = readStringTable(pSub, pSubSize);
                                         }
                                         else if (pSubId == kAtomDemn)
                                         {
-                                            mRasterNames = ReadStringTable(pSub, pSubSize);
+                                            mRasterNames = readStringTable(pSub, pSubSize);
                                         }
                                     });
                     }
                     else if (pId == kAtomGeod)
                     {
-                        ForEachAtom(pAtom, pAtomSize,
+                        forEachAtom(pAtom, pAtomSize,
                                     [&](uint32_t pSubId, const uint8_t* pSub, size_t pSubSize)
                                     {
                                         if (pSubId == kAtomPool)
                                         {
                                             Pool tPool;
-                                            tPoolFailed = tPoolFailed || !ReadPool(pSub, pSubSize, &tPool);
+                                            tPoolFailed = tPoolFailed || !readPool(pSub, pSubSize, &tPool);
                                             mPools.push_back(std::move(tPool));
                                         }
                                         else if (pSubId == kAtomScal && tScaleIndex < static_cast<int>(mPools.size()))
                                         {
-                                            ReadScale(pSub, pSubSize, &mPools[tScaleIndex]);
+                                            readScale(pSub, pSubSize, &mPools[tScaleIndex]);
                                             ++tScaleIndex;
                                         }
                                         else if (pSubId == kAtomPool32)
                                         {
                                             Pool32 tPool;
-                                            tPoolFailed = tPoolFailed || !ReadPool32(pSub, pSubSize, &tPool);
+                                            tPoolFailed = tPoolFailed || !readPool32(pSub, pSubSize, &tPool);
                                             mPools32.push_back(std::move(tPool));
                                         }
                                         else if (pSubId == kAtomScal32 &&
@@ -333,7 +330,7 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
                                         {
                                             Pool32& tPool = mPools32[tScale32Index];
                                             Cursor tCursor{pSub, pSubSize};
-                                            for (int tPlane = 0; tPlane < tPool.mPlaneCount && tCursor.Has(8); ++tPlane)
+                                            for (int tPlane = 0; tPlane < tPool.mPlaneCount && tCursor.has(8); ++tPlane)
                                             {
                                                 const double tScale = tCursor.F32();
                                                 const double tOffset = tCursor.F32();
@@ -355,7 +352,7 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
                     else if (pId == kAtomDems)
                     {
                         // DEMI + DEMD ciftleri, DEMN adlariyla ayni sirada
-                        ForEachAtom(pAtom, pAtomSize,
+                        forEachAtom(pAtom, pAtomSize,
                                     [&](uint32_t pSubId, const uint8_t* pSub, size_t pSubSize)
                                     {
                                         const size_t tOffset = static_cast<size_t>(pSub - pData.data());
@@ -382,12 +379,12 @@ bool DsfReader::Open(const std::vector<uint8_t>& pData, std::string* pError)
     return true;
 }
 
-const DsfInfo& DsfReader::Info() const
+const DsfInfo& DsfReader::info() const
 {
     return mInfo;
 }
 
-bool DsfReader::ReadRaster(const std::string& pName, DsfRaster* pOut) const
+bool DsfReader::readRaster(const std::string& pName, DsfRaster* pOut) const
 {
     size_t tLayer = 0;
     while (tLayer < mRasterNames.size() && mRasterNames[tLayer] != pName)
@@ -447,17 +444,17 @@ bool DsfReader::ReadRaster(const std::string& pName, DsfRaster* pOut) const
     return true;
 }
 
-const std::vector<std::string>& DsfReader::RasterNames() const
+const std::vector<std::string>& DsfReader::rasterNames() const
 {
     return mRasterNames;
 }
 
-int DsfReader::PoolCount() const
+int DsfReader::poolCount() const
 {
     return static_cast<int>(mPools.size());
 }
 
-std::vector<std::string> DsfReader::ReadStringTable(const uint8_t* pData, size_t pSize)
+std::vector<std::string> DsfReader::readStringTable(const uint8_t* pData, size_t pSize)
 {
     // Ardisik C dizgileri; her biri bir sifir bayt ile biter
     std::vector<std::string> tStrings;
@@ -473,9 +470,9 @@ std::vector<std::string> DsfReader::ReadStringTable(const uint8_t* pData, size_t
     return tStrings;
 }
 
-void DsfReader::ReadProperties(const uint8_t* pData, size_t pSize)
+void DsfReader::readProperties(const uint8_t* pData, size_t pSize)
 {
-    const std::vector<std::string> tStrings = ReadStringTable(pData, pSize);
+    const std::vector<std::string> tStrings = readStringTable(pData, pSize);
     for (size_t tIndex = 0; tIndex + 1 < tStrings.size(); tIndex += 2)
     {
         const std::string& tName = tStrings[tIndex];
@@ -505,7 +502,7 @@ void DsfReader::ReadProperties(const uint8_t* pData, size_t pSize)
     }
 }
 
-bool DsfReader::ReadPool(const uint8_t* pData, size_t pSize, Pool* pOut) const
+bool DsfReader::readPool(const uint8_t* pData, size_t pSize, Pool* pOut) const
 {
     Cursor tCursor{pData, pSize};
     pOut->mCount = static_cast<int>(tCursor.U32());
@@ -513,7 +510,7 @@ bool DsfReader::ReadPool(const uint8_t* pData, size_t pSize, Pool* pOut) const
     for (int tPlane = 0; tPlane < pOut->mPlaneCount; ++tPlane)
     {
         std::vector<uint16_t>* tTarget = (tPlane < 3) ? &pOut->mPlanes[tPlane] : nullptr;
-        if (!DecodePlane<uint16_t>(tCursor, pOut->mCount, tTarget))
+        if (!decodePlane<uint16_t>(tCursor, pOut->mCount, tTarget))
         {
             return false;
         }
@@ -521,7 +518,7 @@ bool DsfReader::ReadPool(const uint8_t* pData, size_t pSize, Pool* pOut) const
     return !tCursor.mFailed;
 }
 
-bool DsfReader::ReadPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) const
+bool DsfReader::readPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) const
 {
     Cursor tCursor{pData, pSize};
     pOut->mCount = static_cast<int>(tCursor.U32());
@@ -529,7 +526,7 @@ bool DsfReader::ReadPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) con
     for (int tPlane = 0; tPlane < pOut->mPlaneCount; ++tPlane)
     {
         std::vector<uint32_t>* tTarget = (tPlane < 2) ? &pOut->mPlanes[tPlane] : nullptr;
-        if (!DecodePlane<uint32_t>(tCursor, pOut->mCount, tTarget))
+        if (!decodePlane<uint32_t>(tCursor, pOut->mCount, tTarget))
         {
             return false;
         }
@@ -537,10 +534,10 @@ bool DsfReader::ReadPool32(const uint8_t* pData, size_t pSize, Pool32* pOut) con
     return !tCursor.mFailed;
 }
 
-bool DsfReader::ReadScale(const uint8_t* pData, size_t pSize, Pool* pPool) const
+bool DsfReader::readScale(const uint8_t* pData, size_t pSize, Pool* pPool) const
 {
     Cursor tCursor{pData, pSize};
-    for (int tPlane = 0; tPlane < pPool->mPlaneCount && tCursor.Has(8); ++tPlane)
+    for (int tPlane = 0; tPlane < pPool->mPlaneCount && tCursor.has(8); ++tPlane)
     {
         const double tScale = tCursor.F32();
         const double tOffset = tCursor.F32();
@@ -553,7 +550,7 @@ bool DsfReader::ReadScale(const uint8_t* pData, size_t pSize, Pool* pPool) const
     return !tCursor.mFailed;
 }
 
-double DsfReader::PlaneValue(const Pool& pPool, int pPlane, int pIndex) const
+double DsfReader::planeValue(const Pool& pPool, int pPlane, int pIndex) const
 {
     // 16 bitlik deger 0..65535 araligindan [kaydirma, kaydirma + olcek] araligina
     // (DSFLib: deger / 65535 * olcek + kaydirma; olcek 0 ise ham deger)
@@ -565,7 +562,7 @@ double DsfReader::PlaneValue(const Pool& pPool, int pPlane, int pIndex) const
     return tRaw / 65535.0 * pPool.mScale[pPlane] + pPool.mOffset[pPlane];
 }
 
-bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& pVisitor, std::string* pError) const
+bool DsfReader::forEachTriangle(const std::function<void(const DsfTriangle&)>& pVisitor, std::string* pError) const
 {
     if (!mData || mCommandsSize == 0)
     {
@@ -581,7 +578,6 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
     int tCorner = 0;
     bool tBadIndex = false;
 
-    // Bir kose noktasini ucgene ekler; 3 kose dolunca ziyaretciye verir
     auto tEmit = [&](int pPoolIndex, int pPointIndex)
     {
         if (pPoolIndex < 0 || pPoolIndex >= static_cast<int>(mPools.size()))
@@ -596,9 +592,9 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
             return;
         }
         tTriangle.mPlaneCount = tSource.mPlaneCount;
-        tTriangle.mLon[tCorner] = PlaneValue(tSource, 0, pPointIndex);
-        tTriangle.mLat[tCorner] = PlaneValue(tSource, 1, pPointIndex);
-        tTriangle.mElevation[tCorner] = PlaneValue(tSource, 2, pPointIndex);
+        tTriangle.mLon[tCorner] = planeValue(tSource, 0, pPointIndex);
+        tTriangle.mLat[tCorner] = planeValue(tSource, 1, pPointIndex);
+        tTriangle.mElevation[tCorner] = planeValue(tSource, 2, pPointIndex);
         if (++tCorner == 3)
         {
             tCorner = 0;
@@ -641,7 +637,7 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
                 tPool = tCursor.U16();
                 break;
             case kJunctionOffset:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kSetDefinition8:
                 tDefinition = tCursor.U8();
@@ -653,37 +649,37 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
                 tDefinition = static_cast<int>(tCursor.U32());
                 break;
             case kRoadSubtype8:
-                tCursor.Skip(1);
+                tCursor.skip(1);
                 break;
             case kObject:
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 break;
             case kObjectRange:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kNetworkChain:
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 2);
                 break;
             case kNetworkChainRange:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kNetworkChain32:
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 4);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 4);
                 break;
             case kPolygon:
-                tCursor.Skip(2);
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                tCursor.skip(2);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 2);
                 break;
             case kPolygonRange:
-                tCursor.Skip(6);
+                tCursor.skip(6);
                 break;
             case kNestedPolygon:
             {
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 const int tWindings = tCursor.U8();
                 for (int tWinding = 0; tWinding < tWindings; ++tWinding)
                 {
-                    tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                    tCursor.skip(static_cast<size_t>(tCursor.U8()) * 2);
                 }
                 break;
             }
@@ -691,9 +687,9 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
             {
                 // Belge burada belirsiz; gercek XP11 dosyasinda sayac N iken N + 1
                 // indeks var (her sargi bir onceki indeksten bir sonrakine kadar)
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 const size_t tCount = tCursor.U8();
-                tCursor.Skip((tCount + 1) * 2);
+                tCursor.skip((tCount + 1) * 2);
                 break;
             }
             case kTerrainPatch:
@@ -707,7 +703,7 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
                 break;
             case kTerrainPatchFlagsLod:
                 tPatchFlags = tCursor.U8();
-                tCursor.Skip(8);  // yakin / uzak LOD (float)
+                tCursor.skip(8);  // yakin / uzak LOD (float)
                 tPatchTerrain = tDefinition;
                 tCorner = 0;
                 break;
@@ -800,13 +796,13 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
                 break;
             }
             case kComment8:
-                tCursor.Skip(tCursor.U8());
+                tCursor.skip(tCursor.U8());
                 break;
             case kComment16:
-                tCursor.Skip(tCursor.U16());
+                tCursor.skip(tCursor.U16());
                 break;
             case kComment32:
-                tCursor.Skip(tCursor.U32());
+                tCursor.skip(tCursor.U32());
                 break;
             default:
                 // Bicim: bilinmeyen komutun uzunlugu bilinemez, okumaya devam edilemez
@@ -822,7 +818,7 @@ bool DsfReader::ForEachTriangle(const std::function<void(const DsfTriangle&)>& p
     return true;
 }
 
-bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) const
+bool DsfReader::countCommands(DsfCommandStatistics* pOut, std::string* pError) const
 {
     *pOut = DsfCommandStatistics();
     pOut->mObjects.assign(mInfo.mObjectNames.size(), 0);
@@ -877,10 +873,10 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
         switch (tCommand)
         {
             case kPoolSelect:
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 break;
             case kJunctionOffset:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kSetDefinition8:
                 tDefinition = tCursor.U8();
@@ -895,7 +891,7 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
                 tRoadSubtype = tCursor.U8();
                 break;
             case kObject:
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 tCountObjects(1);
                 break;
             case kObjectRange:
@@ -908,7 +904,7 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
             case kNetworkChain:
             {
                 const int tCount = tCursor.U8();
-                tCursor.Skip(static_cast<size_t>(tCount) * 2);
+                tCursor.skip(static_cast<size_t>(tCount) * 2);
                 tCountChain(tCount);
                 break;
             }
@@ -922,21 +918,21 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
             case kNetworkChain32:
             {
                 const int tCount = tCursor.U8();
-                tCursor.Skip(static_cast<size_t>(tCount) * 4);
+                tCursor.skip(static_cast<size_t>(tCount) * 4);
                 tCountChain(tCount);
                 break;
             }
             case kPolygon:
             {
-                tCursor.Skip(2);  // parametre (orman yogunlugu, cephe yuksekligi ...)
+                tCursor.skip(2);  // parametre (orman yogunlugu, cephe yuksekligi ...)
                 const int tCount = tCursor.U8();
-                tCursor.Skip(static_cast<size_t>(tCount) * 2);
+                tCursor.skip(static_cast<size_t>(tCount) * 2);
                 tCountPolygon(1, tCount);
                 break;
             }
             case kPolygonRange:
             {
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 const int tFirst = tCursor.U16();
                 const int tLast = tCursor.U16();
                 tCountPolygon(1, tLast - tFirst);
@@ -944,13 +940,13 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
             }
             case kNestedPolygon:
             {
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 const int tWindings = tCursor.U8();
                 long long tPoints = 0;
                 for (int tWinding = 0; tWinding < tWindings; ++tWinding)
                 {
                     const int tCount = tCursor.U8();
-                    tCursor.Skip(static_cast<size_t>(tCount) * 2);
+                    tCursor.skip(static_cast<size_t>(tCount) * 2);
                     tPoints += tCount;
                 }
                 tCountPolygon(tWindings, tPoints);
@@ -959,7 +955,7 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
             case kNestedPolygonRange:
             {
                 // GERCEK VERI: sayac N iken N + 1 indeks (bkz. ForEachTriangle)
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 const size_t tCount = tCursor.U8();
                 int tFirst = 0;
                 int tLast = 0;
@@ -976,36 +972,36 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
                 pOut->mTerrainPatches += 1;
                 break;
             case kTerrainPatchFlags:
-                tCursor.Skip(1);
+                tCursor.skip(1);
                 pOut->mTerrainPatches += 1;
                 break;
             case kTerrainPatchFlagsLod:
-                tCursor.Skip(9);
+                tCursor.skip(9);
                 pOut->mTerrainPatches += 1;
                 break;
             case kTriangle:
             case kTriangleStrip:
             case kTriangleFan:
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 2);
                 break;
             case kTriangleCrossPool:
             case kTriangleStripCrossPool:
             case kTriangleFanCrossPool:
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 4);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 4);
                 break;
             case kTriangleRange:
             case kTriangleStripRange:
             case kTriangleFanRange:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kComment8:
-                tCursor.Skip(tCursor.U8());
+                tCursor.skip(tCursor.U8());
                 break;
             case kComment16:
-                tCursor.Skip(tCursor.U16());
+                tCursor.skip(tCursor.U16());
                 break;
             case kComment32:
-                tCursor.Skip(tCursor.U32());
+                tCursor.skip(tCursor.U32());
                 break;
             default:
                 *pError = "unknown DSF command " + std::to_string(tCommand);
@@ -1020,7 +1016,7 @@ bool DsfReader::CountCommands(DsfCommandStatistics* pOut, std::string* pError) c
     return true;
 }
 
-bool DsfReader::ForEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
+bool DsfReader::forEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
                               const std::function<void(const DsfChain&)>& pChainVisitor, std::string* pError) const
 {
     if (!mData || mCommandsSize == 0)
@@ -1034,7 +1030,6 @@ bool DsfReader::ForEachVector(const std::function<void(const DsfPolygon&)>& pPol
     int tRoadSubtype = 0;
     bool tBadIndex = false;
 
-    // 16 bitlik havuzdan (poligonlar) bir nokta
     auto tPoint16 = [&](int pIndex, double* pLon, double* pLat)
     {
         if (tPool < 0 || tPool >= static_cast<int>(mPools.size()) || pIndex < 0 || pIndex >= mPools[tPool].mCount ||
@@ -1043,8 +1038,8 @@ bool DsfReader::ForEachVector(const std::function<void(const DsfPolygon&)>& pPol
             tBadIndex = true;
             return;
         }
-        *pLon = PlaneValue(mPools[tPool], 0, pIndex);
-        *pLat = PlaneValue(mPools[tPool], 1, pIndex);
+        *pLon = planeValue(mPools[tPool], 0, pIndex);
+        *pLat = planeValue(mPools[tPool], 1, pIndex);
     };
     // 32 bitlik havuzdan (zincirler) bir nokta; olcek 16 bitlikle ayni kural: ham / (2^32 - 1) * olcek + kaydirma
     auto tPoint32 = [&](uint32_t pIndex, double* pLon, double* pLat)
@@ -1145,10 +1140,10 @@ bool DsfReader::ForEachVector(const std::function<void(const DsfPolygon&)>& pPol
                 tRoadSubtype = tCursor.U8();
                 break;
             case kObject:
-                tCursor.Skip(2);
+                tCursor.skip(2);
                 break;
             case kObjectRange:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kNetworkChain:
             {
@@ -1250,34 +1245,34 @@ bool DsfReader::ForEachVector(const std::function<void(const DsfPolygon&)>& pPol
             case kTerrainPatch:
                 break;
             case kTerrainPatchFlags:
-                tCursor.Skip(1);
+                tCursor.skip(1);
                 break;
             case kTerrainPatchFlagsLod:
-                tCursor.Skip(9);
+                tCursor.skip(9);
                 break;
             case kTriangle:
             case kTriangleStrip:
             case kTriangleFan:
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 2);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 2);
                 break;
             case kTriangleCrossPool:
             case kTriangleStripCrossPool:
             case kTriangleFanCrossPool:
-                tCursor.Skip(static_cast<size_t>(tCursor.U8()) * 4);
+                tCursor.skip(static_cast<size_t>(tCursor.U8()) * 4);
                 break;
             case kTriangleRange:
             case kTriangleStripRange:
             case kTriangleFanRange:
-                tCursor.Skip(4);
+                tCursor.skip(4);
                 break;
             case kComment8:
-                tCursor.Skip(tCursor.U8());
+                tCursor.skip(tCursor.U8());
                 break;
             case kComment16:
-                tCursor.Skip(tCursor.U16());
+                tCursor.skip(tCursor.U16());
                 break;
             case kComment32:
-                tCursor.Skip(tCursor.U32());
+                tCursor.skip(tCursor.U32());
                 break;
             default:
                 *pError = "unknown DSF command " + std::to_string(tCommand);

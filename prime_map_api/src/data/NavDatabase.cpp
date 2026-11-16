@@ -1,4 +1,3 @@
-// NavDatabase.cpp
 #include "data/NavDatabase.h"
 
 #include <cctype>
@@ -15,11 +14,11 @@ namespace
 // obur ucunda: pist boyu kadar (birkac km) fark olur.
 const double kVorDmeMaxNm = 1.0;
 const double kIlsDmeMaxNm = 3.0;
-const int kLowestVhfNavFrequency = 10800;  // 108.00 MHz (nav.dat: MHz * 100)
+const int kLowestVhfNavFrequency = 10800;  // 108.00 mHz(nav.dat: MHz * 100)
 
 }  // namespace
 
-void DecodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic)
+void decodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic)
 {
     if (pRaw >= 360.0)
     {
@@ -34,7 +33,7 @@ void DecodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic)
     }
 }
 
-bool IsMajorAirportId(const std::string& pId)
+bool isMajorAirportId(const std::string& pId)
 {
     if (pId.size() != 4)
     {
@@ -50,7 +49,7 @@ bool IsMajorAirportId(const std::string& pId)
     return true;
 }
 
-AirportKind AirportKindFromName(const std::string& pName, std::string* pOutCleanName)
+AirportKind airportKindFromName(const std::string& pName, std::string* pOutCleanName)
 {
     AirportKind tKind = AirportKind::Land;
     if (pName.size() >= 3 && pName[0] == '[' && pName[2] == ']')
@@ -78,73 +77,73 @@ AirportKind AirportKindFromName(const std::string& pName, std::string* pOutClean
     return tKind;
 }
 
-bool IsPlaceholderId(const std::string& pId)
+bool isPlaceholderId(const std::string& pId)
 {
     return pId.find_first_not_of('-') == std::string::npos;  // bos dizgi de buraya duser
 }
 
-bool IsTacanChannel(int pFrequency)
+bool isTacanChannel(int pFrequency)
 {
     return pFrequency > 0 && pFrequency < kLowestVhfNavFrequency;
 }
 
-void NavDatabase::Clear()
+void NavDatabase::clear()
 {
     mRecords.clear();
     for (GeoGrid& tGrid : mGrids)
     {
-        tGrid.Clear();
+        tGrid.clear();
     }
     mReady = false;
 }
 
-void NavDatabase::Add(const NavRecord& pRecord)
+void NavDatabase::add(const NavRecord& pRecord)
 {
     mRecords.push_back(pRecord);
     mReady = false;
 }
 
-void NavDatabase::Build()
+void NavDatabase::build()
 {
-    PairDmes();
-    BuildIndex();
+    pairDmes();
+    buildIndex();
     mReady = true;
 }
 
-bool NavDatabase::IsReady() const
+bool NavDatabase::isReady() const
 {
     return mReady;
 }
 
-int NavDatabase::Count() const
+int NavDatabase::count() const
 {
     return static_cast<int>(mRecords.size());
 }
 
-int NavDatabase::CountOf(NavKind pKind) const
+int NavDatabase::countOf(NavKind pKind) const
 {
-    return mGrids[static_cast<int>(pKind)].Count();
+    return mGrids[static_cast<int>(pKind)].count();
 }
 
-const NavRecord& NavDatabase::At(int pIndex) const
+const NavRecord& NavDatabase::at(int pIndex) const
 {
     return mRecords[pIndex];
 }
 
-void NavDatabase::Query(NavKind pKind, const GeoBounds& pBounds, std::vector<int>& pOut) const
+void NavDatabase::query(NavKind pKind, const GeoBounds& pBounds, std::vector<int>& pOut) const
 {
     if (!mReady)
     {
         return;
     }
-    mGrids[static_cast<int>(pKind)].Query(pBounds, pOut);
+    mGrids[static_cast<int>(pKind)].query(pBounds, pOut);
 }
 
-void NavDatabase::PairDmes()
+void NavDatabase::pairDmes()
 {
     // Kimlik -> o kimlikteki VOR/ILS/LOC kayitlari
     std::unordered_multimap<std::string, int> tStations;
-    for (int tIndex = 0; tIndex < Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < count(); ++tIndex)
     {
         const NavKind tKind = mRecords[tIndex].mKind;
         if (tKind == NavKind::Vor || tKind == NavKind::Ils || tKind == NavKind::Localizer)
@@ -165,7 +164,7 @@ void NavDatabase::PairDmes()
         {
             NavRecord& tStation = mRecords[tCandidate->second];
             const double tLimit = (tStation.mKind == NavKind::Vor) ? kVorDmeMaxNm : kIlsDmeMaxNm;
-            if (DistanceNm(tDmePosition, {tStation.mLat, tStation.mLon}) <= tLimit)
+            if (distanceNm(tDmePosition, {tStation.mLat, tStation.mLon}) <= tLimit)
             {
                 tStation.mHasDme = true;
                 tDme.mHidden = true;
@@ -175,11 +174,11 @@ void NavDatabase::PairDmes()
     }
 }
 
-void NavDatabase::BuildIndex()
+void NavDatabase::buildIndex()
 {
     // Kayitlari turlerine gore ayir (gizli DME'ler izgaraya girmez)
     std::vector<GridItem> tItems[kNavKindCount];
-    for (int tRecordIndex = 0; tRecordIndex < Count(); ++tRecordIndex)
+    for (int tRecordIndex = 0; tRecordIndex < count(); ++tRecordIndex)
     {
         const NavRecord& tRecord = mRecords[tRecordIndex];
         if (!tRecord.mHidden)
@@ -190,6 +189,6 @@ void NavDatabase::BuildIndex()
     }
     for (int tKind = 0; tKind < kNavKindCount; ++tKind)
     {
-        mGrids[tKind].Build(tItems[tKind]);
+        mGrids[tKind].build(tItems[tKind]);
     }
 }

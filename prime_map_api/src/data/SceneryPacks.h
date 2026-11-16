@@ -1,4 +1,3 @@
-// SceneryPacks.h
 // X-Plane'in sahne paketi sirasi (Custom Scenery/scenery_packs.ini).
 // X-Plane'e bagimli DEGIL.
 //
@@ -12,7 +11,7 @@
 #include <vector>
 
 // Etkin paketlerin klasorleri (sonunda '/' ile), oncelik sirasiyla
-std::vector<std::string> ParseSceneryPacks(const std::string& pIniText, const std::string& pXPlaneDirectory);
+std::vector<std::string> parseSceneryPacks(const std::string& pIniText, const std::string& pXPlaneDirectory);
 
-// <X-Plane>/Custom Scenery/scenery_packs.ini'yi okuyup ParseSceneryPacks'e verir
-std::vector<std::string> ReadSceneryPacks(const std::string& pXPlaneDirectory);
+// <X-Plane>/Custom Scenery/scenery_packs.ini'yi okuyup parseSceneryPacks'e verir
+std::vector<std::string> readSceneryPacks(const std::string& pXPlaneDirectory);

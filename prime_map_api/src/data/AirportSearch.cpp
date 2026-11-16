@@ -1,4 +1,3 @@
-// AirportSearch.cpp
 #include "data/AirportSearch.h"
 
 #include <algorithm>
@@ -19,37 +18,37 @@ const double kMinFitZoom = 10.0;
 const double kMaxFitZoom = 15.0;
 const double kDefaultFitZoom = 13.5;  // kapsayan kutusu olmayan (helipad) havalimani
 
-char ToUpper(char pChar)
+char toUpper(char pChar)
 {
     return (pChar >= 'a' && pChar <= 'z') ? static_cast<char>(pChar - 'a' + 'A') : pChar;
 }
 
-std::string Upper(std::string_view pText)
+std::string upper(std::string_view pText)
 {
     std::string tOut(pText);
-    std::transform(tOut.begin(), tOut.end(), tOut.begin(), ToUpper);
+    std::transform(tOut.begin(), tOut.end(), tOut.begin(), toUpper);
     return tOut;
 }
 
-bool StartsWith(const std::string& pText, const std::string& pPrefix)
+bool startsWith(const std::string& pText, const std::string& pPrefix)
 {
     return pText.compare(0, pPrefix.size(), pPrefix) == 0;
 }
 
 // Eslesme derecesi (kucuk = iyi), eslesmezse kNoMatch. pQuery buyuk harfli.
-int MatchRank(const AirportGeometry& pAirport, const std::string& pQuery)
+int matchRank(const AirportGeometry& pAirport, const std::string& pQuery)
 {
-    const std::string tId = Upper(pAirport.mId);
-    const std::string tIcao = Upper(pAirport.mIcaoCode);
+    const std::string tId = upper(pAirport.mId);
+    const std::string tIcao = upper(pAirport.mIcaoCode);
     if (tId == pQuery || (!tIcao.empty() && tIcao == pQuery))
     {
         return 0;
     }
-    if (StartsWith(tId, pQuery) || (!tIcao.empty() && StartsWith(tIcao, pQuery)))
+    if (startsWith(tId, pQuery) || (!tIcao.empty() && startsWith(tIcao, pQuery)))
     {
         return 1;
     }
-    const std::string tName = Upper(pAirport.mName);
+    const std::string tName = upper(pAirport.mName);
     const size_t tFound = tName.find(pQuery);
     if (tFound == std::string::npos)
     {
@@ -68,19 +67,19 @@ int MatchRank(const AirportGeometry& pAirport, const std::string& pQuery)
 }
 
 // Ayni derecede siralama: buyuk havalimani once
-double LongestRunwayNm(const AirportGeometry& pAirport)
+double longestRunwayNm(const AirportGeometry& pAirport)
 {
     double tLongest = 0.0;
     for (const Runway& tRunway : pAirport.mRunways)
     {
-        tLongest = std::max(tLongest, DistanceNm(tRunway.mEnds[0].mPosition, tRunway.mEnds[1].mPosition));
+        tLongest = std::max(tLongest, distanceNm(tRunway.mEnds[0].mPosition, tRunway.mEnds[1].mPosition));
     }
     return tLongest;
 }
 
 }  // namespace
 
-std::vector<int> FindAirports(const AirportGeometryStore& pStore, std::string_view pQuery, int pMaxResults)
+std::vector<int> findAirports(const AirportGeometryStore& pStore, std::string_view pQuery, int pMaxResults)
 {
     struct Candidate
     {
@@ -89,19 +88,19 @@ std::vector<int> FindAirports(const AirportGeometryStore& pStore, std::string_vi
         double mRunway;
     };
     std::vector<int> tResult;
-    const std::string tQuery = Upper(pQuery);
-    if (tQuery.empty() || !pStore.IsReady())
+    const std::string tQuery = upper(pQuery);
+    if (tQuery.empty() || !pStore.isReady())
     {
         return tResult;
     }
     std::vector<Candidate> tCandidates;
-    for (int tIndex = 0; tIndex < pStore.Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < pStore.count(); ++tIndex)
     {
-        const AirportGeometry& tAirport = pStore.At(tIndex);
-        const int tRank = MatchRank(tAirport, tQuery);
+        const AirportGeometry& tAirport = pStore.at(tIndex);
+        const int tRank = matchRank(tAirport, tQuery);
         if (tRank != kNoMatch)
         {
-            tCandidates.push_back({tIndex, tRank, LongestRunwayNm(tAirport)});
+            tCandidates.push_back({tIndex, tRank, longestRunwayNm(tAirport)});
         }
     }
     const size_t tCount = std::min(tCandidates.size(), static_cast<size_t>(std::max(0, pMaxResults)));
@@ -116,7 +115,7 @@ std::vector<int> FindAirports(const AirportGeometryStore& pStore, std::string_vi
                           {
                               return pFirst.mRunway > pSecond.mRunway;
                           }
-                          return pStore.At(pFirst.mIndex).mId < pStore.At(pSecond.mIndex).mId;
+                          return pStore.at(pFirst.mIndex).mId < pStore.at(pSecond.mIndex).mId;
                       });
     for (size_t tIndex = 0; tIndex < tCount; ++tIndex)
     {
@@ -125,7 +124,7 @@ std::vector<int> FindAirports(const AirportGeometryStore& pStore, std::string_vi
     return tResult;
 }
 
-LatLon AirportCenter(const AirportGeometry& pAirport)
+LatLon airportCenter(const AirportGeometry& pAirport)
 {
     const GeoBounds& tBounds = pAirport.mBounds;
     if (tBounds.mNorth > tBounds.mSouth && tBounds.mEast > tBounds.mWest)
@@ -135,12 +134,12 @@ LatLon AirportCenter(const AirportGeometry& pAirport)
     return pAirport.mReference;
 }
 
-double ZoomToFitAirport(const AirportGeometry& pAirport, double pViewWidth, double pViewHeight)
+double zoomToFitAirport(const AirportGeometry& pAirport, double pViewWidth, double pViewHeight)
 {
     const GeoBounds& tBounds = pAirport.mBounds;
     // Mercator birimi (0..1) cinsinden kutu; dunya kenari = 256 * 2^zoom boxel
-    const double tWidth = Mercator::LonToX(tBounds.mEast) - Mercator::LonToX(tBounds.mWest);
-    const double tHeight = Mercator::LatToY(tBounds.mNorth) - Mercator::LatToY(tBounds.mSouth);
+    const double tWidth = Mercator::lonToX(tBounds.mEast) - Mercator::lonToX(tBounds.mWest);
+    const double tHeight = Mercator::latToY(tBounds.mNorth) - Mercator::latToY(tBounds.mSouth);
     if (tWidth <= 0.0 || tHeight <= 0.0 || pViewWidth <= 0.0 || pViewHeight <= 0.0)
     {
         return kDefaultFitZoom;

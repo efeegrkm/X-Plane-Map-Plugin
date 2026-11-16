@@ -1,4 +1,3 @@
-// TerrainHub.cpp
 #include "layers/TerrainHub.h"
 
 #include <algorithm>
@@ -14,7 +13,7 @@ const int kUploadsPerFrame = 3;       // karede en fazla bu kadar doku yuklenir 
 const int kMaxUsers = 32;             // isaretler 32 bitlik
 const size_t kMaxIdleVectorTiles = 4; // kimsenin tutmadigi vektor karolari bundan cok olunca atilir
 
-}  // namespace
+}
 
 TerrainHub::TerrainHub(TerrainStore& pStore)
     : mStore(pStore)
@@ -22,25 +21,23 @@ TerrainHub::TerrainHub(TerrainStore& pStore)
 {
 }
 
-TerrainStore& TerrainHub::Store()
+TerrainStore& TerrainHub::store()
 {
     return mStore;
 }
 
-uint32_t TerrainHub::BitOf(int pUser)
+uint32_t TerrainHub::bitOf(int pUser)
 {
     return 1u << static_cast<uint32_t>(std::clamp(pUser, 0, kMaxUsers - 1));
 }
 
-// --- Kullanicilar ----------------------------------------------------------------
-
-int TerrainHub::AddUser()
+int TerrainHub::addUser()
 {
     for (int tUser = 0; tUser < kMaxUsers; ++tUser)
     {
-        if ((mUsedUsers & BitOf(tUser)) == 0)
+        if ((mUsedUsers & bitOf(tUser)) == 0)
         {
-            mUsedUsers |= BitOf(tUser);
+            mUsedUsers |= bitOf(tUser);
             return tUser;
         }
     }
@@ -49,9 +46,9 @@ int TerrainHub::AddUser()
     return kMaxUsers - 1;
 }
 
-void TerrainHub::RemoveUser(int pUser)
+void TerrainHub::removeUser(int pUser)
 {
-    const uint32_t tBit = BitOf(pUser);
+    const uint32_t tBit = bitOf(pUser);
     mUsedUsers &= ~tBit;
     for (auto& tEntry : mTextures)
     {
@@ -61,21 +58,19 @@ void TerrainHub::RemoveUser(int pUser)
     {
         tEntry.second.mUsers &= ~tBit;
     }
-    DropUnusedVectors();
+    dropUnusedVectors();
 }
 
-// --- Dokular ---------------------------------------------------------------------
-
-void TerrainHub::BeginFrame()
+void TerrainHub::beginFrame()
 {
     mUploadsLeft = kUploadsPerFrame;
 }
 
-bool TerrainHub::UploadReady()
+bool TerrainHub::uploadReady()
 {
     bool tUploaded = false;
     TerrainImage tImage;
-    while (mUploadsLeft > 0 && mStore.PopImage(&tImage))
+    while (mUploadsLeft > 0 && mStore.popImage(&tImage))
     {
         --mUploadsLeft;
         uint32_t tUsers = 0;
@@ -92,7 +87,7 @@ bool TerrainHub::UploadReady()
             mTextures.erase(tExisting);
         }
         CachedTexture tCached;
-        tCached.mTexture = Gfx::Texture::FromRgba(tImage.mSize, tImage.mRgba.data(), true);
+        tCached.mTexture = Gfx::Texture::fromRgba(tImage.mSize, tImage.mRgba.data(), true);
         tCached.mBytes = tImage.mRgba.size() * 4 / 3;  // mipmap seviyeleri dahil
         tCached.mLastUse = ++mUseClock;
         tCached.mUsers = tUsers;
@@ -108,33 +103,33 @@ bool TerrainHub::UploadReady()
     return tUploaded;
 }
 
-uint64_t TerrainHub::TextureGeneration() const
+uint64_t TerrainHub::textureGeneration() const
 {
     return mTextureGeneration;
 }
 
-void TerrainHub::BeginDraw(int pUser)
+void TerrainHub::beginDraw(int pUser)
 {
-    const uint32_t tBit = BitOf(pUser);
+    const uint32_t tBit = bitOf(pUser);
     for (auto& tEntry : mTextures)
     {
         tEntry.second.mUsers &= ~tBit;
     }
 }
 
-const Gfx::Texture* TerrainHub::UseTexture(const TerrainImageKey& pKey, int pUser)
+const Gfx::Texture* TerrainHub::useTexture(const TerrainImageKey& pKey, int pUser)
 {
     const auto tFound = mTextures.find(pKey);
     if (tFound == mTextures.end())
     {
         return nullptr;
     }
-    tFound->second.mUsers |= BitOf(pUser);
+    tFound->second.mUsers |= bitOf(pUser);
     tFound->second.mLastUse = ++mUseClock;
     for (const int tNeighbor : tFound->second.mMissingNeighbors)
     {
         // TileKey -> karo (SceneryIndex::TileKey'in tersi)
-        if (mStore.HasElevation(tNeighbor % 360 - 180, tNeighbor / 360 - 90))
+        if (mStore.hasElevation(tNeighbor % 360 - 180, tNeighbor / 360 - 90))
         {
             mStore.Request(pKey);  // ayni anahtar uretilirken / kuyruktayken tekrar alinmaz
             break;
@@ -143,7 +138,7 @@ const Gfx::Texture* TerrainHub::UseTexture(const TerrainImageKey& pKey, int pUse
     return &tFound->second.mTexture;
 }
 
-void TerrainHub::EvictUnusedTextures()
+void TerrainHub::evictUnusedTextures()
 {
     // Butce asildiysa hicbir haritanin son ciziminde kullanmadigi dokulardan en eskiler silinir
     while (mTextureBytes > mTextureBudget)
@@ -166,35 +161,33 @@ void TerrainHub::EvictUnusedTextures()
     }
 }
 
-void TerrainHub::SetTextureBudget(size_t pBytes)
+void TerrainHub::setTextureBudget(size_t pBytes)
 {
     mTextureBudget = pBytes;
 }
 
-size_t TerrainHub::TextureBudget() const
+size_t TerrainHub::textureBudget() const
 {
     return mTextureBudget;
 }
 
-size_t TerrainHub::TextureBytes() const
+size_t TerrainHub::textureBytes() const
 {
     return mTextureBytes;
 }
 
-int TerrainHub::TextureCount() const
+int TerrainHub::textureCount() const
 {
     return static_cast<int>(mTextures.size());
 }
 
-// --- Vektorler -------------------------------------------------------------------
-
-bool TerrainHub::TakeReadyVectors()
+bool TerrainHub::takeReadyVectors()
 {
     bool tTaken = false;
     std::shared_ptr<const TerrainVectors> tVectors;
-    while (mStore.PopVectors(&tVectors))
+    while (mStore.popVectors(&tVectors))
     {
-        CachedVectors& tEntry = mVectors[SceneryIndex::TileKey(tVectors->West(), tVectors->South())];
+        CachedVectors& tEntry = mVectors[SceneryIndex::tileKey(tVectors->west(), tVectors->south())];
         tEntry.mVectors = tVectors;
         tTaken = true;
     }
@@ -205,34 +198,34 @@ bool TerrainHub::TakeReadyVectors()
     return tTaken;
 }
 
-uint64_t TerrainHub::VectorGeneration() const
+uint64_t TerrainHub::vectorGeneration() const
 {
     return mVectorGeneration;
 }
 
-std::shared_ptr<const TerrainVectors> TerrainHub::UseVectors(int pWest, int pSouth, int pUser)
+std::shared_ptr<const TerrainVectors> TerrainHub::useVectors(int pWest, int pSouth, int pUser)
 {
-    const auto tFound = mVectors.find(SceneryIndex::TileKey(pWest, pSouth));
+    const auto tFound = mVectors.find(SceneryIndex::tileKey(pWest, pSouth));
     if (tFound == mVectors.end())
     {
-        mStore.RequestVectors(pWest, pSouth);  // deniz / veri yok karoda sonuc hic gelmez (zararsiz)
+        mStore.requestVectors(pWest, pSouth);  // deniz / veri yok karoda sonuc hic gelmez (zararsiz)
         return nullptr;
     }
-    tFound->second.mUsers |= BitOf(pUser);
+    tFound->second.mUsers |= bitOf(pUser);
     return tFound->second.mVectors;
 }
 
-void TerrainHub::ReleaseVectors(int pWest, int pSouth, int pUser)
+void TerrainHub::releaseVectors(int pWest, int pSouth, int pUser)
 {
-    const auto tFound = mVectors.find(SceneryIndex::TileKey(pWest, pSouth));
+    const auto tFound = mVectors.find(SceneryIndex::tileKey(pWest, pSouth));
     if (tFound != mVectors.end())
     {
-        tFound->second.mUsers &= ~BitOf(pUser);
+        tFound->second.mUsers &= ~bitOf(pUser);
     }
-    DropUnusedVectors();
+    dropUnusedVectors();
 }
 
-void TerrainHub::DropUnusedVectors()
+void TerrainHub::dropUnusedVectors()
 {
     // Kimsenin tutmadigi karolar: birkaci bekletilir (az once birakan harita / yeni acilan harita
     // hemen isteyebilir), fazlasi atilir ve isciye "tekrar istenebilir" denir
@@ -245,7 +238,7 @@ void TerrainHub::DropUnusedVectors()
     {
         if (tIterator->second.mUsers == 0)
         {
-            mStore.ForgetVectors(tIterator->second.mVectors->West(), tIterator->second.mVectors->South());
+            mStore.forgetVectors(tIterator->second.mVectors->west(), tIterator->second.mVectors->south());
             tIterator = mVectors.erase(tIterator);
             --tIdle;
         }

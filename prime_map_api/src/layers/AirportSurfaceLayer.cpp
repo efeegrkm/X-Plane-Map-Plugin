@@ -1,4 +1,3 @@
-// AirportSurfaceLayer.cpp
 #include "layers/AirportSurfaceLayer.h"
 
 #include <algorithm>
@@ -20,7 +19,6 @@ const double kLineMinZoom = 13.5;  // pist / taksi yolu orta cizgileri: 1 tik er
 const size_t kMaxGpuAirports = 64;    // GPU'da tutulan en fazla havalimani
 const float kCriticalLinePixels = 2.0f;  // sinir ve kaplama kenari: 2 piksel (boya cizgileri 1)
 
-// Alt katmanlar (yapicidaki AddSubLayer sirasi)
 enum SurfacePart
 {
     kPartPavement,
@@ -29,7 +27,7 @@ enum SurfacePart
     kPartMarkings,
 };
 
-// Yuzey renkleri (koyu tema). Pistler (RunwayLayer) bunlardan biraz daha koyu.
+// Yuzey renkleri (koyu tema). pistler(RunwayLayer) bunlardan biraz daha koyu.
 const Rgba kAsphalt = {0.30f, 0.31f, 0.34f, 1.0f};
 const Rgba kConcrete = {0.38f, 0.39f, 0.41f, 1.0f};
 const Rgba kGrass = {0.30f, 0.40f, 0.24f, 1.0f};
@@ -50,7 +48,7 @@ const Rgba kLineBlue = {0.30f, 0.50f, 1.00f, 1.0f};
 const Rgba kLineGreen = {0.25f, 0.85f, 0.35f, 1.0f};
 
 // Yuzey kodu -> renk. nullptr: cizilmez (su, saydam)
-const Rgba* SurfaceColor(int pCode)
+const Rgba* surfaceColor(int pCode)
 {
     switch (pCode)
     {
@@ -80,7 +78,7 @@ const Rgba* SurfaceColor(int pCode)
 }
 
 // Boya cizgisi kodu -> renk. 51-64 / 70-92: ayni cizginin siyah kenarli hali.
-const Rgba* LineColor(int pType)
+const Rgba* lineColor(int pType)
 {
     int tBase = pType;
     if (tBase >= 51 && tBase <= 64)
@@ -116,8 +114,8 @@ const Rgba* LineColor(int pType)
     }
 }
 
-// Mercator farkindaki bir halkayi GL_LINES ciftlerine ekler
-void AddRingLines(const std::vector<PointF>& pRing, bool pClosed, const Rgba& pColor,
+// Mercator'daki bir halkayi GL_LINES ciftlerine ekler
+void addRingLines(const std::vector<PointF>& pRing, bool pClosed, const Rgba& pColor,
                   std::vector<Gfx::ColorVertex>& pOut)
 {
     if (pRing.size() < 2)
@@ -134,20 +132,20 @@ void AddRingLines(const std::vector<PointF>& pRing, bool pClosed, const Rgba& pC
     }
 }
 
-}  // namespace
+}
 
 AirportSurfaceLayer::AirportSurfaceLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails)
     : Layer("airport_surfaces", "Airport surfaces", true)
     , mSummaries(pSummaries)
     , mDetails(pDetails)
 {
-    AddSubLayer("pavement", "Pavement");
-    AddSubLayer("pavement_edges", "Pavement edges");
-    AddSubLayer("boundary", "Airport boundary");
-    AddSubLayer("markings", "Painted lines");
+    addSubLayer("pavement", "Pavement");
+    addSubLayer("pavement_edges", "Pavement edges");
+    addSubLayer("boundary", "Airport boundary");
+    addSubLayer("markings", "Painted lines");
 }
 
-void AirportSurfaceLayer::Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded) const
+void AirportSurfaceLayer::upload(GpuAirport& pGpu, const LoadedAirport& pLoaded) const
 {
     const AirportShapes& tShapes = pLoaded.mShapes;
     pGpu.mSource = &pLoaded;
@@ -157,7 +155,7 @@ void AirportSurfaceLayer::Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded)
     std::vector<Gfx::ColorVertex> tVertices;
     for (const SurfaceMesh& tSurface : tShapes.mPavements)
     {
-        const Rgba* tColor = SurfaceColor(tSurface.mSurfaceCode);
+        const Rgba* tColor = surfaceColor(tSurface.mSurfaceCode);
         if (!tColor)
         {
             continue;
@@ -168,21 +166,21 @@ void AirportSurfaceLayer::Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded)
             tVertices.push_back({tPoint.mX, tPoint.mY, *tColor});
         }
     }
-    pGpu.mFills.Upload(tVertices, Gfx::Primitive::Triangles);
+    pGpu.mFills.upload(tVertices, Gfx::Primitive::Triangles);
 
     tVertices.clear();
     for (const std::vector<PointF>& tRing : tShapes.mPavementEdges)
     {
-        AddRingLines(tRing, true, kPavementEdge, tVertices);
+        addRingLines(tRing, true, kPavementEdge, tVertices);
     }
-    pGpu.mEdges.Upload(tVertices, Gfx::Primitive::Lines);
+    pGpu.mEdges.upload(tVertices, Gfx::Primitive::Lines);
 
     tVertices.clear();
     for (const std::vector<PointF>& tRing : tShapes.mBoundaries)
     {
-        AddRingLines(tRing, true, kBoundary, tVertices);
+        addRingLines(tRing, true, kBoundary, tVertices);
     }
-    pGpu.mBoundaries.Upload(tVertices, Gfx::Primitive::Lines);
+    pGpu.mBoundaries.upload(tVertices, Gfx::Primitive::Lines);
 
     tVertices.clear();
     for (const LineMesh& tLine : tShapes.mLines)
@@ -191,7 +189,7 @@ void AirportSurfaceLayer::Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded)
         const size_t tSegments = tLine.mClosed ? tCount : tCount - 1;
         for (size_t tSegment = 0; tSegment < tSegments && tSegment < tLine.mLineTypes.size(); ++tSegment)
         {
-            const Rgba* tColor = LineColor(tLine.mLineTypes[tSegment]);
+            const Rgba* tColor = lineColor(tLine.mLineTypes[tSegment]);
             if (!tColor)
             {
                 continue;
@@ -202,10 +200,10 @@ void AirportSurfaceLayer::Upload(GpuAirport& pGpu, const LoadedAirport& pLoaded)
             tVertices.push_back({tTo.mX, tTo.mY, *tColor});
         }
     }
-    pGpu.mLines.Upload(tVertices, Gfx::Primitive::Lines);
+    pGpu.mLines.upload(tVertices, Gfx::Primitive::Lines);
 }
 
-void AirportSurfaceLayer::EvictUnused()
+void AirportSurfaceLayer::evictUnused()
 {
     // Ekrandan cikan havalimanlari: en uzun suredir kullanilmayani GPU'dan sil
     while (mGpu.size() > kMaxGpuAirports)
@@ -227,52 +225,52 @@ void AirportSurfaceLayer::EvictUnused()
     }
 }
 
-void AirportSurfaceLayer::Draw(const DrawContext& pContext)
+void AirportSurfaceLayer::draw(const drawContext& pContext)
 {
     ++mFrame;
     mDrawn.clear();  // Describe eski karenin (silinmis olabilecek) ayrintilarina bakmasin
-    const MapView& tView = *pContext.mView;
-    const double tZoom = tView.Zoom();
-    if (!mSummaries.IsReady() || tZoom < kBoundaryMinZoom)
+    const XMapView& tView = *pContext.mView;
+    const double tZoom = tView.zoom();
+    if (!mSummaries.isReady() || tZoom < kBoundaryMinZoom)
     {
         return;
     }
 
-    FindVisibleAirports(tView, mSummaries, mQuery, mVisible);
+    findVisibleAirports(tView, mSummaries, mQuery, mVisible);
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
-    const double tScale = tView.WorldSize();  // Mercator birimi -> boxel
+    const double tScale = tView.worldSize();  // Mercator birimi -> boxel
     Gfx::Mesh tLoading;
-    // Yukleniyor isareti: sabit yari saydam (0.18: yanip sonme kaldirildi, harita resmi
-    // onbellekte; animasyon icin her karede yeniden cizmek gerekirdi)
+    // Yukleniyor isareti: sabit yari saydam (yanip sonme: her karede yeniden
+    // cizim gerekirdi, harita resmi onbellekte)
     const float tPulse = 0.55f;
     std::vector<GpuAirport*> tReady;
     mDrawn.clear();
 
     for (int tIndex : mVisible)
     {
-        const LoadedAirport* tLoaded = mDetails.Use(tIndex);
+        const LoadedAirport* tLoaded = mDetails.use(tIndex);
         if (!tLoaded)
         {
             mGpu.erase(tIndex);  // ayrinti bellekten dustu: GPU kopyasi da gitsin
-            const GeoBounds& tBox = mSummaries.At(tIndex).mBounds;
-            const PointF tSouthWest = tView.ToScreen({tBox.mSouth, tBox.mWest});
-            const PointF tNorthEast = tView.ToScreen({tBox.mNorth, tBox.mEast});
+            const GeoBounds& tBox = mSummaries.at(tIndex).mBounds;
+            const PointF tSouthWest = tView.toScreen({tBox.mSouth, tBox.mWest});
+            const PointF tNorthEast = tView.toScreen({tBox.mNorth, tBox.mEast});
             const std::vector<PointF> tCorners = {tSouthWest,
                                                   {tNorthEast.mX, tSouthWest.mY},
                                                   tNorthEast,
                                                   {tSouthWest.mX, tNorthEast.mY}};
             for (size_t tSide = 0; tSide < tCorners.size(); ++tSide)
             {
-                tLoading.AddDashedLine(tCorners[tSide], tCorners[(tSide + 1) % tCorners.size()], 1.5f, 6.0f, 5.0f,
-                                       WithAlpha(kLoading, tPulse));
+                tLoading.addDashedLine(tCorners[tSide], tCorners[(tSide + 1) % tCorners.size()], 1.5f, 6.0f, 5.0f,
+                                       withAlpha(kLoading, tPulse));
             }
             continue;
         }
         GpuAirport& tGpu = mGpu[tIndex];
         if (tGpu.mSource != tLoaded)
         {
-            Upload(tGpu, *tLoaded);  // ilk kez (veya yeniden okundu): GPU'ya yukle
+            upload(tGpu, *tLoaded);  // ilk kez (veya yeniden okundu): GPU'ya yukle
         }
         tGpu.mLastFrame = mFrame;
         tReady.push_back(&tGpu);
@@ -286,40 +284,40 @@ void AirportSurfaceLayer::Draw(const DrawContext& pContext)
     {
         for (GpuAirport* tGpu : tReady)
         {
-            const PointF tOffset = tView.MercatorToScreen(tGpu->mOriginX, tGpu->mOriginY);
-            if (tPass == 0 && tZoom >= kSurfaceMinZoom && IsSubLayerDrawn(kPartPavement))
+            const PointF tOffset = tView.mercatorToScreen(tGpu->mOriginX, tGpu->mOriginY);
+            if (tPass == 0 && tZoom >= kSurfaceMinZoom && isSubLayerDrawn(kPartPavement))
             {
-                tCanvas.DrawStatic(tGpu->mFills, tOffset, tScale);
+                tCanvas.drawStatic(tGpu->mFills, tOffset, tScale);
             }
-            else if (tPass == 1 && tZoom >= kSurfaceMinZoom && IsSubLayerDrawn(kPartPavementEdges))
+            else if (tPass == 1 && tZoom >= kSurfaceMinZoom && isSubLayerDrawn(kPartPavementEdges))
             {
-                tCanvas.DrawStatic(tGpu->mEdges, tOffset, tScale, tCriticalWidth);
+                tCanvas.drawStatic(tGpu->mEdges, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 2 && IsSubLayerDrawn(kPartBoundary))
+            else if (tPass == 2 && isSubLayerDrawn(kPartBoundary))
             {
-                tCanvas.DrawStatic(tGpu->mBoundaries, tOffset, tScale, tCriticalWidth);
+                tCanvas.drawStatic(tGpu->mBoundaries, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 3 && tZoom >= kLineMinZoom && IsSubLayerDrawn(kPartMarkings))
+            else if (tPass == 3 && tZoom >= kLineMinZoom && isSubLayerDrawn(kPartMarkings))
             {
-                tCanvas.DrawStatic(tGpu->mLines, tOffset, tScale);
+                tCanvas.drawStatic(tGpu->mLines, tOffset, tScale);
             }
         }
     }
-    tCanvas.Draw(tLoading);
-    EvictUnused();
+    tCanvas.draw(tLoading);
+    evictUnused();
 }
 
-std::string AirportSurfaceLayer::Describe(const DrawContext& pContext, double pX, double pY) const
+std::string AirportSurfaceLayer::describe(const drawContext& pContext, double pX, double pY) const
 {
-    const MapView& tView = *pContext.mView;
-    if (tView.Zoom() < kSurfaceMinZoom || !IsSubLayerDrawn(kPartPavement))
+    const XMapView& tView = *pContext.mView;
+    if (tView.zoom() < kSurfaceMinZoom || !isSubLayerDrawn(kPartPavement))
     {
         return "";
     }
     // Imlecin Mercator koordinati; her havalimaninin sekilleri ona gore fark
-    const LatLon tCursor = tView.BoxelToLatLon(pX, pY);
-    const double tCursorX = Mercator::LonToX(tCursor.mLon);
-    const double tCursorY = Mercator::LatToY(tCursor.mLat);
+    const LatLon tCursor = tView.boxelToLatLon(pX, pY);
+    const double tCursorX = Mercator::lonToX(tCursor.mLon);
+    const double tCursorY = Mercator::latToY(tCursor.mLat);
     for (const LoadedAirport* tLoaded : mDrawn)
     {
         const AirportShapes& tShapes = tLoaded->mShapes;
@@ -328,7 +326,7 @@ std::string AirportSurfaceLayer::Describe(const DrawContext& pContext, double pX
         // Cizim sirasi alttan uste: en ustteki yuzey once sorulur
         for (auto tSurface = tShapes.mPavements.rbegin(); tSurface != tShapes.mPavements.rend(); ++tSurface)
         {
-            if (!SurfaceColor(tSurface->mSurfaceCode))
+            if (!surfaceColor(tSurface->mSurfaceCode))
             {
                 continue;  // cizilmeyen (su / saydam) yuzey
             }
@@ -346,7 +344,7 @@ std::string AirportSurfaceLayer::Describe(const DrawContext& pContext, double pX
                 if (!(tNegative && tPositive))
                 {
                     const std::string tName = tSurface->mName.empty() ? "" : tSurface->mName + "  ";
-                    return std::format("Pavement: {}({}) - {}", tName, SurfaceName(tSurface->mSurfaceCode),
+                    return std::format("Pavement: {}({}) - {}", tName, surfaceName(tSurface->mSurfaceCode),
                                        tLoaded->mDetail.mId);
                 }
             }

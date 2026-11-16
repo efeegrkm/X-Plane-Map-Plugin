@@ -1,4 +1,3 @@
-// NavLoader.cpp
 #include "data/NavLoader.h"
 
 #include <array>
@@ -15,14 +14,14 @@ const int kIlsSampleCount = 3;       // ILS yon kodlamasini dogrulamak icin log'
 
 using Clock = std::chrono::steady_clock;
 
-double MillisecondsSince(const Clock::time_point& pStart)
+double millisecondsSince(const Clock::time_point& pStart)
 {
     return std::chrono::duration<double, std::milli>(Clock::now() - pStart).count();
 }
 
 // XPLM turunu bizim turumuze cevirir. Ilgilenmedigimiz turler
 // (suzulus yolu, marker, enlem/boylam noktasi) icin false.
-bool ToNavKind(XPLMNavType pType, NavKind* pOut)
+bool toNavKind(XPLMNavType pType, NavKind* pOut)
 {
     switch (pType)
     {
@@ -59,7 +58,7 @@ NavLoader::NavLoader(NavDatabase& pDatabase)
 {
 }
 
-bool NavLoader::Step(double pBudgetMs)
+bool NavLoader::step(double pBudgetMs)
 {
     if (mDone)
     {
@@ -75,17 +74,17 @@ bool NavLoader::Step(double pBudgetMs)
             return false;  // nav verisi henuz hazir degil: sonraki karede tekrar dene
         }
         mStarted = true;
-        mDatabase.Clear();
-        Log("reading nav data...");
+        mDatabase.clear();
+        log("reading nav data...");
     }
 
     int tCount = 0;
     while (mNext != XPLM_NAV_NOT_FOUND)
     {
-        ReadOne(mNext);
+        readOne(mNext);
         mNext = XPLMGetNextNavAid(mNext);
         ++mVisited;
-        if (++tCount % kTimeCheckInterval == 0 && MillisecondsSince(tStart) >= pBudgetMs)
+        if (++tCount % kTimeCheckInterval == 0 && millisecondsSince(tStart) >= pBudgetMs)
         {
             break;
         }
@@ -93,31 +92,31 @@ bool NavLoader::Step(double pBudgetMs)
 
     if (mNext == XPLM_NAV_NOT_FOUND)
     {
-        mDatabase.Build();
+        mDatabase.build();
         mDone = true;
-        mElapsedMs += MillisecondsSince(tStart);
-        Log("nav data ready: {} records visited, {:.0f} ms (airports {}, VOR {}, DME {}, NDB {}, ILS {}, LOC {}, "
+        mElapsedMs += millisecondsSince(tStart);
+        log("nav data ready: {} records visited, {:.0f} ms (airports {}, VOR {}, DME {}, NDB {}, ILS {}, LOC {}, "
             "fixes {})",
-            mVisited, mElapsedMs, mDatabase.CountOf(NavKind::Airport), mDatabase.CountOf(NavKind::Vor),
-            mDatabase.CountOf(NavKind::Dme), mDatabase.CountOf(NavKind::Ndb), mDatabase.CountOf(NavKind::Ils),
-            mDatabase.CountOf(NavKind::Localizer), mDatabase.CountOf(NavKind::Fix));
+            mVisited, mElapsedMs, mDatabase.countOf(NavKind::Airport), mDatabase.countOf(NavKind::Vor),
+            mDatabase.countOf(NavKind::Dme), mDatabase.countOf(NavKind::Ndb), mDatabase.countOf(NavKind::Ils),
+            mDatabase.countOf(NavKind::Localizer), mDatabase.countOf(NavKind::Fix));
         return true;
     }
-    mElapsedMs += MillisecondsSince(tStart);
+    mElapsedMs += millisecondsSince(tStart);
     return false;
 }
 
-bool NavLoader::IsDone() const
+bool NavLoader::isDone() const
 {
     return mDone;
 }
 
-int NavLoader::VisitedCount() const
+int NavLoader::visitedCount() const
 {
     return mVisited;
 }
 
-void NavLoader::ReadOne(XPLMNavRef pRef)
+void NavLoader::readOne(XPLMNavRef pRef)
 {
     XPLMNavType tType = xplm_Nav_Unknown;
     float tLat = 0.0f;
@@ -132,11 +131,11 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
     const std::string tNameText = tName.data();
 
     NavRecord tRecord;
-    if (!ToNavKind(tType, &tRecord.mKind))
+    if (!toNavKind(tType, &tRecord.mKind))
     {
         return;
     }
-    if (IsPlaceholderId(tIdText))
+    if (isPlaceholderId(tIdText))
     {
         return;  // "----": X-Plane'in yer tutucu kaydi (konum/yon bilgisi yok)
     }
@@ -150,8 +149,8 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
     }
     if (tRecord.mKind == NavKind::Airport)
     {
-        tRecord.mAirportKind = AirportKindFromName(tNameText, &tRecord.mName);
-        tRecord.mMajor = tRecord.mAirportKind == AirportKind::Land && IsMajorAirportId(tRecord.mId);
+        tRecord.mAirportKind = airportKindFromName(tNameText, &tRecord.mName);
+        tRecord.mMajor = tRecord.mAirportKind == AirportKind::Land && isMajorAirportId(tRecord.mId);
     }
     if (tRecord.mKind == NavKind::Vor)
     {
@@ -161,7 +160,7 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
         if (mVorSamplesLogged < kIlsSampleCount)
         {
             ++mVorSamplesLogged;
-            Log("VOR sample: {} SDK heading (variation) = {:.2f}", tIdText, tHeading);
+            log("VOR sample: {} SDK heading (variation) = {:.2f}", tIdText, tHeading);
         }
     }
     if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
@@ -169,13 +168,13 @@ void NavLoader::ReadOne(XPLMNavRef pRef)
         // X-Plane 11.55'te denendi: SDK yonu zaten cozulmus GERCEK yon olarak
         // veriyor (IANC: 89.9). Dosyadaki "manyetik*360 + gercek" kodlu deger
         // gelirse de dogru cozulsun diye Decode yine de cagriliyor.
-        DecodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);
+        decodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);
         if (mIlsSamplesLogged < kIlsSampleCount)
         {
             ++mIlsSamplesLogged;
-            Log("ILS sample: {} SDK course={:.3f} -> true {:.1f}, magnetic {}", tIdText, tHeading, tRecord.mCourseTrue,
+            log("ILS sample: {} SDK course={:.3f} -> true {:.1f}, magnetic {}", tIdText, tHeading, tRecord.mCourseTrue,
                 tRecord.mCourseMagnetic);
         }
     }
-    mDatabase.Add(tRecord);
+    mDatabase.add(tRecord);
 }

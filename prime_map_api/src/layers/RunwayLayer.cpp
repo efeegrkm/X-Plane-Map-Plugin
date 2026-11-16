@@ -1,4 +1,3 @@
-// RunwayLayer.cpp
 #include "layers/RunwayLayer.h"
 
 #include <cmath>
@@ -23,7 +22,6 @@ const double kEdgeMargin = 40.0;      // boxel
 const float kMinHalfWidth = 1.0f;     // cok uzaktan bakinca bile pist 2 boxel gorunsun
 const float kEdgeWidth = 2.0f;        // pist kenar cizgisi (boxel): kritik cizgi, 2 piksel
 
-// Alt katmanlar (yapicidaki AddSubLayer sirasi)
 enum RunwayPart
 {
     kPartPaved,
@@ -34,8 +32,7 @@ enum RunwayPart
     kPartNumbers,
 };
 
-// Pistin hangi alt katmana ait oldugu (su pisti / kaplamali / kaplamasiz)
-int PartOf(const Runway& pRunway)
+int partOf(const Runway& pRunway)
 {
     if (pRunway.mWater || pRunway.mSurface == RunwaySurface::Water)
     {
@@ -54,7 +51,7 @@ const Rgba kSnowColor = {0.85f, 0.88f, 0.92f, 1.0f};
 const Rgba kOverrunColor = {0.33f, 0.34f, 0.37f, 1.0f};
 const Rgba kMarkingColor = {0.96f, 0.97f, 0.98f, 1.0f};
 
-const Rgba& SurfaceColor(RunwaySurface pSurface)
+const Rgba& surfaceColor(RunwaySurface pSurface)
 {
     switch (pSurface)
     {
@@ -69,25 +66,25 @@ const Rgba& SurfaceColor(RunwaySurface pSurface)
     }
 }
 
-}  // namespace
+}
 
 RunwayLayer::RunwayLayer(const AirportGeometryStore& pStore)
     : Layer("runways", "Runways", true)
     , mStore(pStore)
 {
-    AddSubLayer("paved", "Paved (land)");
-    AddSubLayer("unpaved", "Unpaved (land)");
-    AddSubLayer("water", "Water runways");
-    AddSubLayer("overruns", "Blast pads / overruns");
-    AddSubLayer("markings", "Markings");
-    AddSubLayer("numbers", "Runway numbers");
+    addSubLayer("paved", "Paved (land)");
+    addSubLayer("unpaved", "Unpaved (land)");
+    addSubLayer("water", "Water runways");
+    addSubLayer("overruns", "Blast pads / overruns");
+    addSubLayer("markings", "Markings");
+    addSubLayer("numbers", "Runway numbers");
 }
 
-void RunwayLayer::CollectVisible(const DrawContext& pContext)
+void RunwayLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
-    const MapView& tView = *pContext.mView;
-    if (!mStore.IsReady() || tView.Zoom() < kMinZoom)
+    const XMapView& tView = *pContext.mView;
+    if (!mStore.isReady() || tView.zoom() < kMinZoom)
     {
         return;
     }
@@ -97,20 +94,20 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
     tArea.mRight += kEdgeMargin;
     tArea.mBottom -= kEdgeMargin;
     tArea.mTop += kEdgeMargin;
-    GeoBounds tBounds = tView.BoundsOf(tArea);
+    GeoBounds tBounds = tView.boundsOf(tArea);
     tBounds.mSouth -= kQueryMarginDeg;
     tBounds.mNorth += kQueryMarginDeg;
     tBounds.mWest -= kQueryMarginDeg;
     tBounds.mEast += kQueryMarginDeg;
 
     mQuery.clear();
-    mStore.Query(tBounds, mQuery);
+    mStore.query(tBounds, mQuery);
 
     for (int tAirportIndex : mQuery)
     {
-        for (const Runway& tRunway : mStore.At(tAirportIndex).mRunways)
+        for (const Runway& tRunway : mStore.at(tAirportIndex).mRunways)
         {
-            if (!IsSubLayerDrawn(PartOf(tRunway)))
+            if (!isSubLayerDrawn(partOf(tRunway)))
             {
                 continue;  // bu tur pist (kara / su) panelden kapatildi
             }
@@ -118,7 +115,7 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
             tScreen.mRunway = &tRunway;
             for (int tEnd = 0; tEnd < 2; ++tEnd)
             {
-                const PointF tPoint = tView.ToScreen(tRunway.mEnds[tEnd].mPosition);
+                const PointF tPoint = tView.toScreen(tRunway.mEnds[tEnd].mPosition);
                 tScreen.mEndX[tEnd] = tPoint.mX;
                 tScreen.mEndY[tEnd] = tPoint.mY;
             }
@@ -143,7 +140,7 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
             tScreen.mDirX = tDeltaX / tScreen.mLength;
             tScreen.mDirY = tDeltaY / tScreen.mLength;
             const double tMidLat = (tRunway.mEnds[0].mPosition.mLat + tRunway.mEnds[1].mPosition.mLat) * 0.5;
-            tScreen.mBoxelsPerMeter = static_cast<float>(1.0 / tView.MetersPerBoxelAt(tMidLat));
+            tScreen.mBoxelsPerMeter = static_cast<float>(1.0 / tView.metersPerBoxelAt(tMidLat));
             tScreen.mHalfWidth =
                 std::fmax(static_cast<float>(tRunway.mWidthM) * tScreen.mBoxelsPerMeter * 0.5f, kMinHalfWidth);
             mVisible.push_back(tScreen);
@@ -151,7 +148,7 @@ void RunwayLayer::CollectVisible(const DrawContext& pContext)
     }
 }
 
-void RunwayLayer::AddRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
+void RunwayLayer::addRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
                                float pHalfWidth, const Rgba& pColor)
 {
     // Normal: pist yonunun 90 derece dondurulmusu
@@ -161,22 +158,22 @@ void RunwayLayer::AddRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, fl
     const float tStartY = pRunway.mEndY[0] + pRunway.mDirY * pFrom;
     const float tStopX = pRunway.mEndX[0] + pRunway.mDirX * pTo;
     const float tStopY = pRunway.mEndY[0] + pRunway.mDirY * pTo;
-    pMesh.AddQuad({tStartX + tNormalX, tStartY + tNormalY}, {tStartX - tNormalX, tStartY - tNormalY},
+    pMesh.addQuad({tStartX + tNormalX, tStartY + tNormalY}, {tStartX - tNormalX, tStartY - tNormalY},
                   {tStopX - tNormalX, tStopY - tNormalY}, {tStopX + tNormalX, tStopY + tNormalY}, pColor);
 }
 
-void RunwayLayer::Draw(const DrawContext& pContext)
+void RunwayLayer::draw(const drawContext& pContext)
 {
-    CollectVisible(pContext);
+    collectVisible(pContext);
     if (mVisible.empty())
     {
         return;
     }
-    const double tZoom = pContext.mView->Zoom();
+    const double tZoom = pContext.mView->zoom();
     Gfx::Mesh tMesh;
 
     // Blast pad / overrun: pistin iki ucundan disari
-    if (tZoom >= kOverrunMinZoom && IsSubLayerDrawn(kPartOverruns))
+    if (tZoom >= kOverrunMinZoom && isSubLayerDrawn(kPartOverruns))
     {
         for (const ScreenRunway& tRunway : mVisible)
         {
@@ -184,11 +181,11 @@ void RunwayLayer::Draw(const DrawContext& pContext)
             const float tOverrun1 = static_cast<float>(tRunway.mRunway->mEnds[1].mOverrunM) * tRunway.mBoxelsPerMeter;
             if (tOverrun0 > 0.5f)
             {
-                AddRectangle(tMesh, tRunway, -tOverrun0, 0.0f, tRunway.mHalfWidth, kOverrunColor);
+                addRectangle(tMesh, tRunway, -tOverrun0, 0.0f, tRunway.mHalfWidth, kOverrunColor);
             }
             if (tOverrun1 > 0.5f)
             {
-                AddRectangle(tMesh, tRunway, tRunway.mLength, tRunway.mLength + tOverrun1, tRunway.mHalfWidth,
+                addRectangle(tMesh, tRunway, tRunway.mLength, tRunway.mLength + tOverrun1, tRunway.mHalfWidth,
                              kOverrunColor);
             }
         }
@@ -204,7 +201,7 @@ void RunwayLayer::Draw(const DrawContext& pContext)
     {
         if (tRunway.mHalfWidth >= 2.0f)
         {
-            AddRectangle(tMesh, tRunway, -kEdgeWidth, tRunway.mLength + kEdgeWidth, tRunway.mHalfWidth + kEdgeWidth,
+            addRectangle(tMesh, tRunway, -kEdgeWidth, tRunway.mLength + kEdgeWidth, tRunway.mHalfWidth + kEdgeWidth,
                          tEdgeColor);
         }
     }
@@ -212,27 +209,27 @@ void RunwayLayer::Draw(const DrawContext& pContext)
     {
         if (tRunway.mRunway->mSurface != RunwaySurface::Transparent)
         {
-            // Uzaktan (cok dar) pist: koyu dolgu gorunmez, acik renkli cizgi olarak ciz
+            // uzaktan(cok dar) pist: koyu dolgu gorunmez, acik renkli cizgi olarak ciz
             const bool tThin = tRunway.mHalfWidth < 2.0f;
-            AddRectangle(tMesh, tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth,
-                         tThin && !tTheme.mLight ? tEdgeColor : SurfaceColor(tRunway.mRunway->mSurface));
+            addRectangle(tMesh, tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth,
+                         tThin && !tTheme.mLight ? tEdgeColor : surfaceColor(tRunway.mRunway->mSurface));
         }
     }
 
-    if (tZoom >= kMarkingMinZoom && IsSubLayerDrawn(kPartMarkings))
+    if (tZoom >= kMarkingMinZoom && isSubLayerDrawn(kPartMarkings))
     {
         for (const ScreenRunway& tRunway : mVisible)
         {
             if (tRunway.mRunway->mSurface == RunwaySurface::Paved && tRunway.mHalfWidth >= 3.0f)
             {
-                AddMarkings(tMesh, tRunway);
+                addMarkings(tMesh, tRunway);
             }
         }
     }
-    pContext.mCanvas->Draw(tMesh);
+    pContext.mCanvas->draw(tMesh);
 }
 
-void RunwayLayer::AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
+void RunwayLayer::addMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
 {
     // Esikler: kaydirilmis esik varsa uctan o kadar iceride
     const float tThreshold0 = static_cast<float>(pRunway.mRunway->mEnds[0].mDisplacedThresholdM) *
@@ -240,21 +237,21 @@ void RunwayLayer::AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
     const float tThreshold1 = pRunway.mLength - static_cast<float>(pRunway.mRunway->mEnds[1].mDisplacedThresholdM) *
                                                     pRunway.mBoxelsPerMeter;
     const float tBar = 1.5f;  // esik cizgisinin kalinligi (boxel)
-    AddRectangle(pMesh, pRunway, tThreshold0, tThreshold0 + tBar, pRunway.mHalfWidth * 0.85f, kMarkingColor);
-    AddRectangle(pMesh, pRunway, tThreshold1 - tBar, tThreshold1, pRunway.mHalfWidth * 0.85f, kMarkingColor);
+    addRectangle(pMesh, pRunway, tThreshold0, tThreshold0 + tBar, pRunway.mHalfWidth * 0.85f, kMarkingColor);
+    addRectangle(pMesh, pRunway, tThreshold1 - tBar, tThreshold1, pRunway.mHalfWidth * 0.85f, kMarkingColor);
 
     // Orta hat: esikler arasinda kesikli (bosluk = kesik boyu)
     const float tDash = std::fmax(static_cast<float>(kDashMeters) * pRunway.mBoxelsPerMeter, 3.0f);
     const float tLineHalf = std::fmax(pRunway.mHalfWidth * 0.03f, 0.5f);
     for (float tAt = tThreshold0 + tDash; tAt + tDash < tThreshold1 - tDash; tAt += 2.0f * tDash)
     {
-        AddRectangle(pMesh, pRunway, tAt, tAt + tDash, tLineHalf, kMarkingColor);
+        addRectangle(pMesh, pRunway, tAt, tAt + tDash, tLineHalf, kMarkingColor);
     }
 }
 
-void RunwayLayer::DrawLabels(const DrawContext& pContext)
+void RunwayLayer::drawLabels(const drawContext& pContext)
 {
-    if (!pContext.mLabels || pContext.mView->Zoom() < kLabelMinZoom || !IsSubLayerDrawn(kPartNumbers))
+    if (!pContext.mLabels || pContext.mView->zoom() < kLabelMinZoom || !isSubLayerDrawn(kPartNumbers))
     {
         return;
     }
@@ -269,13 +266,13 @@ void RunwayLayer::DrawLabels(const DrawContext& pContext)
             const float tOffset = kLabelGap + tOverrun;
             const float tX = tRunway.mEndX[tEnd] + tSign * tRunway.mDirX * tOffset;
             const float tY = tRunway.mEndY[tEnd] + tSign * tRunway.mDirY * tOffset;
-            MapSymbols::DrawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName,
-                                          pContext.mTheme->mRunwayLabel, pContext.LabelShadow());
+            MapSymbols::drawLabelCentered(*pContext.mLabels, tX, tY, tRunway.mRunway->mEnds[tEnd].mName,
+                                          pContext.mTheme->mRunwayLabel, pContext.labelShadow());
         }
     }
 }
 
-std::string RunwayLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+std::string RunwayLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
 {
     for (const ScreenRunway& tRunway : mVisible)
     {
@@ -289,10 +286,10 @@ std::string RunwayLayer::Describe(const DrawContext& /*pContext*/, double pX, do
             continue;
         }
         const Runway& tData = *tRunway.mRunway;
-        const double tLengthM = DistanceNm(tData.mEnds[0].mPosition, tData.mEnds[1].mPosition) * 1852.0;
+        const double tLengthM = distanceNm(tData.mEnds[0].mPosition, tData.mEnds[1].mPosition) * 1852.0;
         return std::format("{} {}/{}  {:.0f} x {:.0f} m, {}", tData.mWater ? "Water runway" : "Runway",
                            tData.mEnds[0].mName, tData.mEnds[1].mName, tLengthM, tData.mWidthM,
-                           SurfaceName(tData.mSurfaceCode));
+                           surfaceName(tData.mSurfaceCode));
     }
     return "";
 }

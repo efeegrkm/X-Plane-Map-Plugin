@@ -1,4 +1,3 @@
-// ToolPalette.cpp
 #include "ui/ToolPalette.h"
 
 #include <algorithm>
@@ -31,49 +30,49 @@ const Rgba kHoverBg = {1.0f, 1.0f, 1.0f, 0.07f};
 
 }  // namespace
 
-bool ToolPalette::IsVisible() const
+bool ToolPalette::isVisible() const
 {
     return mVisible;
 }
 
-void ToolPalette::SetVisible(bool pVisible)
+void ToolPalette::setVisible(bool pVisible)
 {
     mVisible = pVisible;
 }
 
-bool ToolPalette::IsCollapsed() const
+bool ToolPalette::isCollapsed() const
 {
     return mCollapsed;
 }
 
-void ToolPalette::SetCollapsed(bool pCollapsed)
+void ToolPalette::setCollapsed(bool pCollapsed)
 {
     mCollapsed = pCollapsed;
 }
 
-int ToolPalette::OffsetRight() const
+int ToolPalette::offsetRight() const
 {
     return mOffsetRight;
 }
 
-int ToolPalette::OffsetTop() const
+int ToolPalette::offsetTop() const
 {
     return mOffsetTop;
 }
 
-void ToolPalette::SetOffset(int pRight, int pTop)
+void ToolPalette::setOffset(int pRight, int pTop)
 {
     mOffsetRight = std::max(pRight, 0);
     mOffsetTop = std::max(pTop, 0);
 }
 
-void ToolPalette::MoveBy(int pDeltaX, int pDeltaY)
+void ToolPalette::moveBy(int pDeltaX, int pDeltaY)
 {
     // Saga kayinca sag kenara uzaklik azalir; yukari kayinca (y artar) ust kenara uzaklik azalir
-    SetOffset(mOffsetRight - pDeltaX, mOffsetTop - pDeltaY);
+    setOffset(mOffsetRight - pDeltaX, mOffsetTop - pDeltaY);
 }
 
-ToolbarAction ToolPalette::ActiveTool(const ToolbarState& pState)
+ToolbarAction ToolPalette::activeTool(const ToolbarState& pState)
 {
     switch (pState.mMode)
     {
@@ -89,14 +88,14 @@ ToolbarAction ToolPalette::ActiveTool(const ToolbarState& pState)
     return ToolbarAction::ModePan;
 }
 
-void ToolPalette::Layout(const RectI& pBounds, const ToolbarState& pState)
+void ToolPalette::layout(const RectI& pBounds, const ToolbarState& pState)
 {
     mItems.clear();
     // Genislik: islem dugmeleri yan yana sigsin
     int tActionsWidth = 0;
     for (ToolbarAction tAction : kActions)
     {
-        tActionsWidth += Ui::ButtonWidth(LabelFor(tAction)) + kGap;
+        tActionsWidth += Ui::buttonWidth(labelFor(tAction)) + kGap;
     }
     const int tWidth = std::max(kMinWidth, tActionsWidth - kGap + 2 * kPadding);
     const int tToolCount = mCollapsed ? 1 : static_cast<int>(kTools.size());
@@ -107,8 +106,8 @@ void ToolPalette::Layout(const RectI& pBounds, const ToolbarState& pState)
     }
 
     // Yer: sag ust koseye gore; alanin disina tasmasin (tasarsa uzaklik da duzeltilir)
-    const int tMaxRight = std::max(pBounds.Width() - tWidth, 0);
-    const int tMaxTop = std::max(pBounds.Height() - tHeight, 0);
+    const int tMaxRight = std::max(pBounds.width() - tWidth, 0);
+    const int tMaxTop = std::max(pBounds.height() - tHeight, 0);
     mOffsetRight = std::clamp(mOffsetRight, 0, tMaxRight);
     mOffsetTop = std::clamp(mOffsetTop, 0, tMaxTop);
     mRect.mRight = pBounds.mRight - mOffsetRight;
@@ -122,7 +121,7 @@ void ToolPalette::Layout(const RectI& pBounds, const ToolbarState& pState)
     int tY = mHeader.mBottom - kPadding / 2;
     for (ToolbarAction tAction : kTools)
     {
-        if (mCollapsed && tAction != ActiveTool(pState))
+        if (mCollapsed && tAction != activeTool(pState))
         {
             continue;
         }
@@ -151,7 +150,7 @@ void ToolPalette::Layout(const RectI& pBounds, const ToolbarState& pState)
         tItem.mAction = tAction;
         tItem.mIsTool = false;
         tItem.mRect.mLeft = tX;
-        tItem.mRect.mRight = tX + Ui::ButtonWidth(LabelFor(tAction));
+        tItem.mRect.mRight = tX + Ui::buttonWidth(labelFor(tAction));
         tItem.mRect.mTop = tY;
         tItem.mRect.mBottom = tY - kButtonHeight;
         mItems.push_back(tItem);
@@ -177,7 +176,7 @@ void ToolPalette::Layout(const RectI& pBounds, const ToolbarState& pState)
     }
 }
 
-RectI ToolPalette::ChevronRect() const
+RectI ToolPalette::chevronRect() const
 {
     RectI tRect = mHeader;
     tRect.mLeft = mHeader.mRight - kChevronWidth - 2;
@@ -185,22 +184,22 @@ RectI ToolPalette::ChevronRect() const
     return tRect;
 }
 
-bool ToolPalette::Contains(int pX, int pY) const
+bool ToolPalette::contains(int pX, int pY) const
 {
-    return mVisible && mRect.Contains(pX, pY);
+    return mVisible && mRect.contains(pX, pY);
 }
 
-void ToolPalette::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const
+void ToolPalette::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const
 {
     if (!mVisible)
     {
         return;
     }
-    Ui::FillRect(pCanvas, mRect, Ui::kPanelBg);
+    Ui::fillRect(pCanvas, mRect, Ui::kPanelBg);
 
     // Baslik: tutamak noktalari, ad, katla/ac oku
-    Ui::FillRect(pCanvas, mHeader, kHeaderBg);
-    const bool tHeaderHover = mHeader.Contains(pMouseX, pMouseY);
+    Ui::fillRect(pCanvas, mHeader, kHeaderBg);
+    const bool tHeaderHover = mHeader.contains(pMouseX, pMouseY);
     Gfx::Mesh tGrip;
     const float tGripX = static_cast<float>(mHeader.mLeft + 8);
     const float tGripY = static_cast<float>(mHeader.mTop + mHeader.mBottom) * 0.5f;
@@ -210,15 +209,15 @@ void ToolPalette::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Too
         {
             const float tX = tGripX + tColumn * 4.0f;
             const float tY = tGripY + tRow * 4.0f;
-            tGrip.AddRect({tX, tY + 1.5, tX + 1.5, tY}, tHeaderHover ? Ui::kTextGrey : Ui::kTextDim);
+            tGrip.addRect({tX, tY + 1.5, tX + 1.5, tY}, tHeaderHover ? Ui::kTextGrey : Ui::kTextDim);
         }
     }
-    pCanvas.Draw(tGrip);
-    const int tTextY = (mHeader.mTop + mHeader.mBottom) / 2 - Ui::FontHeight() / 2 + 1;
-    Ui::Text(mHeader.mLeft + 20, tTextY, kTitle, Ui::kTextGrey);
+    pCanvas.draw(tGrip);
+    const int tTextY = (mHeader.mTop + mHeader.mBottom) / 2 - Ui::fontHeight() / 2 + 1;
+    Ui::text(mHeader.mLeft + 20, tTextY, kTitle, Ui::kTextGrey);
 
-    const RectI tChevron = ChevronRect();
-    const bool tChevronHover = tChevron.Contains(pMouseX, pMouseY);
+    const RectI tChevron = chevronRect();
+    const bool tChevronHover = tChevron.contains(pMouseX, pMouseY);
     {
         const float tX = static_cast<float>(tChevron.mLeft + tChevron.mRight) * 0.5f;
         const float tY = static_cast<float>(tChevron.mTop + tChevron.mBottom) * 0.5f;
@@ -226,59 +225,59 @@ void ToolPalette::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Too
         Gfx::Mesh tArrow;
         if (mCollapsed)
         {
-            tArrow.AddLine({tX - 4.0f, tY + 2.0f}, {tX, tY - 2.0f}, 1.5f, tColor);  // v: ac
-            tArrow.AddLine({tX, tY - 2.0f}, {tX + 4.0f, tY + 2.0f}, 1.5f, tColor);
+            tArrow.addLine({tX - 4.0f, tY + 2.0f}, {tX, tY - 2.0f}, 1.5f, tColor);  // v: ac
+            tArrow.addLine({tX, tY - 2.0f}, {tX + 4.0f, tY + 2.0f}, 1.5f, tColor);
         }
         else
         {
-            tArrow.AddLine({tX - 4.0f, tY - 2.0f}, {tX, tY + 2.0f}, 1.5f, tColor);  // ^: katla
-            tArrow.AddLine({tX, tY + 2.0f}, {tX + 4.0f, tY - 2.0f}, 1.5f, tColor);
+            tArrow.addLine({tX - 4.0f, tY - 2.0f}, {tX, tY + 2.0f}, 1.5f, tColor);  // ^: katla
+            tArrow.addLine({tX, tY + 2.0f}, {tX + 4.0f, tY - 2.0f}, 1.5f, tColor);
         }
-        pCanvas.Draw(tArrow);
+        pCanvas.draw(tArrow);
     }
-    Ui::Line(pCanvas, {static_cast<float>(mHeader.mLeft), mHeader.mBottom + 0.5f},
+    Ui::line(pCanvas, {static_cast<float>(mHeader.mLeft), mHeader.mBottom + 0.5f},
              {static_cast<float>(mHeader.mRight), mHeader.mBottom + 0.5f}, 1.0f, Ui::kBorder);
 
     for (const Item& tItem : mItems)
     {
-        const bool tEnabled = IsEnabled(tItem.mAction, pState);
-        const bool tHover = tEnabled && tItem.mRect.Contains(pMouseX, pMouseY);
-        const bool tActive = IsActive(tItem.mAction, pState);
+        const bool tEnabled = isEnabled(tItem.mAction, pState);
+        const bool tHover = tEnabled && tItem.mRect.contains(pMouseX, pMouseY);
+        const bool tActive = isActive(tItem.mAction, pState);
         if (!tItem.mIsTool)
         {
-            Ui::Button(pCanvas, tItem.mRect, LabelFor(tItem.mAction), false, tEnabled, tHover);
+            Ui::Button(pCanvas, tItem.mRect, labelFor(tItem.mAction), false, tEnabled, tHover);
             continue;
         }
         // Arac satiri: secili ise mavi zemin + solda vurgu cubugu
         if (tActive)
         {
-            Ui::FillRect(pCanvas, tItem.mRect, kToolActiveBg);
+            Ui::fillRect(pCanvas, tItem.mRect, kToolActiveBg);
             RectI tAccent = tItem.mRect;
             tAccent.mRight = tAccent.mLeft + 3;
-            Ui::FillRect(pCanvas, tAccent, Ui::kButtonActiveBorder);
+            Ui::fillRect(pCanvas, tAccent, Ui::kButtonActiveBorder);
         }
         else if (tHover)
         {
-            Ui::FillRect(pCanvas, tItem.mRect, kHoverBg);
+            Ui::fillRect(pCanvas, tItem.mRect, kHoverBg);
         }
         const Rgba& tColor = tActive ? Ui::kTextWhite : Ui::kTextGrey;
         const float tIconX = static_cast<float>(tItem.mRect.mLeft + 6 + kIconBox / 2);
         const float tIconY = static_cast<float>(tItem.mRect.mTop + tItem.mRect.mBottom) * 0.5f;
-        DrawIcon(pCanvas, tItem.mAction, {tIconX, tIconY}, tColor);
-        const int tLabelY = (tItem.mRect.mTop + tItem.mRect.mBottom) / 2 - Ui::FontHeight() / 2 + 1;
-        Ui::Text(tItem.mRect.mLeft + 6 + kIconBox + 8, tLabelY, LabelFor(tItem.mAction),
+        drawIcon(pCanvas, tItem.mAction, {tIconX, tIconY}, tColor);
+        const int tLabelY = (tItem.mRect.mTop + tItem.mRect.mBottom) / 2 - Ui::fontHeight() / 2 + 1;
+        Ui::text(tItem.mRect.mLeft + 6 + kIconBox + 8, tLabelY, labelFor(tItem.mAction),
                  tActive || tHover ? Ui::kTextWhite : Ui::kTextGrey);
     }
 
     if (mSeparatorY != 0)
     {
-        Ui::Line(pCanvas, {static_cast<float>(mRect.mLeft + kPadding), mSeparatorY + 0.5f},
+        Ui::line(pCanvas, {static_cast<float>(mRect.mLeft + kPadding), mSeparatorY + 0.5f},
                  {static_cast<float>(mRect.mRight - kPadding), mSeparatorY + 0.5f}, 1.0f, Ui::kBorder);
     }
-    Ui::FrameRect(pCanvas, mRect, Ui::kBorder);
+    Ui::frameRect(pCanvas, mRect, Ui::kBorder);
 }
 
-void ToolPalette::DrawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const PointF& pCenter, const Rgba& pColor)
+void ToolPalette::drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const PointF& pCenter, const Rgba& pColor)
 {
     // Sade, tek renkli vektor ikonlar (~14 boxel)
     const float tX = pCenter.mX;
@@ -289,20 +288,20 @@ void ToolPalette::DrawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
         case ToolbarAction::ModePan:
         {
             // Dort yonlu ok
-            tMesh.AddLine({tX - 5.0f, tY}, {tX + 5.0f, tY}, 1.5f, pColor);
-            tMesh.AddLine({tX, tY - 5.0f}, {tX, tY + 5.0f}, 1.5f, pColor);
-            tMesh.AddTriangle({tX + 7.0f, tY}, {tX + 4.0f, tY + 3.0f}, {tX + 4.0f, tY - 3.0f}, pColor);
-            tMesh.AddTriangle({tX - 7.0f, tY}, {tX - 4.0f, tY - 3.0f}, {tX - 4.0f, tY + 3.0f}, pColor);
-            tMesh.AddTriangle({tX, tY + 7.0f}, {tX - 3.0f, tY + 4.0f}, {tX + 3.0f, tY + 4.0f}, pColor);
-            tMesh.AddTriangle({tX, tY - 7.0f}, {tX + 3.0f, tY - 4.0f}, {tX - 3.0f, tY - 4.0f}, pColor);
+            tMesh.addLine({tX - 5.0f, tY}, {tX + 5.0f, tY}, 1.5f, pColor);
+            tMesh.addLine({tX, tY - 5.0f}, {tX, tY + 5.0f}, 1.5f, pColor);
+            tMesh.addTriangle({tX + 7.0f, tY}, {tX + 4.0f, tY + 3.0f}, {tX + 4.0f, tY - 3.0f}, pColor);
+            tMesh.addTriangle({tX - 7.0f, tY}, {tX - 4.0f, tY - 3.0f}, {tX - 4.0f, tY + 3.0f}, pColor);
+            tMesh.addTriangle({tX, tY + 7.0f}, {tX - 3.0f, tY + 4.0f}, {tX + 3.0f, tY + 4.0f}, pColor);
+            tMesh.addTriangle({tX, tY - 7.0f}, {tX + 3.0f, tY - 4.0f}, {tX - 3.0f, tY - 4.0f}, pColor);
             break;
         }
         case ToolbarAction::ModePoint:
         {
             // Harita ignesi: halka + asagi sivri uc + ortada nokta
-            tMesh.AddRing({tX, tY + 2.0f}, 4.5f, 1.6f, pColor);
-            tMesh.AddTriangle({tX - 3.6f, tY - 0.6f}, {tX + 3.6f, tY - 0.6f}, {tX, tY - 7.0f}, pColor);
-            tMesh.AddDisc({tX, tY + 2.0f}, 1.5f, pColor);
+            tMesh.addRing({tX, tY + 2.0f}, 4.5f, 1.6f, pColor);
+            tMesh.addTriangle({tX - 3.6f, tY - 0.6f}, {tX + 3.6f, tY - 0.6f}, {tX, tY - 7.0f}, pColor);
+            tMesh.addDisc({tX, tY + 2.0f}, 1.5f, pColor);
             break;
         }
         case ToolbarAction::ModeRoute:
@@ -310,17 +309,17 @@ void ToolPalette::DrawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
             // Kirik cizgi + dugumler
             const std::vector<Gfx::Point> tPoints = {
                 {tX - 6.5f, tY - 4.5f}, {tX - 2.0f, tY + 3.5f}, {tX + 2.0f, tY - 2.0f}, {tX + 6.5f, tY + 5.0f}};
-            tMesh.AddPolyline(tPoints, false, 1.5f, pColor);
+            tMesh.addPolyline(tPoints, false, 1.5f, pColor);
             for (const Gfx::Point& tPoint : tPoints)
             {
-                tMesh.AddDisc(tPoint, 2.0f, pColor);
+                tMesh.addDisc(tPoint, 2.0f, pColor);
             }
             break;
         }
         case ToolbarAction::ModeRegion:
         {
             // Yari saydam dolgulu besgen
-            tMesh.AddRegularPolygon({tX, tY}, 6.5f, 5, 90.0f, 1.5f, pColor);
+            tMesh.addRegularPolygon({tX, tY}, 6.5f, 5, 90.0f, 1.5f, pColor);
             break;
         }
         default:
@@ -329,23 +328,23 @@ void ToolPalette::DrawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
     if (pAction == ToolbarAction::ModeRegion)
     {
         Gfx::Mesh tFill;
-        tFill.AddDisc({tX, tY - 0.5f}, 4.5f, WithAlpha(pColor, 0.30f));
-        pCanvas.Draw(tFill);
+        tFill.addDisc({tX, tY - 0.5f}, 4.5f, withAlpha(pColor, 0.30f));
+        pCanvas.draw(tFill);
     }
-    pCanvas.Draw(tMesh);
+    pCanvas.draw(tMesh);
 }
 
-ToolPalette::Hit ToolPalette::HitTest(int pX, int pY, const ToolbarState& pState) const
+ToolPalette::Hit ToolPalette::hitTest(int pX, int pY, const ToolbarState& pState) const
 {
     Hit tHit;
-    if (!Contains(pX, pY))
+    if (!contains(pX, pY))
     {
         return tHit;
     }
     tHit.mInside = true;
-    if (mHeader.Contains(pX, pY))
+    if (mHeader.contains(pX, pY))
     {
-        if (ChevronRect().Contains(pX, pY))
+        if (chevronRect().contains(pX, pY))
         {
             tHit.mToggleCollapse = true;
         }
@@ -357,7 +356,7 @@ ToolPalette::Hit ToolPalette::HitTest(int pX, int pY, const ToolbarState& pState
     }
     for (const Item& tItem : mItems)
     {
-        if (!tItem.mRect.Contains(pX, pY) || !IsEnabled(tItem.mAction, pState))
+        if (!tItem.mRect.contains(pX, pY) || !isEnabled(tItem.mAction, pState))
         {
             continue;
         }
@@ -374,7 +373,7 @@ ToolPalette::Hit ToolPalette::HitTest(int pX, int pY, const ToolbarState& pState
     return tHit;
 }
 
-const char* ToolPalette::LabelFor(ToolbarAction pAction)
+const char* ToolPalette::labelFor(ToolbarAction pAction)
 {
     switch (pAction)
     {
@@ -397,12 +396,12 @@ const char* ToolPalette::LabelFor(ToolbarAction pAction)
     }
 }
 
-bool ToolPalette::IsActive(ToolbarAction pAction, const ToolbarState& pState)
+bool ToolPalette::isActive(ToolbarAction pAction, const ToolbarState& pState)
 {
-    return pAction == ActiveTool(pState);
+    return pAction == activeTool(pState);
 }
 
-bool ToolPalette::IsEnabled(ToolbarAction pAction, const ToolbarState& pState)
+bool ToolPalette::isEnabled(ToolbarAction pAction, const ToolbarState& pState)
 {
     switch (pAction)
     {

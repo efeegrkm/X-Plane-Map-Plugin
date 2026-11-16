@@ -1,4 +1,3 @@
-// SceneryPacks.cpp
 #include "data/SceneryPacks.h"
 
 #include <fstream>
@@ -7,14 +6,14 @@
 namespace
 {
 
-bool IsAbsolutePath(const std::string& pPath)
+bool isAbsolutePath(const std::string& pPath)
 {
     return (pPath.size() > 1 && pPath[1] == ':') || (!pPath.empty() && (pPath[0] == '/' || pPath[0] == '\\'));
 }
 
 }  // namespace
 
-std::vector<std::string> ParseSceneryPacks(const std::string& pIniText, const std::string& pXPlaneDirectory)
+std::vector<std::string> parseSceneryPacks(const std::string& pIniText, const std::string& pXPlaneDirectory)
 {
     std::vector<std::string> tPacks;
     std::istringstream tStream(pIniText);
@@ -39,12 +38,12 @@ std::vector<std::string> ParseSceneryPacks(const std::string& pIniText, const st
         {
             tPack += '/';
         }
-        tPacks.push_back(IsAbsolutePath(tPack) ? tPack : pXPlaneDirectory + tPack);
+        tPacks.push_back(isAbsolutePath(tPack) ? tPack : pXPlaneDirectory + tPack);
     }
     return tPacks;
 }
 
-std::vector<std::string> ReadSceneryPacks(const std::string& pXPlaneDirectory)
+std::vector<std::string> readSceneryPacks(const std::string& pXPlaneDirectory)
 {
     std::ifstream tFile(pXPlaneDirectory + "Custom Scenery/scenery_packs.ini");
     if (!tFile)
@@ -53,5 +52,5 @@ std::vector<std::string> ReadSceneryPacks(const std::string& pXPlaneDirectory)
     }
     std::ostringstream tText;
     tText << tFile.rdbuf();
-    return ParseSceneryPacks(tText.str(), pXPlaneDirectory);
+    return parseSceneryPacks(tText.str(), pXPlaneDirectory);
 }

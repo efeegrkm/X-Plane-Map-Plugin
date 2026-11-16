@@ -1,4 +1,3 @@
-// GeoGrid.cpp
 #include "GeoGrid.h"
 
 #include <cmath>
@@ -10,7 +9,7 @@ const int kColumns = 360;  // 1 derecelik boylam hucreleri
 const int kRows = 180;     // 1 derecelik enlem hucreleri
 const int kCellCount = kColumns * kRows;
 
-int ClampInt(int pValue, int pLow, int pHigh)
+int clampInt(int pValue, int pLow, int pHigh)
 {
     if (pValue < pLow)
     {
@@ -23,7 +22,7 @@ int ClampInt(int pValue, int pLow, int pHigh)
     return pValue;
 }
 
-int WrapColumn(int pColumn)
+int wrapColumn(int pColumn)
 {
     const int tWrapped = pColumn % kColumns;
     return tWrapped < 0 ? tWrapped + kColumns : tWrapped;
@@ -31,49 +30,46 @@ int WrapColumn(int pColumn)
 
 }  // namespace
 
-void GeoGrid::Clear()
+void GeoGrid::clear()
 {
     mCellStart.clear();
     mItems.clear();
 }
 
-void GeoGrid::Build(const std::vector<GridItem>& pItems)
+void GeoGrid::build(const std::vector<GridItem>& pItems)
 {
-    // 1) Her hucrede kac kayit var
     mCellStart.assign(kCellCount + 1, 0);
     for (const GridItem& tItem : pItems)
     {
-        ++mCellStart[CellIndex(tItem.mLat, tItem.mLon) + 1];
+        ++mCellStart[cellIndex(tItem.mLat, tItem.mLon) + 1];
     }
 
-    // 2) Birikimli toplam: hucre c'nin ilk kaydinin yeri
     for (int tCell = 0; tCell < kCellCount; ++tCell)
     {
         mCellStart[tCell + 1] += mCellStart[tCell];
     }
 
-    // 3) Kayitlari yerlerine yaz
     mItems.assign(pItems.size(), 0);
     std::vector<uint32_t> tCursor(mCellStart.begin(), mCellStart.end() - 1);
     for (const GridItem& tItem : pItems)
     {
-        mItems[tCursor[CellIndex(tItem.mLat, tItem.mLon)]++] = tItem.mIndex;
+        mItems[tCursor[cellIndex(tItem.mLat, tItem.mLon)]++] = tItem.mIndex;
     }
 }
 
-int GeoGrid::Count() const
+int GeoGrid::count() const
 {
     return static_cast<int>(mItems.size());
 }
 
-void GeoGrid::Query(const GeoBounds& pBounds, std::vector<int>& pOut) const
+void GeoGrid::query(const GeoBounds& pBounds, std::vector<int>& pOut) const
 {
     if (mCellStart.empty())
     {
         return;
     }
-    const int tRowFirst = ClampInt(static_cast<int>(std::floor(pBounds.mSouth + 90.0)), 0, kRows - 1);
-    const int tRowLast = ClampInt(static_cast<int>(std::floor(pBounds.mNorth + 90.0)), 0, kRows - 1);
+    const int tRowFirst = clampInt(static_cast<int>(std::floor(pBounds.mSouth + 90.0)), 0, kRows - 1);
+    const int tRowLast = clampInt(static_cast<int>(std::floor(pBounds.mNorth + 90.0)), 0, kRows - 1);
     const int tColumnFirst = static_cast<int>(std::floor(pBounds.mWest + 180.0));
     int tColumnLast = static_cast<int>(std::floor(pBounds.mEast + 180.0));
     if (tColumnLast - tColumnFirst >= kColumns)
@@ -85,7 +81,7 @@ void GeoGrid::Query(const GeoBounds& pBounds, std::vector<int>& pOut) const
     {
         for (int tColumn = tColumnFirst; tColumn <= tColumnLast; ++tColumn)
         {
-            const int tCell = tRow * kColumns + WrapColumn(tColumn);
+            const int tCell = tRow * kColumns + wrapColumn(tColumn);
             for (uint32_t tItem = mCellStart[tCell]; tItem < mCellStart[tCell + 1]; ++tItem)
             {
                 pOut.push_back(static_cast<int>(mItems[tItem]));
@@ -94,9 +90,9 @@ void GeoGrid::Query(const GeoBounds& pBounds, std::vector<int>& pOut) const
     }
 }
 
-int GeoGrid::CellIndex(float pLat, float pLon)
+int GeoGrid::cellIndex(float pLat, float pLon)
 {
-    const int tRow = ClampInt(static_cast<int>(std::floor(pLat + 90.0f)), 0, kRows - 1);
-    const int tColumn = WrapColumn(static_cast<int>(std::floor(pLon + 180.0f)));
+    const int tRow = clampInt(static_cast<int>(std::floor(pLat + 90.0f)), 0, kRows - 1);
+    const int tColumn = wrapColumn(static_cast<int>(std::floor(pLon + 180.0f)));
     return tRow * kColumns + tColumn;
 }

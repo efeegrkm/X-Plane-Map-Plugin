@@ -1,4 +1,3 @@
-// GlApi.cpp
 #include "gfx/GlApi.h"
 
 #include <cstdint>
@@ -7,7 +6,6 @@
 namespace
 {
 
-// Surucudeki fonksiyonlarin imzalari (OpenGL belgesindekiyle ayni)
 using GenBuffersFn = void(APIENTRY*)(GLsizei, GLuint*);
 using DeleteBuffersFn = void(APIENTRY*)(GLsizei, const GLuint*);
 using BindBufferFn = void(APIENTRY*)(GLenum, GLuint);
@@ -17,34 +15,34 @@ using DeleteVertexArraysFn = void(APIENTRY*)(GLsizei, const GLuint*);
 using BindVertexArrayFn = void(APIENTRY*)(GLuint);
 using EnableVertexAttribArrayFn = void(APIENTRY*)(GLuint);
 using VertexAttribPointerFn = void(APIENTRY*)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void*);
-using CreateShaderFn = GLuint(APIENTRY*)(GLenum);
+using createShaderFn = GLuint(APIENTRY*)(GLenum);
 using DeleteShaderFn = void(APIENTRY*)(GLuint);
 using ShaderSourceFn = void(APIENTRY*)(GLuint, GLsizei, const GLchar* const*, const GLint*);
 using CompileShaderFn = void(APIENTRY*)(GLuint);
-using GetShaderivFn = void(APIENTRY*)(GLuint, GLenum, GLint*);
-using GetShaderInfoLogFn = void(APIENTRY*)(GLuint, GLsizei, GLsizei*, GLchar*);
-using CreateProgramFn = GLuint(APIENTRY*)();
+using getShaderivFn = void(APIENTRY*)(GLuint, GLenum, GLint*);
+using getShaderInfoLogFn = void(APIENTRY*)(GLuint, GLsizei, GLsizei*, GLchar*);
+using createProgramFn = GLuint(APIENTRY*)();
 using DeleteProgramFn = void(APIENTRY*)(GLuint);
 using AttachShaderFn = void(APIENTRY*)(GLuint, GLuint);
 using LinkProgramFn = void(APIENTRY*)(GLuint);
-using GetProgramivFn = void(APIENTRY*)(GLuint, GLenum, GLint*);
-using GetProgramInfoLogFn = void(APIENTRY*)(GLuint, GLsizei, GLsizei*, GLchar*);
+using getProgramivFn = void(APIENTRY*)(GLuint, GLenum, GLint*);
+using getProgramInfoLogFn = void(APIENTRY*)(GLuint, GLsizei, GLsizei*, GLchar*);
 using UseProgramFn = void(APIENTRY*)(GLuint);
-using GetUniformLocationFn = GLint(APIENTRY*)(GLuint, const GLchar*);
+using getUniformLocationFn = GLint(APIENTRY*)(GLuint, const GLchar*);
 using UniformMatrix4fvFn = void(APIENTRY*)(GLint, GLsizei, GLboolean, const float*);
 using Uniform1iFn = void(APIENTRY*)(GLint, GLint);
 using Uniform1fFn = void(APIENTRY*)(GLint, float);
 using Uniform4fFn = void(APIENTRY*)(GLint, float, float, float, float);
-using IsVertexArrayFn = GLboolean(APIENTRY*)(GLuint);
-using IsProgramFn = GLboolean(APIENTRY*)(GLuint);
+using isVertexArrayFn = GLboolean(APIENTRY*)(GLuint);
+using isProgramFn = GLboolean(APIENTRY*)(GLuint);
 using GenerateMipmapFn = void(APIENTRY*)(GLenum);
 using GenFramebuffersFn = void(APIENTRY*)(GLsizei, GLuint*);
 using DeleteFramebuffersFn = void(APIENTRY*)(GLsizei, const GLuint*);
 using BindFramebufferFn = void(APIENTRY*)(GLenum, GLuint);
 using FramebufferTexture2DFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLuint, GLint);
-using CheckFramebufferStatusFn = GLenum(APIENTRY*)(GLenum);
+using checkFramebufferStatusFn = GLenum(APIENTRY*)(GLenum);
 
-// Yuklenen adresler. Surec boyunca tek bir OpenGL surucusu oldugu icin
+// Yuklenen adresler. Surec boyunca tek bir openGL surucusu oldugu icin
 // global tutulmalari dogal (X-Plane'in butun baglamlari ayni surucuden).
 struct Functions
 {
@@ -57,43 +55,43 @@ struct Functions
     BindVertexArrayFn mBindVertexArray = nullptr;
     EnableVertexAttribArrayFn mEnableVertexAttribArray = nullptr;
     VertexAttribPointerFn mVertexAttribPointer = nullptr;
-    CreateShaderFn mCreateShader = nullptr;
+    createShaderFn mCreateShader = nullptr;
     DeleteShaderFn mDeleteShader = nullptr;
     ShaderSourceFn mShaderSource = nullptr;
     CompileShaderFn mCompileShader = nullptr;
-    GetShaderivFn mGetShaderiv = nullptr;
-    GetShaderInfoLogFn mGetShaderInfoLog = nullptr;
-    CreateProgramFn mCreateProgram = nullptr;
+    getShaderivFn mGetShaderiv = nullptr;
+    getShaderInfoLogFn mGetShaderInfoLog = nullptr;
+    createProgramFn mCreateProgram = nullptr;
     DeleteProgramFn mDeleteProgram = nullptr;
     AttachShaderFn mAttachShader = nullptr;
     LinkProgramFn mLinkProgram = nullptr;
-    GetProgramivFn mGetProgramiv = nullptr;
-    GetProgramInfoLogFn mGetProgramInfoLog = nullptr;
+    getProgramivFn mGetProgramiv = nullptr;
+    getProgramInfoLogFn mGetProgramInfoLog = nullptr;
     UseProgramFn mUseProgram = nullptr;
-    GetUniformLocationFn mGetUniformLocation = nullptr;
+    getUniformLocationFn mGetUniformLocation = nullptr;
     UniformMatrix4fvFn mUniformMatrix4fv = nullptr;
     Uniform1iFn mUniform1i = nullptr;
     Uniform1fFn mUniform1f = nullptr;
     Uniform4fFn mUniform4f = nullptr;
-    IsVertexArrayFn mIsVertexArray = nullptr;
-    IsProgramFn mIsProgram = nullptr;
+    isVertexArrayFn mIsVertexArray = nullptr;
+    isProgramFn mIsProgram = nullptr;
     GenerateMipmapFn mGenerateMipmap = nullptr;
     GenFramebuffersFn mGenFramebuffers = nullptr;
     DeleteFramebuffersFn mDeleteFramebuffers = nullptr;
     BindFramebufferFn mBindFramebuffer = nullptr;
     FramebufferTexture2DFn mFramebufferTexture2D = nullptr;
-    CheckFramebufferStatusFn mCheckFramebufferStatus = nullptr;
+    checkFramebufferStatusFn mCheckFramebufferStatus = nullptr;
 };
 
 Functions gFunctions;
 bool gLoaded = false;
-void* gLastContext = nullptr;      // en son cizimin yapildigi baglam
+void* gLastContext = nullptr;
 unsigned int gContextGeneration = 0;
 
 // Bir fonksiyonun adresini surucuden al. wglGetProcAddress hata durumunda
 // nullptr disinda 1, 2, 3 veya -1 de donebilir; hepsi "yok" demek.
 template <typename TFunction>
-bool LoadOne(const char* pName, TFunction& pOut, std::string& pMissing)
+bool loadOne(const char* pName, TFunction& pOut, std::string& pMissing)
 {
 #if IBM
     const PROC tAddress = wglGetProcAddress(pName);
@@ -112,92 +110,92 @@ bool LoadOne(const char* pName, TFunction& pOut, std::string& pMissing)
 #endif
 }
 
-std::string GlString(GLenum pName)
+std::string glString(GLenum pName)
 {
     const GLubyte* tText = glGetString(pName);
     return tText ? reinterpret_cast<const char*>(tText) : "?";
 }
 
-}  // namespace
+}
 
 namespace Gl
 {
 
-bool Load(std::string& pOutError)
+bool load(std::string& pOutError)
 {
     if (gLoaded)
     {
         return true;
     }
 
-    // Surum: OpenGL 3.3 ve ustu gerekli (shader dili 3.30, vertex array)
+    // Surum: openGL 3.3 ve ustu gerekli (shader dili 3.30, vertex array)
     GLint tMajor = 0;
     GLint tMinor = 0;
     glGetIntegerv(kMajorVersion, &tMajor);
     glGetIntegerv(kMinorVersion, &tMinor);
     if (tMajor < 3 || (tMajor == 3 && tMinor < 3))
     {
-        pOutError = "OpenGL 3.3 required, context is " + GlString(GL_VERSION);
+        pOutError = "openGL 3.3 required, context is " + glString(GL_VERSION);
         return false;
     }
 
     std::string tMissing;
     Functions& tF = gFunctions;
-    LoadOne("glGenBuffers", tF.mGenBuffers, tMissing);
-    LoadOne("glDeleteBuffers", tF.mDeleteBuffers, tMissing);
-    LoadOne("glBindBuffer", tF.mBindBuffer, tMissing);
-    LoadOne("glBufferData", tF.mBufferData, tMissing);
-    LoadOne("glGenVertexArrays", tF.mGenVertexArrays, tMissing);
-    LoadOne("glDeleteVertexArrays", tF.mDeleteVertexArrays, tMissing);
-    LoadOne("glBindVertexArray", tF.mBindVertexArray, tMissing);
-    LoadOne("glEnableVertexAttribArray", tF.mEnableVertexAttribArray, tMissing);
-    LoadOne("glVertexAttribPointer", tF.mVertexAttribPointer, tMissing);
-    LoadOne("glCreateShader", tF.mCreateShader, tMissing);
-    LoadOne("glDeleteShader", tF.mDeleteShader, tMissing);
-    LoadOne("glShaderSource", tF.mShaderSource, tMissing);
-    LoadOne("glCompileShader", tF.mCompileShader, tMissing);
-    LoadOne("glGetShaderiv", tF.mGetShaderiv, tMissing);
-    LoadOne("glGetShaderInfoLog", tF.mGetShaderInfoLog, tMissing);
-    LoadOne("glCreateProgram", tF.mCreateProgram, tMissing);
-    LoadOne("glDeleteProgram", tF.mDeleteProgram, tMissing);
-    LoadOne("glAttachShader", tF.mAttachShader, tMissing);
-    LoadOne("glLinkProgram", tF.mLinkProgram, tMissing);
-    LoadOne("glGetProgramiv", tF.mGetProgramiv, tMissing);
-    LoadOne("glGetProgramInfoLog", tF.mGetProgramInfoLog, tMissing);
-    LoadOne("glUseProgram", tF.mUseProgram, tMissing);
-    LoadOne("glGetUniformLocation", tF.mGetUniformLocation, tMissing);
-    LoadOne("glUniformMatrix4fv", tF.mUniformMatrix4fv, tMissing);
-    LoadOne("glUniform1i", tF.mUniform1i, tMissing);
-    LoadOne("glUniform1f", tF.mUniform1f, tMissing);
-    LoadOne("glUniform4f", tF.mUniform4f, tMissing);
-    LoadOne("glIsVertexArray", tF.mIsVertexArray, tMissing);
-    LoadOne("glIsProgram", tF.mIsProgram, tMissing);
-    LoadOne("glGenerateMipmap", tF.mGenerateMipmap, tMissing);
-    LoadOne("glGenFramebuffers", tF.mGenFramebuffers, tMissing);
-    LoadOne("glDeleteFramebuffers", tF.mDeleteFramebuffers, tMissing);
-    LoadOne("glBindFramebuffer", tF.mBindFramebuffer, tMissing);
-    LoadOne("glFramebufferTexture2D", tF.mFramebufferTexture2D, tMissing);
-    LoadOne("glCheckFramebufferStatus", tF.mCheckFramebufferStatus, tMissing);
+    loadOne("glGenBuffers", tF.mGenBuffers, tMissing);
+    loadOne("glDeleteBuffers", tF.mDeleteBuffers, tMissing);
+    loadOne("glBindBuffer", tF.mBindBuffer, tMissing);
+    loadOne("glBufferData", tF.mBufferData, tMissing);
+    loadOne("glGenVertexArrays", tF.mGenVertexArrays, tMissing);
+    loadOne("glDeleteVertexArrays", tF.mDeleteVertexArrays, tMissing);
+    loadOne("glBindVertexArray", tF.mBindVertexArray, tMissing);
+    loadOne("glEnableVertexAttribArray", tF.mEnableVertexAttribArray, tMissing);
+    loadOne("glVertexAttribPointer", tF.mVertexAttribPointer, tMissing);
+    loadOne("glCreateShader", tF.mCreateShader, tMissing);
+    loadOne("glDeleteShader", tF.mDeleteShader, tMissing);
+    loadOne("glShaderSource", tF.mShaderSource, tMissing);
+    loadOne("glCompileShader", tF.mCompileShader, tMissing);
+    loadOne("glGetShaderiv", tF.mGetShaderiv, tMissing);
+    loadOne("glGetShaderInfoLog", tF.mGetShaderInfoLog, tMissing);
+    loadOne("glCreateProgram", tF.mCreateProgram, tMissing);
+    loadOne("glDeleteProgram", tF.mDeleteProgram, tMissing);
+    loadOne("glAttachShader", tF.mAttachShader, tMissing);
+    loadOne("glLinkProgram", tF.mLinkProgram, tMissing);
+    loadOne("glGetProgramiv", tF.mGetProgramiv, tMissing);
+    loadOne("glGetProgramInfoLog", tF.mGetProgramInfoLog, tMissing);
+    loadOne("glUseProgram", tF.mUseProgram, tMissing);
+    loadOne("glGetUniformLocation", tF.mGetUniformLocation, tMissing);
+    loadOne("glUniformMatrix4fv", tF.mUniformMatrix4fv, tMissing);
+    loadOne("glUniform1i", tF.mUniform1i, tMissing);
+    loadOne("glUniform1f", tF.mUniform1f, tMissing);
+    loadOne("glUniform4f", tF.mUniform4f, tMissing);
+    loadOne("glIsVertexArray", tF.mIsVertexArray, tMissing);
+    loadOne("glIsProgram", tF.mIsProgram, tMissing);
+    loadOne("glGenerateMipmap", tF.mGenerateMipmap, tMissing);
+    loadOne("glGenFramebuffers", tF.mGenFramebuffers, tMissing);
+    loadOne("glDeleteFramebuffers", tF.mDeleteFramebuffers, tMissing);
+    loadOne("glBindFramebuffer", tF.mBindFramebuffer, tMissing);
+    loadOne("glFramebufferTexture2D", tF.mFramebufferTexture2D, tMissing);
+    loadOne("glCheckFramebufferStatus", tF.mCheckFramebufferStatus, tMissing);
     if (!tMissing.empty())
     {
-        pOutError = "OpenGL functions missing: " + tMissing;
+        pOutError = "openGL functions missing: " + tMissing;
         return false;
     }
     gLoaded = true;
     return true;
 }
 
-bool IsLoaded()
+bool isLoaded()
 {
     return gLoaded;
 }
 
-std::string DescribeContext()
+std::string describeContext()
 {
-    return GlString(GL_VERSION) + " / " + GlString(GL_RENDERER) + " / GLSL " + GlString(kShadingLanguageVersion);
+    return glString(GL_VERSION) + " / " + glString(GL_RENDERER) + " / GLSL " + glString(kShadingLanguageVersion);
 }
 
-void* CurrentContext()
+void* currentContext()
 {
 #if IBM
     return reinterpret_cast<void*>(wglGetCurrentContext());
@@ -206,9 +204,9 @@ void* CurrentContext()
 #endif
 }
 
-void NoteContext()
+void noteContext()
 {
-    void* tContext = CurrentContext();
+    void* tContext = currentContext();
     if (tContext != gLastContext)
     {
         gLastContext = tContext;
@@ -216,195 +214,195 @@ void NoteContext()
     }
 }
 
-unsigned int ContextGeneration()
+unsigned int contextGeneration()
 {
     return gContextGeneration;
 }
 
-GLboolean IsVertexArray(GLuint pArray)
+GLboolean isVertexArray(GLuint pArray)
 {
     return gFunctions.mIsVertexArray(pArray);
 }
 
-GLboolean IsProgram(GLuint pProgram)
+GLboolean isProgram(GLuint pProgram)
 {
     return gFunctions.mIsProgram(pProgram);
 }
 
-void GenerateMipmap(GLenum pTarget)
+void generateMipmap(GLenum pTarget)
 {
     gFunctions.mGenerateMipmap(pTarget);
 }
 
-void GenFramebuffers(GLsizei pCount, GLuint* pFramebuffers)
+void genFramebuffers(GLsizei pCount, GLuint* pFramebuffers)
 {
     gFunctions.mGenFramebuffers(pCount, pFramebuffers);
 }
 
-void DeleteFramebuffers(GLsizei pCount, const GLuint* pFramebuffers)
+void deleteFramebuffers(GLsizei pCount, const GLuint* pFramebuffers)
 {
     gFunctions.mDeleteFramebuffers(pCount, pFramebuffers);
 }
 
-void BindFramebuffer(GLenum pTarget, GLuint pFramebuffer)
+void bindFramebuffer(GLenum pTarget, GLuint pFramebuffer)
 {
     gFunctions.mBindFramebuffer(pTarget, pFramebuffer);
 }
 
-void FramebufferTexture2D(GLenum pTarget, GLenum pAttachment, GLenum pTextureTarget, GLuint pTexture, GLint pLevel)
+void framebufferTexture2D(GLenum pTarget, GLenum pAttachment, GLenum pTextureTarget, GLuint pTexture, GLint pLevel)
 {
     gFunctions.mFramebufferTexture2D(pTarget, pAttachment, pTextureTarget, pTexture, pLevel);
 }
 
-GLenum CheckFramebufferStatus(GLenum pTarget)
+GLenum checkFramebufferStatus(GLenum pTarget)
 {
     return gFunctions.mCheckFramebufferStatus(pTarget);
 }
 
-void GenBuffers(GLsizei pCount, GLuint* pBuffers)
+void genBuffers(GLsizei pCount, GLuint* pBuffers)
 {
     gFunctions.mGenBuffers(pCount, pBuffers);
 }
 
-void DeleteBuffers(GLsizei pCount, const GLuint* pBuffers)
+void deleteBuffers(GLsizei pCount, const GLuint* pBuffers)
 {
     gFunctions.mDeleteBuffers(pCount, pBuffers);
 }
 
-void BindBuffer(GLenum pTarget, GLuint pBuffer)
+void bindBuffer(GLenum pTarget, GLuint pBuffer)
 {
     gFunctions.mBindBuffer(pTarget, pBuffer);
 }
 
-void BufferData(GLenum pTarget, GLsizeiptr pSize, const void* pData, GLenum pUsage)
+void bufferData(GLenum pTarget, GLsizeiptr pSize, const void* pData, GLenum pUsage)
 {
     gFunctions.mBufferData(pTarget, pSize, pData, pUsage);
 }
 
-void GenVertexArrays(GLsizei pCount, GLuint* pArrays)
+void genVertexArrays(GLsizei pCount, GLuint* pArrays)
 {
     gFunctions.mGenVertexArrays(pCount, pArrays);
 }
 
-void DeleteVertexArrays(GLsizei pCount, const GLuint* pArrays)
+void deleteVertexArrays(GLsizei pCount, const GLuint* pArrays)
 {
     gFunctions.mDeleteVertexArrays(pCount, pArrays);
 }
 
-void BindVertexArray(GLuint pArray)
+void bindVertexArray(GLuint pArray)
 {
     gFunctions.mBindVertexArray(pArray);
 }
 
-void EnableVertexAttribArray(GLuint pIndex)
+void enableVertexAttribArray(GLuint pIndex)
 {
     gFunctions.mEnableVertexAttribArray(pIndex);
 }
 
-void VertexAttribPointer(GLuint pIndex, GLint pSize, GLenum pType, GLboolean pNormalized, GLsizei pStride,
+void vertexAttribPointer(GLuint pIndex, GLint pSize, GLenum pType, GLboolean pNormalized, GLsizei pStride,
                          std::size_t pOffset)
 {
-    // OpenGL bu parametreyi isaretci olarak ister ama anlami "buffer icindeki bayt konumu"
+    // openGL bu parametreyi isaretci olarak ister ama anlami "buffer icindeki bayt konumu"
     gFunctions.mVertexAttribPointer(pIndex, pSize, pType, pNormalized, pStride,
                                     reinterpret_cast<const void*>(pOffset));
 }
 
-GLuint CreateShader(GLenum pType)
+GLuint createShader(GLenum pType)
 {
     return gFunctions.mCreateShader(pType);
 }
 
-void DeleteShader(GLuint pShader)
+void deleteShader(GLuint pShader)
 {
     gFunctions.mDeleteShader(pShader);
 }
 
-void ShaderSource(GLuint pShader, const char* pSource)
+void shaderSource(GLuint pShader, const char* pSource)
 {
     gFunctions.mShaderSource(pShader, 1, &pSource, nullptr);
 }
 
-void CompileShader(GLuint pShader)
+void compileShader(GLuint pShader)
 {
     gFunctions.mCompileShader(pShader);
 }
 
-GLint GetShaderInt(GLuint pShader, GLenum pName)
+GLint getShaderInt(GLuint pShader, GLenum pName)
 {
     GLint tValue = 0;
     gFunctions.mGetShaderiv(pShader, pName, &tValue);
     return tValue;
 }
 
-std::string GetShaderLog(GLuint pShader)
+std::string getShaderLog(GLuint pShader)
 {
-    std::vector<GLchar> tLog(static_cast<size_t>(GetShaderInt(pShader, kInfoLogLength)) + 1, '\0');
+    std::vector<GLchar> tLog(static_cast<size_t>(getShaderInt(pShader, kInfoLogLength)) + 1, '\0');
     gFunctions.mGetShaderInfoLog(pShader, static_cast<GLsizei>(tLog.size()), nullptr, tLog.data());
     return tLog.data();
 }
 
-GLuint CreateProgram()
+GLuint createProgram()
 {
     return gFunctions.mCreateProgram();
 }
 
-void DeleteProgram(GLuint pProgram)
+void deleteProgram(GLuint pProgram)
 {
     gFunctions.mDeleteProgram(pProgram);
 }
 
-void AttachShader(GLuint pProgram, GLuint pShader)
+void attachShader(GLuint pProgram, GLuint pShader)
 {
     gFunctions.mAttachShader(pProgram, pShader);
 }
 
-void LinkProgram(GLuint pProgram)
+void linkProgram(GLuint pProgram)
 {
     gFunctions.mLinkProgram(pProgram);
 }
 
-GLint GetProgramInt(GLuint pProgram, GLenum pName)
+GLint getProgramInt(GLuint pProgram, GLenum pName)
 {
     GLint tValue = 0;
     gFunctions.mGetProgramiv(pProgram, pName, &tValue);
     return tValue;
 }
 
-std::string GetProgramLog(GLuint pProgram)
+std::string getProgramLog(GLuint pProgram)
 {
-    std::vector<GLchar> tLog(static_cast<size_t>(GetProgramInt(pProgram, kInfoLogLength)) + 1, '\0');
+    std::vector<GLchar> tLog(static_cast<size_t>(getProgramInt(pProgram, kInfoLogLength)) + 1, '\0');
     gFunctions.mGetProgramInfoLog(pProgram, static_cast<GLsizei>(tLog.size()), nullptr, tLog.data());
     return tLog.data();
 }
 
-void UseProgram(GLuint pProgram)
+void useProgram(GLuint pProgram)
 {
     gFunctions.mUseProgram(pProgram);
 }
 
-GLint GetUniformLocation(GLuint pProgram, const char* pName)
+GLint getUniformLocation(GLuint pProgram, const char* pName)
 {
     return gFunctions.mGetUniformLocation(pProgram, pName);
 }
 
-void UniformMatrix4(GLint pLocation, const float pMatrix[16])
+void uniformMatrix4(GLint pLocation, const float pMatrix[16])
 {
     gFunctions.mUniformMatrix4fv(pLocation, 1, GL_FALSE, pMatrix);
 }
 
-void Uniform1i(GLint pLocation, GLint pValue)
+void uniform1i(GLint pLocation, GLint pValue)
 {
     gFunctions.mUniform1i(pLocation, pValue);
 }
 
-void Uniform1f(GLint pLocation, float pValue)
+void uniform1f(GLint pLocation, float pValue)
 {
     gFunctions.mUniform1f(pLocation, pValue);
 }
 
-void Uniform4(GLint pLocation, float pX, float pY, float pZ, float pW)
+void uniform4(GLint pLocation, float pX, float pY, float pZ, float pW)
 {
     gFunctions.mUniform4f(pLocation, pX, pY, pZ, pW);
 }
 
-}  // namespace Gl
+}

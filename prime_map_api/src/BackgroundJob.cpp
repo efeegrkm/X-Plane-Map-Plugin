@@ -1,15 +1,15 @@
-// BackgroundJob.cpp
+
 #include "BackgroundJob.h"
 
 #include <utility>
 
 BackgroundJob::~BackgroundJob()
 {
-    Cancel();
-    Wait();
+    cancel();
+    wait();
 }
 
-bool BackgroundJob::Start(std::function<void()> pWork)
+bool BackgroundJob::start(std::function<void()> pWork)
 {
     if (mRunning)
     {
@@ -31,7 +31,7 @@ bool BackgroundJob::Start(std::function<void()> pWork)
     return true;
 }
 
-bool BackgroundJob::Poll()
+bool BackgroundJob::poll()
 {
     if (!mRunning || !mFinished.load())
     {
@@ -42,17 +42,17 @@ bool BackgroundJob::Poll()
     return true;
 }
 
-bool BackgroundJob::IsRunning() const
+bool BackgroundJob::isRunning() const
 {
     return mRunning;
 }
 
-void BackgroundJob::Cancel()
+void BackgroundJob::cancel()
 {
     mCancel.store(true);
 }
 
-void BackgroundJob::Wait()
+void BackgroundJob::wait()
 {
     if (mThread.joinable())
     {
@@ -61,7 +61,7 @@ void BackgroundJob::Wait()
     mRunning = false;
 }
 
-const std::atomic<bool>& BackgroundJob::CancelFlag() const
+const std::atomic<bool>& BackgroundJob::cancelFlag() const
 {
     return mCancel;
 }

@@ -1,13 +1,7 @@
-// RoadLayer.h
-// Asama 2: DSF yol agi (otoyol, ana yol, tali yol, yerel yol, demiryolu, enerji
-// hatti). Veri TerrainStore'dan karo karo gelir (TerrainVectors, RequestVectors);
-// her karonun cizgileri bir kez GPU'ya yuklenir (StaticMesh, Mercator'da karo
+// DSF yol agi (otoyol..demiryolu, enerji hatti). Veri TerrainStore'dan karo
+// karo gelir; her karonun cizgileri bir kez GPU'ya yuklenir (Mercator'da karo
 // orijinine gore), her karede sadece olcek + kaydirma ile cizilir.
-//
-// Alt katmanlar ve zoom esikleri (asagidaki zoom'dan itibaren gorunur):
-//   motorways 7.5   primary 9   secondary 10.5   local 12   railways 9.5
-//   power_lines 11 (varsayilan kapali)
-// Renkler temadan (MapTheme::mRoads); kalinliklar ekran pikseli (tur basina sabit).
+// Renkler temadan; kalinliklar ekran pikseli (tur basina sabit).
 #pragma once
 
 #include <array>
@@ -24,12 +18,11 @@ class TerrainHub;
 class RoadLayer : public Layer
 {
 public:
-    // 0.23: vektorler haritalarin ortak TerrainHub'indan (her harita kendi GPU kopyasini tutar)
     explicit RoadLayer(TerrainHub& pHub);
     ~RoadLayer() override;
 
-    void Draw(const DrawContext& pContext) override;
-    bool PrepareFrame() override;  // hazir vektorleri alir; aldiysa true
+    void draw(const drawContext& pContext) override;
+    bool prepareFrame() override;
 
 private:
     struct GpuTile
@@ -44,8 +37,8 @@ private:
         uint64_t mLastFrame = 0;
     };
 
-    void Upload(GpuTile& pTile, const MapTheme& pTheme);
-    void EvictUnused();
+    void upload(GpuTile& pTile, const MapTheme& pTheme);
+    void evictUnused();
 
     TerrainHub& mHub;
     int mUser = 0;                 // bu haritanin TerrainHub numarasi

@@ -1,4 +1,3 @@
-// AirportDetailStore.cpp
 #include "data/AirportDetailStore.h"
 
 #include <algorithm>
@@ -23,15 +22,15 @@ AirportDetailStore::AirportDetailStore(const AirportGeometryStore& pSummaries)
 
 AirportDetailStore::~AirportDetailStore()
 {
-    Stop();
+    stop();
 }
 
-void AirportDetailStore::SetMaxLoaded(size_t pCount)
+void AirportDetailStore::setMaxLoaded(size_t pCount)
 {
     mMaxLoaded = pCount < kMaxLoaded ? kMaxLoaded : pCount;
 }
 
-void AirportDetailStore::Start()
+void AirportDetailStore::start()
 {
     if (mThread.joinable())
     {
@@ -41,11 +40,11 @@ void AirportDetailStore::Start()
     mThread = std::thread(
         [this]()
         {
-            WorkerLoop();
+            workerLoop();
         });
 }
 
-void AirportDetailStore::Stop()
+void AirportDetailStore::stop()
 {
     {
         std::lock_guard<std::mutex> tLock(mMutex);
@@ -59,9 +58,9 @@ void AirportDetailStore::Stop()
     }
 }
 
-void AirportDetailStore::Update()
+void AirportDetailStore::update()
 {
-    SubmitWanted();
+    submitWanted();
     ++mFrame;
     mWanted.clear();
     mWantedSet.clear();
@@ -81,10 +80,10 @@ void AirportDetailStore::Update()
         tEntry.mLoaded = std::move(tResult.mLoaded);
         tEntry.mLastFrame = mFrame;
     }
-    EvictUnused();
+    evictUnused();
 }
 
-const LoadedAirport* AirportDetailStore::Use(int pAirport)
+const LoadedAirport* AirportDetailStore::use(int pAirport)
 {
     const auto tFound = mLoaded.find(pAirport);
     if (tFound != mLoaded.end())
@@ -103,7 +102,7 @@ const LoadedAirport* AirportDetailStore::Use(int pAirport)
     return nullptr;
 }
 
-void AirportDetailStore::SubmitWanted()
+void AirportDetailStore::submitWanted()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     // Kuyrugu bu karenin isteklerine gore yeniden kur: ekrandan cikanlar
@@ -124,10 +123,10 @@ void AirportDetailStore::SubmitWanted()
         {
             continue;  // isci su an bunu okuyor
         }
-        const AirportGeometry& tSummary = mSummaries.At(tAirport);
+        const AirportGeometry& tSummary = mSummaries.at(tAirport);
         Request tRequest;
         tRequest.mAirport = tAirport;
-        tRequest.mPath = mSummaries.FilePath(tSummary.mLocation.mFile);
+        tRequest.mPath = mSummaries.filePath(tSummary.mLocation.mFile);
         tRequest.mOffset = tSummary.mLocation.mOffset;
         tRequest.mLength = tSummary.mLocation.mLength;
         tRequest.mReference = tSummary.mReference;
@@ -154,22 +153,22 @@ void AirportDetailStore::SubmitWanted()
     }
 }
 
-bool AirportDetailStore::IsWaiting(int pAirport) const
+bool AirportDetailStore::isWaiting(int pAirport) const
 {
     return mWantedSet.count(pAirport) > 0;
 }
 
-int AirportDetailStore::PendingCount() const
+int AirportDetailStore::pendingCount() const
 {
     return mPendingCount;
 }
 
-int AirportDetailStore::LoadedCount() const
+int AirportDetailStore::loadedCount() const
 {
     return static_cast<int>(mLoaded.size());
 }
 
-std::string AirportDetailStore::TakeLogLines()
+std::string AirportDetailStore::takeLogLines()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
     std::string tLog;
@@ -177,7 +176,7 @@ std::string AirportDetailStore::TakeLogLines()
     return tLog;
 }
 
-void AirportDetailStore::EvictUnused()
+void AirportDetailStore::evictUnused()
 {
     while (mLoaded.size() > mMaxLoaded)
     {
@@ -198,7 +197,7 @@ void AirportDetailStore::EvictUnused()
     }
 }
 
-std::unique_ptr<LoadedAirport> AirportDetailStore::Load(const Request& pRequest, std::string& pLog) const
+std::unique_ptr<LoadedAirport> AirportDetailStore::load(const Request& pRequest, std::string& pLog) const
 {
     const auto tStart = std::chrono::steady_clock::now();
     std::ifstream tFile(pRequest.mPath, std::ios::binary);
@@ -214,7 +213,7 @@ std::unique_ptr<LoadedAirport> AirportDetailStore::Load(const Request& pRequest,
     tText.resize(static_cast<size_t>(tFile.gcount()));
 
     auto tLoaded = std::make_unique<LoadedAirport>();
-    tLoaded->mDetail = AptDatParser::ParseAirport(tText);
+    tLoaded->mDetail = AptDatParser::parseAirport(tText);
     if (tLoaded->mDetail.mId != pRequest.mId)
     {
         // Dosya acilistan sonra degismis olabilir: yanlis havalimanini cizme
@@ -222,7 +221,7 @@ std::unique_ptr<LoadedAirport> AirportDetailStore::Load(const Request& pRequest,
                             tLoaded->mDetail.mId, pRequest.mOffset);
         return nullptr;
     }
-    tLoaded->mShapes = Shapes::Build(tLoaded->mDetail, pRequest.mReference);
+    tLoaded->mShapes = Shapes::build(tLoaded->mDetail, pRequest.mReference);
     tLoaded->mLoadMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tStart).count();
 
     const AirportShapes& tShapes = tLoaded->mShapes;
@@ -239,7 +238,7 @@ std::unique_ptr<LoadedAirport> AirportDetailStore::Load(const Request& pRequest,
     return tLoaded;
 }
 
-void AirportDetailStore::WorkerLoop()
+void AirportDetailStore::workerLoop()
 {
     // ARKA PLAN THREAD'i: burada XPLM fonksiyonu cagrilmaz
     while (true)
@@ -260,7 +259,7 @@ void AirportDetailStore::WorkerLoop()
             mQueue.pop_front();
         }
         std::string tLog;
-        std::unique_ptr<LoadedAirport> tLoaded = Load(tRequest, tLog);
+        std::unique_ptr<LoadedAirport> tLoaded = load(tRequest, tLog);
         std::lock_guard<std::mutex> tLock(mMutex);
         mInFlight.erase(tRequest.mAirport);
         mResults.push_back({tRequest.mAirport, std::move(tLoaded)});

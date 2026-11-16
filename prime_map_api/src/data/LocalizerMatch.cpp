@@ -1,4 +1,3 @@
-// LocalizerMatch.cpp
 #include "data/LocalizerMatch.h"
 
 #include <cmath>
@@ -17,10 +16,10 @@ const double kPi = 3.14159265358979323846;
 
 }  // namespace
 
-bool FindLocalizerThreshold(const LatLon& pAntenna, double pCourseTrue, const AirportGeometryStore& pRunways,
+bool findLocalizerThreshold(const LatLon& pAntenna, double pCourseTrue, const AirportGeometryStore& pRunways,
                             LatLon* pOutThreshold)
 {
-    if (!pRunways.IsReady())
+    if (!pRunways.isReady())
     {
         return false;
     }
@@ -30,33 +29,33 @@ bool FindLocalizerThreshold(const LatLon& pAntenna, double pCourseTrue, const Ai
     tBounds.mWest = pAntenna.mLon - kSearchDeg;
     tBounds.mEast = pAntenna.mLon + kSearchDeg;
     std::vector<int> tAirports;
-    pRunways.Query(tBounds, tAirports);
+    pRunways.query(tBounds, tAirports);
 
     bool tFound = false;
     double tBestDistance = 1e9;
     for (int tAirportIndex : tAirports)
     {
-        for (const Runway& tRunway : pRunways.At(tAirportIndex).mRunways)
+        for (const Runway& tRunway : pRunways.at(tAirportIndex).mRunways)
         {
             // Her pistin iki inis yonu var: uc 0'a inip uc 1'e dogru, ya da tersi
             for (int tLandingEnd = 0; tLandingEnd < 2; ++tLandingEnd)
             {
                 const LatLon& tThreshold = tRunway.mEnds[tLandingEnd].mPosition;
                 const LatLon& tFarEnd = tRunway.mEnds[1 - tLandingEnd].mPosition;
-                const double tLandingCourse = InitialBearingDeg(tThreshold, tFarEnd);
-                if (AngleDifferenceDeg(tLandingCourse, pCourseTrue) > kMaxCourseDiff)
+                const double tLandingCourse = initialBearingDeg(tThreshold, tFarEnd);
+                if (angleDifferenceDeg(tLandingCourse, pCourseTrue) > kMaxCourseDiff)
                 {
                     continue;
                 }
-                const double tToEnd = DistanceNm(tFarEnd, pAntenna);
+                const double tToEnd = distanceNm(tFarEnd, pAntenna);
                 if (tToEnd > kMaxAntennaToEndNm)
                 {
                     continue;
                 }
                 // Eksenden yana kayma: esikten antene olan yonun pist yonune gore acisi
-                const double tFromThreshold = DistanceNm(tThreshold, pAntenna);
+                const double tFromThreshold = distanceNm(tThreshold, pAntenna);
                 const double tOffAngle =
-                    AngleDifferenceDeg(InitialBearingDeg(tThreshold, pAntenna), tLandingCourse) * kPi / 180.0;
+                    angleDifferenceDeg(initialBearingDeg(tThreshold, pAntenna), tLandingCourse) * kPi / 180.0;
                 if (tFromThreshold * std::sin(tOffAngle) > kMaxCrossTrackNm)
                 {
                     continue;

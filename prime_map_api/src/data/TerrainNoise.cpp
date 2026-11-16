@@ -1,4 +1,3 @@
-// TerrainNoise.cpp
 #include "data/TerrainNoise.h"
 
 #include <algorithm>
@@ -14,7 +13,7 @@ const uint32_t kSeedEast = 0x5EEDu;
 const uint32_t kSeedNorth = 0xB0A7u;
 
 // Tam sayi izgara noktasinin [-1, 1] degeri (splitmix64 benzeri karistirma)
-double LatticeValue(int64_t pX, int64_t pY, uint32_t pSeed)
+double latticeValue(int64_t pX, int64_t pY, uint32_t pSeed)
 {
     uint64_t tHash = static_cast<uint64_t>(pX) * 0x9E3779B97F4A7C15ull ^
                      static_cast<uint64_t>(pY) * 0xC2B2AE3D27D4EB4Full ^
@@ -27,23 +26,23 @@ double LatticeValue(int64_t pX, int64_t pY, uint32_t pSeed)
     return static_cast<double>(tHash >> 11) * (2.0 / 9007199254740992.0) - 1.0;  // 53 bit -> [-1, 1)
 }
 
-double Fade(double pT)
+double fade(double pT)
 {
     return pT * pT * pT * (pT * (pT * 6.0 - 15.0) + 10.0);  // 5. derece: turev surekli, izgara izi yok
 }
 
-double ValueNoise(double pX, double pY, uint32_t pSeed)
+double valueNoise(double pX, double pY, uint32_t pSeed)
 {
     const double tFloorX = std::floor(pX);
     const double tFloorY = std::floor(pY);
     const int64_t tX = static_cast<int64_t>(tFloorX);
     const int64_t tY = static_cast<int64_t>(tFloorY);
-    const double tU = Fade(pX - tFloorX);
-    const double tV = Fade(pY - tFloorY);
-    const double tA = LatticeValue(tX, tY, pSeed);
-    const double tB = LatticeValue(tX + 1, tY, pSeed);
-    const double tC = LatticeValue(tX, tY + 1, pSeed);
-    const double tD = LatticeValue(tX + 1, tY + 1, pSeed);
+    const double tU = fade(pX - tFloorX);
+    const double tV = fade(pY - tFloorY);
+    const double tA = latticeValue(tX, tY, pSeed);
+    const double tB = latticeValue(tX + 1, tY, pSeed);
+    const double tC = latticeValue(tX, tY + 1, pSeed);
+    const double tD = latticeValue(tX + 1, tY + 1, pSeed);
     return (tA + (tB - tA) * tU) + ((tC + (tD - tC) * tU) - (tA + (tB - tA) * tU)) * tV;
 }
 
@@ -58,7 +57,7 @@ double TerrainNoise(double pX, double pY, uint32_t pSeed, int pOctaves)
     for (int tOctave = 0; tOctave < pOctaves; ++tOctave)
     {
         // Her oktav kaydirilmis: oktavlarin izgara noktalari ust uste binmesin
-        tSum += tAmplitude * ValueNoise(pX * tFrequency + tOctave * 17.31, pY * tFrequency - tOctave * 9.77,
+        tSum += tAmplitude * valueNoise(pX * tFrequency + tOctave * 17.31, pY * tFrequency - tOctave * 9.77,
                                         pSeed + static_cast<uint32_t>(tOctave) * 101u);
         tNorm += tAmplitude;
         tAmplitude *= kGain;
@@ -67,7 +66,7 @@ double TerrainNoise(double pX, double pY, uint32_t pSeed, int pOctaves)
     return tNorm > 0.0 ? tSum / tNorm : 0.0;
 }
 
-void TerrainWarpOffset(double pLon, double pLat, const TerrainWarpParams& pParams, double* pEastMeters,
+void terrainWarpOffset(double pLon, double pLat, const TerrainWarpParams& pParams, double* pEastMeters,
                        double* pNorthMeters)
 {
     *pEastMeters = 0.0;
@@ -84,7 +83,7 @@ void TerrainWarpOffset(double pLon, double pLat, const TerrainWarpParams& pParam
     *pNorthMeters = TerrainNoise(tX, tY, kSeedNorth, pParams.mOctaves) * pParams.mAmplitudeMeters;
 }
 
-TerrainWarpPlan TerrainPlanWarp(const TerrainWarpParams& pParams, double pMetersPerPixelX, double pMetersPerPixelY)
+TerrainWarpPlan terrainPlanWarp(const TerrainWarpParams& pParams, double pMetersPerPixelX, double pMetersPerPixelY)
 {
     TerrainWarpPlan tPlan;
     if (pParams.mAmplitudeMeters <= 0.0 || pMetersPerPixelX <= 0.0 || pMetersPerPixelY <= 0.0)

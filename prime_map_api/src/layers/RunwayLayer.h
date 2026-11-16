@@ -1,14 +1,6 @@
-// RunwayLayer.h
-// Pistler: her pist, iki ucu ve genisligi ile gercek olcekli bir dikdortgen.
-// Veri AirportGeometryStore'dan gelir (gecici apt.dat okuyucusu veya dis veri
-// kaynagi; katman hangisi oldugunu bilmez).
-//
-//   zoom >= 11   : pist dikdortgeni (yuzeye gore renk; cok dar ise en az 2 boxel)
-//                  pavement (AirportSurfaceLayer kSurfaceMinZoom) ile ayni esik:
-//                  kaplamalar kaybolunca pistler de kaybolur
-//   zoom >= 11.5 : pist numaralari uclarin disinda
-//   zoom >= 12   : blast pad / overrun (koyu)
-//   zoom >= 13   : esik cizgileri ve kesikli orta hat
+// Pistler: iki ucu ve genisligi ile gercek olcekli dikdortgen. Veri
+// AirportGeometryStore'dan gelir; katman kaynagi bilmez. Zoom esikleri
+// RunwayLayer.cpp'de.
 #pragma once
 
 #include <string>
@@ -30,10 +22,10 @@ class RunwayLayer : public Layer
 public:
     explicit RunwayLayer(const AirportGeometryStore& pStore);
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
-    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
-    int LabelPriority() const override
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
+    std::string describe(const drawContext& pContext, double pX, double pY) const override;
+    int labelPriority() const override
     {
         return 15;
     }
@@ -52,11 +44,11 @@ private:
         float mBoxelsPerMeter;
     };
 
-    void CollectVisible(const DrawContext& pContext);
+    void collectVisible(const drawContext& pContext);
     // Pist ekseni boyunca pFrom..pTo (boxel, uc 0'dan), pHalfWidth genisliginde dikdortgen
-    static void AddRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
+    static void addRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
                              float pHalfWidth, const Rgba& pColor);
-    static void AddMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway);
+    static void addMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway);
 
     const AirportGeometryStore& mStore;
     std::vector<int> mQuery;

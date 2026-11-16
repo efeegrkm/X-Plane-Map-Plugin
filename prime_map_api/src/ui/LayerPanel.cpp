@@ -1,4 +1,3 @@
-// LayerPanel.cpp
 #include "ui/LayerPanel.h"
 
 #include <algorithm>
@@ -28,21 +27,21 @@ struct LayerGroup
     std::array<const char*, 6> mLayerIds;  // katman kimlikleri (panel sirasi), nullptr ile biter
 };
 
-// Panel gruplari. Cizim sirasi Plugin.cpp'deki CreateLayers'tir; bu tablo
+// Panel gruplari. Cizim sirasi Plugin.cpp'deki createLayers'tir; bu tablo
 // sadece paneldeki gorunumu belirler.
 const auto kGroups = std::to_array<LayerGroup>({
-    {"Map", {"terrain", "roads", "grid", nullptr, nullptr, nullptr}},
+    {"XMap", {"terrain", "roads", "grid", nullptr, nullptr, nullptr}},
     {"Airports", {"airports", "runways", "airport_surfaces", "airport_objects", "taxi_routes", nullptr}},
     {"Navaids", {"vor", "ndb", "ils", "fix", nullptr, nullptr}},
     {"Airways", {"airways_low", "airways_high", nullptr, nullptr, nullptr, nullptr}},
     {"Flight", {"aircraft", "fms", "track", nullptr, nullptr, nullptr}},
 });
 
-int FindLayer(const LayerManager& pLayers, const char* pId)
+int findLayer(const LayerManager& pLayers, const char* pId)
 {
-    for (int tIndex = 0; tIndex < pLayers.Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < pLayers.count(); ++tIndex)
     {
-        if (pLayers.At(tIndex)->Id() == pId)
+        if (pLayers.at(tIndex)->id() == pId)
         {
             return tIndex;
         }
@@ -51,26 +50,26 @@ int FindLayer(const LayerManager& pLayers, const char* pId)
 }
 
 // Kucuk ucgen ok: saga (kapali) veya asagi (acik)
-void DrawArrow(Gfx::Canvas& pCanvas, const RectI& pRect, bool pExpanded, const Rgba& pColor)
+void drawArrow(Gfx::Canvas& pCanvas, const RectI& pRect, bool pExpanded, const Rgba& pColor)
 {
     const float tX = static_cast<float>(pRect.mLeft + pRect.mRight) * 0.5f;
     const float tY = static_cast<float>(pRect.mTop + pRect.mBottom) * 0.5f;
     Gfx::Mesh tMesh;
     if (pExpanded)
     {
-        tMesh.AddTriangle({tX - 4.0f, tY + 2.5f}, {tX + 4.0f, tY + 2.5f}, {tX, tY - 3.0f}, pColor);
+        tMesh.addTriangle({tX - 4.0f, tY + 2.5f}, {tX + 4.0f, tY + 2.5f}, {tX, tY - 3.0f}, pColor);
     }
     else
     {
-        tMesh.AddTriangle({tX - 2.5f, tY + 4.0f}, {tX - 2.5f, tY - 4.0f}, {tX + 3.0f, tY}, pColor);
+        tMesh.addTriangle({tX - 2.5f, tY + 4.0f}, {tX - 2.5f, tY - 4.0f}, {tX + 3.0f, tY}, pColor);
     }
-    pCanvas.Draw(tMesh);
+    pCanvas.draw(tMesh);
 }
 
 // Uc durumlu kutu: 0 kapali, 1 acik, 2 karisik (ortada yatay cubuk)
-void DrawStateBox(Gfx::Canvas& pCanvas, const RectI& pBox, int pState, bool pHover)
+void drawStateBox(Gfx::Canvas& pCanvas, const RectI& pBox, int pState, bool pHover)
 {
-    Ui::CheckBox(pCanvas, pBox, pState == 1, pHover);
+    Ui::checkBox(pCanvas, pBox, pState == 1, pHover);
     if (pState == 2)
     {
         RectI tBar = pBox;
@@ -78,28 +77,28 @@ void DrawStateBox(Gfx::Canvas& pCanvas, const RectI& pBox, int pState, bool pHov
         tBar.mRight -= 3;
         tBar.mBottom = (pBox.mTop + pBox.mBottom) / 2 - 1;
         tBar.mTop = tBar.mBottom + 3;
-        Ui::FillRect(pCanvas, tBar, Ui::kButtonActive);
+        Ui::fillRect(pCanvas, tBar, Ui::kButtonActive);
     }
 }
 
 }  // namespace
 
-bool LayerPanel::IsOpen() const
+bool LayerPanel::isOpen() const
 {
     return mOpen;
 }
 
-void LayerPanel::SetOpen(bool pOpen)
+void LayerPanel::setOpen(bool pOpen)
 {
     mOpen = pOpen;
 }
 
-void LayerPanel::Toggle()
+void LayerPanel::toggle()
 {
     mOpen = !mOpen;
 }
 
-void LayerPanel::ToggleExpanded(const std::string& pKey)
+void LayerPanel::toggleExpanded(const std::string& pKey)
 {
     if (!mExpanded.erase(pKey))
     {
@@ -107,57 +106,57 @@ void LayerPanel::ToggleExpanded(const std::string& pKey)
     }
 }
 
-int LayerPanel::VisibleCount(const LayerManager& pLayers, const std::vector<int>& pIndices)
+int LayerPanel::visibleCount(const LayerManager& pLayers, const std::vector<int>& pIndices)
 {
     return static_cast<int>(std::count_if(pIndices.begin(), pIndices.end(), [&](int pIndex)
                                           {
-                                              return pLayers.At(pIndex)->IsVisible();
+                                              return pLayers.at(pIndex)->isVisible();
                                           }));
 }
 
-std::string LayerPanel::ExpandKey(const Row& pRow, const LayerManager& pLayers)
+std::string LayerPanel::expandKey(const Row& pRow, const LayerManager& pLayers)
 {
     if (pRow.mKind == RowKind::Group)
     {
         return "group:" + pRow.mGroup;
     }
-    return "layer:" + pLayers.At(pRow.mLayers[0])->Id();
+    return "layer:" + pLayers.at(pRow.mLayers[0])->id();
 }
 
-int LayerPanel::RowState(const Row& pRow, const LayerManager& pLayers)
+int LayerPanel::rowState(const Row& pRow, const LayerManager& pLayers)
 {
     if (pRow.mKind == RowKind::Group)
     {
-        const int tOn = VisibleCount(pLayers, pRow.mLayers);
+        const int tOn = visibleCount(pLayers, pRow.mLayers);
         const int tAll = static_cast<int>(pRow.mLayers.size());
         return tOn == 0 ? 0 : (tOn == tAll ? 1 : 2);
     }
-    const Layer* tLayer = pLayers.At(pRow.mLayers[0]);
+    const Layer* tLayer = pLayers.at(pRow.mLayers[0]);
     if (pRow.mKind == RowKind::SubLayer)
     {
-        return tLayer->IsVisible() && tLayer->IsSubLayerVisible(pRow.mSubLayer) ? 1 : 0;
+        return tLayer->isVisible() && tLayer->isSubLayerVisible(pRow.mSubLayer) ? 1 : 0;
     }
-    if (!tLayer->IsVisible())
+    if (!tLayer->isVisible())
     {
         return 0;
     }
     // Acik katmanin alt katmanlarindan bazilari kapaliysa karisik
-    return tLayer->VisibleSubLayerCount() < tLayer->SubLayerCount() ? 2 : 1;
+    return tLayer->visibleSubLayerCount() < tLayer->subLayerCount() ? 2 : 1;
 }
 
-void LayerPanel::AddLayerRows(int pLayer, int pIndent, const LayerManager& pLayers)
+void LayerPanel::addLayerRows(int pLayer, int pIndent, const LayerManager& pLayers)
 {
     Row tRow;
     tRow.mKind = RowKind::Layer;
     tRow.mLayers = {pLayer};
     tRow.mIndent = pIndent;
     mRows.push_back(tRow);
-    const Layer* tLayer = pLayers.At(pLayer);
-    if (tLayer->SubLayerCount() == 0 || mExpanded.count(ExpandKey(tRow, pLayers)) == 0)
+    const Layer* tLayer = pLayers.at(pLayer);
+    if (tLayer->subLayerCount() == 0 || mExpanded.count(expandKey(tRow, pLayers)) == 0)
     {
         return;
     }
-    for (int tSub = 0; tSub < tLayer->SubLayerCount(); ++tSub)
+    for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
     {
         Row tSubRow;
         tSubRow.mKind = RowKind::SubLayer;
@@ -168,11 +167,11 @@ void LayerPanel::AddLayerRows(int pLayer, int pIndent, const LayerManager& pLaye
     }
 }
 
-void LayerPanel::Layout(const RectI& pAnchor, int pMinBottom, const LayerManager& pLayers)
+void LayerPanel::layout(const RectI& pAnchor, int pMinBottom, const LayerManager& pLayers)
 {
     // Satirlar: gruplar (acik olanin katmanlari, acik katmanin alt katmanlari altinda), sonra grupsuzlar
     mRows.clear();
-    std::vector<bool> tGrouped(static_cast<size_t>(pLayers.Count()), false);
+    std::vector<bool> tGrouped(static_cast<size_t>(pLayers.count()), false);
     for (const LayerGroup& tGroup : kGroups)
     {
         Row tGroupRow;
@@ -184,7 +183,7 @@ void LayerPanel::Layout(const RectI& pAnchor, int pMinBottom, const LayerManager
             {
                 break;
             }
-            const int tIndex = FindLayer(pLayers, tId);
+            const int tIndex = findLayer(pLayers, tId);
             if (tIndex >= 0)
             {
                 tGroupRow.mLayers.push_back(tIndex);
@@ -196,34 +195,34 @@ void LayerPanel::Layout(const RectI& pAnchor, int pMinBottom, const LayerManager
             continue;
         }
         mRows.push_back(tGroupRow);
-        if (mExpanded.count(ExpandKey(tGroupRow, pLayers)) > 0)
+        if (mExpanded.count(expandKey(tGroupRow, pLayers)) > 0)
         {
             for (int tIndex : tGroupRow.mLayers)
             {
-                AddLayerRows(tIndex, 1, pLayers);
+                addLayerRows(tIndex, 1, pLayers);
             }
         }
     }
-    for (int tIndex = 0; tIndex < pLayers.Count(); ++tIndex)
+    for (int tIndex = 0; tIndex < pLayers.count(); ++tIndex)
     {
         if (!tGrouped[tIndex])
         {
-            AddLayerRows(tIndex, 0, pLayers);
+            addLayerRows(tIndex, 0, pLayers);
         }
     }
 
     // Genislik: en uzun satir (kaydirma degisince panel ziplamasin diye tum satirlar)
     // En dar hali: baslik + kaydirma yazisi + "Defaults" dugmesi sigsin
-    int tWidth = std::max(kMinWidth, kPadding + Ui::TextWidth("LAYERS") + Ui::TextWidth("00-00 / 00") + 24 +
-                                         Ui::ButtonWidth(kResetLabel) + kPadding);
+    int tWidth = std::max(kMinWidth, kPadding + Ui::textWidth("LAYERS") + Ui::textWidth("00-00 / 00") + 24 +
+                                         Ui::buttonWidth(kResetLabel) + kPadding);
     for (const Row& tRow : mRows)
     {
-        const Layer* tLayer = tRow.mKind == RowKind::Group ? nullptr : pLayers.At(tRow.mLayers[0]);
+        const Layer* tLayer = tRow.mKind == RowKind::Group ? nullptr : pLayers.at(tRow.mLayers[0]);
         const std::string& tName = !tLayer ? tRow.mGroup
-                                   : (tRow.mKind == RowKind::SubLayer ? tLayer->SubLayerAt(tRow.mSubLayer).mName
-                                                                       : tLayer->Name());
+                                   : (tRow.mKind == RowKind::SubLayer ? tLayer->subLayerAt(tRow.mSubLayer).mName
+                                                                       : tLayer->name());
         const int tRowWidth = kPadding + tRow.mIndent * kIndent + kBoxSize + 6 + kArrowWidth + 4 +
-                              Ui::TextWidth(tName) + kPadding;
+                              Ui::textWidth(tName) + kPadding;
         tWidth = std::max(tWidth, tRowWidth);
     }
 
@@ -241,17 +240,17 @@ void LayerPanel::Layout(const RectI& pAnchor, int pMinBottom, const LayerManager
     mRect.mBottom = mRect.mTop - (tFixed + mShownRows * kRowHeight);
 }
 
-RectI LayerPanel::ResetButtonRect() const
+RectI LayerPanel::resetButtonRect() const
 {
     RectI tButton;
     tButton.mRight = mRect.mRight - kPadding;
-    tButton.mLeft = tButton.mRight - Ui::ButtonWidth(kResetLabel) + 8;
+    tButton.mLeft = tButton.mRight - Ui::buttonWidth(kResetLabel) + 8;
     tButton.mTop = mRect.mTop - kPadding + 2;
     tButton.mBottom = tButton.mTop - kResetHeight;
     return tButton;
 }
 
-RectI LayerPanel::RowRect(int pIndex) const
+RectI LayerPanel::rowRect(int pIndex) const
 {
     RectI tRow;
     tRow.mLeft = mRect.mLeft + kPadding;
@@ -261,7 +260,7 @@ RectI LayerPanel::RowRect(int pIndex) const
     return tRow;
 }
 
-RectI LayerPanel::BoxRect(const RectI& pRow, int pIndent)
+RectI LayerPanel::boxRect(const RectI& pRow, int pIndent)
 {
     RectI tBox;
     tBox.mLeft = pRow.mLeft + pIndent * kIndent;
@@ -271,9 +270,9 @@ RectI LayerPanel::BoxRect(const RectI& pRow, int pIndent)
     return tBox;
 }
 
-bool LayerPanel::Scroll(int pX, int pY, int pClicks)
+bool LayerPanel::scroll(int pX, int pY, int pClicks)
 {
-    if (!mOpen || !mRect.Contains(pX, pY))
+    if (!mOpen || !mRect.contains(pX, pY))
     {
         return false;
     }
@@ -282,86 +281,86 @@ bool LayerPanel::Scroll(int pX, int pY, int pClicks)
     return true;
 }
 
-void LayerPanel::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const LayerManager& pLayers) const
+void LayerPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const LayerManager& pLayers) const
 {
     if (!mOpen)
     {
         return;
     }
-    Ui::FillRect(pCanvas, mRect, Ui::kPanelBg);
-    Ui::FrameRect(pCanvas, mRect, Ui::kBorder);
+    Ui::fillRect(pCanvas, mRect, Ui::kPanelBg);
+    Ui::frameRect(pCanvas, mRect, Ui::kBorder);
     const int tTitleBase = mRect.mTop - kPadding - 12;
-    Ui::Text(mRect.mLeft + kPadding, tTitleBase, "LAYERS", Ui::kTextGrey);
+    Ui::text(mRect.mLeft + kPadding, tTitleBase, "LAYERS", Ui::kTextGrey);
     const int tRowCount = static_cast<int>(mRows.size());
     if (mShownRows < tRowCount)
     {
         // Kaydirma durumu: "5-18 / 31" sag ustte
         const std::string tRange = std::to_string(mFirstRow + 1) + "-" + std::to_string(mFirstRow + mShownRows) +
                                    " / " + std::to_string(tRowCount);
-        Ui::Text(ResetButtonRect().mLeft - 8 - Ui::TextWidth(tRange), tTitleBase, tRange, Ui::kTextDim);
+        Ui::text(resetButtonRect().mLeft - 8 - Ui::textWidth(tRange), tTitleBase, tRange, Ui::kTextDim);
     }
-    const RectI tReset = ResetButtonRect();
-    Ui::Button(pCanvas, tReset, kResetLabel, false, true, tReset.Contains(pMouseX, pMouseY));
+    const RectI tReset = resetButtonRect();
+    Ui::Button(pCanvas, tReset, kResetLabel, false, true, tReset.contains(pMouseX, pMouseY));
     const float tSeparatorY = static_cast<float>(mRect.mTop - kPadding - kTitleHeight) + 3.5f;
-    Ui::Line(pCanvas, {static_cast<float>(mRect.mLeft + kPadding), tSeparatorY},
+    Ui::line(pCanvas, {static_cast<float>(mRect.mLeft + kPadding), tSeparatorY},
              {static_cast<float>(mRect.mRight - kPadding), tSeparatorY}, 1.0f, Ui::kBorder);
 
     for (int tIndex = mFirstRow; tIndex < mFirstRow + mShownRows; ++tIndex)
     {
         const Row& tRow = mRows[tIndex];
-        const RectI tRect = RowRect(tIndex);
-        const bool tHover = tRect.Contains(pMouseX, pMouseY);
+        const RectI tRect = rowRect(tIndex);
+        const bool tHover = tRect.contains(pMouseX, pMouseY);
         if (tHover)
         {
             RectI tHighlight = tRect;
             tHighlight.mLeft = tRect.mLeft + tRow.mIndent * kIndent - 3;
             tHighlight.mRight += 3;
-            Ui::FillRect(pCanvas, tHighlight, {1.0f, 1.0f, 1.0f, 0.05f});
+            Ui::fillRect(pCanvas, tHighlight, {1.0f, 1.0f, 1.0f, 0.05f});
         }
-        const RectI tBox = BoxRect(tRect, tRow.mIndent);
-        const int tState = RowState(tRow, pLayers);
-        const int tTextY = (tRect.mTop + tRect.mBottom) / 2 - Ui::FontHeight() / 2 + 1;
+        const RectI tBox = boxRect(tRect, tRow.mIndent);
+        const int tState = rowState(tRow, pLayers);
+        const int tTextY = (tRect.mTop + tRect.mBottom) / 2 - Ui::fontHeight() / 2 + 1;
         int tTextX = tBox.mRight + 6;
-        DrawStateBox(pCanvas, tBox, tState, tHover);
+        drawStateBox(pCanvas, tBox, tState, tHover);
 
         // Agac cizgisi: alt katmanlar ust satirin okunun hizasinda ince bir dikey cizgiye baglanir
         if (tRow.mKind == RowKind::SubLayer)
         {
             const float tGuideX = static_cast<float>(tBox.mLeft - kIndent / 2) + 0.5f;
-            Ui::Line(pCanvas, {tGuideX, static_cast<float>(tRect.mTop)}, {tGuideX, static_cast<float>(tRect.mBottom)},
+            Ui::line(pCanvas, {tGuideX, static_cast<float>(tRect.mTop)}, {tGuideX, static_cast<float>(tRect.mBottom)},
                      1.0f, Ui::kBorder);
         }
 
-        const Layer* tLayer = tRow.mKind == RowKind::Group ? nullptr : pLayers.At(tRow.mLayers[0]);
+        const Layer* tLayer = tRow.mKind == RowKind::Group ? nullptr : pLayers.at(tRow.mLayers[0]);
         const bool tExpandable = tRow.mKind == RowKind::Group ||
-                                 (tRow.mKind == RowKind::Layer && tLayer->SubLayerCount() > 0);
+                                 (tRow.mKind == RowKind::Layer && tLayer->subLayerCount() > 0);
         if (tExpandable)
         {
             RectI tArrow = tRect;
             tArrow.mLeft = tTextX;
             tArrow.mRight = tTextX + kArrowWidth;
-            DrawArrow(pCanvas, tArrow, mExpanded.count(ExpandKey(tRow, pLayers)) > 0, Ui::kTextGrey);
+            drawArrow(pCanvas, tArrow, mExpanded.count(expandKey(tRow, pLayers)) > 0, Ui::kTextGrey);
         }
         if (tRow.mKind != RowKind::SubLayer)
         {
             tTextX += kArrowWidth + 4;  // oksuz katmanlar da ayni hizada baslasin
         }
         const std::string& tName = !tLayer ? tRow.mGroup
-                                   : (tRow.mKind == RowKind::SubLayer ? tLayer->SubLayerAt(tRow.mSubLayer).mName
-                                                                       : tLayer->Name());
-        Ui::Text(tTextX, tTextY, tName, tState != 0 ? Ui::kTextWhite : Ui::kTextGrey);
+                                   : (tRow.mKind == RowKind::SubLayer ? tLayer->subLayerAt(tRow.mSubLayer).mName
+                                                                       : tLayer->name());
+        Ui::text(tTextX, tTextY, tName, tState != 0 ? Ui::kTextWhite : Ui::kTextGrey);
     }
 }
 
-LayerPanel::Hit LayerPanel::HitTest(int pX, int pY, const LayerManager& pLayers) const
+LayerPanel::Hit LayerPanel::hitTest(int pX, int pY, const LayerManager& pLayers) const
 {
     Hit tHit;
-    if (!mOpen || !mRect.Contains(pX, pY))
+    if (!mOpen || !mRect.contains(pX, pY))
     {
         return tHit;
     }
     tHit.mInside = true;
-    if (ResetButtonRect().Contains(pX, pY))
+    if (resetButtonRect().contains(pX, pY))
     {
         tHit.mResetDefaults = true;
         return tHit;
@@ -369,12 +368,12 @@ LayerPanel::Hit LayerPanel::HitTest(int pX, int pY, const LayerManager& pLayers)
     for (int tIndex = mFirstRow; tIndex < mFirstRow + mShownRows; ++tIndex)
     {
         const Row& tRow = mRows[tIndex];
-        const RectI tRect = RowRect(tIndex);
-        if (!tRect.Contains(pX, pY))
+        const RectI tRect = rowRect(tIndex);
+        if (!tRect.contains(pX, pY))
         {
             continue;
         }
-        const RectI tBox = BoxRect(tRect, tRow.mIndent);
+        const RectI tBox = boxRect(tRect, tRow.mIndent);
         const bool tOnBox = pX <= tBox.mRight + 2;
         switch (tRow.mKind)
         {
@@ -383,9 +382,9 @@ LayerPanel::Hit LayerPanel::HitTest(int pX, int pY, const LayerManager& pLayers)
                 tHit.mSubLayer = tRow.mSubLayer;
                 break;
             case RowKind::Layer:
-                if (!tOnBox && pLayers.At(tRow.mLayers[0])->SubLayerCount() > 0)
+                if (!tOnBox && pLayers.at(tRow.mLayers[0])->subLayerCount() > 0)
                 {
-                    tHit.mExpandKey = ExpandKey(tRow, pLayers);
+                    tHit.mExpandKey = expandKey(tRow, pLayers);
                 }
                 else
                 {
@@ -398,11 +397,11 @@ LayerPanel::Hit LayerPanel::HitTest(int pX, int pY, const LayerManager& pLayers)
                 {
                     tHit.mIsGroupBox = true;
                     tHit.mToggle = tRow.mLayers;
-                    tHit.mGroupOn = VisibleCount(pLayers, tRow.mLayers) < static_cast<int>(tRow.mLayers.size());
+                    tHit.mGroupOn = visibleCount(pLayers, tRow.mLayers) < static_cast<int>(tRow.mLayers.size());
                 }
                 else
                 {
-                    tHit.mExpandKey = ExpandKey(tRow, pLayers);
+                    tHit.mExpandKey = expandKey(tRow, pLayers);
                 }
                 break;
         }

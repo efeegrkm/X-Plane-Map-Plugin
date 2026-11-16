@@ -1,8 +1,5 @@
-// LayerManager.h
 // Katman listesi: cizim sirasi, ac/kapa ve gorunurlugun ayar dosyasina
 // kaydi. X-Plane'e bagimli DEGIL.
-//
-// Liste alttan uste dogru cizilir: ilk eklenen en altta kalir.
 #pragma once
 
 #include <cstdint>
@@ -14,66 +11,63 @@
 
 class Settings;
 
-// Hangi katmanlar cizilsin (0.18, MapImageCache)
 enum class LayerPass
 {
     All,      // hepsi (onbelleksiz cizim, onizleme)
-    Cached,   // onbellekteki harita resmine girenler (IsOverlay() == false)
-    Overlay,  // her karede resmin ustune cizilenler (IsOverlay() == true)
+    Cached,   // onbellekteki harita resmine girenler (isOverlay() == false)
+    Overlay,  // her karede resmin ustune cizilenler (isOverlay() == true)
 };
 
 class LayerManager
 {
 public:
-    // Katmani listenin sonuna (en uste) ekler ve sahipligini alir
-    Layer* Add(std::unique_ptr<Layer> pLayer);
+    // Listenin sonuna (en uste) ekler; sahipligi alir
+    Layer* add(std::unique_ptr<Layer> pLayer);
 
-    int Count() const;
-    Layer* At(int pIndex) const;
+    int count() const;
+    Layer* at(int pIndex) const;
 
-    void UpdateAll(float pNow);
+    void updateAll(float pNow);
 
     // Gorunen katmanlarin PrepareFrame'i (her karede, cizimden once). Biri yeni veri aldiysa true.
-    bool PrepareAll();
+    bool prepareAll();
 
     // Bu modun varsayilan gorunurlugu (katmanlar ve alt katmanlar; ayar dosyasi yok sayilir)
-    void ResetToDefaults(const MapTheme& pTheme);
+    void resetToDefaults(const MapTheme& pTheme);
 
     // Durum imzasi: gorunurluk, alt katmanlar, ust katman (overlay) ayrimi. Degisirse harita
-    // resmi hemen yeniden cizilir (MapImageCache).
-    uint64_t VisibilitySignature() const;
+    // resmi hemen yeniden cizilir (XMapImageCache).
+    uint64_t visibilitySignature() const;
 
     // Once gorunen katmanlarin geometrisi (liste sirasiyla), sonra yazilari
     // (Layer::LabelPriority sirasiyla)
-    void DrawAll(const DrawContext& pContext, LayerPass pPass = LayerPass::All);
+    void drawAll(const drawContext& pContext, LayerPass pPass = LayerPass::All);
 
     // Imlecin altindaki seyin aciklamasi: en ustteki gorunen katmandan baslar
-    std::string DescribeAt(const DrawContext& pContext, double pX, double pY) const;
+    std::string describeAt(const drawContext& pContext, double pX, double pY) const;
     // API sorgusu: imlecin altinda bir sey olan her gorunen katman (en ustteki once): kimlik + metin
-    std::vector<std::pair<std::string, std::string>> DescribeAllAt(const DrawContext& pContext, double pX,
+    std::vector<std::pair<std::string, std::string>> describeAllAt(const drawContext& pContext, double pX,
                                                                    double pY) const;
 
     // Mod basina bolum ("layers.vfr" ...): anahtar = katman kimligi, deger = 1/0.
-    // Dosyada yoksa: temanin varsayilani, o da yoksa katmanin kendi varsayilani.
-    // Scenery icin eski [layers] bolumu de okunur (0.12 ve oncesinin ayari).
-    // Varsayilan kapali katmanlar (ornek Taxi routes) eski bolumden okunmaz: o surumlerde
-    // grup kutusu onlari da aciyordu, yeni kurulumda kapali gelsinler.
-    void LoadVisibility(const Settings& pSettings, const MapTheme& pTheme);
+    // Scenery icin eski [layers] bolumu de okunur (0.12 ve oncesi); orada varsayilan
+    // kapali katmanlar okunmaz, yeni kurulumda kapali gelsinler.
+    void loadVisibility(const Settings& pSettings, const MapTheme& pTheme);
 
     // Katmanin bu moddaki varsayilan gorunurlugu (temanin ayari, yoksa katmanin kendisi)
-    static bool ThemeDefault(const Layer& pLayer, const MapTheme& pTheme);
-    void SaveVisibility(Settings& pSettings, const MapTheme& pTheme) const;
+    static bool themeDefault(const Layer& pLayer, const MapTheme& pTheme);
+    void saveVisibility(Settings& pSettings, const MapTheme& pTheme) const;
 
     // Alt katmanin ayar anahtari: "<katman>.<alt katman>" (ornek "airport_surfaces.boundary")
-    static std::string SubLayerKey(const Layer& pLayer, int pSubLayer);
+    static std::string subLayerKey(const Layer& pLayer, int pSubLayer);
 
     // Zoom araliklari (0.23): [layer_zoom] bolumu, anahtar = katman / alt katman kimligi,
     // deger = "<en az> <en cok>". Moddan bagimsiz. Dosyada olmayan katmanin siniri yoktur.
-    void LoadZoomRanges(const Settings& pSettings);
-    void SaveZoomRanges(Settings& pSettings) const;
-    void ResetZoomRanges();
-    // Katmanlara o anki zoom'u verir (DrawAll kendisi cagirir; sorgu / onizleme icin ayrica)
-    void SetCurrentZoom(double pZoom);
+    void loadZoomRanges(const Settings& pSettings);
+    void saveZoomRanges(Settings& pSettings) const;
+    void resetZoomRanges();
+    // Katmanlara o anki zoom'u verir (drawAll kendisi cagirir; sorgu / onizleme icin ayrica)
+    void setCurrentZoom(double pZoom);
 
 private:
     std::vector<std::unique_ptr<Layer>> mLayers;

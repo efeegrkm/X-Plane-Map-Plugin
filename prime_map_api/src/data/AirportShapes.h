@@ -1,11 +1,6 @@
-// AirportShapes.h
-// apt.dat dugum zincirlerinden cizilebilir sekiller: Bezier egrilerini
-// duzlestirme, delikli yuzey poligonlarini ucgenleme. X-Plane'e ve
-// OpenGL'e bagimli DEGIL (testli). Arka plan thread'inde calisir.
-//
-// Hesaplar havalimani cevresinde metre cinsinden duz bir duzlemde yapilir
-// (LocalFrame): birkac km'lik alanda dunyanin egriligi onemsiz, ucgenleme
-// ise derecelerle degil metrelerle saglikli calisir.
+// apt.dat dugum zincirlerinden cizilebilir sekiller. X-Plane'e ve openGL'e
+// bagimli DEGIL (testli). Hesaplar metre cinsinden duz duzlemde (LocalFrame):
+// birkac km'lik alanda dunyanin egriligi onemsiz, ucgenleme metrelerle saglikli.
 #pragma once
 
 #include <string>
@@ -25,8 +20,8 @@ class LocalFrame
 public:
     explicit LocalFrame(const LatLon& pOrigin);
 
-    LocalPoint ToLocal(const LatLon& pPoint) const;
-    LatLon ToLatLon(const LocalPoint& pPoint) const;
+    LocalPoint toLocal(const LatLon& pPoint) const;
+    LatLon toLatLon(const LocalPoint& pPoint) const;
 
 private:
     LatLon mOrigin;
@@ -43,10 +38,9 @@ struct FlatChain
     bool mClosed = false;
 };
 
-// Cizime hazir noktalar Web Mercator'da, havalimani referansina gore fark
-// olarak saklanir (AirportShapes::mOriginX/Y + nokta). Boylece ekrana
-// cevirme dogrusal: GPU'da bir kez durur, her karede sadece olcek ve
-// kaydirma degisir (Gfx::StaticMesh). float farklar ~0.3 mm hassas.
+// Cizime hazir noktalar havalimani referansina gore Mercator FARKI olarak
+// saklanir: ekrana cevirme dogrusal kalir (Gfx::StaticMesh), float farklar
+// ~0.3 mm hassas.
 
 // Ucgenlenmis yuzey
 struct SurfaceMesh
@@ -103,21 +97,21 @@ namespace Shapes
 // Iki dugum arasindaki egrinin noktalari (baslangic dahil, bitis HARIC).
 // Kural: P0 = A, P1 = A.kontrol (yoksa A), P2 = 2B - B.kontrol (yoksa B), P3 = B.
 // Parca sayisi egri uzunluguna gore: yaklasik pMaxStepM metrede bir nokta.
-void AddSegment(const AptNode& pFrom, const AptNode& pTo, const LocalFrame& pFrame, double pMaxStepM,
+void addSegment(const AptNode& pFrom, const AptNode& pTo, const LocalFrame& pFrame, double pMaxStepM,
                 std::vector<LocalPoint>& pOut);
 
-FlatChain Flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxStepM);
+FlatChain flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxStepM);
 
 // Isaretli alan (saat yonu tersi pozitif), m^2
-double SignedArea(const std::vector<LocalPoint>& pRing);
+double signedArea(const std::vector<LocalPoint>& pRing);
 
 // Delikli basit poligonu ucgenler. pOuter ve pHoles yonu fark etmez (duzeltilir).
 // pOutVertices: kullanilan tum noktalar, pOutTriangles: 3'erli indeksler.
-// Basarisizsa (kendini kesen sinir vb.) false.
-bool Triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::vector<LocalPoint>>& pHoles,
+// basarisizsa(kendini kesen sinir vb.) false.
+bool triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::vector<LocalPoint>>& pHoles,
                  std::vector<LocalPoint>& pOutVertices, std::vector<int>& pOutTriangles);
 
 // Ayrintidan cizim sekilleri. pReference: duzlemin merkezi (havalimani referansi).
-AirportShapes Build(const AirportDetail& pDetail, const LatLon& pReference);
+AirportShapes build(const AirportDetail& pDetail, const LatLon& pReference);
 
 }  // namespace Shapes

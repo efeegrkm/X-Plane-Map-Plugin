@@ -1,4 +1,3 @@
-// Toolbar.cpp
 #include "ui/Toolbar.h"
 
 #include "ui/UiDraw.h"
@@ -13,22 +12,22 @@ const int kGroupGap = 14;   // dugme gruplari arasi
 // Dugme gruplari (soldan saga). ToolbarAction::None = gruplar arasi ayirici.
 const std::vector<ToolbarAction> kGeneralGroup = {
     ToolbarAction::Layers,         ToolbarAction::MapMode, ToolbarAction::None, ToolbarAction::FollowAircraft,
-    ToolbarAction::CenterAircraft, ToolbarAction::GoToAirport, ToolbarAction::None, ToolbarAction::DrawTools};
-const std::vector<ToolbarAction> kWindowGroup = {ToolbarAction::HideControls, ToolbarAction::PopOut};  // sagdan sola
+    ToolbarAction::CenterAircraft, ToolbarAction::goToAirport, ToolbarAction::None, ToolbarAction::drawTools};
+const std::vector<ToolbarAction> kWindowGroup = {ToolbarAction::HideControls, ToolbarAction::popOut};  // sagdan sola
 
 }  // namespace
 
-int Toolbar::RowWidth(const std::vector<ToolbarAction>& pActions, const ToolbarState& pState)
+int Toolbar::rowWidth(const std::vector<ToolbarAction>& pActions, const ToolbarState& pState)
 {
     int tWidth = 0;
     for (ToolbarAction tAction : pActions)
     {
-        tWidth += (tAction == ToolbarAction::None) ? kGroupGap : Ui::ButtonWidth(LabelFor(tAction, pState)) + kGap;
+        tWidth += (tAction == ToolbarAction::None) ? kGroupGap : Ui::buttonWidth(labelFor(tAction, pState)) + kGap;
     }
     return tWidth;
 }
 
-int Toolbar::PlaceRow(const std::vector<ToolbarAction>& pActions, int pX, int pTop, bool pRightToLeft,
+int Toolbar::placeRow(const std::vector<ToolbarAction>& pActions, int pX, int pTop, bool pRightToLeft,
                       const ToolbarState& pState)
 {
     int tX = pX;
@@ -43,8 +42,8 @@ int Toolbar::PlaceRow(const std::vector<ToolbarAction>& pActions, int pX, int pT
             tX = tGapEnd;
             continue;
         }
-        const char* tLabel = LabelFor(tAction, pState);
-        const int tWidth = Ui::ButtonWidth(tLabel);
+        const char* tLabel = labelFor(tAction, pState);
+        const int tWidth = Ui::buttonWidth(tLabel);
         Item tItem;
         tItem.mAction = tAction;
         tItem.mLabel = tLabel;
@@ -67,12 +66,12 @@ int Toolbar::PlaceRow(const std::vector<ToolbarAction>& pActions, int pX, int pT
     return tX;
 }
 
-void Toolbar::Layout(const RectI& pArea, const ToolbarState& pState)
+void Toolbar::layout(const RectI& pArea, const ToolbarState& pState)
 {
     mItems.clear();
     mDividers.clear();
-    const int tAvailable = pArea.Width() - 2 * kMargin;
-    const int tNeeded = RowWidth(kGeneralGroup, pState) + kGroupGap + RowWidth(kWindowGroup, pState);
+    const int tAvailable = pArea.width() - 2 * kMargin;
+    const int tNeeded = rowWidth(kGeneralGroup, pState) + kGroupGap + rowWidth(kWindowGroup, pState);
     const bool tTwoRows = tNeeded > tAvailable;
 
     mStrip.mLeft = pArea.mLeft;
@@ -80,36 +79,36 @@ void Toolbar::Layout(const RectI& pArea, const ToolbarState& pState)
     mStrip.mTop = pArea.mTop;
     mStrip.mBottom = pArea.mTop - (tTwoRows ? 2 * kRowHeight - kMargin : kRowHeight);
 
-    PlaceRow(kGeneralGroup, mStrip.mLeft + kMargin, mStrip.mTop, false, pState);
+    placeRow(kGeneralGroup, mStrip.mLeft + kMargin, mStrip.mTop, false, pState);
     const int tWindowTop = tTwoRows ? mStrip.mTop - kRowHeight + kMargin : mStrip.mTop;
-    PlaceRow(kWindowGroup, mStrip.mRight - kMargin, tWindowTop, true, pState);
+    placeRow(kWindowGroup, mStrip.mRight - kMargin, tWindowTop, true, pState);
 }
 
-void Toolbar::Draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const
+void Toolbar::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const
 {
-    Ui::FillRect(pCanvas, mStrip, Ui::kStripBg);
-    Ui::Line(pCanvas, {static_cast<float>(mStrip.mLeft), mStrip.mBottom + 0.5f},
+    Ui::fillRect(pCanvas, mStrip, Ui::kStripBg);
+    Ui::line(pCanvas, {static_cast<float>(mStrip.mLeft), mStrip.mBottom + 0.5f},
              {static_cast<float>(mStrip.mRight), mStrip.mBottom + 0.5f}, 1.0f, Ui::kBorder);
 
     for (int tX : mDividers)
     {
         const float tLineX = static_cast<float>(tX) + 0.5f;
-        Ui::Line(pCanvas, {tLineX, static_cast<float>(mStrip.mTop - 8)},
+        Ui::line(pCanvas, {tLineX, static_cast<float>(mStrip.mTop - 8)},
                  {tLineX, static_cast<float>(mStrip.mTop - kRowHeight + 8)}, 1.0f, Ui::kBorder);
     }
     for (const Item& tItem : mItems)
     {
-        const bool tEnabled = IsEnabled(tItem.mAction, pState);
-        const bool tHover = tEnabled && tItem.mRect.Contains(pMouseX, pMouseY);
-        Ui::Button(pCanvas, tItem.mRect, tItem.mLabel, IsActive(tItem.mAction, pState), tEnabled, tHover);
+        const bool tEnabled = isEnabled(tItem.mAction, pState);
+        const bool tHover = tEnabled && tItem.mRect.contains(pMouseX, pMouseY);
+        Ui::Button(pCanvas, tItem.mRect, tItem.mLabel, isActive(tItem.mAction, pState), tEnabled, tHover);
     }
 }
 
-ToolbarAction Toolbar::HitTest(int pX, int pY, const ToolbarState& pState) const
+ToolbarAction Toolbar::hitTest(int pX, int pY, const ToolbarState& pState) const
 {
     for (const Item& tItem : mItems)
     {
-        if (tItem.mRect.Contains(pX, pY) && IsEnabled(tItem.mAction, pState))
+        if (tItem.mRect.contains(pX, pY) && isEnabled(tItem.mAction, pState))
         {
             return tItem.mAction;
         }
@@ -117,22 +116,22 @@ ToolbarAction Toolbar::HitTest(int pX, int pY, const ToolbarState& pState) const
     return ToolbarAction::None;
 }
 
-bool Toolbar::Contains(int pX, int pY) const
+bool Toolbar::contains(int pX, int pY) const
 {
-    return mStrip.Contains(pX, pY);
+    return mStrip.contains(pX, pY);
 }
 
-const RectI& Toolbar::Strip() const
+const RectI& Toolbar::strip() const
 {
     return mStrip;
 }
 
-int Toolbar::Height() const
+int Toolbar::height() const
 {
-    return mStrip.Height();
+    return mStrip.height();
 }
 
-RectI Toolbar::ButtonRect(ToolbarAction pAction) const
+RectI Toolbar::buttonRect(ToolbarAction pAction) const
 {
     for (const Item& tItem : mItems)
     {
@@ -144,7 +143,7 @@ RectI Toolbar::ButtonRect(ToolbarAction pAction) const
     return RectI();
 }
 
-bool Toolbar::IsActive(ToolbarAction pAction, const ToolbarState& pState)
+bool Toolbar::isActive(ToolbarAction pAction, const ToolbarState& pState)
 {
     switch (pAction)
     {
@@ -152,18 +151,18 @@ bool Toolbar::IsActive(ToolbarAction pAction, const ToolbarState& pState)
             return pState.mLayersOpen;
         case ToolbarAction::MapMode:
             return pState.mModesOpen;
-        case ToolbarAction::GoToAirport:
+        case ToolbarAction::goToAirport:
             return pState.mSearchOpen;
         case ToolbarAction::FollowAircraft:
             return pState.mFollowing;
-        case ToolbarAction::DrawTools:
+        case ToolbarAction::drawTools:
             return pState.mToolsOpen;
         default:
             return false;
     }
 }
 
-bool Toolbar::IsEnabled(ToolbarAction pAction, const ToolbarState& pState)
+bool Toolbar::isEnabled(ToolbarAction pAction, const ToolbarState& pState)
 {
     switch (pAction)
     {
@@ -175,7 +174,7 @@ bool Toolbar::IsEnabled(ToolbarAction pAction, const ToolbarState& pState)
     }
 }
 
-const char* Toolbar::LabelFor(ToolbarAction pAction, const ToolbarState& pState)
+const char* Toolbar::labelFor(ToolbarAction pAction, const ToolbarState& pState)
 {
     switch (pAction)
     {
@@ -187,11 +186,11 @@ const char* Toolbar::LabelFor(ToolbarAction pAction, const ToolbarState& pState)
             return "Follow aircraft";
         case ToolbarAction::CenterAircraft:
             return "Center on aircraft";
-        case ToolbarAction::GoToAirport:
+        case ToolbarAction::goToAirport:
             return "Go to airport";
-        case ToolbarAction::DrawTools:
+        case ToolbarAction::drawTools:
             return "Draw tools";
-        case ToolbarAction::PopOut:
+        case ToolbarAction::popOut:
             return pState.mPoppedOut ? "Pop in" : "Pop out";
         case ToolbarAction::HideControls:
             return "Hide";

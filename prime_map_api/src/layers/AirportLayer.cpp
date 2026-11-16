@@ -1,4 +1,3 @@
-// AirportLayer.cpp
 #include "layers/AirportLayer.h"
 
 #include <array>
@@ -36,12 +35,12 @@ const double kHelipadDetailZoom = 12.5;  // AirportObjectsLayer kHelipadMinZoom 
 const size_t kMaxSymbols = 3000;  // FPS korumasi: bir karede en fazla bu kadar sembol
 const double kEdgeMargin = 20.0;  // kenardan tasan semboller de cizilsin (boxel)
 
-const CategoryStyle& StyleOf(AirportLayer::Category pCategory)
+const CategoryStyle& styleOf(AirportLayer::Category pCategory)
 {
     return kCategoryStyles[static_cast<int>(pCategory)];
 }
 
-}  // namespace
+}
 
 AirportLayer::AirportLayer(const NavDatabase& pDatabase, const AirportGeometryStore* pGeometry)
     : Layer("airports", "Airport symbols", true)
@@ -50,7 +49,7 @@ AirportLayer::AirportLayer(const NavDatabase& pDatabase, const AirportGeometrySt
 {
 }
 
-AirportLayer::Category AirportLayer::CategoryOf(AirportKind pAirportKind, bool pMajor)
+AirportLayer::Category AirportLayer::categoryOf(AirportKind pAirportKind, bool pMajor)
 {
     switch (pAirportKind)
     {
@@ -65,11 +64,11 @@ AirportLayer::Category AirportLayer::CategoryOf(AirportKind pAirportKind, bool p
     }
 }
 
-void AirportLayer::CollectVisible(const DrawContext& pContext)
+void AirportLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
-    const MapView& tView = *pContext.mView;
-    if (!mDatabase.IsReady() || tView.Zoom() < StyleOf(Category::Major).mMinZoom)
+    const XMapView& tView = *pContext.mView;
+    if (!mDatabase.isReady() || tView.zoom() < styleOf(Category::Major).mMinZoom)
     {
         return;
     }
@@ -81,31 +80,31 @@ void AirportLayer::CollectVisible(const DrawContext& pContext)
     tArea.mTop += kEdgeMargin;
 
     mQuery.clear();
-    mDatabase.Query(NavKind::Airport, tView.BoundsOf(tArea), mQuery);
-    mSymbolPlacer.Reset(tArea);
+    mDatabase.query(NavKind::Airport, tView.boundsOf(tArea), mQuery);
+    mSymbolPlacer.reset(tArea);
 
     // Kategori kategori, onemliden onemsize: yer kalirsa sonrakiler eklenir
     const MapTheme& tTheme = *pContext.mTheme;
-    const bool tByTower = tTheme.mAirportByTower && mGeometry && mGeometry->IsReady();
+    const bool tByTower = tTheme.mAirportByTower && mGeometry && mGeometry->isReady();
     for (int tCategoryIndex = 0; tCategoryIndex < static_cast<int>(kCategoryStyles.size()); ++tCategoryIndex)
     {
         const Category tCategory = static_cast<Category>(tCategoryIndex);
-        const CategoryStyle& tStyle = StyleOf(tCategory);
-        if (tView.Zoom() < tStyle.mMinZoom || (tTheme.mMajorAirportsOnly && tCategory != Category::Major))
+        const CategoryStyle& tStyle = styleOf(tCategory);
+        if (tView.zoom() < tStyle.mMinZoom || (tTheme.mMajorAirportsOnly && tCategory != Category::Major))
         {
             continue;
         }
         for (int tIndex : mQuery)
         {
-            const NavRecord& tRecord = mDatabase.At(tIndex);
-            if (CategoryOf(tRecord.mAirportKind, tRecord.mMajor) != tCategory)
+            const NavRecord& tRecord = mDatabase.at(tIndex);
+            if (categoryOf(tRecord.mAirportKind, tRecord.mMajor) != tCategory)
             {
                 continue;
             }
             double tX = 0.0;
             double tY = 0.0;
-            tView.LatLonToBoxel({tRecord.mLat, tRecord.mLon}, &tX, &tY);
-            if (!tArea.Contains(tX, tY))
+            tView.latLonToBoxel({tRecord.mLat, tRecord.mLon}, &tX, &tY);
+            if (!tArea.contains(tX, tY))
             {
                 continue;
             }
@@ -115,20 +114,20 @@ void AirportLayer::CollectVisible(const DrawContext& pContext)
             tBox.mRight = tX + tRadius;
             tBox.mBottom = tY - tRadius;
             tBox.mTop = tY + tRadius;
-            if (!mSymbolPlacer.TryPlace(tBox))
+            if (!mSymbolPlacer.tryPlace(tBox))
             {
                 continue;  // baska bir havalimaninin sembolunun ustune biniyor
             }
             if (pContext.mLabels)
             {
-                pContext.mLabels->Reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
+                pContext.mLabels->reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
             }
             Rgba tColor = tTheme.mAirport[tCategoryIndex];
             Rgba tLabelColor = tTheme.mAirportLabel[tCategoryIndex];
             if (tByTower && (tCategory == Category::Major || tCategory == Category::Minor))
             {
                 // Sectional kurali: kuleli mavi, kulesiz macenta. Kule = apt.dat 54/1054 satiri.
-                const AirportGeometry* tSummary = mGeometry->Find(tRecord.mId);
+                const AirportGeometry* tSummary = mGeometry->find(tRecord.mId);
                 const bool tTowered = tSummary && tSummary->mHasTower;
                 tColor = tTowered ? tTheme.mAirportTowered : tTheme.mAirportUntowered;
                 tLabelColor = tTowered ? tTheme.mAirportLabel[0] : tTheme.mAirportLabel[1];
@@ -143,9 +142,9 @@ void AirportLayer::CollectVisible(const DrawContext& pContext)
     }
 }
 
-void AirportLayer::Draw(const DrawContext& pContext)
+void AirportLayer::draw(const drawContext& pContext)
 {
-    CollectVisible(pContext);
+    collectVisible(pContext);
     if (mVisible.empty())
     {
         return;
@@ -153,79 +152,79 @@ void AirportLayer::Draw(const DrawContext& pContext)
 
     // Semboller: halka (kapalilarda carpi), heliportta "H"; koyu konturlu
     Gfx::OutlinedLines tSymbols(MapSymbols::kOutlineExtra);
-    tSymbols.SetOutlineColor(pContext.mTheme->mHalo);
+    tSymbols.setOutlineColor(pContext.mTheme->mHalo);
     Gfx::Mesh tDots;
     const float tWidth = MapSymbols::kLineWidth;
     for (const VisibleAirport& tAirport : mVisible)
     {
-        const CategoryStyle& tStyle = StyleOf(tAirport.mCategory);
+        const CategoryStyle& tStyle = styleOf(tAirport.mCategory);
         const float tRadius = tStyle.mRadius;
         const float tX = tAirport.mX;
         const float tY = tAirport.mY;
         switch (tAirport.mCategory)
         {
             case Category::Closed:
-                tSymbols.AddLine({tX - tRadius, tY - tRadius}, {tX + tRadius, tY + tRadius}, tWidth, tAirport.mColor);
-                tSymbols.AddLine({tX - tRadius, tY + tRadius}, {tX + tRadius, tY - tRadius}, tWidth, tAirport.mColor);
+                tSymbols.addLine({tX - tRadius, tY - tRadius}, {tX + tRadius, tY + tRadius}, tWidth, tAirport.mColor);
+                tSymbols.addLine({tX - tRadius, tY + tRadius}, {tX + tRadius, tY - tRadius}, tWidth, tAirport.mColor);
                 break;
             case Category::Heliport:
             {
-                if (pContext.mView->Zoom() >= kHelipadDetailZoom)
+                if (pContext.mView->zoom() >= kHelipadDetailZoom)
                 {
                     break;  // nesne katmani gercek helipadi (yone donuk H) ciziyor; ustune binmesin
                 }
-                tSymbols.AddRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
+                tSymbols.addRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
                 const float tH = tRadius * 0.55f;
-                tSymbols.AddLine({tX - tH, tY - tH}, {tX - tH, tY + tH}, tWidth, tAirport.mColor);
-                tSymbols.AddLine({tX + tH, tY - tH}, {tX + tH, tY + tH}, tWidth, tAirport.mColor);
-                tSymbols.AddLine({tX - tH, tY}, {tX + tH, tY}, tWidth, tAirport.mColor);
+                tSymbols.addLine({tX - tH, tY - tH}, {tX - tH, tY + tH}, tWidth, tAirport.mColor);
+                tSymbols.addLine({tX + tH, tY - tH}, {tX + tH, tY + tH}, tWidth, tAirport.mColor);
+                tSymbols.addLine({tX - tH, tY}, {tX + tH, tY}, tWidth, tAirport.mColor);
                 break;
             }
             case Category::Major:
-                tSymbols.AddRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
-                tDots.AddDisc({tX, tY}, 2.0f, tAirport.mColor);  // buyuklerin ortasinda dolu nokta
+                tSymbols.addRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
+                tDots.addDisc({tX, tY}, 2.0f, tAirport.mColor);  // buyuklerin ortasinda dolu nokta
                 break;
             default:
-                tSymbols.AddRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
+                tSymbols.addRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
                 break;
         }
     }
-    pContext.mCanvas->Draw(tSymbols);
-    pContext.mCanvas->Draw(tDots);
+    pContext.mCanvas->draw(tSymbols);
+    pContext.mCanvas->draw(tDots);
 }
 
-void AirportLayer::DrawLabels(const DrawContext& pContext)
+void AirportLayer::drawLabels(const drawContext& pContext)
 {
     if (!pContext.mLabels)
     {
         return;
     }
-    const double tZoom = pContext.mView->Zoom();
+    const double tZoom = pContext.mView->zoom();
     for (const VisibleAirport& tAirport : mVisible)
     {
-        const CategoryStyle& tStyle = StyleOf(tAirport.mCategory);
+        const CategoryStyle& tStyle = styleOf(tAirport.mCategory);
         if (tZoom < tStyle.mLabelMinZoom)
         {
             continue;
         }
-        const NavRecord& tRecord = mDatabase.At(tAirport.mIndex);
+        const NavRecord& tRecord = mDatabase.at(tAirport.mIndex);
         std::string tText = tRecord.mId;
         if (tZoom >= tStyle.mNameMinZoom && !tRecord.mName.empty())
         {
             tText += "  " + tRecord.mName;
         }
-        MapSymbols::DrawLabelNear(*pContext.mLabels, tAirport.mX, tAirport.mY, tStyle.mRadius + 4.0f, tText,
-                                  tAirport.mLabelColor, pContext.LabelShadow());
+        MapSymbols::drawLabelNear(*pContext.mLabels, tAirport.mX, tAirport.mY, tStyle.mRadius + 4.0f, tText,
+                                  tAirport.mLabelColor, pContext.labelShadow());
     }
 }
 
-std::string AirportLayer::Describe(const DrawContext& /*pContext*/, double pX, double pY) const
+std::string AirportLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
 {
     for (const VisibleAirport& tAirport : mVisible)
     {
-        if (std::hypot(tAirport.mX - pX, tAirport.mY - pY) <= StyleOf(tAirport.mCategory).mRadius + 3.0)
+        if (std::hypot(tAirport.mX - pX, tAirport.mY - pY) <= styleOf(tAirport.mCategory).mRadius + 3.0)
         {
-            const NavRecord& tRecord = mDatabase.At(tAirport.mIndex);
+            const NavRecord& tRecord = mDatabase.at(tAirport.mIndex);
             return tRecord.mName.empty() ? tRecord.mId : tRecord.mId + "  " + tRecord.mName;
         }
     }

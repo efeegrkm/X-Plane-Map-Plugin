@@ -1,4 +1,4 @@
-// Drawings.cpp
+
 #include "Drawings.h"
 
 #include <locale>
@@ -6,12 +6,12 @@
 
 #include "Log.h"
 
-Drawings::Mode Drawings::GetMode() const
+Drawings::Mode Drawings::getMode() const
 {
     return mMode;
 }
 
-const char* Drawings::ModeName(Mode pMode)
+const char* Drawings::modeName(Mode pMode)
 {
     switch (pMode)
     {
@@ -27,18 +27,18 @@ const char* Drawings::ModeName(Mode pMode)
     return "?";
 }
 
-void Drawings::SetMode(Mode pMode)
+void Drawings::setMode(Mode pMode)
 {
     if (pMode == mMode)
     {
         return;
     }
-    Finish();
+    finish();
     mMode = pMode;
-    Log("mode: {}", ModeName(pMode));
+    log("mode: {}", modeName(pMode));
 }
 
-void Drawings::AddVertex(const LatLon& pPoint)
+void Drawings::addVertex(const LatLon& pPoint)
 {
     switch (mMode)
     {
@@ -51,10 +51,10 @@ void Drawings::AddVertex(const LatLon& pPoint)
         {
             Shape tShape;
             tShape.mKind = ShapeKind::Point;
-            tShape.mNumber = ++CounterFor(ShapeKind::Point);
+            tShape.mNumber = ++counterFor(ShapeKind::Point);
             tShape.mPoints.push_back(pPoint);
             mShapes.push_back(tShape);
-            Log("P{} added: {:.5f}, {:.5f}", tShape.mNumber, pPoint.mLat, pPoint.mLon);
+            log("P{} added: {:.5f}, {:.5f}", tShape.mNumber, pPoint.mLat, pPoint.mLon);
             return;
         }
 
@@ -69,14 +69,14 @@ void Drawings::AddVertex(const LatLon& pPoint)
                 mHasCurrent = true;
             }
             mCurrent.mPoints.push_back(pPoint);
-            Log("{} vertex {}: {:.5f}, {:.5f}", ModeName(mMode), static_cast<int>(mCurrent.mPoints.size()),
+            log("{} vertex {}: {:.5f}, {:.5f}", modeName(mMode), static_cast<int>(mCurrent.mPoints.size()),
                 pPoint.mLat, pPoint.mLon);
             return;
         }
     }
 }
 
-void Drawings::Finish()
+void Drawings::finish()
 {
     if (!mHasCurrent)
     {
@@ -90,24 +90,24 @@ void Drawings::Finish()
     const size_t tNeeded = (tShape.mKind == ShapeKind::Route) ? 2 : 3;
     if (tShape.mPoints.size() < tNeeded)
     {
-        Log("unfinished shape discarded ({} vertices, at least {} needed)", static_cast<int>(tShape.mPoints.size()),
+        log("unfinished shape discarded ({} vertices, at least {} needed)", static_cast<int>(tShape.mPoints.size()),
             static_cast<int>(tNeeded));
         return;
     }
     if (tShape.mKind == ShapeKind::Region)
     {
-        if (!TriangulatePolygon(tShape.mPoints, tShape.mTriangles))
+        if (!triangulatePolygon(tShape.mPoints, tShape.mTriangles))
         {
-            Log("region intersects itself: only its outline will be drawn");
+            log("region intersects itself: only its outline will be drawn");
         }
     }
-    tShape.mNumber = ++CounterFor(tShape.mKind);
+    tShape.mNumber = ++counterFor(tShape.mKind);
     mShapes.push_back(tShape);
-    Log("{}{} finished ({} vertices)", tShape.mKind == ShapeKind::Route ? "R" : "A", tShape.mNumber,
+    log("{}{} finished ({} vertices)", tShape.mKind == ShapeKind::Route ? "R" : "A", tShape.mNumber,
         static_cast<int>(tShape.mPoints.size()));
 }
 
-void Drawings::Undo()
+void Drawings::undo()
 {
     if (mHasCurrent && !mCurrent.mPoints.empty())
     {
@@ -121,7 +121,7 @@ void Drawings::Undo()
     if (!mShapes.empty())
     {
         const Shape& tLast = mShapes.back();
-        int& tCounter = CounterFor(tLast.mKind);
+        int& tCounter = counterFor(tLast.mKind);
         if (tCounter == tLast.mNumber)
         {
             --tCounter;
@@ -130,7 +130,7 @@ void Drawings::Undo()
     }
 }
 
-void Drawings::Clear()
+void Drawings::clear()
 {
     mShapes.clear();
     mCurrent = Shape();
@@ -138,10 +138,10 @@ void Drawings::Clear()
     mCounters[0] = 0;
     mCounters[1] = 0;
     mCounters[2] = 0;
-    Log("all drawings cleared");
+    log("all drawings cleared");
 }
 
-bool Drawings::Remove(ShapeKind pKind, int pNumber)
+bool Drawings::remove(ShapeKind pKind, int pNumber)
 {
     for (auto tIterator = mShapes.begin(); tIterator != mShapes.end(); ++tIterator)
     {
@@ -154,27 +154,27 @@ bool Drawings::Remove(ShapeKind pKind, int pNumber)
     return false;
 }
 
-const std::vector<Drawings::Shape>& Drawings::Shapes() const
+const std::vector<Drawings::Shape>& Drawings::shapes() const
 {
     return mShapes;
 }
 
-const Drawings::Shape* Drawings::Current() const
+const Drawings::Shape* Drawings::current() const
 {
     return mHasCurrent ? &mCurrent : nullptr;
 }
 
-int Drawings::ShapeCount() const
+int Drawings::shapeCount() const
 {
     return static_cast<int>(mShapes.size());
 }
 
-int& Drawings::CounterFor(ShapeKind pKind)
+int& Drawings::counterFor(ShapeKind pKind)
 {
     return mCounters[static_cast<int>(pKind)];
 }
 
-std::string Drawings::LabelOf(const Shape& pShape)
+std::string Drawings::labelOf(const Shape& pShape)
 {
     const char* tPrefix = "P";
     if (pShape.mKind == ShapeKind::Route)
@@ -188,15 +188,15 @@ std::string Drawings::LabelOf(const Shape& pShape)
     return tPrefix + std::to_string(pShape.mNumber);
 }
 
-std::string Drawings::Serialize() const
+std::string Drawings::serialize() const
 {
     std::ostringstream tStream;
     tStream.imbue(std::locale::classic());  // ondalik ayirici her zaman nokta
     tStream.precision(12);  // ~0.1 mm: kayit/yukleme koordinati bozmasin
-    tStream << "# Prime Map Plugin drawings: P = point, R = route, A = area (region). <type> <number> <lat> <lon> ...\n";
+    tStream << "# Prime XMap Plugin drawings: P = point, R = route, A = area (region). <type> <number> <lat> <lon> ...\n";
     for (const Shape& tShape : mShapes)
     {
-        tStream << LabelOf(tShape).substr(0, 1) << ' ' << tShape.mNumber;
+        tStream << labelOf(tShape).substr(0, 1) << ' ' << tShape.mNumber;
         for (const LatLon& tPoint : tShape.mPoints)
         {
             tStream << ' ' << tPoint.mLat << ' ' << tPoint.mLon;
@@ -206,7 +206,7 @@ std::string Drawings::Serialize() const
     return tStream.str();
 }
 
-int Drawings::Deserialize(const std::string& pText)
+int Drawings::deserialize(const std::string& pText)
 {
     mShapes.clear();
     mCurrent = Shape();
@@ -259,14 +259,14 @@ int Drawings::Deserialize(const std::string& pText)
         }
         if (tShape.mKind == ShapeKind::Region)
         {
-            TriangulatePolygon(tShape.mPoints, tShape.mTriangles);
+            triangulatePolygon(tShape.mPoints, tShape.mTriangles);
         }
-        int& tCounter = CounterFor(tShape.mKind);
+        int& tCounter = counterFor(tShape.mKind);
         if (tShape.mNumber > tCounter)
         {
             tCounter = tShape.mNumber;
         }
         mShapes.push_back(tShape);
     }
-    return ShapeCount();
+    return shapeCount();
 }

@@ -1,10 +1,7 @@
-// NavDatabase.h
 // X-Plane'in nav verisinin (havalimani, VOR, DME, NDB, ILS, fix) bizdeki
 // kopyasi + her tur icin ayri bir 1x1 derece izgara (GeoGrid).
 // X-Plane'e bagimli DEGIL: kayitlari NavLoader doldurur, testler elle doldurur.
-//
-// Neden izgara: ~200 bin fix var. Her karede hepsine bakmak yerine sadece
-// ekranda gorunen hucrelerin kayitlarina bakiyoruz.
+// Neden izgara: ~200 bin fix var; her karede sadece ekrandaki hucrelere bakilir.
 #pragma once
 
 #include <string>
@@ -54,50 +51,50 @@ struct NavRecord
 };
 
 // Havalimani adindan turu bulur; pOutCleanName'e onek atilmis adi yazar
-AirportKind AirportKindFromName(const std::string& pName, std::string* pOutCleanName);
+AirportKind airportKindFromName(const std::string& pName, std::string* pOutCleanName);
 
 // ILS/LOC yonu nav.dat 1150 bicimiyle "manyetik * 360 + gercek" olarak
 // kodlanmis olabilir (ornek: 84112.655 = 233 * 360 + 232.655).
 // pRaw 360'tan kucukse kodlanmamis kabul edilir (manyetik bilinmiyor: -1).
-void DecodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic);
+void decodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic);
 
-// 4 harfli, rakamsiz kod: buyuk (ICAO) havalimani say. Rakamlilar (LT51,
+// 4 harfli, rakamsiz kod: buyuk (ICAO) havalimani say. rakamlilar(LT51,
 // K1A2 ...) cogunlukla kucuk pist, heliport vb. (pist verisi gelince iyilesecek)
-bool IsMajorAirportId(const std::string& pId);
+bool isMajorAirportId(const std::string& pId);
 
 // Bos veya sadece '-' olan kimlik ("----"): X-Plane'in yer tutucu kayitlari,
 // gercek bir istasyon degil. Haritaya alinmaz.
-bool IsPlaceholderId(const std::string& pId);
+bool isPlaceholderId(const std::string& pId);
 
 // TACAN istasyonlarinin "frekansi" SDK'dan kanal numarasi olarak gelir
 // (NUW: 85 = kanal 85X, 113.80 MHz). Gercek VHF nav frekanslari 108.00 MHz
 // ve ustu oldugu icin (nav.dat'ta >= 10800) daha kucuk deger kanal demektir.
-bool IsTacanChannel(int pFrequency);
+bool isTacanChannel(int pFrequency);
 
 class NavDatabase
 {
 public:
-    void Clear();
+    void clear();
 
     // Yukleme sirasinda: kaydi ekler (izgara Build'e kadar kurulmaz)
-    void Add(const NavRecord& pRecord);
+    void add(const NavRecord& pRecord);
 
     // Tum kayitlar eklenince bir kez: DME'leri VOR/ILS ile eslestirir,
-    // izgarayi kurar. Bundan sonra IsReady() true olur.
-    void Build();
+    // izgarayi kurar. Bundan sonra isReady() true olur.
+    void build();
 
-    bool IsReady() const;
-    int Count() const;
-    int CountOf(NavKind pKind) const;  // izgaradaki (gizli olmayan) kayit sayisi
-    const NavRecord& At(int pIndex) const;
+    bool isReady() const;
+    int count() const;
+    int countOf(NavKind pKind) const;  // izgaradaki (gizli olmayan) kayit sayisi
+    const NavRecord& at(int pIndex) const;
 
     // pBounds'un degdigi hucrelerdeki pKind kayitlarinin indekslerini pOut'a
     // EKLER (hucre hassasiyetinde: sinirin biraz disindakiler de gelebilir).
-    void Query(NavKind pKind, const GeoBounds& pBounds, std::vector<int>& pOut) const;
+    void query(NavKind pKind, const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
 private:
-    void PairDmes();
-    void BuildIndex();
+    void pairDmes();
+    void buildIndex();
 
     std::vector<NavRecord> mRecords;
     GeoGrid mGrids[kNavKindCount];  // tur basina bir izgara

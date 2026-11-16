@@ -1,8 +1,6 @@
-// TaxiRouteLayer.h
-// Taksi agi (apt.dat 1201 dugum + 1202 kenar): X-Plane ATC'nin taksi
-// talimatlarinda kullandigi yollar ve taksi yolu adlari ("A", "B" ...).
-// Uzaktan cok yogun gorundugu icin VARSAYILAN KAPALI, zoom 13.5+ cizilir.
-// Fare uzerine gelince kenarin adi ve yonu gorunur.
+// Taksi agi (apt.dat 1201 dugum + 1202 kenar) ve taksi yolu adlari.
+// VARSAYILAN KAPALI, zoom 13.5+ (uzaktan cok yogun). Fare uzerine gelince
+// kenarin adi ve yonu gorunur.
 #pragma once
 
 #include <string>
@@ -18,10 +16,10 @@ class TaxiRouteLayer : public Layer
 public:
     TaxiRouteLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails);
 
-    void Draw(const DrawContext& pContext) override;
-    void DrawLabels(const DrawContext& pContext) override;
-    std::string Describe(const DrawContext& pContext, double pX, double pY) const override;
-    int LabelPriority() const override
+    void draw(const drawContext& pContext) override;
+    void drawLabels(const drawContext& pContext) override;
+    std::string describe(const drawContext& pContext, double pX, double pY) const override;
+    int labelPriority() const override
     {
         return 66;
     }

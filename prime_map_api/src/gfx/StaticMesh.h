@@ -1,12 +1,5 @@
-// StaticMesh.h
-// GPU'da KALICI duran sekil (RAII): bir kez yuklenir, her karede sadece bir
-// olcek + kaydirma ile cizilir (Canvas::DrawStatic).
-//
-// Neden: buyuk bir havalimani (KORD) ~200 bin nokta. Her karede bunlari
-// lat/lon'dan ekrana cevirip GPU'ya yeniden gondermek FPS'i dusurur.
-// Web Mercator'da ekrana cevirme dogrusal (olcek + kaydirma) oldugu icin
-// noktalar bir kez Mercator koordinatinda yuklenir; kaydirma / zoom
-// degistikce sadece iki sayi (uniform) degisir, donusumu GPU yapar.
+// GPU'da KALICI sekil: Mercator koordinatlari bir kez yuklenir; kaydirma/zoom
+// sadece iki uniform ile GPU'da yapilir (her karede yeniden gonderme FPS dusurur).
 #pragma once
 
 #include <vector>
@@ -19,8 +12,8 @@ namespace Gfx
 
 enum class Primitive
 {
-    Triangles,  // her 3 kose bir ucgen
-    Lines,      // her 2 kose bir cizgi (1 piksel)
+    Triangles,
+    Lines,  // 1 piksel
 };
 
 class StaticMesh
@@ -34,19 +27,18 @@ public:
     StaticMesh(const StaticMesh&) = delete;
     StaticMesh& operator=(const StaticMesh&) = delete;
 
-    // Koseleri GPU'ya yukler (OpenGL baglami etkinken, ana thread'de)
-    void Upload(const std::vector<ColorVertex>& pVertices, Primitive pPrimitive);
+    // openGL baglami etkinken, ana thread'de
+    void upload(const std::vector<ColorVertex>& pVertices, Primitive pPrimitive);
 
-    bool IsEmpty() const;
-    int VertexCount() const;
-    Primitive GetPrimitive() const;
-    // Canvas icin: koselerin VAO'sunu SU ANKI OpenGL baglaminda baglar.
-    // Pop-out penceresi ayri baglam oldugu icin VAO gerekirse yeniden olusur;
-    // koseler (vertex buffer) baglamlar arasi paylasildigi icin yeniden yuklenmez.
-    void BindVertexArray() const;
+    bool isEmpty() const;
+    int vertexCount() const;
+    Primitive getPrimitive() const;
+    // VAO su anki baglamda baglanir (pop-out'ta yeniden olusur; buffer
+    // baglamlar arasi paylasildigi icin koseler yeniden yuklenmez).
+    void bindVertexArray() const;
 
 private:
-    void Release();
+    void release();
 
     mutable ContextVertexArray mArray;  // baglam basina; cizerken tembel olusturulur
     unsigned int mBuffer = 0;
@@ -54,4 +46,4 @@ private:
     Primitive mPrimitive = Primitive::Triangles;
 };
 
-}  // namespace Gfx
+}

@@ -1,5 +1,4 @@
-// AirportSearch.h
-// "Go to airport" paneli icin havalimani arama (0.18). X-Plane'e bagimli DEGIL.
+// "Go to airport" paneli icin havalimani arama. X-Plane'e bagimli DEGIL.
 //
 // Yazilan metin buyuk/kucuk harf farksiz su sirayla eslesir:
 //   0. kimlik veya ICAO kodu tam esit        "KSEA"
@@ -19,11 +18,11 @@ class AirportGeometryStore;
 struct AirportGeometry;
 
 // En iyi pMaxResults eslesmenin AirportGeometryStore indeksleri (en iyi once). Bos metin: bos liste.
-std::vector<int> FindAirports(const AirportGeometryStore& pStore, std::string_view pQuery, int pMaxResults);
+std::vector<int> findAirports(const AirportGeometryStore& pStore, std::string_view pQuery, int pMaxResults);
 
 // Havalimaninin haritada tam gorunecegi zoom (pViewWidth x pViewHeight boxel pencerede).
 // Kapsayan kutu yoksa / cok kucukse yakin bir varsayilan; uzak / asiri yakin zoom'a kirpilir.
-double ZoomToFitAirport(const AirportGeometry& pAirport, double pViewWidth, double pViewHeight);
+double zoomToFitAirport(const AirportGeometry& pAirport, double pViewWidth, double pViewHeight);
 
 // Haritanin ortalanacagi nokta: kapsayan kutunun ortasi (yoksa referans noktasi)
-LatLon AirportCenter(const AirportGeometry& pAirport);
+LatLon airportCenter(const AirportGeometry& pAirport);

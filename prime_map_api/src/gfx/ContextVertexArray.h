@@ -1,12 +1,6 @@
-// ContextVertexArray.h
-// OpenGL baglamina (context) bagli vertex array (VAO) tutucusu.
-//
-// Neden: pencere pop-out yapilinca X-Plane onu ayri bir OpenGL baglaminda
-// cizer. Vertex buffer, doku ve shader'lar baglamlar arasinda paylasilir ama
-// VAO'lar paylasilmaz. Ana baglamda olusturulmus bir VAO'yu pop-out
-// baglaminda baglamak gecersizdir; cizim rastgele bellek okur ve X-Plane
-// coker. Bu sinif VAO'yu su anki baglam icin hazirlar: baglam degistiyse
-// (Gl::ContextGeneration) yenisini olusturur ve duzenini pSetup ile kurar.
+// Baglama bagli (context) vertex array (VAO) tutucusu. VAO'lar pop-out
+// baglamlarina paylasilmaz; yanlis baglamdaki VAO'yu baglamak X-Plane'i
+// coker. Baglam degistirse (Gl::ContextGeneration) VAO yeniden olusturulur.
 #pragma once
 
 #include <functional>
@@ -25,14 +19,13 @@ public:
     ContextVertexArray(const ContextVertexArray&) = delete;
     ContextVertexArray& operator=(const ContextVertexArray&) = delete;
 
-    // Su anki baglam icin gecerli VAO'yu verir; gerekiyorsa olusturur. Yeni
-    // VAO olusturuldugunda o VAO bagliyken pSetup cagrilir (buffer'i baglayip
-    // koselerin duzenini tanimlar). Donuste VAO bagli kalir.
-    unsigned int Get(const std::function<void()>& pSetup);
+    // Su anki baglam icin gecerli VAO'yu verir; yeni olusturuldugunda pSetup
+    // o VAO bagliyken cagrilir. Donuste VAO bagli kalir.
+    unsigned int get(const std::function<void()>& pSetup);
 
-    // Su anki baglamda olusturulmussa VAO'yu siler, degilse sadece unutur
-    // (olu bir baglamin adini silmeye calismak gecersizdir).
-    void Release();
+    // Olusturuldugu baglam etkinse siler, degilse sadece unutur
+    // (olu baglamin adini silmek gecersizdir).
+    void release();
 
 private:
     void* mContext = nullptr;
@@ -40,4 +33,4 @@ private:
     unsigned int mArray = 0;
 };
 
-}  // namespace Gfx
+}
