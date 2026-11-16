@@ -68,7 +68,6 @@ compile_commands.json
 *.exe
 
 # Yerel dokumanlar (repoda yalnizca MIMARI.pdf, PrimeMap_API.pdf ve README'ler kalir)
-AGENTS.md
 docs/CHANGELOG.md
 docs/GECIS_0.22_RAPOR.md
 docs/ZEMIN_HIZ_RAPORU.md

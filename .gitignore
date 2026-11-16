@@ -32,7 +32,6 @@ cmake_install.cmake
 prime_map_sdk/
 
 # Yerel dokumanlar (repoda MIMARI.pdf + PrimeMap_API.pdf + README'ler kalir)
-prime_map_api/AGENTS.md
 prime_map_api/docs/CHANGELOG.md
 prime_map_api/docs/GECIS_0.22_RAPOR.md
 prime_map_api/docs/ZEMIN_HIZ_RAPORU.md
