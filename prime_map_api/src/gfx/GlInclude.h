@@ -1,5 +1,4 @@
 // openGL basliklarini her platformda dogru sekilde dahil eder.
-#pragma once
 
 #if IBM
 #ifndef WIN32_LEAN_AND_MEAN

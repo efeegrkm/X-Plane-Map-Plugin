@@ -1,6 +1,7 @@
 // Haritadaki yazi bicimleri ve "yuvarlak" aralik secimi (izgara araligi,
 // olcek cubugu uzunlugu). X-Plane'e bagimli DEGIL; testlerde denenir.
-#pragma once
+#ifndef PRIME_MAP_SRC_XMAPFORMAT_H
+#define PRIME_MAP_SRC_XMAPFORMAT_H
 
 #include <string>
 
@@ -20,3 +21,4 @@ double chooseGridStepDeg(double pBoxelsPerDegree, double pMinSpacing);
 // Uzunlugu pMaxBoxels'i gecmeyen en buyuk "yuvarlak" olcek cubugu (NM):
 // 1, 2, 5 x 10^n.
 double chooseScaleBarNm(double pNmPerBoxel, double pMaxBoxels);
+#endif  // PRIME_MAP_SRC_XMAPFORMAT_H

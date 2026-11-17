@@ -1,7 +1,8 @@
 // Baglama bagli (context) vertex array (VAO) tutucusu. VAO'lar pop-out
 // baglamlarina paylasilmaz; yanlis baglamdaki VAO'yu baglamak X-Plane'i
 // coker. Baglam degistirse (Gl::ContextGeneration) VAO yeniden olusturulur.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_CONTEXTVERTEXARRAY_H
+#define PRIME_MAP_SRC_GFX_CONTEXTVERTEXARRAY_H
 
 #include <functional>
 
@@ -34,3 +35,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_CONTEXTVERTEXARRAY_H

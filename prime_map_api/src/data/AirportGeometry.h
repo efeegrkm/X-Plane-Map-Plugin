@@ -2,7 +2,8 @@
 // kapsadigi alan ve apt.dat dosyasindaki yeri). X-Plane'e bagimli DEGIL.
 // Ayrinti (yuzeyler, cizgiler, isiklar) ekrandaki havalimanlari icin arka planda
 // okunur (AirportDetail / AirportDetailStore).
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRPORTGEOMETRY_H
+#define PRIME_MAP_SRC_DATA_AIRPORTGEOMETRY_H
 
 #include <atomic>
 #include <cstdint>
@@ -111,3 +112,4 @@ RunwaySurface surfaceFromAptCode(int pCode);
 
 // apt.dat yuzey kodunun Ingilizce adi ("asphalt", "concrete", "grass" ...)
 const char* surfaceName(int pCode);
+#endif  // PRIME_MAP_SRC_DATA_AIRPORTGEOMETRY_H

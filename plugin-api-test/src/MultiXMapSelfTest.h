@@ -13,7 +13,8 @@
 //
 // Test kendi haritalarini kullanir (maps/selftest_a, maps/selftest_b); eklentinin gomulu
 // haritasina dokunmaz.
-#pragma once
+#ifndef PRIME_MAP_TEST_SRC_MULTIXMAPSELFTEST_H
+#define PRIME_MAP_TEST_SRC_MULTIXMAPSELFTEST_H
 
 #include <memory>
 #include <string>
@@ -47,3 +48,4 @@ private:
     int mFailed = 0;
     bool mRegistered = false;
 };
+#endif  // PRIME_MAP_TEST_SRC_MULTIXMAPSELFTEST_H

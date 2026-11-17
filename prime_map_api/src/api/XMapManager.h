@@ -1,8 +1,8 @@
 // prime::XMapManager: haritalarin sahibi. initialize() ortak veriyi (XMapData) ve arka plan
 // islerini baslatir; addXMap() yeni harita nesnesi verir (acilmaz), removeXMap() yazar ve
 // yok eder. Nesneyi yalnizca XMapManagerFactory olusturur / bırakır.
-#ifndef PRIME_MAP_XMAP_MANAGER_H
-#define PRIME_MAP_XMAP_MANAGER_H
+#ifndef PRIME_MAP_SRC_API_XMAPMANAGER_H
+#define PRIME_MAP_SRC_API_XMAPMANAGER_H
 
 #include <functional>
 #include <memory>
@@ -21,11 +21,7 @@ namespace prime
 class XMap;
 
 // C4251 (dll arayuzunde std uyeleri): kutuphane ve host ayni MSVC + /MD ile derlenmek zorunda (README),
-// bu yuzden zararsiz; host'un /W4 derlemesini kirletmesin diye yalnizca bu sinif icin kapatilir.
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4251)
-#endif
+// bu yuzden zararsiz; derleyici bayragi /wd4251 ile tum hedeflerde kapatilir (pragma kullanilmaz).
 
 class PRIME_MAP_EXPORT XMapManager
 {
@@ -94,10 +90,6 @@ private:
     friend class XMapManagerFactory;  // ozel kurucu/yikici yalnizca fabrikada
 };
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-
 }  // namespace prime
 
-#endif  // PRIME_MAP_XMAP_MANAGER_H
+#endif  // PRIME_MAP_SRC_API_XMAPMANAGER_H

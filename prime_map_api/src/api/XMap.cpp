@@ -52,8 +52,7 @@ const int kMinStandaloneWidth = 400;   // Standalone pencerenin kullanilabilir e
 const int kMinStandaloneHeight = 260;
 const int kShapeIdBase = 1000000;      // Shape kimligi: tur * kShapeIdBase + etiket numarasi
 
-// 0.24-0.25 hatasi: alt kenar mTop + mHeight idi (y yukari artar) -> yukseklik negatif cikiyordu.
-// "kullanilamaz" sayilip ekran ortasina 1000x700 aciliyordu. Donusum ScreenMath'te (testli).
+// Alt kenar mTop + mHeight degil (y yukari artar); donusum ScreenMath'te (testli)
 RectI toRect(const prime::Geometry& pGeometry)
 {
     return rectFromTopLeft(pGeometry.mLeft, pGeometry.mTop, pGeometry.mWidth, pGeometry.mHeight);
@@ -151,11 +150,10 @@ XMap::XMap(XMapData& pData, int pId)
     mPalette = std::make_unique<TerrainPalette>();
     mPaletteId = mData.registerPalette(mPalette.get());  // varsayilan zemin ayarlari (cogu zaman palet 0)
     mLayers = std::make_unique<LayerManager>();
-    // Pencere katmanlara / ucaga / cizimlere baglidir: onlardan SONRA kurulur, katmanlardan once (0.24 sirasi).
-    // Kurulmazsa asagidaki getMapMode ve sonraki her API cagrisi bos isaretciye duser.
+    // Pencere katmanlara/ucaga/cizimlere baglidir: onlardan SONRA, katmanlardan once kurulur
     mWindow = std::make_unique<XMapWindow>(*mLayers, *mAircraft, *mDrawings, mData.airports());
     createLayers();
-    // XMapWindow, katmanlar eklenmeden kuruldu: modun varsayilan katman durumunu simdi uygula
+    mLayers->resetToDefaults(themeFor(mWindow->getMapMode()));  // pencere kuruldugunda katmanlar henuz yoktu
     mLayers->resetToDefaults(themeFor(mWindow->getMapMode()));
     mData.addInstance(this);
 }
@@ -192,9 +190,7 @@ void XMap::teardown()
 
 void XMap::createLayers()
 {
-    // Alttan uste cizim sirasi (ayrinti: MIMARI.pdf bolum 7). Etiketler de bu sirayla
-    // yer bulur: ustteki satirdaki katmanin etiketi onceliklidir (FMS ve
-    // kullanici cizimleri etiketlerinin yerini onceden ayirir).
+    // Alttan uste cizim sirasi (MIMARI.pdf bolum 7); etiketler de bu sirayla yer bulur.
     // Veri depolari ortak (XMapData); katman nesneleri ve durumlari bu haritanin.
     AirportGeometryStore& tAirports = mData.airportGeometry();
     AirportDetailStore& tDetails = mData.airportDetails();
@@ -1364,9 +1360,8 @@ void XMap::update(float pNow)
     mAircraft->refresh();
     mLayers->updateAll(pNow);
 
-    // Alt seritteki yazi: ortak durum + BU haritanin zemin durumu. Ekranda istenen kalitede olmayan
-    // (kaba yedek / bos) doku oldugu surece yaz; isci bosta ise bekleyen bir sey yoktur (uretilemeyen
-    // parca): yazma, takili kalmasin.
+    // Alt serit yazisi: beklenen kalitede olmayan doku oldugu ve isci dolu oldugu surece yaz;
+    // uretilemeyen parca varsa yazma (takili kalmasin).
     std::string tText = mData.sharedStatusText();
     std::string tTerrain = mData.terrainWorkerStatus();
     const int tPending = getTerrainPendingImages();
@@ -1458,9 +1453,8 @@ RectI XMap::savedGeometry() const
 
 uint64_t XMap::stateSignature() const
 {
-    // Kullanicinin fareyle yaptigi, revizyon sayacini artirmayan degisiklik: pencerenin yeri / boyutu.
-    // gorunum(merkez, zoom) bilerek YOK: ucak takibinde her karede degisir, dosya surekli yazilirdi.
-    // Gorunum, baska bir ayar degistiginde ve harita kapanirken yazilir.
+    // Kullanici degisikligi: pencere yeri/boyutu. Gorunum (merkez/zoom) bilerek yok:
+    // ucak takibinde her karede degisir; baska ayar degisince ve kapanirken yazilir.
     uint64_t tHash = 1469598103934665603ull;
     auto tMix = [&tHash](uint64_t pValue)
     {

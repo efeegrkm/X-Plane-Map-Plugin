@@ -13,7 +13,8 @@
 //
 // Cikti bicimi: [5 bayt LZMA ozellikleri][uint32 ham boyut][LZMA verisi]
 // Kayipsizdir: Decompress, Compress'e verilen degerleri birebir geri verir.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_ELEVATIONCODEC_H
+#define PRIME_MAP_SRC_DATA_ELEVATIONCODEC_H
 
 #include <cstddef>
 #include <cstdint>
@@ -34,3 +35,4 @@ bool packBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut);
 bool unpackBytes(const uint8_t* pData, size_t pSize, std::vector<uint8_t>* pOut);
 
 }  // namespace ElevationCodec
+#endif  // PRIME_MAP_SRC_DATA_ELEVATIONCODEC_H

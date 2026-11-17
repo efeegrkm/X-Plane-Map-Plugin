@@ -2,7 +2,8 @@
 // SDK_BOUND: Prime XMap API'nin her cagrisi ayri bir metotta. Test eklentisinin geri kalani
 // (pencere, dugmeler) haritaya SADECE bu sinif uzerinden erisir. Bir host eklentisi kendi
 // dugmelerini bu metotlara (ya da dogrudan API'ye) baglar.
-#pragma once
+#ifndef PRIME_MAP_TEST_SRC_XMAPAPICALLS_H
+#define PRIME_MAP_TEST_SRC_XMAPAPICALLS_H
 
 #include <cstdint>
 #include <initializer_list>
@@ -153,3 +154,4 @@ private:
     prime::XMap* mSecondXMap = nullptr;  // openSecondXMap
     prime::XMapManager* mManager = nullptr;  // sahibi; destroyXMapManager ile birakilir
 };
+#endif  // PRIME_MAP_TEST_SRC_XMAPAPICALLS_H

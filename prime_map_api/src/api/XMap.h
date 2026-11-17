@@ -2,8 +2,8 @@
 // ve ayar dosyalari bu nesnenin icinde; ortak veri (nav, havalimanlari, zemin iscisi, onbellek)
 // XMapData'dadir, katmanlar oraya referansla bakar. Nesneyi yalnizca XMapManager olusturur
 // (addXMap) ve yok eder (removeXMap); butun metotlar X-Plane ana thread'inden cagrilmalidir.
-#ifndef PRIME_MAP_XMAP_H
-#define PRIME_MAP_XMAP_H
+#ifndef PRIME_MAP_SRC_API_XMAP_H
+#define PRIME_MAP_SRC_API_XMAP_H
 
 #include <atomic>
 #include <cstdint>
@@ -30,12 +30,7 @@ namespace prime
 
 class XMapManager;
 
-// C4251 (dll arayuzunde std uyeleri): kutuphane ve host ayni MSVC + /MD ile derlenmek zorunda (README),
-// bu yuzden zararsiz; host'un /W4 derlemesini kirletmesin diye yalnizca bu sinif icin kapatilir.
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 4251)
-#endif
+// C4251 (dll arayuzunde std uyeleri): zararsiz; /wd4251 ile tum hedeflerde kapatilir (pragma yok).
 
 class PRIME_MAP_EXPORT XMap
 {
@@ -177,10 +172,8 @@ public:
     uint64_t getDrawingsRevision() const;
 
     // --- Doku (WindowStyle::Texture) ---
-    // Harita penceresiz bir openGL dokusuna cizilir; host kendi cizim callback'inde renderTexture()
-    // cagirir ve getTextureId() dokusunu istedigi dortgene basar (v = 0 alt kenar). Koordinatlar dokuya
-    // goredir: birim boxel, orijin SOL-ALT kose, y yukari (X-Plane ile ayni). pPixelsPerUnit: boxel basina
-    // doku pikseli; 0 = host'un cizim callback'indeki UI olceginden otomatik (keskin goruntu).
+    // Penceresiz openGL dokusu; host kendi ciziminde getTextureId()'yi basar (v = 0 alt kenar).
+    // Koordinatlar boxel, orijin SOL-ALT, y yukari; pPixelsPerUnit 0 = host UI olceginden otomatik.
     bool setTextureSize(int pWidth, int pHeight, double pPixelsPerUnit = 0.0);
     int getTextureWidth() const;   // boxel
     int getTextureHeight() const;
@@ -262,10 +255,6 @@ private:
     XMapManager* mManager = nullptr;  // sahibi; yok olurken kendini listeden dusurur
 };
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-
 }  // namespace prime
 
-#endif  // PRIME_MAP_XMAP_H
+#endif  // PRIME_MAP_SRC_API_XMAP_H

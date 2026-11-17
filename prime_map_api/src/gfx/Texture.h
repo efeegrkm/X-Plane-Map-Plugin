@@ -1,7 +1,8 @@
 // X-Plane kurali: doku numarasi XPLMGenerateTextureNumbers ile alinir, baglama
 // XPLMBindTexture2d ile yapilir. Olusturma/silme ana thread'de, GL baglami
 // etkinken yapilmali.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_TEXTURE_H
+#define PRIME_MAP_SRC_GFX_TEXTURE_H
 
 #include <cstdint>
 
@@ -35,3 +36,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_TEXTURE_H

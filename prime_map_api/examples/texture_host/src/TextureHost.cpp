@@ -1,13 +1,9 @@
-// TextureHost.cpp
-// Prime XMap API'nin en kucuk tam ornegi: bir X-Plane eklentisi kendi penceresinin icine haritayi
-// openGL dokusu olarak (WindowStyle::Texture) yerlestirir, fareyi / tekerlegi / klavyeyi haritaya iletir
-// ve haritayi API ile ozellestirir (mod, katman, zoom araligi, renk, zemin).
-//
-// Akis:  XPluginEnable  -> pencere + XMapManager (initialize) + XMap (addXMap -> ayarlar -> initialize)
+// Prime XMap API'nin en kucuk tam ornegi: eklenti, haritayi WindowStyle::Texture ile kendi penceresine
+// yerlestirir; girdileri inject* ile iletir, haritayi API ile ozellestirir.
+// Akis:  XPluginEnable -> pencere + XMapManager + XMap (addXMap -> ayarlar -> initialize)
 //        cizim callback -> setTextureSize + renderTexture + dokuyu dortgene bas
 //        girdi callback -> doku koordinatina cevir -> inject*
 //        XPluginDisable -> removeXMap -> shutdown -> destroyXMapManager -> pencere
-// Kod standardi: m/p/t/k/g onekleri, suslu parantez alt satirda, Turkce ASCII yorumlar, arayuz Ingilizce.
 #include <array>
 #include <cstring>
 #include <memory>

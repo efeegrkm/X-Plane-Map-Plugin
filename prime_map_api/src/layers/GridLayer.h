@@ -1,6 +1,7 @@
 // Enlem/boylam izgarasi; aralik zoom'a gore seyreklestirilir (cizgiler cok
 // yaklasirsa daha seyrek adim). Etiketler sol (enlem) ve alt (boylam) kenarda.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_GRIDLAYER_H
+#define PRIME_MAP_SRC_LAYERS_GRIDLAYER_H
 
 #include "Layer.h"
 
@@ -15,3 +16,4 @@ public:
 private:
     static double stepFor(const drawContext& pContext);
 };
+#endif  // PRIME_MAP_SRC_LAYERS_GRIDLAYER_H

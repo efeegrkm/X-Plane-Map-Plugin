@@ -2,7 +2,8 @@
 // karo gelir; her karonun cizgileri bir kez GPU'ya yuklenir (Mercator'da karo
 // orijinine gore), her karede sadece olcek + kaydirma ile cizilir.
 // Renkler temadan; kalinliklar ekran pikseli (tur basina sabit).
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_ROADLAYER_H
+#define PRIME_MAP_SRC_LAYERS_ROADLAYER_H
 
 #include <array>
 #include <cstdint>
@@ -47,3 +48,4 @@ private:
     std::array<int, kVectorLineKindCount> mParts = {};
     uint64_t mFrame = 0;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_ROADLAYER_H

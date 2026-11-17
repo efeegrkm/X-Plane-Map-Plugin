@@ -1,7 +1,8 @@
 // TrueType atlasi: harfler tek RGBA goruntuye basilir (raf yerlesimi, beyaz
 // harf + alfa = kaplama). openGL/X-Plane'den bagimsiz, testlerde calisir.
 // Boyut 'H' buyuk harf yuksekligi (pCapHeightPixels) ile verilir; metin UTF-8.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_FONTATLAS_H
+#define PRIME_MAP_SRC_GFX_FONTATLAS_H
 
 #include <cstdint>
 #include <string>
@@ -51,3 +52,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_FONTATLAS_H

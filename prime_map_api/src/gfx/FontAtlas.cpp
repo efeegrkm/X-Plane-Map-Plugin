@@ -3,15 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
-#if defined(_MSC_VER)
-#pragma warning(push, 0)  // dis kutuphane: kendi uyarilarimiz /W4 ile temiz kalsin
-#endif
-#define STB_TRUETYPE_IMPLEMENTATION
-#define STBTT_STATIC
 #include "stb/stb_truetype.h"
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 namespace
 {

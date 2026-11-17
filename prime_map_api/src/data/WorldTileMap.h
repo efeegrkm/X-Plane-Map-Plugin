@@ -12,7 +12,8 @@
 //
 // kullanim (SceneryIndex): karoda kurulu DSF yoksa 0 -> deniz,
 // 255 -> veri yok (kara ama sahnesi kurulu degil).
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_WORLDTILEMAP_H
+#define PRIME_MAP_SRC_DATA_WORLDTILEMAP_H
 
 #include <cstdint>
 #include <string>
@@ -41,3 +42,4 @@ public:
 private:
     std::vector<uint8_t> mTiles;  // 360 * 180, IndexOf sirasi; bossa yuklu degil
 };
+#endif  // PRIME_MAP_SRC_DATA_WORLDTILEMAP_H

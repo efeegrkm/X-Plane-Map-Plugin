@@ -1,7 +1,7 @@
 // API'nin ve motorun paylastigi ortak tipler. Motor basliklari buradan kullanir;
 // PrimeMap.h ise tum api basliklarini tek yerden verir.
-#ifndef PRIME_MAP_XMAP_TYPES_H
-#define PRIME_MAP_XMAP_TYPES_H
+#ifndef PRIME_MAP_SRC_API_XMAPTYPES_H
+#define PRIME_MAP_SRC_API_XMAPTYPES_H
 
 #include <cstdint>
 #include <string>
@@ -257,4 +257,4 @@ struct XMapManagerSettings
 
 }  // namespace prime
 
-#endif  // PRIME_MAP_XMAP_TYPES_H
+#endif  // PRIME_MAP_SRC_API_XMAPTYPES_H

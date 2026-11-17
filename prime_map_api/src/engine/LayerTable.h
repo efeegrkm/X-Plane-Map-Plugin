@@ -1,6 +1,7 @@
 // prime::XMapLayer enum'u ile katman / alt katman kimlikleri arasindaki tek esleme tablosu ve
 // katman panelinin ac/kapa kurallari. X-Plane'e bagimli degil (testlerde calisir).
-#pragma once
+#ifndef PRIME_MAP_SRC_ENGINE_LAYERTABLE_H
+#define PRIME_MAP_SRC_ENGINE_LAYERTABLE_H
 
 #include <optional>
 #include <string_view>
@@ -44,3 +45,4 @@ std::optional<prime::XMapLayer> layerFromKey(std::string_view pKey);
 bool isLayerDefaultVisible(prime::XMapLayer pLayer, prime::XMapMode pMode);
 
 }  // namespace LayerRules
+#endif  // PRIME_MAP_SRC_ENGINE_LAYERTABLE_H

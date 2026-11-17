@@ -1,6 +1,7 @@
 // Haritanin ve arayuzun TEK cizim kapisi: Mesh ve dokulu seritleri modern
 // openGL ile cizer; projede openGL cagrisi sadece gfx/ klasorundedir.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_CANVAS_H
+#define PRIME_MAP_SRC_GFX_CANVAS_H
 
 #include <string>
 #include <vector>
@@ -104,3 +105,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_CANVAS_H

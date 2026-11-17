@@ -1,7 +1,8 @@
 // "Go to airport" dugmesinin altinda acilan arama paneli. Ucagin konumuna
 // dokunmaz: sadece haritayi secilen havalimanina goturur. Panel sadece cizer,
 // klavye tuslari XMapWindow'dan gelir.
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_AIRPORTSEARCHPANEL_H
+#define PRIME_MAP_SRC_UI_AIRPORTSEARCHPANEL_H
 
 #include <string>
 #include <vector>
@@ -59,3 +60,4 @@ private:
     bool mSearchedWhenReady = false;  // son arama ozetler hazirken mi yapildi
     RectI mRect;
 };
+#endif  // PRIME_MAP_SRC_UI_AIRPORTSEARCHPANEL_H

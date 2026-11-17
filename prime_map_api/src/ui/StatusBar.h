@@ -1,6 +1,7 @@
 // Haritanin alt kenarindaki ince durum seridi:
 // koordinat | zoom | mesaj | olcek cubugu
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_STATUSBAR_H
+#define PRIME_MAP_SRC_UI_STATUSBAR_H
 
 #include <optional>
 #include <string_view>
@@ -32,3 +33,4 @@ private:
 
     RectI mStrip;
 };
+#endif  // PRIME_MAP_SRC_UI_STATUSBAR_H

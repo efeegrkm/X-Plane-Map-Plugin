@@ -1,6 +1,7 @@
 // Hava yollari (earth_awy.dat, AirwayDatabase). Alcak ve yuksek hava yollari
 // ayri katmandir (ayri ac/kapa dugmesi).
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_AIRWAYLAYER_H
+#define PRIME_MAP_SRC_LAYERS_AIRWAYLAYER_H
 
 #include <cstdint>
 #include <vector>
@@ -39,3 +40,4 @@ private:
     uint32_t mStamp = 0;
     std::vector<VisibleSegment> mVisible;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_AIRWAYLAYER_H

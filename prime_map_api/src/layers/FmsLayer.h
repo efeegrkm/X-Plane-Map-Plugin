@@ -1,7 +1,8 @@
 // X-Plane'in FMS'indeki ucus plani (XPLMCountFMSEntries / XPLMGetFMSEntryInfo).
 // Her saniye yeniden okunur; FMS degisince harita da degisir.
 // Etiketler navaid etiketlerinden oncelikli (yerleri Draw'da ayrilir).
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_FMSLAYER_H
+#define PRIME_MAP_SRC_LAYERS_FMSLAYER_H
 
 #include <string>
 #include <vector>
@@ -52,3 +53,4 @@ private:
     float mLastReadTime = -10.0f;
     std::vector<PendingLabel> mLabels;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_FMSLAYER_H

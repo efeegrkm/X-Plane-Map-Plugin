@@ -1,5 +1,6 @@
 // Yazi cizici arayuzu; Ui::text / textWidth / fontHeight bunun uzerinden calisir.
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_TEXTRENDERER_H
+#define PRIME_MAP_SRC_UI_TEXTRENDERER_H
 
 #include <string_view>
 
@@ -14,3 +15,4 @@ public:
     virtual int width(std::string_view pText) = 0;  // boxel
     virtual int height() = 0;                        // buyuk harf yuksekligi (boxel)
 };
+#endif  // PRIME_MAP_SRC_UI_TEXTRENDERER_H

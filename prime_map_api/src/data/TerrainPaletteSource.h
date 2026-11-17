@@ -9,7 +9,8 @@
 //   Bolgesel kopyalar (terrain10_NAW, _SEA ...) kullanilmaz: global terrain10
 //   seti her yerde gecerli. Su sinifi hesaplanmaz.
 //   Onbellek anahtari: .ter sayisi + toplam boyut (X-Plane guncellenince yenilenir).
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_TERRAINPALETTESOURCE_H
+#define PRIME_MAP_SRC_DATA_TERRAINPALETTESOURCE_H
 
 #include <array>
 #include <string>
@@ -28,3 +29,4 @@ bool loadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::strin
 
 // Bir DDS dosyasinin ortalama rengi (kucuk mip seviyesinden). Desteklenen: DXT1, DXT3, DXT5, 32 bit BGRA.
 bool averageDdsColor(const std::string& pPath, TerrainColor* pOut);
+#endif  // PRIME_MAP_SRC_DATA_TERRAINPALETTESOURCE_H

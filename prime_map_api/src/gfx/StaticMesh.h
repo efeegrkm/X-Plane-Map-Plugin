@@ -1,6 +1,7 @@
 // GPU'da KALICI sekil: Mercator koordinatlari bir kez yuklenir; kaydirma/zoom
 // sadece iki uniform ile GPU'da yapilir (her karede yeniden gonderme FPS dusurur).
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_STATICMESH_H
+#define PRIME_MAP_SRC_GFX_STATICMESH_H
 
 #include <vector>
 
@@ -47,3 +48,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_STATICMESH_H

@@ -2,7 +2,8 @@
 // saklanir; JSON olmayan metin yok sayilir.
 // X-Plane'e bagimli DEGIL. Sayilar her zaman nokta ile yazilir/okunur
 // ("C" yerel ayari; Turkce Windows'ta da 41.5).
-#pragma once
+#ifndef PRIME_MAP_SRC_SETTINGS_H
+#define PRIME_MAP_SRC_SETTINGS_H
 
 #include <map>
 #include <string>
@@ -50,3 +51,4 @@ private:
     // bolum -> (anahtar -> deger); std::map oldugu icin dosyada alfabetik sirada yazilir
     std::map<std::string, std::map<std::string, std::string>> mValues;
 };
+#endif  // PRIME_MAP_SRC_SETTINGS_H

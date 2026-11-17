@@ -1,7 +1,8 @@
 // Zemin verisinin haritalar arasi ORTAK kullanimi: TerrainStore (isci) surecte
 // tektir; dokular ve vektorler tek yerde toplanir, haritalar buradan okur.
 // Sadece ana thread; doku yukleme/silme GL baglami etkinken yapilmali.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_TERRAINHUB_H
+#define PRIME_MAP_SRC_LAYERS_TERRAINHUB_H
 
 #include <cstddef>
 #include <cstdint>
@@ -85,3 +86,4 @@ private:
     std::unordered_map<int, CachedVectors> mVectors;  // SceneryIndex::TileKey
     uint64_t mVectorGeneration = 0;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_TERRAINHUB_H

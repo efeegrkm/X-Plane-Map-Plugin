@@ -1,5 +1,6 @@
 // Cografi yardimcilar. X-Plane'e bagimli DEGIL, saf hesap (mesafe, buyuk daire, ucgenleme).
-#pragma once
+#ifndef PRIME_MAP_SRC_GEO_H
+#define PRIME_MAP_SRC_GEO_H
 
 #include <vector>
 
@@ -32,3 +33,4 @@ double polygonAreaNm2(const std::vector<LatLon>& pPolygon);
 
 // 3'erli indeks gruplari uretir; kendini kesen poligonda false
 bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& pOutTriangles);
+#endif  // PRIME_MAP_SRC_GEO_H

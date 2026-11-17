@@ -3,7 +3,8 @@
 // Kaynak: apt.dat 1100 spesifikasyonu + gercek dosyalarda gorulen farklar ("GERCEK VERI" notlari).
 // Bezier kurali (spesifikasyonda yazmiyor, gercek veride olculdu): kontrol noktasi dugumden
 // CIKAN egriye aittir; dugume GELEN egri icin kontrol noktasinin dugume gore aynasi kullanilir.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRPORTDETAIL_H
+#define PRIME_MAP_SRC_DATA_AIRPORTDETAIL_H
 
 #include <array>
 #include <string>
@@ -199,3 +200,4 @@ struct AirportDetail
     int mSkippedLineCount = 0;  // taninmayan / bozuk satirlar (log icin)
     std::vector<std::string> mSkippedExamples;  // ilk birkac bozuk satir (teshis)
 };
+#endif  // PRIME_MAP_SRC_DATA_AIRPORTDETAIL_H

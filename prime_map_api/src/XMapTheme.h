@@ -1,7 +1,8 @@
 // Harita modlari ve her modun gorunumu (renkler, zemin bicimi, varsayilan
 // katmanlar). X-Plane'e bagimli DEGIL.
 // Harita modlari: tek tanim prime::XMapMode'dur (api/XMapTypes.h); motor ayni tipi kullanir.
-#pragma once
+#ifndef PRIME_MAP_SRC_XMAPTHEME_H
+#define PRIME_MAP_SRC_XMAPTHEME_H
 
 #include <array>
 #include <span>
@@ -93,3 +94,4 @@ XMapMode nextMode(XMapMode pMode);
 
 // Katman gorunurlugunun saklandigi ayar bolumu: "layers.vfr" ...
 std::string_view layerSectionFor(XMapMode pMode);
+#endif  // PRIME_MAP_SRC_XMAPTHEME_H

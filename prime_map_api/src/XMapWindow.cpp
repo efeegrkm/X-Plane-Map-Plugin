@@ -139,8 +139,7 @@ void XMapWindow::create()
 
 void XMapWindow::useOwnText()
 {
-    // Ui'nin yazi cizicisi surecte tek bir isaretci: her pencere kendi cizim / tiklama isinin
-    // basinda kendisininkini secer (yoksa baska haritanin atlasi, baska Canvas'a yazardi)
+    // Ui'nin yazi cizicisi surecte tek isaretci: her isin basinda kendi atlasimizi secer
     Ui::setTextRenderer(mText.get());
 }
 
@@ -550,9 +549,8 @@ void XMapWindow::drawFrame(float pNow, const std::optional<Affine2D>& pBoxelToPi
     tContext.mCursorY = tMouseY;
     mLabelPlacer.reset(tContext.mClearArea);  // etiketler seritlerin altina girmesin
     tContext.mLabels = &mLabelPlacer;
-    // 0.18: harita resmi onbellekte (XMapImageCache). Atlas yazisi gerekli: XPLMDrawString X-Plane'in
-    // kendi matrisleriyle cizer, FBO'ya dogru cizecegi belli degil.
-    const bool tNewData = mLayers.prepareAll();  // hazir dokular, vektorler
+    // Harita resmi onbellekte; XPLMDrawString kendi matrisleriyle cizdigi icin atlas yazi sart
+    const bool tNewData = mLayers.prepareAll();
     bool tCached = false;
     if (pUseImageCache && mUseImageCache && mText && pBoxelToPixel)
     {
@@ -896,8 +894,7 @@ void XMapWindow::drawControls(int pMouseX, int pMouseY, bool pMouseInside)
 {
     if (!mShowControls)
     {
-        // Kontroller gizli: Standalone'da imlec haritanin ustundeyken kucuk bir
-        // "Controls" dugmesi goster; imlec cikinca sadece harita kalir. Embedded / Texture'da hic bir sey.
+        // Kontroller gizli: Standalone'da imlec ustteyken kucuk "Controls" dugmesi; digerlerinde hicbir sey
         if (pMouseInside && !mEmbedded)
         {
             const RectI tButton = showControlsButtonRect();
@@ -1522,8 +1519,7 @@ void XMapWindow::centerOnAircraft()
 
 void XMapWindow::applySettings()
 {
-    // Dosyada olmayan anahtar icin varsayilan = SU ANKI deger: pencere acilmadan once
-    // API ile verilen ayarlar, dosyada karsiligi yoksa oldugu gibi kalir.
+    // Dosyada olmayan anahtar icin varsayilan = su anki deger: API ile once verilen ayarlar korunur
     const LatLon tCurrent = mView.center();
     // Once sinirlar: zoom yeni sinirlara gore kirpilsin
     mView.setZoomLimits(mSettings.getDouble(kViewSection, "min_zoom", mView.minZoomLimit()),
@@ -1604,9 +1600,7 @@ std::string XMapWindow::exportSettings()
 
 void XMapWindow::importSettings(const std::string& pText)
 {
-    // Once su anki durum bellege (API ile yapilip henuz yazilmamis degisiklikler kaybolmasin),
-    // sonra metindeki anahtarlar ustune; metinde olmayan anahtar oldugu gibi kalir.
-    // Eski map_settings.ini aynen okunur (bilinmeyen bolumler zararsiz).
+    // Once su anki durum bellege, sonra metindeki anahtarlar ustune; olmayanlar oldugu gibi kalir
     saveSettings();
     mSettings.mergeText(pText);
     applySettings();
@@ -1615,8 +1609,7 @@ void XMapWindow::importSettings(const std::string& pText)
 
 void XMapWindow::applyLayerColors()
 {
-    // Yazma yok: tema modun kendi renkleriyle kalir. Varsa dogrudan tema rengi olan
-    // katmanlara yazilir (tablo eslesmeyen katmanlar yoksayilir).
+    // Dogrudan tema rengi olan katmanlara yazilir; tablo eslesmeyenler yoksayilir
     for (const auto& [tLayer, tColor] : mLayerColors)
     {
         if (Rgba* tSlot = themeLayerColor(mTheme, tLayer))

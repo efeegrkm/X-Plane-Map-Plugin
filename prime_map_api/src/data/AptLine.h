@@ -7,7 +7,8 @@
 //
 //   AptLine tLine("100 29.87 1 0 0.15 ...");
 //   if (tLine.readInt(tCode) && tLine.readDouble(tWidth)) ...
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_APTLINE_H
+#define PRIME_MAP_SRC_DATA_APTLINE_H
 
 #include <string>
 #include <string_view>
@@ -37,3 +38,4 @@ private:
 
 // Satirin ilk alanini (satir kodu) okur. Bos satir / yorum icin -1.
 int aptRowCode(std::string_view pLine);
+#endif  // PRIME_MAP_SRC_DATA_APTLINE_H

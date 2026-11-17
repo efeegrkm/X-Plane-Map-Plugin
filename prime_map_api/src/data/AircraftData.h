@@ -1,6 +1,7 @@
 // Kullanicinin ucaginin konumu ve yonu, X-Plane dataref'lerinden.
 // Ucak katmani, ucus izi ve "ucagi takip et" ayni veriyi buradan okur.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRCRAFTDATA_H
+#define PRIME_MAP_SRC_DATA_AIRCRAFTDATA_H
 
 #include "XPLMDataAccess.h"
 
@@ -38,3 +39,4 @@ private:
     AircraftState mHostState;
     bool mFromHost = false;
 };
+#endif  // PRIME_MAP_SRC_DATA_AIRCRAFTDATA_H

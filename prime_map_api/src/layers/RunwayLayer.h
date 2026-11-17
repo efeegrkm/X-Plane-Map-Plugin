@@ -1,7 +1,8 @@
 // Pistler: iki ucu ve genisligi ile gercek olcekli dikdortgen. Veri
 // AirportGeometryStore'dan gelir; katman kaynagi bilmez. Zoom esikleri
 // RunwayLayer.cpp'de.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_RUNWAYLAYER_H
+#define PRIME_MAP_SRC_LAYERS_RUNWAYLAYER_H
 
 #include <string>
 #include <vector>
@@ -54,3 +55,4 @@ private:
     std::vector<int> mQuery;
     std::vector<ScreenRunway> mVisible;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_RUNWAYLAYER_H

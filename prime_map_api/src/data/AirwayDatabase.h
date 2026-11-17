@@ -1,19 +1,11 @@
 // Hava yollari: earth_awy.dat (X-Plane 11, 1100 bicimi). X-Plane'e bagimli DEGIL.
-//
-// Dosyanin gercek satiri (her satir bir segment):
-//   ABKAL LT 11 ULSAB LT 11 N 1 195 285 G8-L614
-//   <kimlik1> <bolge1> <tur1> <kimlik2> <bolge2> <tur2> <yon> <seviye> <taban FL> <tavan FL> <adlar>
-//   tur  : 11 = fix, 2 = NDB, 3 = VOR (VHF)
-//   yon  : N = iki yonlu, F = sadece 1 -> 2, B = sadece 2 -> 1
-//   seviye: 1 = alcak (low), 2 = yuksek (high)
-//   adlar: bu segmenti kullanan hava yollari, '-' ile birlesik
-//
-// Uc noktalarin koordinati dosyada YOK: NavDatabase'den kimlik + tur ile
-// bulunur; ayni kimlikte birden cok aday olabilir, birbirine en yakin cift secilir.
-//
-// Okuma arka plan thread'inde yapilir (startLoading / Poll). NavDatabase o
-// sirada degismemeli (NavLoader bitmis olmali).
-#pragma once
+// Her satir bir segmenttir: <kimlik1> <bolge1> <tur1> <kimlik2> <bolge2> <tur2>
+// <yon> <seviye> <taban FL> <tavan FL> <adlar>; tur: 11 fix, 2 NDB, 3 VOR;
+// yon: N iki yonlu, F/B tek yon; seviye: 1 low, 2 high.
+// Uc nokta koordinatlari dosyada YOK: NavDatabase'den kimlik + tur ile bulunur,
+// ayni kimlikte birden cok aday varsa birbirine en yakin cift secilir.
+#ifndef PRIME_MAP_SRC_DATA_AIRWAYDATABASE_H
+#define PRIME_MAP_SRC_DATA_AIRWAYDATABASE_H
 
 #include <string>
 #include <vector>
@@ -28,11 +20,11 @@ struct AirwaySegment
 {
     LatLon mFrom = {0.0, 0.0};
     LatLon mTo = {0.0, 0.0};
-    bool mHigh = false;      // seviye 2: yuksek hava yolu
-    char mDirection = 'N';   // 'N' iki yonlu, 'F' mFrom -> mTo, 'B' mTo -> mFrom
+    bool mHigh = false;     // seviye 2: yuksek hava yolu
+    char mDirection = 'N';  // 'N' iki yonlu, 'F' mFrom -> mTo, 'B' mTo -> mFrom
     int mBaseFl = 0;
     int mTopFl = 0;
-    std::string mNames;      // "G8-L614"
+    std::string mNames;
 };
 
 // Dosyadaki bir satirin ham hali (uc noktalar henuz cozulmemis)
@@ -52,17 +44,16 @@ struct AirwayLine
 class AirwayDatabase
 {
 public:
-    // Tek satiri ayristirir (baslik, bos ve "99" satirlari icin false)
+    // baslik, bos ve "99" satirlari icin false
     static bool parseLine(const std::string& pLine, AirwayLine* pOut);
 
-    // Dosyayi okuyup uc noktalari cozer (bekleten islem; testler ve arka plan isi icin).
-    // pReport: log'a yazilacak ozet.
+    // Uc noktalari cozer (bekleten islem); pReport: log ozeti.
     bool loadFile(const std::string& pPath, const NavDatabase& pNav, const std::atomic<bool>& pCancel,
                   std::string* pReport);
 
-    // pPaths'i sirayla dener (ilk var olan okunur); arka planda calisir
+    // Arka planda okur; cagiran NavDatabase'in degismemesinden sorumludur
     void startLoading(const std::vector<std::string>& pPaths, const NavDatabase& pNav);
-    bool poll();  // ana thread: okuma bu cagrida bittiyse true (bir kez)
+    bool poll();  // okuma bu cagrida bittiyse true (bir kez)
 
     bool isLoading() const;
     bool isReady() const;
@@ -71,8 +62,7 @@ public:
     int count() const;
     const AirwaySegment& at(int pIndex) const;
 
-    // pBounds'a degebilecek segmentler (ayni segment birden cok kez gelebilir:
-    // uzun segmentler birden cok hucreye konur; cagiran tekrarlari atmali)
+    // pBounds'a degebilecek segmentler; uzun segmentler cok hucreye konur, tekrarlar mumkun
     void query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
 private:
@@ -84,3 +74,4 @@ private:
     std::string mReport;
     bool mReady = false;
 };
+#endif  // PRIME_MAP_SRC_DATA_AIRWAYDATABASE_H

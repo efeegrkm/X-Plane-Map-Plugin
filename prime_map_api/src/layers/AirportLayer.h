@@ -1,7 +1,8 @@
 // Havalimanlari (X-Plane nav verisi; XPLMNavigation xplm_Nav_Airport).
 // Kategori/zoom esikleri AirportLayer.cpp'deki kCategoryStyles'ta.
 // Semboller ust uste binerse sonra geleni atlanir; once buyukler gelir.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_AIRPORTLAYER_H
+#define PRIME_MAP_SRC_LAYERS_AIRPORTLAYER_H
 
 #include <vector>
 
@@ -55,3 +56,4 @@ private:
     std::vector<VisibleAirport> mVisible;  // bu karede cizilenler (etiketler bunlara yazilir)
     LabelPlacer mSymbolPlacer;             // semboller ust uste binmesin
 };
+#endif  // PRIME_MAP_SRC_LAYERS_AIRPORTLAYER_H

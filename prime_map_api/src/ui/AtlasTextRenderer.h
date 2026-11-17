@@ -1,6 +1,7 @@
 // Kendi yazi cizicimiz: X-Plane'in DejaVuSans.ttf'ini stb_truetype ile bir atlas
 // dokusuna basar, yazilari Canvas::QueueText ile tek cizim cagrisinda basar.
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_ATLASTEXTRENDERER_H
+#define PRIME_MAP_SRC_UI_ATLASTEXTRENDERER_H
 
 #include <cstdint>
 #include <string>
@@ -39,3 +40,4 @@ private:
     bool mTextureStale = true;
     std::vector<Gfx::TextVertex> mScratch;
 };
+#endif  // PRIME_MAP_SRC_UI_ATLASTEXTRENDERER_H

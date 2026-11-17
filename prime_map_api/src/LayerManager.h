@@ -1,6 +1,7 @@
 // Katman listesi: cizim sirasi, ac/kapa ve gorunurlugun ayar dosyasina
 // kaydi. X-Plane'e bagimli DEGIL.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERMANAGER_H
+#define PRIME_MAP_SRC_LAYERMANAGER_H
 
 #include <cstdint>
 #include <memory>
@@ -70,3 +71,4 @@ public:
 private:
     std::vector<std::unique_ptr<Layer>> mLayers;
 };
+#endif  // PRIME_MAP_SRC_LAYERMANAGER_H

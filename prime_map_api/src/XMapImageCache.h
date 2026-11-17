@@ -1,6 +1,7 @@
 // Harita resmi onbellegi: harita her karede bastan cizilmez, bir FBO dokusuna
 // cizilip tek dortgen olarak ekrana basilir (max_fps hiz siniriyla).
-#pragma once
+#ifndef PRIME_MAP_SRC_XMAPIMAGECACHE_H
+#define PRIME_MAP_SRC_XMAPIMAGECACHE_H
 
 #include <functional>
 
@@ -52,3 +53,4 @@ private:
     int mCount = 0;
     int mLastCount = 0;
 };
+#endif  // PRIME_MAP_SRC_XMAPIMAGECACHE_H

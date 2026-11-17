@@ -1,5 +1,6 @@
-// fillVectorArea: sablon (std::function maliyeti yok).
-#pragma once
+// fillVectorArea: sablon (std::function maliyeti yok); TerrainVectors.h icinden bir kez eklenir.
+#ifndef PRIME_MAP_SRC_DATA_TERRAINVECTORS_INL
+#define PRIME_MAP_SRC_DATA_TERRAINVECTORS_INL
 
 #include <algorithm>
 #include <cmath>
@@ -60,3 +61,4 @@ void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pP
         }
     }
 }
+#endif  // PRIME_MAP_SRC_DATA_TERRAINVECTORS_INL

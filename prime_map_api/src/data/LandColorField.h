@@ -9,7 +9,8 @@
 // Izgara: dokunun (payli) piksellerinin pFactor x pFactor bloklari tek hucre.
 // Buyuk erimde (seviye 5) hucre basina birden cok piksel dusurulur; sonuc zaten
 // yumusak oldugu icin cift dogrusal okuma farki gorunmez.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_LANDCOLORFIELD_H
+#define PRIME_MAP_SRC_DATA_LANDCOLORFIELD_H
 
 #include <vector>
 
@@ -52,3 +53,4 @@ private:
     int mFactor = 1;
     std::vector<float> mData;  // hucre basina 4 float: R*w, G*w, B*w toplami ve w toplami
 };
+#endif  // PRIME_MAP_SRC_DATA_LANDCOLORFIELD_H

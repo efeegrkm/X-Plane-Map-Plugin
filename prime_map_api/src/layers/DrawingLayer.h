@@ -1,7 +1,8 @@
 // Kullanicinin haritaya cizdikleri (Drawings modeli): noktalar, rotalar,
 // bolgeler ve yarim kalan cizim. Etiketler diger katmanlarinkinden oncelikli:
 // yerleri Draw'da ayrilir, yazilari drawLabels'ta cizilir.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_DRAWINGLAYER_H
+#define PRIME_MAP_SRC_LAYERS_DRAWINGLAYER_H
 
 #include <string>
 #include <vector>
@@ -42,3 +43,4 @@ private:
     const Drawings& mDrawings;
     std::vector<PendingLabel> mLabels;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_DRAWINGLAYER_H

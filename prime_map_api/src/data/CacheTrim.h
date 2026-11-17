@@ -9,7 +9,8 @@
 // Sinirin ustundeyse en uzun suredir kullanilmayan karolar, toplam sinirin
 // %90'ina inene kadar silinir. Karo adi olmayan dosyalara dokunulmaz.
 // Sadece zemin iscisinin thread'inden cagrilir: silinen dosya baska yerde okunmuyor.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_CACHETRIM_H
+#define PRIME_MAP_SRC_DATA_CACHETRIM_H
 
 #include <cstdint>
 #include <string>
@@ -26,3 +27,4 @@ void touchCacheFile(const std::string& pPath);
 
 // pDirectory sonunda '/' olabilir. pMaxBytes == 0: sinir yok (sadece toplam olculur).
 CacheTrimResult trimTileCache(const std::string& pDirectory, uint64_t pMaxBytes);
+#endif  // PRIME_MAP_SRC_DATA_CACHETRIM_H

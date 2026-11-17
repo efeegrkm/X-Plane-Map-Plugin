@@ -1,22 +1,10 @@
-// Acilista tum apt.dat dosyalarini BIR KEZ tarayip her havalimaninin ozetini
-// ve dosyadaki bayt araligini cikarir. X-Plane'e bagimli DEGIL; arka plan
-// thread'inde calisir.
-//
-// Neden: Global Airports apt.dat'i ~325 MB (37 bin havalimani, 7 milyon
-// dugum). Hepsini ayristirmak yerine ozet cikarilir; ayrinti gerektiginde
-// dosyada havalimaninin baslangicina atlanip sadece o kisim okunur
-// (AirportDetailStore).
-//
-// Disk onbellegi: tarama sonucu <onbellek>/airport_index.bin dosyasina
-// yazilir. Anahtar = her apt.dat'in yolu + boyutu + degisiklik zamani; anahtar
-// tutmazsa dosyalar yeniden taranir. Onbellek dosyasini silmek bir sey bozmaz.
-//
-// Dosya sirasi (X-Plane'in kurali, ayni kimlik icin ONCE gelen kazanir;
-// boylece ozel sahne Global Airports'takini tamamen ezer):
-//   1. Custom Scenery/scenery_packs.ini'deki etkin paketler, yukaridan asagi,
-//      her birinin "Earth nav data/apt.dat"i
-//   2. Resources/default scenery/default apt dat/Earth nav data/apt.dat
-#pragma once
+// Acilista tum apt.dat dosyalarini bir kez tarayip havalimani ozetleri ve dosya bayt
+// araliklarini cikarir (Global Airports ~325 MB; ayrinti gerektiginde dosyada o kisim
+// okunur). Onbellek <onbellek>/airport_index.bin; anahtar tutmazsa yeniden taranir.
+// Dosya sirasi X-Plane kuralidir: ayni kimlik icin once gelen kazanir (ozel sahne Global
+// Airports'u ezer): scenery_packs.ini'deki etkin paketler, sonra default apt dat.
+#ifndef PRIME_MAP_SRC_DATA_APTDATINDEXER_H
+#define PRIME_MAP_SRC_DATA_APTDATINDEXER_H
 
 #include <string>
 #include <string_view>
@@ -25,17 +13,16 @@
 
 #include "data/AirportGeometry.h"
 
-// Bir dosyanin satirlarini sirayla alip havalimani ozetleri cikaran tarayici.
-// Dosyadan bagimsiz: testlerde metinle beslenir.
+// Satirlari sirayla alip havalimani ozetleri cikaran tarayici; dosyadan bagimsizdir.
 class AptDatScanner
 {
 public:
-    // pSeen: onceki dosyalardan alinmis kimlikler (bunlar atlanir, yenileri eklenir)
+    // pSeen: onceki dosyalardan alinmis kimlikler (bunlar atlanir)
     AptDatScanner(int pFileIndex, std::unordered_set<std::string>& pSeen, std::vector<AirportGeometry>& pOut);
 
     // pOffset: satirin dosyadaki ilk bayti
     void addLine(std::string_view pLine, uint64_t pOffset);
-    void finish(uint64_t pFileSize);  // dosya bitti: son havalimanini kapat
+    void finish(uint64_t pFileSize);
 
     int airportCount() const;
     int runwayCount() const;
@@ -50,8 +37,8 @@ private:
     std::vector<AirportGeometry>& mOut;
 
     AirportGeometry mCurrent;
-    bool mOpen = false;       // bir havalimaninin icindeyiz
-    bool mSkip = false;       // bu kimlik onceki bir dosyadan zaten alindi
+    bool mOpen = false;
+    bool mSkip = false;  // kimlik onceki bir dosyadan alindi
     bool mHasBounds = false;
     bool mHasDatumLat = false;
     bool mHasDatumLon = false;
@@ -68,11 +55,9 @@ public:
     bool loadAll(const std::string& pXPlaneDirectory, const std::atomic<bool>& pCancel, AirportIndex& pOut,
                  std::string& pOutReport) override;
 
-    // Onbellek dosyasi: anahtar tutarsa pOut'u doldurup true. Testler icin acik.
     static bool loadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut);
     static bool saveCache(const std::string& pPath, const std::string& pKey, const AirportIndex& pIndex);
-    // Dosya listesinin anahtari (yol | boyut | degisiklik zamani)
-    static std::string cacheKey(const std::vector<std::string>& pFiles);
+    static std::string cacheKey(const std::vector<std::string>& pFiles);  // yol | boyut | degisiklik zamani
 
     // Okunacak apt.dat yollari, oncelik sirasiyla (var olup olmadigina bakmaz)
     static std::vector<std::string> aptFiles(const std::string& pXPlaneDirectory);
@@ -82,3 +67,4 @@ private:
 
     static bool scanFile(const std::string& pPath, AptDatScanner& pScanner, const std::atomic<bool>& pCancel);
 };
+#endif  // PRIME_MAP_SRC_DATA_APTDATINDEXER_H

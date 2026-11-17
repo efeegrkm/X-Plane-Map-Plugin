@@ -6,7 +6,8 @@
 // XPLM fonksiyonlari sadece ana thread'den cagrilabilir; is karelere
 // bolunur: her karede (flight loop) en fazla pBudgetMs milisaniye.
 // ~250 bin kayit birkac saniyede biter.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_NAVLOADER_H
+#define PRIME_MAP_SRC_DATA_NAVLOADER_H
 
 #include "XPLMNavigation.h"
 
@@ -35,3 +36,4 @@ private:
     int mVorSamplesLogged = 0;
     double mElapsedMs = 0.0;  // toplam harcanan sure (log icin)
 };
+#endif  // PRIME_MAP_SRC_DATA_NAVLOADER_H

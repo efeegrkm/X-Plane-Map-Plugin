@@ -1,6 +1,7 @@
 // 1x1 derecelik hucrelere bolunmus cografi izgara (spatial index).
 // X-Plane'e bagimli DEGIL. NavDatabase ve pist verisi bunu kullanir.
-#pragma once
+#ifndef PRIME_MAP_SRC_GEOGRID_H
+#define PRIME_MAP_SRC_GEOGRID_H
 
 #include <cstdint>
 #include <vector>
@@ -34,3 +35,4 @@ private:
     std::vector<uint32_t> mCellStart;
     std::vector<uint32_t> mItems;
 };
+#endif  // PRIME_MAP_SRC_GEOGRID_H

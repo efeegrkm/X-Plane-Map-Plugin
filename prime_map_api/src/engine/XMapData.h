@@ -1,6 +1,7 @@
 // Haritalarin ORTAK verisi ve her karede ilerleyen ortak isler (surecte tek). Onbellek ortaktir:
 // sinirlari acik harita sayisina gore buyur (applyLimits). Kendi flight loop'unu kaydeder.
-#pragma once
+#ifndef PRIME_MAP_SRC_ENGINE_XMAPDATA_H
+#define PRIME_MAP_SRC_ENGINE_XMAPDATA_H
 
 #include <array>
 #include <map>
@@ -144,3 +145,4 @@ private:
     std::string mTerrainWorkerText;
     XMapDataStatus mStatus;
 };
+#endif  // PRIME_MAP_SRC_ENGINE_XMAPDATA_H

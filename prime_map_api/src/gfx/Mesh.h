@@ -1,6 +1,7 @@
 // Cizilecek seklin CPU'daki hali (renkli ucgen listesi); openGL'den bagimsiz,
 // testlerde denenir. Neden ucgen: glLineWidth guvenilir degil. Birimler: boxel.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_MESH_H
+#define PRIME_MAP_SRC_GFX_MESH_H
 
 #include <vector>
 
@@ -94,3 +95,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_MESH_H

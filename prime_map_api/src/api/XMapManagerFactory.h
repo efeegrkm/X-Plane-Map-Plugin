@@ -1,7 +1,7 @@
 // prime::XMapManagerFactory: yoneticiyi olusturan / bırakan tek nokta. Her create cagrisi
 // YENI bir yonetici (ve ayri onbellek butceleri) verir; singleton yoktur.
-#ifndef PRIME_MAP_XMAP_MANAGER_FACTORY_H
-#define PRIME_MAP_XMAP_MANAGER_FACTORY_H
+#ifndef PRIME_MAP_SRC_API_XMAPMANAGERFACTORY_H
+#define PRIME_MAP_SRC_API_XMAPMANAGERFACTORY_H
 
 #include "XMapTypes.h"
 
@@ -23,4 +23,4 @@ private:
 
 }  // namespace prime
 
-#endif  // PRIME_MAP_XMAP_MANAGER_FACTORY_H
+#endif  // PRIME_MAP_SRC_API_XMAPMANAGERFACTORY_H

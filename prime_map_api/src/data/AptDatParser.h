@@ -6,7 +6,8 @@
 //     (ekrandaki havalimanlari, arka plan thread'i).
 //   - Tek satir fonksiyonlari (baslik, pist): dosya taramasi (AptDatIndexer)
 //     ozet cikarirken de ayni kodu kullanir.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_APTDATPARSER_H
+#define PRIME_MAP_SRC_DATA_APTDATPARSER_H
 
 #include <string>
 #include <string_view>
@@ -37,3 +38,4 @@ AirportDetail parseAirport(std::string_view pText);
 bool hasLeadingLatLon(int pRowCode);
 
 }  // namespace AptDatParser
+#endif  // PRIME_MAP_SRC_DATA_APTDATPARSER_H

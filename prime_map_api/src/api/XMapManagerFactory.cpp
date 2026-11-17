@@ -8,7 +8,7 @@ namespace prime
 
 XMapManager* XMapManagerFactory::createXMapManager()
 {
-    // Her cagri ayri yonetici (ve ayri onbellek) uretir; bir X-Plane surecinde bir tane yeter.
+    // Her cagri ayri yonetici (ve ayri onbellek) uretir; bir X-Plane surecinde bir tane yeterlidir. Fazlası önerilmez.
     return new XMapManager();
 }
 

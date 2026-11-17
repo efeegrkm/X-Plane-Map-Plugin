@@ -1,7 +1,8 @@
 // openGL 3.3 yukleyici: Windows opengl32.lib sadece GL 1.1 fonksiyonlarini
 // verir; gerisi wglGetProcAddress ile alinir. load() yalnizca GL baglami
 // etkinken (draw callback) cagrilabilir.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_GLAPI_H
+#define PRIME_MAP_SRC_GFX_GLAPI_H
 
 #include <cstddef>
 #include <string>
@@ -97,3 +98,4 @@ void uniform1f(GLint pLocation, float pValue);
 void uniform4(GLint pLocation, float pX, float pY, float pZ, float pW);
 
 }
+#endif  // PRIME_MAP_SRC_GFX_GLAPI_H

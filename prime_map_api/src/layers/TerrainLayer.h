@@ -1,7 +1,8 @@
 // Zemin: X-Plane sahnesinin (DSF) arazisi; su, sehir, orman, kabartma golgesi.
 // Dokular haritalarin ORTAK TerrainHub'inda durur; palet (zemin ayarlari)
 // harita basinasdir. Ince seviye hazir olana kadar en iyi kaba seviye gosterilir.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H
+#define PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H
 
 #include <cstdint>
 #include <unordered_map>
@@ -55,3 +56,4 @@ private:
     int mPendingThisFrame = 0;
     int mPendingLastFrame = 0;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H

@@ -1,7 +1,7 @@
-// X-Plane DSF (sahne) dosyasi okuyucu. X-Plane'e bagimli DEGIL; arka plan
-// thread'inde calisir. Bicim: https://developer.x-plane.com/article/dsf-file-format-specification/
-// Veri 7z ile sikistirilmissa once SevenZip ile acilmalidir.
-#pragma once
+// X-Plane DSF (sahne) dosyasi okuyucu. X-Plane'e bagimli DEGIL; arka plan thread'inde
+// calisir. Bicim: developer.x-plane.com/article/dsf-file-format-specification/
+#ifndef PRIME_MAP_SRC_DATA_DSFREADER_H
+#define PRIME_MAP_SRC_DATA_DSFREADER_H
 
 #include <cstddef>
 #include <cstdint>
@@ -15,57 +15,54 @@ struct DsfInfo
     double mSouth = 0.0;
     double mEast = 0.0;
     double mNorth = 0.0;
-    bool mOverlay = false;                   // "sim/overlay 1": temel mesh degil, ustune serilen katman
+    bool mOverlay = false;  // temel mesh degil, ustune serilen katman
     std::vector<std::string> mTerrainNames;  // TERT
-    std::vector<std::string> mObjectNames;   // OBJT: .obj nesneleri
-    std::vector<std::string> mPolygonNames;  // POLY: .for orman, .fac cephe, .ags/.agb autogen, .pol serilen
-    std::vector<std::string> mNetworkNames;  // NETW: yol / demiryolu ag tanimi (.net)
+    std::vector<std::string> mObjectNames;   // OBJT
+    std::vector<std::string> mPolygonNames;  // POLY
+    std::vector<std::string> mNetworkNames;  // NETW
     std::vector<std::pair<std::string, std::string>> mProperties;
 };
 
-// Komut akisinin sayimi (teshis / envanter icin; dsf_info kullanir).
-// Anahtar: tanim indeksi (ilgili ad tablosunda).
+// Komut akisi sayimi (teshis / envanter); anahtar tanim indeksidir.
 struct DsfCommandStatistics
 {
     struct PolygonCount
     {
-        long long mPolygons = 0;  // poligon komutu sayisi
-        long long mWindings = 0;  // halka sayisi (dis + delikler)
-        long long mPoints = 0;    // toplam kose
+        long long mPolygons = 0;
+        long long mWindings = 0;  // dis + delikler
+        long long mPoints = 0;
     };
     struct ChainCount
     {
-        long long mChains = 0;  // ag zinciri komutu sayisi
-        long long mPoints = 0;  // zincirlerdeki toplam nokta
+        long long mChains = 0;
+        long long mPoints = 0;
     };
-    std::vector<long long> mObjects;      // mObjectNames sirasiyla
-    std::vector<PolygonCount> mPolygons;  // mPolygonNames sirasiyla
-    // Ag: (tanim indeksi, yol alt turu) -> sayim
-    std::vector<std::pair<std::pair<int, int>, ChainCount>> mChains;
+    std::vector<long long> mObjects;
+    std::vector<PolygonCount> mPolygons;
+    std::vector<std::pair<std::pair<int, int>, ChainCount>> mChains;  // (tanim, yol alt turu) -> sayim
     long long mTerrainPatches = 0;
 };
 
-// DSF icindeki bir raster katmani (DEMS). Satir 0 = GUNEY kenari, sutun 0 = BATI
-// (gercek XP11 dosyasinda dogrulandi: belge satir sirasini belirtmiyor).
+// DSF icindeki bir raster katmani (DEMS). Satir 0 = GUNEY, sutun 0 = BATI
+// (gercek XP11 dosyasinda dogrulandi; belge satir sirasini belirtmez).
 struct DsfRaster
 {
     int mWidth = 0;
     int mHeight = 0;
-    bool mPostCentric = false;  // true: kenar pikselleri tam karo sinirinda
-    std::vector<float> mValues;  // mWidth * mHeight, ham * olcek + kaydirma (yukseklik: metre)
+    bool mPostCentric = false;   // kenar pikselleri tam karo sinirinda
+    std::vector<float> mValues;  // ham * olcek + kaydirma (yukseklik: metre)
 };
 
-// Bir poligon (POLY tanimi: .for orman, .ags autogen, .fac cephe ...). Halka 0 dis sinir,
-// digerleri delik. Koordinatlar derece (boylam, enlem).
+// Bir poligon (.for orman, .ags autogen, .fac cephe ...). Halka 0 dis sinir, digerleri delik.
 struct DsfPolygon
 {
     int mDefinition = 0;  // DsfInfo::mPolygonNames indeksi
-    int mParameter = 0;   // tanima gore: orman yogunlugu, cephe yuksekligi ...
+    int mParameter = 0;   // orman yogunlugu, cephe yuksekligi ...
     std::vector<std::vector<double>> mRingLon;
     std::vector<std::vector<double>> mRingLat;
 };
 
-// Bir ag zinciri (NETW: yol, demiryolu, enerji hatti). Noktalar sirayla bir cizgi.
+// Bir ag zinciri (yol, demiryolu, enerji hatti)
 struct DsfChain
 {
     int mDefinition = 0;  // DsfInfo::mNetworkNames indeksi
@@ -74,15 +71,14 @@ struct DsfChain
     std::vector<double> mLat;
 };
 
-// Bir arazi ucgeni
 struct DsfTriangle
 {
     double mLon[3];
     double mLat[3];
     double mElevation[3];  // metre; -32768 = deger ayri raster'da (bu okuyucu kullanmaz)
     int mTerrain;          // DsfInfo::mTerrainNames indeksi
-    int mPatchFlags;       // 1 = fiziksel (carpisma), 2 = overlay (ustune cizilen)
-    int mPlaneCount = 3;   // nokta havuzunun duzlem sayisi (3 = lon/lat/elev; fazlasi alfa/serit duzlemi)
+    int mPatchFlags;       // kPatchFlag... bitleri
+    int mPlaneCount = 3;   // nokta havuzunun duzlem sayisi (3 = lon/lat/elev)
 };
 
 class DsfReader
@@ -91,32 +87,25 @@ public:
     static const int kPatchFlagPhysical = 1;
     static const int kPatchFlagOverlay = 2;
 
-    // pData: acilmis (sikistirilmamis) DSF baytlari; okuma boyunca yasamali.
-    // Ozellikleri, arazi adlarini ve nokta havuzlarini okur.
+    // pData: acilmis (sikistirilmamis) DSF baytlari; okuma boyunca yasamali
     bool open(const std::vector<uint8_t>& pData, std::string* pError);
 
     const DsfInfo& info() const;
 
-    // Komut akisindaki butun arazi ucgenlerini gezer (overlay'ler dahil;
-    // ayiklamak cagiranin isi). Bicim hatasinda false.
+    // Butun arazi ucgenlerini gezer (overlay dahil; ayiklamak cagiranin isidir)
     bool forEachTriangle(const std::function<void(const DsfTriangle&)>& pVisitor, std::string* pError) const;
 
-    // Adi verilen raster katmanini okur (XP11: "elevation", "sea_level", "bathymetry")
+    // XP11 raster katmanlari: "elevation", "sea_level", "bathymetry"
     bool readRaster(const std::string& pName, DsfRaster* pOut) const;
-    // Dosyadaki raster katmanlarinin adlari (DEMN sirasiyla)
     const std::vector<std::string>& rasterNames() const;
 
-    // Poligonlari ve ag zincirlerini koordinatlariyla gezer (DSF vektor katmanlari).
-    // Poligonlar 16 bitlik havuzlardan (POOL), zincirler 32 bitlik havuzlardan (PO32) okunur.
-    // Ziyaretcilerden biri bos olabilir. Bicim hatasinda false.
+    // Poligonlar 16 bit (POOL), zincirler 32 bit (PO32) havuzlardan okunur
     bool forEachVector(const std::function<void(const DsfPolygon&)>& pPolygonVisitor,
                        const std::function<void(const DsfChain&)>& pChainVisitor, std::string* pError) const;
 
-    // Teshis icin: nokta havuzu sayisi
     int poolCount() const;
 
-    // Teshis / envanter: komut akisindaki nesne, poligon ve ag komutlarini
-    // tanim basina sayar (koordinat okumaz). Atlama mantigi ForEachTriangle ile ayni.
+    // Komut akisini koordinat okumadan tanim basina sayar
     bool countCommands(DsfCommandStatistics* pOut, std::string* pError) const;
 
 private:
@@ -129,7 +118,6 @@ private:
         double mOffset[3] = {0.0, 0.0, 0.0};
     };
 
-    // 32 bitlik havuz (PO32 / SC32; ag zincirleri). Sadece boylam ve enlem saklanir.
     struct Pool32
     {
         int mCount = 0;
@@ -153,7 +141,7 @@ private:
     size_t mCommandsOffset = 0;
     size_t mCommandsSize = 0;
 
-    // Raster katmanlari: DEMN adlari ve ayni siradaki DEMI/DEMD atomlarinin yerleri
+    // DEMN adlari ve ayni siradaki DEMI/DEMD atom yerleri
     struct RasterAtoms
     {
         size_t mInfoOffset = 0;
@@ -164,3 +152,4 @@ private:
     std::vector<std::string> mRasterNames;
     std::vector<RasterAtoms> mRasters;
 };
+#endif  // PRIME_MAP_SRC_DATA_DSFREADER_H

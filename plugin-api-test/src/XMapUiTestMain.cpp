@@ -1,16 +1,7 @@
-// XMapUiTestMain.cpp
-// Prime XMap API test eklentisi - ADIM 3: harita bizim penceremizin icinde, openGL dokusu olarak.
-//
-// Bir X-Plane penceresi acar (X-Plane cercevesi: basliktan tasinir, kenarlardan boyutlanir); ortada
-// Prime XMap haritasi, etrafinda 4 kaydirma dugmesi ve altta 2 zoom dugmesi var.
-// Harita WindowStyle::Texture ile acilir: ayri bir pencere YOKTUR; kutuphane haritayi bir openGL dokusuna
-// cizer (renderTexture), biz kendi cizimimizde harita alanina basariz. Pencere tasininca / boyutlaninca
-// harita ayni karede onunla gelir. Haritanin fare / tekerlek / klavye girdisi doku koordinatina cevrilip
-// API'ye iletilir (inject*).
-// Butun cagrilari src\XMapApiCalls.cpp yapar. "SDK_BOUND" yorumu ile isaretli satirlar
-// API baglantisi icin yapilan degisikliklerdir.
-// Kod standardi ana projeyle ayni: m/p/t onekleri, suslu parantez alt satirda,
-// Turkce ASCII yorumlar, arayuz metinleri Ingilizce.
+// Prime XMap API test eklentisi: harita WindowStyle::Texture ile acilir; kutuphane haritayi bir openGL
+// dokusuna cizer (renderTexture), bu eklenti kendi penceresinde o alana basar. Pencere tasininca /
+// boyutlaninca harita ayni karede onunla gelir; fare / tekerlek / klavye doku koordinatina cevrilip
+// inject* ile iletilir. Butun API cagrilari XMapApiCalls uzerinden (SDK_BOUND isaretli satirlar).
 #include <array>
 #include <cstring>
 #include <memory>
@@ -131,7 +122,7 @@ private:
     int handleWheel(int pX, int pY, int pClicks);
     void handleCursor(int pX, int pY);
     void handleKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey, bool pLosingFocus);
-    // Harita klavye istemiyorsa odagi birakir; pTake: istiyorsa al (sadece haritaya tiklaninca; her karede
+    // Harita klavye istiyorsa odagi tutar; pTake: sadece haritaya tiklaninca alinir (her karede
     // alinirsa kullanici X-Plane'e tiklayinca klavye geri donmez)
     void syncKeyboardFocus(bool pTake);
     void press(Button pButton);           // dugmeye basildi: API cagrisi
@@ -142,8 +133,7 @@ private:
     Rect mButtons[kButtonCount];
     // SDK_BOUND: harita erisimi (Init / Open / Pan / Zoom ... hepsi bu siniftan)
     XMapApiCalls mApi;
-    // 0.25: coklu harita / fabrika ozelliklerinin X-Plane icindeki otomatik testi; sadece eklenti
-    // klasorunde "selftest.flag" dosyasi varsa calisir (sonuclar Log.txt: "SELFTEST PASS / FAIL")
+    // Coklu harita / fabrika ozelliklerinin otomatik testi (selftest.flag varsa)
     std::unique_ptr<MultiXMapSelfTest> mSelfTest;
     bool mMapPress = false;               // basma haritada basladi (surukleme / birakma da haritaya)
     bool mMapRightPress = false;
@@ -187,11 +177,9 @@ void UiPlugin::enable()
     XPLMSetWindowTitle(mWindow, const_cast<char*>("XMap API UI Test"));
     XPLMDebugString("[plugin-api-test] window created\n");
 
-    // SDK_BOUND: kutuphaneyi baslat ve haritayi dokuya cizilecek sekilde ac.
-    //   - initLibrary: XMapManager::initialize; veri yuklemesi arka planda baslar. Veri klasoru bu
-    //     eklentinin klasoru: ayarlar (prime_map.json, maps/) ve zemin onbellegi (cache/) resmi eklentininkinden
-    //     (%LOCALAPPDATA%) ayri kalir; selftest.flag de burada aranir.
-    //   - openXMap: WindowStyle::Texture; haritanin kendi arayuzu ve faresi acik (girdi bizden iletilir).
+    // SDK_BOUND: kutuphaneyi baslat, haritayi Texture stilinde ac (kendi arayuzu ve faresi acik;
+    // girdi bizden iletilir). Veri klasoru bu eklentinin klasoru: resmi eklentinkinden (%LOCALAPPDATA%)
+    // ayri kalir; selftest.flag de burada aranir.
     if (!mApi.initLibrary("[plugin-api-test]", findPluginDirectory()))
     {
         mStatus = "PrimeMap Init FAILED (see Log.txt)";
@@ -213,7 +201,7 @@ void UiPlugin::enable()
     {
         mStatus = "XMap open FAILED (see Log.txt)";
     }
-    mSelfTest = std::make_unique<MultiXMapSelfTest>();
+    mSelfTest = std::make_unique<MultiXMapSelfTest>();  // sadece selftest.flag varsa calisir (Log.txt)
     if (!mSelfTest->startIfRequested(mApi.manager()->getDataDirectory(), mApi.manager()))
     {
         mSelfTest.reset();
@@ -481,7 +469,6 @@ int UiPlugin::handleClick(int pX, int pY, XPLMMouseStatus pStatus)
     if (mMapPress)
     {
         // SDK_BOUND: haritada baslayan basma / surukleme / birakma doku koordinatiyla iletilir
-        // (surukleme harita alanindan tassa da devam eder)
         prime::MouseAction tAction = prime::MouseAction::Down;
         if (pStatus == xplm_MouseDrag)
         {

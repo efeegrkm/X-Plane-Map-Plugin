@@ -1,6 +1,7 @@
 // Tum harita katmanlarinin ortak arayuzu. X-Plane'e bagimli DEGIL.
 // Yeni katman: Layer'dan ture, draw()/drawLabels() icine ciz, LayerManager'a sirayla ekle.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYER_H
+#define PRIME_MAP_SRC_LAYER_H
 
 #include <string>
 #include <string_view>
@@ -20,16 +21,16 @@ class Canvas;
 // Bir katmanin cizim icin ihtiyac duydugu her sey (her karede yeniden doldurulur)
 struct drawContext
 {
-    const XMapView* mView = nullptr;  // projeksiyon: lat/lon <-> boxel
-    Gfx::Canvas* mCanvas = nullptr;  // cizim kapisi (Mesh -> openGL)
+    const XMapView* mView = nullptr;  // lat/lon <-> boxel
+    Gfx::Canvas* mCanvas = nullptr;
     RectD mArea;                     // haritanin cizildigi alan (global boxel)
-    RectD mClearArea;                // mArea'nin kontrollerle (ust/alt serit) ortulmeyen kismi
+    RectD mClearArea;                // mArea'nin seritlerle ortulmeyen kismi
     double mPixelsPerBoxel = 1.0;    // UI olcek (%150 ise 1.5)
-    float mNow = 0.0f;               // gecen sure, saniye (XPLMGetElapsedTime)
+    float mNow = 0.0f;               // saniye (XPLMGetElapsedTime)
 
-    // Imlec haritanin ustundeyse (kontrollerin ustunde degil) yeri
+    // Imlec haritanin ustundeyse (kontrollerin ustunde degil) yeri (boxel)
     bool mHasCursor = false;
-    double mCursorX = 0.0;           // boxel
+    double mCursorX = 0.0;
     double mCursorY = 0.0;
 
     // Tum katmanlarin ortak etiket yerlestiricisi (drawLabels icinde kullanilir)
@@ -133,11 +134,11 @@ public:
     struct SubLayer
     {
         std::string mId;    // ayar anahtari parcasi (kucuk harf, ASCII)
-        std::string mName;  // panelde gorunen ad
+        std::string mName;
         bool mVisible = true;
         bool mDefaultVisible = true;
-        double mMinZoom = 0.0;   // kNoMinZoom
-        double mMaxZoom = 99.0;  // kNoMaxZoom
+        double mMinZoom = kNoMinZoom;
+        double mMaxZoom = kNoMaxZoom;
     };
 
     int subLayerCount() const
@@ -151,8 +152,7 @@ public:
     }
 
     // Gecersiz indeks: gorunur say (alt katmani olmayan cagiranlar bozulmasin)
-    bool isSubLayerVisible(int pIndex) const
-    {
+    bool isSubLayerVisible(int pIndex) const    {
         if (pIndex < 0 || pIndex >= subLayerCount())
         {
             return true;
@@ -218,8 +218,7 @@ public:
         return mCurrentZoom >= mMinZoom && mCurrentZoom <= mMaxZoom;
     }
 
-    // Draw icinde kullanilir: alt katmanin kutusu acik VE su anki zoom araliginda.
-    // Gecersiz indeks: cizilir say (isSubLayerVisible ile ayni kural).
+    // Alt katmanin kutusu acik VE su anki zoom araliginda; gecersiz indeks: cizilir say
     bool isSubLayerDrawn(int pIndex) const
     {
         if (pIndex < 0 || pIndex >= subLayerCount())
@@ -250,6 +249,7 @@ private:
     bool mDefaultVisible;
     double mMinZoom = kNoMinZoom;
     double mMaxZoom = kNoMaxZoom;
-    double mCurrentZoom = 10.0;  // setCurrentZoom gelene kadar: her aralikta sayilmasin diye ortalama bir deger
+    double mCurrentZoom = 10.0;  // setCurrentZoom gelene kadar ortalama bir deger
     std::vector<SubLayer> mSubLayers;
 };
+#endif  // PRIME_MAP_SRC_LAYER_H

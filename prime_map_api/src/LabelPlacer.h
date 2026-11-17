@@ -1,6 +1,7 @@
 // Etiket seyreltme: yerlesen kutulari hatirlar, cakisan yeni kutuyu reddeder.
 // X-Plane'e bagimli DEGIL.
-#pragma once
+#ifndef PRIME_MAP_SRC_LABELPLACER_H
+#define PRIME_MAP_SRC_LABELPLACER_H
 
 #include <vector>
 
@@ -29,3 +30,4 @@ private:
     std::vector<std::vector<int>> mCells;  // hucre -> mBoxes indeksleri
     std::vector<RectD> mBoxes;
 };
+#endif  // PRIME_MAP_SRC_LABELPLACER_H

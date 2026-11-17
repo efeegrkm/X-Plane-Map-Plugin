@@ -1,6 +1,7 @@
 // Harita sembolleri icin ortak olculer ve etiket yerlestirme yardimcilari.
 // Semboller iki katmanla cizilir: once kalin koyu kontur, ustune renkli cizgi.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_XMAPSYMBOLS_H
+#define PRIME_MAP_SRC_LAYERS_XMAPSYMBOLS_H
 
 #include <string_view>
 
@@ -23,3 +24,4 @@ bool drawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_vie
                        const Rgba& pShadow);
 
 }
+#endif  // PRIME_MAP_SRC_LAYERS_XMAPSYMBOLS_H

@@ -1,5 +1,6 @@
 // RGBA renk (her bilesen 0..1). X-Plane'e bagimli DEGIL.
-#pragma once
+#ifndef PRIME_MAP_SRC_COLOR_H
+#define PRIME_MAP_SRC_COLOR_H
 
 struct Rgba
 {
@@ -13,3 +14,4 @@ inline Rgba withAlpha(const Rgba& pColor, float pAlpha)
 {
     return {pColor.mR, pColor.mG, pColor.mB, pAlpha};
 }
+#endif  // PRIME_MAP_SRC_COLOR_H

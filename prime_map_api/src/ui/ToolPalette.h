@@ -1,6 +1,7 @@
 // Cizim araclari paleti: haritanin ustunde yuzen, tasinabilir ve katlanabilir
 // kucuk bir panel (Pan/Point/Route/Region + Finish/Undo/Clear).
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_TOOLPALETTE_H
+#define PRIME_MAP_SRC_UI_TOOLPALETTE_H
 
 #include <vector>
 
@@ -68,3 +69,4 @@ private:
     int mSeparatorY = 0;  // arac satirlari ile islem dugmeleri arasi cizgi (0: yok)
     std::vector<Item> mItems;
 };
+#endif  // PRIME_MAP_SRC_UI_TOOLPALETTE_H

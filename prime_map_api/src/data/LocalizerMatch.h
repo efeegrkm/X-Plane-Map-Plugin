@@ -4,7 +4,8 @@
 //   - pistin inis yonu localizer yonuyle uyusmali (en fazla kMaxCourseDiff),
 //   - anten, pistin karsi ucuna yakin ve pist ekseni uzerinde olmali.
 // LDA/SDF gibi eksenden kayik localizer'lar eslesmez (cagiran anteni kullanir).
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_LOCALIZERMATCH_H
+#define PRIME_MAP_SRC_DATA_LOCALIZERMATCH_H
 
 #include "Geo.h"
 
@@ -13,3 +14,4 @@ class AirportGeometryStore;
 // Bulunduysa true; pOutThreshold'a inis yapilan pist ucunu yazar.
 bool findLocalizerThreshold(const LatLon& pAntenna, double pCourseTrue, const AirportGeometryStore& pRunways,
                             LatLon* pOutThreshold);
+#endif  // PRIME_MAP_SRC_DATA_LOCALIZERMATCH_H

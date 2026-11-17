@@ -4,7 +4,8 @@
 //
 // Bellek: ucgen basina ~29 bayt; 1 milyon ucgenlik karo ~30 MB. TerrainStore
 // en fazla 2 karo tutar.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_TERRAINTRIANGLES_H
+#define PRIME_MAP_SRC_DATA_TERRAINTRIANGLES_H
 
 #include <cstddef>
 #include <cstdint>
@@ -43,3 +44,4 @@ private:
     std::vector<uint8_t> mClasses;  // ucgen basina sinif
     std::vector<std::vector<uint32_t>> mChunks;  // kChunksPerSide^2 liste
 };
+#endif  // PRIME_MAP_SRC_DATA_TERRAINTRIANGLES_H

@@ -9,7 +9,8 @@
 // Isci thread'i: havalimaninin dosyadaki bayt araligina atlar (AptFileLocation),
 // satirlari okur, AptDatParser ile ayristirir, AirportShapes ile ucgenler.
 // Bellekte en fazla kMaxLoaded havalimani; en uzun suredir kullanilmayan silinir.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRPORTDETAILSTORE_H
+#define PRIME_MAP_SRC_DATA_AIRPORTDETAILSTORE_H
 
 #include <condition_variable>
 #include <cstdint>
@@ -112,3 +113,4 @@ private:
     bool mStopping = false;
     std::thread mThread;
 };
+#endif  // PRIME_MAP_SRC_DATA_AIRPORTDETAILSTORE_H

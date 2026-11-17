@@ -7,7 +7,8 @@
 //   3. ad bunu iceriyor                       (en az 3 harf)
 // Ayni derecede: pistli kara havalimani once, sonra en uzun pisti uzun olan, sonra kimlik.
 // ~37 bin havalimaninda dogrusal tarama (tus basina ~1-2 ms): indeks gerekmedi.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRPORTSEARCH_H
+#define PRIME_MAP_SRC_DATA_AIRPORTSEARCH_H
 
 #include <string_view>
 #include <vector>
@@ -26,3 +27,4 @@ double zoomToFitAirport(const AirportGeometry& pAirport, double pViewWidth, doub
 
 // Haritanin ortalanacagi nokta: kapsayan kutunun ortasi (yoksa referans noktasi)
 LatLon airportCenter(const AirportGeometry& pAirport);
+#endif  // PRIME_MAP_SRC_DATA_AIRPORTSEARCH_H

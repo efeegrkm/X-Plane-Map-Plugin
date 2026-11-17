@@ -2,7 +2,8 @@
 // Sekiller ilk gorundugunde BIR KEZ GPU'ya yuklenir (Gfx::StaticMesh,
 // Mercator); sonraki karelerde sadece olcek + kaydirma degisir.
 // Ayrintisi henuz okunmamis havalimaninda kesikli kutu gorunur.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_AIRPORTSURFACELAYER_H
+#define PRIME_MAP_SRC_LAYERS_AIRPORTSURFACELAYER_H
 
 #include <cstdint>
 #include <unordered_map>
@@ -47,3 +48,4 @@ private:
     std::vector<const LoadedAirport*> mDrawn;  // son karede cizilenler (merkeze yakin once)
     uint64_t mFrame = 0;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_AIRPORTSURFACELAYER_H

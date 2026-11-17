@@ -1,7 +1,8 @@
 // Ekran disi cizim yuzeyi: RGBA doku + ona cizen FBO. Harita dokuya cizilir,
 // ekrana tek dortgen basilir. Pop-out: doku paylasilir, FBO paylasilmaz
 // (baglam basina olusturulur, ContextVertexArray mantigi).
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_RENDERTARGET_H
+#define PRIME_MAP_SRC_GFX_RENDERTARGET_H
 
 #include "gfx/Texture.h"
 
@@ -36,3 +37,4 @@ private:
 };
 
 }
+#endif  // PRIME_MAP_SRC_GFX_RENDERTARGET_H

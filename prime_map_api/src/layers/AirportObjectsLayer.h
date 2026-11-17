@@ -1,7 +1,8 @@
 // Havalimanindaki nokta nesneleri (kapi/park oku, helipad, beacon, ruzgar
 // tulumu, PAPI/VASI, tabela, isik dizileri), her biri kendi sekil/rengiyle.
 // Veri AirportDetailStore'dan; okunmamis havalimani icin istek gonderir.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_AIRPORTOBJECTSLAYER_H
+#define PRIME_MAP_SRC_LAYERS_AIRPORTOBJECTSLAYER_H
 
 #include <string>
 #include <vector>
@@ -40,3 +41,4 @@ private:
     std::vector<int> mVisible;
     std::vector<Marker> mMarkers;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_AIRPORTOBJECTSLAYER_H

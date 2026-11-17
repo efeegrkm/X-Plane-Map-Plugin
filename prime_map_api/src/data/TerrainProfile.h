@@ -8,7 +8,8 @@
 //   yakin zoom       : triangles(DSF ucgenleri)
 //   doku             : imageClasses, ImageBlur, imageCoast, imageCompose,
 //                      imageDetail, Bleed
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_TERRAINPROFILE_H
+#define PRIME_MAP_SRC_DATA_TERRAINPROFILE_H
 
 #include <chrono>
 #include <string>
@@ -59,3 +60,4 @@ private:
 };
 
 }  // namespace TerrainProfile
+#endif  // PRIME_MAP_SRC_DATA_TERRAINPROFILE_H

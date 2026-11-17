@@ -1,6 +1,6 @@
 // API impl dosyalarinin paylastigi kucuk yardimcilar.
-#ifndef PRIME_MAP_API_UTIL_H
-#define PRIME_MAP_API_UTIL_H
+#ifndef PRIME_MAP_SRC_API_XMAPAPIUTIL_H
+#define PRIME_MAP_SRC_API_XMAPAPIUTIL_H
 
 #include <array>
 #include <cctype>
@@ -59,4 +59,4 @@ inline Rgb parseRgb(std::istringstream& pStream)
 
 }  // namespace prime::api
 
-#endif  // PRIME_MAP_API_UTIL_H
+#endif  // PRIME_MAP_SRC_API_XMAPAPIUTIL_H

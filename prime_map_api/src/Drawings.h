@@ -1,5 +1,6 @@
 // Kullanicinin haritaya cizdikleri: noktalar, rotalar, bolgeler (lat/lon olarak saklanir).
-#pragma once
+#ifndef PRIME_MAP_SRC_DRAWINGS_H
+#define PRIME_MAP_SRC_DRAWINGS_H
 
 #include <string>
 #include <vector>
@@ -71,3 +72,4 @@ private:
     bool mHasCurrent = false;
     int mCounters[3] = {0, 0, 0};
 };
+#endif  // PRIME_MAP_SRC_DRAWINGS_H

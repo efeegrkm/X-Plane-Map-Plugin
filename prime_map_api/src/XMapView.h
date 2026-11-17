@@ -1,6 +1,7 @@
 // Haritanin "kamerasi": merkez (lat/lon), zoom, viewport ve lat/lon <-> boxel donusumu.
 // Projeksiyon: Web Mercator; icerde konum Mercator biriminde (0..1, x dogu +, y kuzey +).
-#pragma once
+#ifndef PRIME_MAP_SRC_XMAPVIEW_H
+#define PRIME_MAP_SRC_XMAPVIEW_H
 
 #include "Geo.h"
 #include "ScreenMath.h"
@@ -96,3 +97,4 @@ private:
     double mMinZoom = kMinZoom;
     double mMaxZoom = kMaxZoom;
 };
+#endif  // PRIME_MAP_SRC_XMAPVIEW_H

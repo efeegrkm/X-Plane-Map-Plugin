@@ -1,7 +1,8 @@
 // apt.dat dugum zincirlerinden cizilebilir sekiller. X-Plane'e ve openGL'e
 // bagimli DEGIL (testli). Hesaplar metre cinsinden duz duzlemde (LocalFrame):
 // birkac km'lik alanda dunyanin egriligi onemsiz, ucgenleme metrelerle saglikli.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRPORTSHAPES_H
+#define PRIME_MAP_SRC_DATA_AIRPORTSHAPES_H
 
 #include <string>
 #include <vector>
@@ -115,3 +116,4 @@ bool triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::v
 AirportShapes build(const AirportDetail& pDetail, const LatLon& pReference);
 
 }  // namespace Shapes
+#endif  // PRIME_MAP_SRC_DATA_AIRPORTSHAPES_H

@@ -1,7 +1,8 @@
 // Ekran koordinatlari icin kucuk matematik yardimcilari. X-Plane'e bagimli DEGIL.
 // Koordinat sistemleri: lat/lon (derece), boxel (XPLM pencere/fare birimi, UI olcekli),
 // piksel (openGL cizim birimi). boxel -> piksel afin donusumudur (Affine2D).
-#pragma once
+#ifndef PRIME_MAP_SRC_SCREENMATH_H
+#define PRIME_MAP_SRC_SCREENMATH_H
 
 // Ekranda bir nokta (boxel). Cizim icin float hassasiyeti yeterli.
 struct PointF
@@ -106,3 +107,4 @@ RectD toRectD(const RectI& pRect);
 
 // API Geometry (sol-ust kose + boyut, boxel) -> RectI. X-Plane'de y yukari artar: alt kenar = ust - yukseklik.
 RectI rectFromTopLeft(int pLeft, int pTop, int pWidth, int pHeight);
+#endif  // PRIME_MAP_SRC_SCREENMATH_H

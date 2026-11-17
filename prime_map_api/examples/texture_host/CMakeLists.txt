@@ -40,7 +40,7 @@ add_library(${PROJECT_NAME} SHARED src/TextureHost.cpp)
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM)
 target_compile_definitions(${PROJECT_NAME} PRIVATE XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1 IBM=1 APL=0 LIN=0
                            _CRT_SECURE_NO_WARNINGS)
-target_compile_options(${PROJECT_NAME} PRIVATE /W4 /utf-8 /permissive-)
+target_compile_options(${PROJECT_NAME} PRIVATE /W4 /wd4251 /utf-8 /permissive-)
 target_link_libraries(${PROJECT_NAME} PRIVATE prime-map-api ${XPSDK}/Libraries/Win/XPLM_64.lib opengl32)
 
 set(OUT_DIR ${CMAKE_BINARY_DIR}/texture-host)

@@ -2,7 +2,8 @@
 // kopyasi + her tur icin ayri bir 1x1 derece izgara (GeoGrid).
 // X-Plane'e bagimli DEGIL: kayitlari NavLoader doldurur, testler elle doldurur.
 // Neden izgara: ~200 bin fix var; her karede sadece ekrandaki hucrelere bakilir.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_NAVDATABASE_H
+#define PRIME_MAP_SRC_DATA_NAVDATABASE_H
 
 #include <string>
 #include <vector>
@@ -100,3 +101,4 @@ private:
     GeoGrid mGrids[kNavKindCount];  // tur basina bir izgara
     bool mReady = false;
 };
+#endif  // PRIME_MAP_SRC_DATA_NAVDATABASE_H

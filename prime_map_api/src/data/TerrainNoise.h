@@ -2,7 +2,8 @@
 // (deger gurultusu + fBm). Neden: DSF arazi turu ucgen basina; sinif okunurken
 // nokta birkac on metre kaydirilir ("domain warp"), sinirlar kivrilir. Gurultu
 // enlem/boylamdan uretildigi icin her seviyede ayni sonucu verir (dikis yok).
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_TERRAINNOISE_H
+#define PRIME_MAP_SRC_DATA_TERRAINNOISE_H
 
 #include <cstdint>
 
@@ -32,3 +33,4 @@ struct TerrainWarpPlan
 // (Classes) bukmeye uygundur; stil kontrolunu cagiran taraf yapar.
 TerrainWarpPlan terrainPlanWarp(const TerrainWarpParams& pParams, double pMetersPerPixelX,
                                 double pMetersPerPixelY);
+#endif  // PRIME_MAP_SRC_DATA_TERRAINNOISE_H

@@ -1,7 +1,8 @@
 // Radyo seyrusefer yardimcilari ve fix'ler. Tek sinif, tur parametreli
 // (VOR, NDB, ILS, Fix). Zoom esikleri ve renkler NavaidLayer.cpp'deki
 // kStyles tablosunda.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_NAVAIDLAYER_H
+#define PRIME_MAP_SRC_LAYERS_NAVAIDLAYER_H
 
 #include <array>
 #include <string>
@@ -93,3 +94,4 @@ private:
     std::vector<VisibleNavaid> mVisible;
     LabelPlacer mSymbolPlacer;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_NAVAIDLAYER_H

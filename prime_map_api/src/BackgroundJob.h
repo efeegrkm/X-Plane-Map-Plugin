@@ -2,7 +2,8 @@
 // ana thread her karede bitip bitmedigine bakar. X-Plane'e bagimli DEGIL.
 // Kural: thread icinde hicbir XPLM cagrisi yapilmaz; sonuc poll() true olunca
 // ana thread'de okunur (join gorunurlugu garanti eder).
-#pragma once
+#ifndef PRIME_MAP_SRC_BACKGROUNDJOB_H
+#define PRIME_MAP_SRC_BACKGROUNDJOB_H
 
 #include <atomic>
 #include <functional>
@@ -34,3 +35,4 @@ private:
     std::atomic<bool> mCancel{false};
     bool mRunning = false;
 };
+#endif  // PRIME_MAP_SRC_BACKGROUNDJOB_H

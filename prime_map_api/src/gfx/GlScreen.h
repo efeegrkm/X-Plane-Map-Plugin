@@ -1,6 +1,7 @@
 // boxel -> piksel donusumu ve scissor kirpma. XPLM boxel, glScissor gercek
 // piksel ister; donusum draw callback'te acik GL matrislerinden okunur.
-#pragma once
+#ifndef PRIME_MAP_SRC_GFX_GLSCREEN_H
+#define PRIME_MAP_SRC_GFX_GLSCREEN_H
 
 #include <array>
 #include <optional>
@@ -31,3 +32,4 @@ private:
     std::array<int, 4> mOldBox = {0, 0, 0, 0};
     RectD mPixelRect;
 };
+#endif  // PRIME_MAP_SRC_GFX_GLSCREEN_H

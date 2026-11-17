@@ -1,6 +1,7 @@
 // "Layers" dugmesinin altinda acilan, gruplu ve uc seviyeli katman listesi.
 // Panel sadece cizer ve tiklamayi raporlar; ac/kapa karari XMapWindow'da.
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_LAYERPANEL_H
+#define PRIME_MAP_SRC_UI_LAYERPANEL_H
 
 #include <set>
 #include <string>
@@ -78,3 +79,4 @@ private:
     int mFirstRow = 0;                // kaydirma: ilk gosterilen satir
     int mShownRows = 0;               // panele sigan satir sayisi
 };
+#endif  // PRIME_MAP_SRC_UI_LAYERPANEL_H

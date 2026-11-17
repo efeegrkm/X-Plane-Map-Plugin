@@ -1,7 +1,8 @@
 // Haritanin ust kenarindaki ince, yari saydam arac seridi. Serit sadece cizer
 // ve hangi dugmeye tiklandigini soyler; ne yapilacagina XMapWindow karar verir.
 // Ornek: [Layers] [XMap: VFR] | [Follow aircraft] [Center on aircraft] | [Draw tools]
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_TOOLBAR_H
+#define PRIME_MAP_SRC_UI_TOOLBAR_H
 
 #include <vector>
 
@@ -90,3 +91,4 @@ private:
     std::vector<int> mDividers;  // gruplar arasi ince dikey cizgilerin x'i
     RectI mStrip;
 };
+#endif  // PRIME_MAP_SRC_UI_TOOLBAR_H

@@ -2,7 +2,8 @@
 // X-Plane 11, DSF sahne dosyalarini 7z ile sikistirarak dagitir; DSF'i
 // okumadan once acmak gerekir. X-Plane'e bagimli DEGIL; arka plan
 // thread'inde kullanilabilir.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_SEVENZIP_H
+#define PRIME_MAP_SRC_DATA_SEVENZIP_H
 
 #include <cstddef>
 #include <cstdint>
@@ -20,3 +21,4 @@ bool isArchive(const uint8_t* pData, size_t pSize);
 bool extractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>* pOut, std::string* pError);
 
 }  // namespace SevenZip
+#endif  // PRIME_MAP_SRC_DATA_SEVENZIP_H

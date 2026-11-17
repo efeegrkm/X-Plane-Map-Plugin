@@ -5,7 +5,8 @@
 //   SCENERY_PACK_DISABLED Custom Scenery/Eski/     -> atlanir
 //   SCENERY_PACK *GLOBAL_AIRPORTS*                 -> X-Plane 12 kisaltmasi
 //   SCENERY_PACK D:/Manzara/Ortho/                 -> mutlak yol
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_SCENERYPACKS_H
+#define PRIME_MAP_SRC_DATA_SCENERYPACKS_H
 
 #include <string>
 #include <vector>
@@ -15,3 +16,4 @@ std::vector<std::string> parseSceneryPacks(const std::string& pIniText, const st
 
 // <X-Plane>/Custom Scenery/scenery_packs.ini'yi okuyup parseSceneryPacks'e verir
 std::vector<std::string> readSceneryPacks(const std::string& pXPlaneDirectory);
+#endif  // PRIME_MAP_SRC_DATA_SCENERYPACKS_H

@@ -1,6 +1,7 @@
 // Kullanicinin ucagi: burun yonune donmus sembol + yon cizgisi; ekranda
 // sabit boyutta (zoom'dan bagimsiz). Katman listesinin en ustunde olmali.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_AIRCRAFTLAYER_H
+#define PRIME_MAP_SRC_LAYERS_AIRCRAFTLAYER_H
 
 #include "Layer.h"
 
@@ -20,3 +21,4 @@ public:
 private:
     const AircraftData& mAircraft;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_AIRCRAFTLAYER_H

@@ -3,7 +3,8 @@
 //   - bitince sonucu ana thread'de devralir (Poll),
 //   - havalimanlarini 1x1 derece izgaraya koyar, ekrandakileri sorgulatir.
 // Ayrintilar (yuzeyler, cizgiler...) AirportDetailStore'da. X-Plane'e bagimli DEGIL.
-#pragma once
+#ifndef PRIME_MAP_SRC_DATA_AIRPORTGEOMETRYSTORE_H
+#define PRIME_MAP_SRC_DATA_AIRPORTGEOMETRYSTORE_H
 
 #include <atomic>
 #include <memory>
@@ -72,3 +73,4 @@ private:
     bool mSucceeded = false;
     int mRunwayCount = 0;
 };
+#endif  // PRIME_MAP_SRC_DATA_AIRPORTGEOMETRYSTORE_H

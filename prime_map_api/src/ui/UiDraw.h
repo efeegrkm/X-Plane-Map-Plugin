@@ -1,6 +1,7 @@
 // Arayuz cizim yardimcilari: dolu kutu, cerceve, cizgi, yazi, dugme, onay kutusu.
 // Tum koordinatlar global boxel (pencere draw callback'inin koordinatlari).
-#pragma once
+#ifndef PRIME_MAP_SRC_UI_UIDRAW_H
+#define PRIME_MAP_SRC_UI_UIDRAW_H
 
 #include <string_view>
 
@@ -61,3 +62,4 @@ void Button(Gfx::Canvas& pCanvas, const RectI& pRect, std::string_view pLabel, b
 void checkBox(Gfx::Canvas& pCanvas, const RectI& pBox, bool pChecked, bool pHover);
 
 }  // namespace Ui
+#endif  // PRIME_MAP_SRC_UI_UIDRAW_H

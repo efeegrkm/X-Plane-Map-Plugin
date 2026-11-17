@@ -1,7 +1,8 @@
 // Taksi agi (apt.dat 1201 dugum + 1202 kenar) ve taksi yolu adlari.
 // VARSAYILAN KAPALI, zoom 13.5+ (uzaktan cok yogun). Fare uzerine gelince
 // kenarin adi ve yonu gorunur.
-#pragma once
+#ifndef PRIME_MAP_SRC_LAYERS_TAXIROUTELAYER_H
+#define PRIME_MAP_SRC_LAYERS_TAXIROUTELAYER_H
 
 #include <string>
 #include <vector>
@@ -40,3 +41,4 @@ private:
     std::vector<int> mVisible;
     std::vector<ScreenEdge> mEdges;
 };
+#endif  // PRIME_MAP_SRC_LAYERS_TAXIROUTELAYER_H
