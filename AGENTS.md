@@ -42,8 +42,8 @@
   NF-MNT-02'deki docs/tools/build_api_doc.py atiflari kaldirildi; SRS SRC-04 "AI" kelimesi
   "X-Plane trafik uçakları ve çok oyunculu uçaklar" oldu; CHANGELOG'a 0.25 / 0.26 / 0.26.1
   eklendi. Dort agac /W4 temiz, map_tests 30.682 / 0.
-- Tarama sonucu (18.11): AI kelimesi/arac izleri 0 (docs/arsiv/GECIS_0.22_EKIP_KALIBI_2026-11-10.md
-  ic notu haric, gitignore'da; dosya 18.11'de docs/arsiv/ altina tasindi); GitHub adresi yalniz
+- Tarama sonucu (18.11): AI kelimesi/arac izleri 0 (GECIS 0.22 raporu 18.11 aksam silindi,
+  ozeti asagida "Ekip standardindan bilincli farklar" tablosunda); GitHub adresi yalniz
   3. taraf (mapbox/earcut, nothings/stb); eski adlar yalnizca gecis tablosu ve gecmis raporlarinda
   (ZEMIN_HIZ_RAPORU 0.23 donemine ait, gitignore'da).
 
@@ -170,3 +170,14 @@ Dokuman eksikleri:
   ayrimi) tartisilmali; 13c'deki "ikinci isci yok" karariyla celisir, once karar.
 - SRS coklu-surec onbellek gereksinimi (yukarida 5. madde) onay bekliyor.
 - texture-host dagitimi karari kullanici bekleniyor (6. bolum).
+
+
+### Ekip standardindan bilincli farklar (0.22 gecis kararlari, GECIS raporu buraya ozetlendi ve dosya silindi 18.11)
+
+| # | Fark | Neden |
+|---|---|---|
+| 1 | Qt yok (DLL Qt cekmez) | Kutuphane QML'li ve saf C++ pluginlerden kullanilacak; X-Plane surecine Qt DLL girmez |
+| 2 | Superrepo disi: add_subdirectory kardes klasorden | ileride prime-map submodule slotuna tasinirsa CMake hazir |
+| 3 | namespace prime | kullanici karari |
+| 4 | C++20 (ekip: 17) | std::format vs. |
+| 5 | /W4 /utf-8 /permissive- + /wd4251 | kalite standardi; STL DLL sinirindan gectigi icin /MD zorunlu |
