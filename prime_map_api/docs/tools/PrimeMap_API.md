@@ -1,7 +1,7 @@
 ---
 title: Prime XMap API
 subtitle: Kullanım Kılavuzu ve Başvuru
-version: 1.0.0
+version: 1.1.0
 date: 2026-11-18
 ---
 
@@ -140,7 +140,7 @@ Eklenti klasörü şu düzende olmalıdır:
 X-Plane açıldığında `Log.txt` içinde şu satır görünür:
 
 ```text
-Prime Map API 1.0.0 ready (data: ..., cache: ..., dll: ...\64\prime_map.dll)
+Prime Map API 1.1.0 ready (data: ..., cache: ..., dll: ...\64\prime_map.dll)
 ```
 
 İlk açılışta havalimanı indeksi birkaç saniye ile yarım dakika arasında oluşturulur; sonraki açılışlarda önbellekten okunur.
@@ -350,7 +350,7 @@ Bir haritanın ayarları hem koddan hem de ayar dosyasından gelebilir. Hangisin
 |---|---|
 | `static XMapManager* XMapManagerFactory::createXMapManager()` | Yeni bir yönetici oluşturur. Host'un derlendiği başlık sürümü yüklü DLL'in sürümünden farklıysa `Log.txt`'ye tek satır uyarı yazar. |
 | `static void XMapManagerFactory::destroyXMapManager(XMapManager*)` | Yöneticiyi ve kalan haritalarını siler; ayarlar yazılır. |
-| `std::string prime::versionString()` | Yüklü kütüphanenin sürümü, örneğin `"1.0.0"`. |
+| `std::string prime::versionString()` | Yüklü kütüphanenin sürümü, örneğin `"1.1.0"`. |
 | `std::string prime::libraryPath()` | Yüklü `prime_map.dll` dosyasının tam yolu. |
 | `bool prime::isLibraryVersionMatching()` | Host'un derlendiği sürüm ile yüklü DLL'in sürümü aynı mı. |
 | `kVersionMajor`, `kVersionMinor`, `kVersionPatch` | Başlıktaki sürüm sabitleri. |
@@ -941,9 +941,9 @@ Zemin önbelleği varsayılan olarak 1024 MB ile sınırlıdır ve sınır aşı
 
 # Sürüm notları
 
-## 1.0.0
+## 1.1.0
 
-İlk kararlı sürüm.
+İlk kararlı sürüm. 1.0.0 numarası daha önceki numaralandırmada kullanıldığı için bu sürüm 1.1.0 olarak yayımlanır.
 
 - Yeni haritalar varsayılan olarak Dark modda açılır. Ayar dosyası olan haritalar dosyadaki modu korur.
 - Katmanların görünme eşikleri tek bir tabloda toplandı. Host aralığı yerleşik eşiğin yerine geçer; aşağı çekme ölçülmüş sert alt sınıra kadar serbesttir. VOR, NDB, ILS, fix ve havalimanı sembolleri de bu kurala dahildir. `getDefaultLayerZoomRange` ve `getLayerHardMinZoom` eklendi.
@@ -956,7 +956,7 @@ Zemin önbelleği varsayılan olarak 1024 MB ile sınırlıdır ve sınır aşı
 
 ## 0.2x sürümlerinden geçiş
 
-| 0.23 ve öncesi | 1.0.0 |
+| 0.23 ve öncesi | 1.1.0 |
 |---|---|
 | `prime::MapLibrary::Get().Init(InitConfig)` | `XMapManagerFactory::createXMapManager()`, ardından `set...` ve `initialize()` |
 | `MapLibrary::CreateMap()`, `Map::Open()`, `Map::Close()` | `addXMap()`, `XMap::initialize()`, `XMap::close()`, `removeXMap()` |

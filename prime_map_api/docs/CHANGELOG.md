@@ -1,8 +1,8 @@
 # Prime XMap API — Sürüm Notları
 
-## 1.0.0 (2026-11-18)
+## 1.1.0 (2026-11-19)
 
-İlk kararlı sürüm. `map_tests` 34.768 kontrol, 0 hata. Dört derleme ağacı `/W4` ile uyarısız derlenir.
+İlk kararlı sürüm. 1.0.0 numarası daha önceki numaralandırmada kullanıldığı için bu sürüm 1.1.0 olarak yayımlanır. `map_tests` 34.768 kontrol, 0 hata. Dört derleme ağacı `/W4` ile uyarısız derlenir.
 
 **Varsayılan mod**
 - Yeni haritalar Dark modda açılır. Ayar dosyası olan haritalar dosyadaki modu korur.
@@ -44,7 +44,7 @@
 - `map_preview` aracına `--only`, `--no-hard-zoom` ve `--bench` seçenekleri eklendi.
 
 **Belgeler**
-- Kullanım kılavuzu, mimari belgesi ve gereksinim belgesi 1.0.0 için yeniden yazıldı.
+- Kullanım kılavuzu, mimari belgesi ve gereksinim belgesi 1.1.0 için yeniden yazıldı.
 
 ## 0.26.2 (ömür döngüsü güvenliği, zemin rengi düzeltmesi, 2026-11-18)
 

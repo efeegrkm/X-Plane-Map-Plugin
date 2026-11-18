@@ -9,7 +9,7 @@
 > AGENTS.md yalnizca BU aktarim reposunda yasar; Bitbucket'e giden depolarda AGENTS.md,
 > yapay zeka araci izleri, AI kelimesi OLMAZ (taramalar sifir olmali).
 
-## 1. Anlik durum (18.11.2026, v1.0.0)
+## 1. Anlik durum (19.11.2026, v1.1.0; 1.0.0 numarasi eski numaralandirmada kullanildigi icin 1.1.0)
 
 - Dort agac (a22=test, e22=texture-host, api22=api-test/preview) /W4 ile temiz derleniyor
   (a22 plugin + map_tests'i de uretir; ev makinesinde a22/e22/api22 + plugin-api-test t22).

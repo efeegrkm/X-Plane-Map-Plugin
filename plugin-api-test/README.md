@@ -1,6 +1,6 @@
 # plugin-api-test
 
-Prime XMap API'yi X-Plane 11 içinde deneyen test eklentisi. Sürüm 1.0.0.
+Prime XMap API'yi X-Plane 11 içinde deneyen test eklentisi. Sürüm 1.1.0.
 
 Eklenti taşınabilir ve boyutlandırılabilir bir pencere açar ve haritayı `WindowStyle::Texture` ile bu pencerenin içine basar. Fare, tekerlek ve klavye girdileri haritaya `inject*` fonksiyonlarıyla iletilir. Pencerenin düğmeleri ve menü, API'nin bütün çağrılarını tek tek dener.
 

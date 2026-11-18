@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Prime XMap API 1.0.0</title>
+<title>Prime XMap API 1.1.0</title>
 <style>
 :root { --ink: #1c2330; --muted: #5a6474; --line: #d9dee6; --soft: #f4f6f9; --accent: #1f5fa8; }
 * { box-sizing: border-box; }
@@ -51,7 +51,7 @@ a { color: var(--accent); }
 </head>
 <body>
 <main>
-<div class="cover"><h1>Prime XMap API</h1><div class="subtitle">Kullanım Kılavuzu ve Başvuru</div><div class="meta">Sürüm 1.0.0 &middot; 2026-11-18</div></div>
+<div class="cover"><h1>Prime XMap API</h1><div class="subtitle">Kullanım Kılavuzu ve Başvuru</div><div class="meta">Sürüm 1.1.0 &middot; 2026-11-18</div></div>
 <nav class="toc"><div class="toctitle">İçindekiler</div><ul>
 <li><a href="#genel-baks">Genel bakış</a><ul>
 <li><a href="#neler-yaplabilir">Neler yapılabilir</a></li>
@@ -132,7 +132,7 @@ a { color: var(--accent); }
 <li><a href="#sk-sorulan-sorular">Sık sorulan sorular</a></li>
 <li><a href="#snrlar">Sınırlar</a></li>
 <li><a href="#surum-notlar">Sürüm notları</a><ul>
-<li><a href="#100">1.0.0</a></li>
+<li><a href="#110">1.1.0</a></li>
 <li><a href="#02x-surumlerinden-gecis">0.2x sürümlerinden geçiş</a></li>
 </ul>
 </li>
@@ -265,7 +265,7 @@ prime::XMapManagerFactory::destroyXMapManager(gManager);
     64/prime_map.dll
 </code></pre>
 <p>X-Plane açıldığında <code>Log.txt</code> içinde şu satır görünür:</p>
-<pre><code class="language-text">Prime Map API 1.0.0 ready (data: ..., cache: ..., dll: ...\64\prime_map.dll)
+<pre><code class="language-text">Prime Map API 1.1.0 ready (data: ..., cache: ..., dll: ...\64\prime_map.dll)
 </code></pre>
 <p>İlk açılışta havalimanı indeksi birkaç saniye ile yarım dakika arasında oluşturulur; sonraki açılışlarda önbellekten okunur.</p>
 <h1 id="derleme-ve-kurulum">Derleme ve kurulum</h1>
@@ -766,7 +766,7 @@ cmake --build build
 </tr>
 <tr>
 <td><code>std::string prime::versionString()</code></td>
-<td>Yüklü kütüphanenin sürümü, örneğin <code>"1.0.0"</code>.</td>
+<td>Yüklü kütüphanenin sürümü, örneğin <code>"1.1.0"</code>.</td>
 </tr>
 <tr>
 <td><code>std::string prime::libraryPath()</code></td>
@@ -1968,8 +1968,8 @@ map-&gt;setLayerZoomRange(prime::XMapLayer::Runways, 9.0, 99.0);
 <li>Bina ve üç boyutlu nesneler gösterilmez. 180. boylam civarında çizim eksik olabilir. Etiketler ASCII karakterlerle yazılır. ILS yönü gerçek yöndür.</li>
 </ul>
 <h1 id="surum-notlar">Sürüm notları</h1>
-<h2 id="100">1.0.0</h2>
-<p>İlk kararlı sürüm.</p>
+<h2 id="110">1.1.0</h2>
+<p>İlk kararlı sürüm. 1.0.0 numarası daha önceki numaralandırmada kullanıldığı için bu sürüm 1.1.0 olarak yayımlanır.</p>
 <ul>
 <li>Yeni haritalar varsayılan olarak Dark modda açılır. Ayar dosyası olan haritalar dosyadaki modu korur.</li>
 <li>Katmanların görünme eşikleri tek bir tabloda toplandı. Host aralığı yerleşik eşiğin yerine geçer; aşağı çekme ölçülmüş sert alt sınıra kadar serbesttir. VOR, NDB, ILS, fix ve havalimanı sembolleri de bu kurala dahildir. <code>getDefaultLayerZoomRange</code> ve <code>getLayerHardMinZoom</code> eklendi.</li>
@@ -1985,7 +1985,7 @@ map-&gt;setLayerZoomRange(prime::XMapLayer::Runways, 9.0, 99.0);
 <thead>
 <tr>
 <th>0.23 ve öncesi</th>
-<th>1.0.0</th>
+<th>1.1.0</th>
 </tr>
 </thead>
 <tbody>

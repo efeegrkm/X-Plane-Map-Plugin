@@ -1,4 +1,4 @@
-# Prime XMap 1.0.0
+# Prime XMap 1.1.0
 
 Üç kardeş proje:
 
