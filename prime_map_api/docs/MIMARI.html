@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Prime XMap - Mimari (surum 0.26)</title>
+<title>Prime XMap - Mimari (surum 0.26.2)</title>
 <!--
   MIMARI.pdf'in kaynagi. PDF'i yeniden uretmek icin (proje kokunden):
   "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu
@@ -50,7 +50,7 @@
 </head>
 <body>
 <h1>Prime XMap &mdash; Mimari</h1>
-<p class="sub">X-Plane 11 için katmanlı harita kütüphanesi ve API &middot; sürüm 0.26 &middot; kodun nasıl çalıştığı, hangi parçanın ne yaptığı ve parçaların birbirine nasıl bağlandığı</p>
+<p class="sub">X-Plane 11 için katmanlı harita kütüphanesi ve API &middot; sürüm 0.26.2 &middot; kodun nasıl çalıştığı, hangi parçanın ne yaptığı ve parçaların birbirine nasıl bağlandığı</p>
 <p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de; kullanım kılavuzu ve API referansı <code>docs/PrimeMap_API.pdf</code>'tedir.</p>
 
 <h2>İçindekiler</h2>
@@ -585,6 +585,7 @@ her cikti pikseli:
 <tr><td><code>[water] depth_tone / depth_full_meters</code></td><td>0,25 / 200</td><td>Derinliğe göre koyulaşma; kanal ağırlıkları R 1,0 &middot; G 0,8 &middot; B 0,5 (eşit koyulaşma suyu griye çeviriyordu)</td></tr>
 <tr><td><code>[vfr] bands / contour_lines / contour_strength</code></td><td>1 / 0 / 0,35</td><td>Bantlar (0: eski rampa); ince kontur</td></tr>
 <tr><td><code>[vfr] band_1 .. band_8</code></td><td>sectional</td><td>&lt;alt sınır feet&gt; R G B; sınırlar artan olmalı</td></tr>
+<tr><td><code>[built_up] color</code></td><td>—</td><td><code>setColor(TerrainBuiltUp)</code> ile girilen ezme rengi; yerleşim karışımında sınıf renginin yerine kullanılır (0.26.2). Ezme girilmemişse bölüm dosyaya yazılmaz, biçim değişmez.</td></tr>
 </table>
 <p>GERÇEK VERİ (<code>sea_level</code>, 256² hücre merkezli, satır 0 = güney): denizde deniz tabanı yüksekliği gibi davranır (Puget Sound en derin &minus;242 m). Verisi olmayan deniz hücresi &minus;10 (Juneau kanallarının çoğu), göllerde &ge; 0, karadaki değerlerin anlamı yok. DSF'teki <code>bathymetry</code> katmanının adı var ama verisi yok. Biçim belgelenmemiş; anlam ölçümden çıkarıldı, bu yüzden derinlik tonu sadece &minus;10'dan derin hücrelerde uygulanır ve kapatılabilir.</p>
 
@@ -795,7 +796,7 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <tr><td><code>cache/airports/airport_index.bin</code></td><td>apt.dat özet indeksi (silinebilir)</td></tr>
 </table>
 
-<h3>14b. Klasörler ve paylaşım: kim neyi paylaşır (0.26)</h3>
+<h3>14b. Klasörler ve paylaşım: kim neyi paylaşır (0.26.2)</h3>
 <p>Paylaşım birimi <b>yöneticidir</b> (sürüm değil). Aynı yöneticinin haritaları veri depolarını, bellekteki dokuları ve disk önbelleğini anında paylaşır; farklı yöneticiler ise ancak aynı klasörleri gösteriyorlarsa paylaşır. Klasörler:</p>
 <ul>
 <li><b>Veri klasörü</b> (<code>setDataDirectory</code>; boşsa <code>%LOCALAPPDATA%\prime\prime-xmap\</code>): ayar dosyaları (<code>prime_map.json</code>, <code>maps/&lt;ad&gt;/*.json</code>) ve varsayılan önbellek (<code>&lt;veri&gt;/cache/</code>).</li>
@@ -807,7 +808,7 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <tr><td>Aynı süreçte 2 yönetici, aynı klasörler</td><td>ortak</td><td>ortak</td><td>Ayar dosyaları çakışır (son yazan kazanır); initialize bunu Log'a uyarı olarak yazar. Önerilmez.</td></tr>
 <tr><td>Aynı süreçte 2 yönetici, ayrı veri klasörü</td><td>ayrı</td><td>ayrı</td><td>Tam yalıtım; disk önbelleği ikiye bölünür, her yönetici kendi karolarını üretir.</td></tr>
 <tr><td>Aynı süreçte 2 yönetici, ayrı veri + ortak önbellek (<code>setCacheDirectory</code>)</td><td>ayrı</td><td>ortak</td><td>Altın kurulum: ayarlar yalıtık, karo önbelleği tek havuz &mdash; aynı bölge iki kez üretilmez.</td></tr>
-<tr><td>Ayrı süreçler (ör. texture-host + test eklentisi)</td><td>ayrı</td><td>ortak (<code>setCacheDirectory</code>)</td><td>Önbellek paylaşımı güvenlidir: dosyalar deterministik içerikli, okuma tarafı anahtar doğrulaması yapar; Windows açık dosyayı sildiği için yazma çakışması bozulma yaratmaz (yanlış dosya okunmaz, karo yeniden üretilir).</td></tr>
+<tr><td>Ayrı süreçler (ör. texture-host + test eklentisi)</td><td>ayrı</td><td>ortak (<code>setCacheDirectory</code>)</td><td>Önbellek paylaşımı güvenlidir: dosyalar deterministik içerikli, okuma tarafı anahtar doğrulaması yapar; yazımlar geçici dosya + yeniden adlandırma ile atomiktir (0.26.2), yarım dosya kalmaz (yanlış dosya okunmaz, karo yeniden üretilir).</td></tr>
 </table>
 <p><b>Notlar:</b> (1) Ayarlar initialize sırasında bir kez okunur; iki harita arasında canlı eşitleme kütüphane işi değildir &mdash; host, değişikliği her iki haritaya da <code>set...</code> ile bildirir. (2) Aynı ada iki harita aynı veri klasörünü paylaşırsa <code>maps/&lt;ad&gt;/</code> dosyaları çakışır; harita adları aynı veri klasöründe eşsiz olmalıdır. (3) Önbellek klasöründe kilit dosyası yoktur; paylaşım "kural olarak" güvenlidir, kod düzeyinde koruma içerik doğrulamasıdır (bölüm 9.2).</p>
 

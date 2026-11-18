@@ -1,4 +1,4 @@
-# Prime XMap API — Çağrı Listesi (v0.26.0)
+# Prime XMap API — Çağrı Listesi (v0.26.2)
 
 Tam kullanım kılavuzu ve referans: `prime_map_api/docs/PrimeMap_API.pdf`. Bu dosya kısa çağrı listesidir.
 
@@ -26,7 +26,7 @@ prime::XMapManagerFactory::destroyXMapManager(tManager);
 |---|---|
 | `XMapManagerFactory::createXMapManager()` | Yeni yönetici (ve ayrı önbellek bütçeleri). Singleton yoktur |
 | `XMapManagerFactory::destroyXMapManager(m)` | Yöneticiyi ve kalan haritaları bırakır |
-| `prime::versionString()` | `"0.26.0"` |
+| `prime::versionString()` | `"0.26.2"` |
 
 ## 2. XMapManager
 

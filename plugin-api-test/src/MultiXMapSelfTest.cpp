@@ -101,7 +101,7 @@ void MultiXMapSelfTest::runImmediate()
     prime::XMapManager& tLibrary = *mManager;
 
     // --- Kutuphane: surum, klasorler, merkezi ayarlar
-    Check(prime::versionString() == "0.26.0", "VersionString", prime::versionString());
+    Check(prime::versionString() == "0.26.2", "VersionString", prime::versionString());
     Check(!tLibrary.getDataDirectory().empty() && !tLibrary.getCacheDirectory().empty() &&
               !tLibrary.getXMapsDirectory().empty(),
           "data / cache / maps directories", tLibrary.getDataDirectory());
@@ -313,5 +313,37 @@ void MultiXMapSelfTest::runCleanup()
           std::format("{}", tLibrary.getOpenXMapCount()));
     Check(tLibrary.findXMap("selftest_a") == nullptr, "released map is no longer found");
     tLibrary.setSettings(mOriginalSettings);  // prime_map.json eski haline
+
+    // --- LIF-08: shutdown sonrasi genel metot cagrilari guvenli no-op (isaretci gecerli kalir)
+    prime::XMap* tLif08 = tLibrary.addXMap();
+    Check(tLif08 != nullptr, "lif08: map object created");
+    if (tLif08)
+    {
+        tLif08->setName("selftest_lif08");
+        tLif08->setPersistence(prime::Persistence::Off);
+        tLif08->setStyle(prime::WindowStyle::Texture);
+        Check(tLif08->initialize(), "lif08: map opens");
+        tLibrary.shutdown();
+        Check(!tLibrary.isInitialized(), "lif08: manager shut down");
+        Check(tLif08->getId() == 0, "lif08: getId returns 0 after shutdown");
+        Check(tLif08->getName().empty(), "lif08: getName returns empty after shutdown");
+        Check(tLif08->getZoom() == 0.0, "lif08: getZoom returns 0 after shutdown");
+        Check(tLif08->getMode() == prime::XMapMode::Scenery, "lif08: getMode returns default after shutdown");
+        Check(!tLif08->setColor(XMapLayer::Grid, {1, 2, 3}), "lif08: setColor is a no-op after shutdown");
+        Check(tLif08->getColor(XMapLayer::Grid).mR < 0, "lif08: getColor reports no override after shutdown");
+        Check(tLif08->getTextureId() == 0, "lif08: getTextureId returns 0 after shutdown");
+        Check(!tLif08->setTextureSize(64, 64, 1.0), "lif08: setTextureSize is refused after shutdown");
+        Check(!tLif08->initialize(), "lif08: initialize is refused after shutdown");
+        Check(tLif08->exportDrawings().empty(), "lif08: exportDrawings is empty after shutdown");
+        Check(tLif08->getTerrainSettings().mClassColors.empty(),
+              "lif08: terrain settings are default after shutdown");
+        Check(!tLif08->precacheArea(prime::GeoBounds{}), "lif08: precacheArea is a no-op after shutdown");
+        tLif08->setZoom(5.0);  // ikinci dalga: uyari yalnizca ilk cagida yazilir, tekrarlananda sessiz
+        tLif08->clearAllColors();
+        tLif08->injectMouseMove(0, 0);
+        Check(tLif08->getZoom() == 0.0 && !tLif08->isPoppedOut() && !tLif08->wantsKeyboard(),
+              "lif08: repeated calls stay no-op");
+        mManager->removeXMap(tLif08);  // yonetici nesnesi yasar: harita guvenle silinir
+    }
     write(std::format("DONE: {} passed, {} failed", mPassed, mFailed));
 }

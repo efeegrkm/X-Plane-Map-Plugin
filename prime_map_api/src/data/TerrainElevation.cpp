@@ -5,6 +5,7 @@
 #include <cstring>
 #include <fstream>
 
+#include "data/AtomicFile.h"
 #include "data/DsfReader.h"
 #include "data/ElevationCodec.h"
 
@@ -306,18 +307,16 @@ bool ElevationGrid::save(const std::string& pPath, const std::string& pKey) cons
     {
         return false;  // ince seviyeleri birakilmis izgara yazilamaz (tam cozunurluk yok)
     }
-    std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
-    if (!tFile)
-    {
-        return false;
-    }
-    tFile.write(kMagic, 4);
-    writeU32(tFile, kFileVersion);
-    writeU32(tFile, static_cast<uint32_t>(pKey.size()));
-    tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
-    writeGrid(tFile, mBase, mBaseSize);
-    writeGrid(tFile, mSeaLevel, mSeaSize);
-    return static_cast<bool>(tFile);
+    return writeFileAtomic(pPath,
+                           [this, &pKey](std::ofstream& tFile)
+                           {
+                               tFile.write(kMagic, 4);
+                               writeU32(tFile, kFileVersion);
+                               writeU32(tFile, static_cast<uint32_t>(pKey.size()));
+                               tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
+                               writeGrid(tFile, mBase, mBaseSize);
+                               writeGrid(tFile, mSeaLevel, mSeaSize);
+                           });
 }
 
 bool ElevationGrid::load(const std::string& pPath, const std::string& pKey)

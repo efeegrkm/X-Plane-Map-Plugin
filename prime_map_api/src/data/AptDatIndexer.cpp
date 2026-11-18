@@ -1,4 +1,5 @@
 #include "data/AptDatIndexer.h"
+#include "data/AtomicFile.h"
 
 #include <algorithm>
 #include <chrono>
@@ -308,41 +309,39 @@ bool AptDatIndexer::saveCache(const std::string& pPath, const std::string& pKey,
 {
     std::error_code tError;
     std::filesystem::create_directories(std::filesystem::path(pPath).parent_path(), tError);
-    std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
-    if (!tFile)
-    {
-        return false;
-    }
-    BinaryWriter tOut(tFile);
-    tFile.write(kCacheMagic, 4);
-    tOut.value(kCacheVersion);
-    tOut.text(pKey);
-    tOut.value(static_cast<uint32_t>(pIndex.mFiles.size()));
-    for (const std::string& tPath : pIndex.mFiles)
-    {
-        tOut.text(tPath);
-    }
-    tOut.value(static_cast<uint32_t>(pIndex.mAirports.size()));
-    for (const AirportGeometry& tAirport : pIndex.mAirports)
-    {
-        tOut.text(tAirport.mId);
-        tOut.text(tAirport.mIcaoCode);
-        tOut.text(tAirport.mName);
-        tOut.value(tAirport.mType);
-        tOut.value(tAirport.mElevationFt);
-        tOut.value(tAirport.mHasTower);
-        tOut.value(tAirport.mReference);
-        tOut.value(tAirport.mBounds);
-        tOut.value(tAirport.mPavementCount);
-        tOut.value(tAirport.mNodeCount);
-        tOut.value(tAirport.mLocation);
-        tOut.value(static_cast<uint32_t>(tAirport.mRunways.size()));
-        for (const Runway& tRunway : tAirport.mRunways)
-        {
-            writeRunway(tOut, tRunway);
-        }
-    }
-    return static_cast<bool>(tFile);
+    return writeFileAtomic(pPath,
+                           [&pKey, &pIndex](std::ofstream& tFile)
+                           {
+                               BinaryWriter tOut(tFile);
+                               tFile.write(kCacheMagic, 4);
+                               tOut.value(kCacheVersion);
+                               tOut.text(pKey);
+                               tOut.value(static_cast<uint32_t>(pIndex.mFiles.size()));
+                               for (const std::string& tPath : pIndex.mFiles)
+                               {
+                                   tOut.text(tPath);
+                               }
+                               tOut.value(static_cast<uint32_t>(pIndex.mAirports.size()));
+                               for (const AirportGeometry& tAirport : pIndex.mAirports)
+                               {
+                                   tOut.text(tAirport.mId);
+                                   tOut.text(tAirport.mIcaoCode);
+                                   tOut.text(tAirport.mName);
+                                   tOut.value(tAirport.mType);
+                                   tOut.value(tAirport.mElevationFt);
+                                   tOut.value(tAirport.mHasTower);
+                                   tOut.value(tAirport.mReference);
+                                   tOut.value(tAirport.mBounds);
+                                   tOut.value(tAirport.mPavementCount);
+                                   tOut.value(tAirport.mNodeCount);
+                                   tOut.value(tAirport.mLocation);
+                                   tOut.value(static_cast<uint32_t>(tAirport.mRunways.size()));
+                                   for (const Runway& tRunway : tAirport.mRunways)
+                                   {
+                                       writeRunway(tOut, tRunway);
+                                   }
+                               }
+                           });
 }
 
 bool AptDatIndexer::loadCache(const std::string& pPath, const std::string& pKey, AirportIndex& pOut)

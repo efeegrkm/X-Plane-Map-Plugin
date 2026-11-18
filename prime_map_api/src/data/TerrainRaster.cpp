@@ -1,4 +1,5 @@
 #include "data/TerrainRaster.h"
+#include "data/AtomicFile.h"
 
 #include <algorithm>
 #include <array>
@@ -451,10 +452,13 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
                 const float tBuiltUp = pBuffers.mBuiltUp[static_cast<size_t>(tRow) * tSize + tColumn];
                 if (pStyle.mStyle != TerrainStyle::Classes && pStyle.mHasBuiltUp && tBuiltUp > 0.0f)
                 {
+                    // H-01: harita setColor(TerrainBuiltUp) ezmesi varsa onu kullan, yoksa tema rengi
+                    const TerrainColor tBuiltUpColor =
+                        pPalette.hasBuiltUpColor() ? pPalette.builtUpColor() : pStyle.mBuiltUp;
                     const double tMix = kBuiltUpMix * tBuiltUp;
-                    tLand[0] += (pStyle.mBuiltUp.mR - tLand[0]) * tMix;
-                    tLand[1] += (pStyle.mBuiltUp.mG - tLand[1]) * tMix;
-                    tLand[2] += (pStyle.mBuiltUp.mB - tLand[2]) * tMix;
+                    tLand[0] += (tBuiltUpColor.mR - tLand[0]) * tMix;
+                    tLand[1] += (tBuiltUpColor.mG - tLand[1]) * tMix;
+                    tLand[2] += (tBuiltUpColor.mB - tLand[2]) * tMix;
                 }
                 if (tRelief)
                 {
@@ -979,56 +983,59 @@ void TerrainRaster::bleedTransparent(int pSize, std::vector<uint8_t>* pRgba)
 
 bool TerrainRaster::save(const std::string& pPath, const std::string& pKey) const
 {
-    std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
-    if (!tFile)
-    {
-        return false;
-    }
-    tFile.write(kMagic, 4);
-    writeU32(tFile, kFileVersion);
-    writeU32(tFile, static_cast<uint32_t>(pKey.size()));
-    tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
-    writeU32(tFile, static_cast<uint32_t>(mWest + 1000));  // eksi sayi olmasin
-    writeU32(tFile, static_cast<uint32_t>(mSouth + 1000));
+    // Atomik yazi: iki isci ayni karoyu yazsa bile yarim dosya gorunmez (onbellek paylasimi)
+    return writeFileAtomic(pPath,
+                           [this, &pKey](std::ofstream& tFile)
+                           {
+                               tFile.write(kMagic, 4);
+                               writeU32(tFile, kFileVersion);
+                               writeU32(tFile, static_cast<uint32_t>(pKey.size()));
+                               tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
+                               writeU32(tFile, static_cast<uint32_t>(mWest + 1000));  // eksi sayi olmasin
+                               writeU32(tFile, static_cast<uint32_t>(mSouth + 1000));
 
-    // Sinif raster'i: (tekrar sayisi uint16, deger uint8) ciftleri (RLE)
-    std::vector<uint8_t> tRuns;
-    size_t tIndex = 0;
-    while (tIndex < mClasses.size())
-    {
-        const uint8_t tValue = mClasses[tIndex];
-        size_t tRun = 1;
-        while (tIndex + tRun < mClasses.size() && mClasses[tIndex + tRun] == tValue && tRun < 65535)
-        {
-            ++tRun;
-        }
-        tRuns.push_back(static_cast<uint8_t>(tRun & 0xFF));
-        tRuns.push_back(static_cast<uint8_t>(tRun >> 8));
-        tRuns.push_back(tValue);
-        tIndex += tRun;
-    }
-    writeU32(tFile, static_cast<uint32_t>(tRuns.size()));
-    tFile.write(reinterpret_cast<const char*>(tRuns.data()), static_cast<std::streamsize>(tRuns.size()));
+                               // Sinif raster'i: (tekrar sayisi uint16, deger uint8) ciftleri (RLE)
+                               std::vector<uint8_t> tRuns;
+                               size_t tIndex = 0;
+                               while (tIndex < mClasses.size())
+                               {
+                                   const uint8_t tValue = mClasses[tIndex];
+                                   size_t tRun = 1;
+                                   while (tIndex + tRun < mClasses.size() && mClasses[tIndex + tRun] == tValue &&
+                                          tRun < 65535)
+                                   {
+                                       ++tRun;
+                                   }
+                                   tRuns.push_back(static_cast<uint8_t>(tRun & 0xFF));
+                                   tRuns.push_back(static_cast<uint8_t>(tRun >> 8));
+                                   tRuns.push_back(tValue);
+                                   tIndex += tRun;
+                               }
+                               writeU32(tFile, static_cast<uint32_t>(tRuns.size()));
+                               tFile.write(reinterpret_cast<const char*>(tRuns.data()),
+                                           static_cast<std::streamsize>(tRuns.size()));
 
-    // Alan katmani (bossa 0 bayt): ayni RLE
-    tRuns.clear();
-    tIndex = 0;
-    while (tIndex < mAreas.size())
-    {
-        const uint8_t tValue = mAreas[tIndex];
-        size_t tRun = 1;
-        while (tIndex + tRun < mAreas.size() && mAreas[tIndex + tRun] == tValue && tRun < 65535)
-        {
-            ++tRun;
-        }
-        tRuns.push_back(static_cast<uint8_t>(tRun & 0xFF));
-        tRuns.push_back(static_cast<uint8_t>(tRun >> 8));
-        tRuns.push_back(tValue);
-        tIndex += tRun;
-    }
-    writeU32(tFile, static_cast<uint32_t>(tRuns.size()));
-    tFile.write(reinterpret_cast<const char*>(tRuns.data()), static_cast<std::streamsize>(tRuns.size()));
-    return static_cast<bool>(tFile);
+                               // Alan katmani (bossa 0 bayt): ayni RLE
+                               tRuns.clear();
+                               tIndex = 0;
+                               while (tIndex < mAreas.size())
+                               {
+                                   const uint8_t tValue = mAreas[tIndex];
+                                   size_t tRun = 1;
+                                   while (tIndex + tRun < mAreas.size() && mAreas[tIndex + tRun] == tValue &&
+                                          tRun < 65535)
+                                   {
+                                       ++tRun;
+                                   }
+                                   tRuns.push_back(static_cast<uint8_t>(tRun & 0xFF));
+                                   tRuns.push_back(static_cast<uint8_t>(tRun >> 8));
+                                   tRuns.push_back(tValue);
+                                   tIndex += tRun;
+                               }
+                               writeU32(tFile, static_cast<uint32_t>(tRuns.size()));
+                               tFile.write(reinterpret_cast<const char*>(tRuns.data()),
+                                           static_cast<std::streamsize>(tRuns.size()));
+                           });
 }
 
 bool TerrainRaster::load(const std::string& pPath, const std::string& pKey)

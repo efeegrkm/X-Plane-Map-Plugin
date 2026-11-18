@@ -1,7 +1,6 @@
 #include "data/ElevationCodec.h"
 
 #include <cstdlib>
-#include <cstring>
 
 #include "LzmaDec.h"
 #include "LzmaEnc.h"

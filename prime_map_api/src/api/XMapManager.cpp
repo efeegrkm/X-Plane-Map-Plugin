@@ -31,10 +31,37 @@ std::string versionString()
     return std::format("{}.{}.{}", kVersionMajor, kVersionMinor, kVersionPatch);
 }
 
+namespace
+{
+
+// Surec ici yonetici kaydi: ayni klasore cozulen ikinci yoneticinin tespiti icin. Kilit dosyasi
+// YOK; sadece bu surecteki canli yoneticiler tutulur (butun cagilar X-Plane ana thread'inden).
+struct LiveManager
+{
+    const XMapManager* mManager;
+    std::string mData;
+    std::string mCache;
+};
+
+std::vector<LiveManager>& liveManagers()
+{
+    static std::vector<LiveManager> tList;
+    return tList;
+}
+
+}  // namespace
+
 XMapManager::XMapManager() = default;
 
 XMapManager::~XMapManager()
 {
+    // Kayit temizligi: shutdown cagrilmamis olsa da bu yonetici artik canli degil
+    auto& tLive = liveManagers();
+    std::erase_if(tLive,
+                  [this](const LiveManager& pEntry)
+                  {
+                      return pEntry.mManager == this;
+                  });
     // Kalan haritalar: ayarlari yazilir, pencereleri kapanir, nesneleri silinir
     while (!mXMaps.empty())
     {
@@ -100,6 +127,40 @@ bool XMapManager::initialize()
     std::filesystem::create_directories(tConfig.mDataDirectory, tError);
     std::filesystem::create_directories(tConfig.mCacheDirectory, tError);
 
+    // Ayni klasore cozulen ikinci yoneticinin surec ici tespiti (kilit dosyasi yok)
+    auto& tLive = liveManagers();
+    const bool tSameData = std::any_of(tLive.begin(), tLive.end(),
+                                       [&tConfig](const LiveManager& pEntry)
+                                       {
+                                           return pEntry.mData == tConfig.mDataDirectory;
+                                       });
+    if (tSameData)
+    {
+        // AYNI VERI KLASORU: gercek cakisma; prime_map.json ve ayni adli maps/<ad> ayarlari ezilir
+        log("WARNING: a second manager in this process uses the same data directory ({}): settings and "
+            "same-named maps overwrite each other; give each manager its own data directory "
+            "(setDataDirectory) or use distinct map names",
+            tConfig.mDataDirectory);
+    }
+    else
+    {
+        const bool tSameCache = std::any_of(tLive.begin(), tLive.end(),
+                                            [&tConfig](const LiveManager& pEntry)
+                                            {
+                                                return pEntry.mCache == tConfig.mCacheDirectory;
+                                            });
+        if (tSameCache)
+        {
+            // Sadece ayni ONBELLEK klasoru: bilincli kurulum (ayarlar ayri, karolar ortak). Guvenli:
+            // butun onbellek yazimlari atomik (writeFileAtomic), okumada anahtar dogrulanir, yarim
+            // dosya gorunmez; CacheTrim yarismasi kayip dosyayi eksik olarak gorur ve yeniden uretir.
+            log("note: a second manager in this process shares the terrain cache directory ({}); "
+                "settings stay isolated, tiles are shared",
+                tConfig.mCacheDirectory);
+        }
+    }
+    tLive.emplace_back(LiveManager{this, tConfig.mDataDirectory, tConfig.mCacheDirectory});
+
     mData = std::make_unique<XMapData>(tConfig);
     mData->start();
     log("Prime Map API {} ready (data: {}, cache: {})", versionString(), tConfig.mDataDirectory,
@@ -123,6 +184,12 @@ void XMapManager::shutdown()
     }
     mData->stop();
     mData.reset();
+    auto& tLive = liveManagers();
+    std::erase_if(tLive,
+                  [this](const LiveManager& pEntry)
+                  {
+                      return pEntry.mManager == this;
+                  });
     log("Prime Map API stopped");
 }
 

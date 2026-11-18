@@ -149,6 +149,14 @@ public:
     const TerrainVfrParams& vfr() const;
     void setVfr(const TerrainVfrParams& pParams);
 
+    // H-01: yerlesim karisim rengi ezmesi (setColor(TerrainBuiltUp)). Ezme yoksa goruntude
+    // temanin mBuiltUp rengi kullanilir; ezmeli palet farkli anahtarla tani tir (registerPalette),
+    // boylece ilgili dokular yeniden uretilir. [built_up] color = R G B; ezme yokken bolum yazilmaz.
+    bool hasBuiltUpColor() const;
+    TerrainColor builtUpColor() const;
+    void setBuiltUpColor(const TerrainColor& pColor);
+    void clearBuiltUpColor();
+
 private:
     TerrainColor mColors[kTerrainClassCount];
     double mShadingStrength;
@@ -158,6 +166,8 @@ private:
     double mCloseupClassMix;
     bool mLoadedCurrentVersion = true;
     bool mUseXPlaneColors = true;
+    bool mBuiltUpOverride = false;   // setColor(TerrainBuiltUp) ezmesi aktif mi
+    TerrainColor mBuiltUp{0, 0, 0};  // ezme rengi
     TerrainReliefParams mRelief;
     TerrainWaterParams mWater;
     TerrainVfrParams mVfr;

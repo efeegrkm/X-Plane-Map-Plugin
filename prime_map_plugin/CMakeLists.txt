@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)
-project(prime-map-plugin VERSION 0.26 LANGUAGES CXX)
+project(prime-map-plugin VERSION 0.26.2 LANGUAGES CXX)
 
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bilesen klasoru (COTS)")
 if(NOT EXISTS "${COTS_DIR}/X-Plane-SDK" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../cots/X-Plane-SDK")

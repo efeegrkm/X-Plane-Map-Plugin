@@ -9,6 +9,8 @@
 #include <sstream>
 #include <vector>
 
+#include "data/AtomicFile.h"
+
 namespace
 {
 
@@ -260,14 +262,18 @@ bool loadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::strin
     if (!pCachePath.empty())
     {
         Fs::create_directories(Fs::path(pCachePath).parent_path(), tError);
-        std::ofstream tCache(pCachePath, std::ios::trunc);
-        tCache << tKey << "\n";
-        for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
-        {
-            const TerrainColor& tColor = tResult.mColors[tIndex];
-            tCache << tIndex << ' ' << tResult.mTextureCounts[tIndex] << ' ' << static_cast<int>(tColor.mR) << ' '
-                   << static_cast<int>(tColor.mG) << ' ' << static_cast<int>(tColor.mB) << "\n";
-        }
+        writeFileAtomic(pCachePath,
+                        [&tKey, &tResult](std::ofstream& tCache)
+                        {
+                            tCache << tKey << "\n";
+                            for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
+                            {
+                                const TerrainColor& tColor = tResult.mColors[tIndex];
+                                tCache << tIndex << ' ' << tResult.mTextureCounts[tIndex] << ' '
+                                       << static_cast<int>(tColor.mR) << ' ' << static_cast<int>(tColor.mG) << ' '
+                                       << static_cast<int>(tColor.mB) << "\n";
+                            }
+                        });
     }
     return tRead > 0;
 }

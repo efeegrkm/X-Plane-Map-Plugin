@@ -21,7 +21,7 @@ namespace prime
 class XMap;
 
 // C4251 (dll arayuzunde std uyeleri): kutuphane ve host ayni MSVC + /MD ile derlenmek zorunda (README),
-// bu yuzden zararsiz; derleyici bayragi /wd4251 ile tum hedeflerde kapatilir (pragma kullanilmaz).
+// bu yuzden zararsiz; derleyici bayragi /wd4251 ile tum hedeflerde kapatilir.
 
 class PRIME_MAP_EXPORT XMapManager
 {

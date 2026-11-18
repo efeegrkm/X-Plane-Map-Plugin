@@ -1,4 +1,5 @@
 #include "data/TerrainVectors.h"
+#include "data/AtomicFile.h"
 
 #include <algorithm>
 #include <cctype>
@@ -192,6 +193,11 @@ void TerrainVectors::reset(int pWest, int pSouth)
     mAreas.clear();
     mLines.clear();
     mExclusions.clear();
+}
+
+void TerrainVectors::addArea(const VectorArea& pArea)
+{
+    mAreas.push_back(pArea);
 }
 
 int TerrainVectors::west() const
@@ -535,18 +541,18 @@ bool TerrainVectors::save(const std::string& pPath, const std::string& pKey) con
     {
         return false;
     }
-    std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
-    if (!tFile)
-    {
-        return false;
-    }
-    const uint32_t tHeader[3] = {kFileVersion, static_cast<uint32_t>(pKey.size()),
-                                 static_cast<uint32_t>(mWest + 1000) | (static_cast<uint32_t>(mSouth + 1000) << 16)};
-    tFile.write(kMagic, 4);
-    tFile.write(reinterpret_cast<const char*>(tHeader), sizeof(tHeader));
-    tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
-    tFile.write(reinterpret_cast<const char*>(tPacked.data()), static_cast<std::streamsize>(tPacked.size()));
-    return static_cast<bool>(tFile);
+    return writeFileAtomic(pPath,
+                           [this, &pKey, &tPacked](std::ofstream& tFile)
+                           {
+                               const uint32_t tHeader[3] = {kFileVersion, static_cast<uint32_t>(pKey.size()),
+                                                            static_cast<uint32_t>(mWest + 1000) |
+                                                                (static_cast<uint32_t>(mSouth + 1000) << 16)};
+                               tFile.write(kMagic, 4);
+                               tFile.write(reinterpret_cast<const char*>(tHeader), sizeof(tHeader));
+                               tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
+                               tFile.write(reinterpret_cast<const char*>(tPacked.data()),
+                                           static_cast<std::streamsize>(tPacked.size()));
+                           });
 }
 
 bool TerrainVectors::load(const std::string& pPath, const std::string& pKey)

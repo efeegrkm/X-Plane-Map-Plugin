@@ -1,6 +1,5 @@
 #include "layers/AirportSurfaceLayer.h"
 
-#include <algorithm>
 #include <cmath>
 #include <format>
 

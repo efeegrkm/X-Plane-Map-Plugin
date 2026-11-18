@@ -4,13 +4,11 @@
 #include <array>
 #include <chrono>
 #include <cmath>
-#include <cstdio>
 #include <format>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <optional>
-#include <sstream>
 
 #include "XPLMGraphics.h"
 #include "XPLMProcessing.h"

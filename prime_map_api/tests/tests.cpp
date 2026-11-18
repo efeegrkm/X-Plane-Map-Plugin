@@ -85,6 +85,19 @@ bool near(double pA, double pB, double pEpsilon)
     return std::fabs(pA - pB) <= pEpsilon;
 }
 
+// H-04: arka plan isini kosul bazli bekler; ust sinir 30 sn (sabit bekleme yok: is bitince hemen
+// devam eder, yavas ya da yuklu makinede de sinir yetmelidir). Kosul gec de olsa gerceklesmezse
+// test kendi CHECK'inde acikca basarisiz olur.
+template <typename TCond>
+void waitUntil(TCond pCondition)
+{
+    const auto tDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (!pCondition() && std::chrono::steady_clock::now() < tDeadline)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+}
+
 // openGL matris yardimcilari (sutun oncelikli)
 
 struct Mat4
@@ -1363,14 +1376,11 @@ void testAirportGeometryStore()
     CHECK(tStore.isLoading(), "yukleniyor");
 
     bool tDone = false;
-    for (int tTry = 0; tTry < 500 && !tDone; ++tTry)
+    waitUntil([&]
     {
         tDone = tStore.poll();
-        if (!tDone)
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(2));
-        }
-    }
+        return tDone;
+    });
     CHECK(tDone && tStore.isReady() && !tStore.isLoading() && tStore.lastLoadSucceeded(), "yukleme bitti");
     CHECK(!tStore.poll(), "Poll bitisi bir kez bildirir");
     CHECK(tStore.count() == 2 && tStore.runwayCount() == 2, "2 havalimani, 2 pist");
@@ -1472,10 +1482,10 @@ void testAirways()
     }
     AirwayDatabase tAirways;
     tAirways.startLoading({"no_such_awy.dat", tPath}, tNav);
-    for (int tTry = 0; tTry < 500 && !tAirways.poll(); ++tTry)
+    waitUntil([&]
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
-    }
+        return tAirways.poll();
+    });
     std::remove(tPath);
     CHECK(tAirways.isReady() && tAirways.count() == 2, "2 segment cozuldu: %d", tAirways.count());
     CHECK(tAirways.lastReport().find("1 unresolved") != std::string::npos, "rapor: '%s'",
@@ -2562,10 +2572,10 @@ public:
 
 void waitUntilLoaded(AirportGeometryStore& pStore)
 {
-    for (int tTry = 0; tTry < 500 && !pStore.poll(); ++tTry)
+    waitUntil([&]
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
-    }
+        return pStore.poll();
+    });
 }
 
 void testLocalizerMatch()
@@ -3045,6 +3055,30 @@ void testTerrainPaletteSettings()
     tSettings.setDouble("relief", "exaggeration", 999.0);
     tBroken.load(tSettings);
     CHECK(tBroken.relief().mExaggeration <= 20.0, "aralik disi deger sinirlanir");
+
+    // H-01: yerlesim ezmesi (setColor(TerrainBuiltUp) paleti)
+    TerrainPalette tBuiltUpPalette;
+    CHECK(!tBuiltUpPalette.hasBuiltUpColor(), "varsayilan: yerlesim ezmesi yok");
+    tBuiltUpPalette.setBuiltUpColor({255, 10, 20});
+    Settings tBuiltUpSettings;
+    tBuiltUpPalette.save(tBuiltUpSettings);
+    CHECK(tBuiltUpSettings.getString("built_up", "color", "") == "255 10 20",
+          "yerlesim ezmesi [built_up] olarak yazilir");
+    TerrainPalette tBuiltUpLoaded;
+    tBuiltUpLoaded.load(tBuiltUpSettings);
+    CHECK(tBuiltUpLoaded.hasBuiltUpColor() && tBuiltUpLoaded.builtUpColor().mR == 255 &&
+              tBuiltUpLoaded.builtUpColor().mG == 10 && tBuiltUpLoaded.builtUpColor().mB == 20,
+          "yerlesim ezmesi okunur");
+    Settings tPlainSettings;
+    TerrainPalette tPlainPalette2;
+    tPlainPalette2.save(tPlainSettings);
+    CHECK(tPlainSettings.toText({}) != tBuiltUpSettings.toText({}),
+          "ezmeli palet farkli anahtarla tani tir (registerPalette ayrisimi)");
+    tBuiltUpLoaded.clearBuiltUpColor();
+    Settings tClearedSettings;
+    tBuiltUpLoaded.save(tClearedSettings);
+    CHECK(tClearedSettings.getString("built_up", "color", "").empty(),
+          "ezme kalkinca [built_up] yazilmaz");
 }
 
 void testTerrainImageRelief()
@@ -3199,6 +3233,76 @@ void testTerrainImageRelief()
     const TerrainColor& tWaterColor = tShaded.colorOf(TerrainClass::Water);
     CHECK(tDeepImage[tMiddle + 2] < tWaterColor.mB - 5 && tIfrImage[tMiddle + 2] == tIfr.mWater.mB,
           "derin deniz koyu (Scenery), IFR'da duz su rengi");
+}
+
+void testTerrainBuiltUpColor()
+{
+    // H-01: setColor(TerrainBuiltUp) ezmesi zemin goruntusune isler. Yerlesim alanlari vektor
+    // katmanindan gelir (kAreaBuiltUp); IFR (LandWater) stili yerlesimi karisim rengine boyar.
+    TerrainRaster tRaster;
+    tRaster.reset(10, 50);
+    const double tLonA[3] = {10.0, 11.0, 10.0};
+    const double tLatA[3] = {50.0, 50.0, 51.0};
+    const double tLonB[3] = {11.0, 11.0, 10.0};
+    const double tLatB[3] = {50.0, 51.0, 51.0};
+    tRaster.fillTriangle(tLonA, tLatA, TerrainClass::Grass);
+    tRaster.fillTriangle(tLonB, tLatB, TerrainClass::Grass);
+
+    TerrainVectors tVectors;
+    tVectors.reset(10, 50);
+    VectorArea tUrban;
+    tUrban.mClass = TerrainClass::Urban;
+    tUrban.mRingStarts = {0};
+    tUrban.mX = {0.0f, 0.5f, 0.5f, 0.0f};  // karonun bati yarisi
+    tUrban.mY = {0.0f, 0.0f, 1.0f, 1.0f};
+    tUrban.mBounds = {0.0f, 0.0f, 0.5f, 1.0f};
+    tVectors.addArea(tUrban);
+    tRaster.fillAreas(tVectors);
+
+    TerrainImageStyle tStyle;
+    tStyle.mStyle = TerrainStyle::LandWater;
+    tStyle.mLand = {200, 200, 200};
+    tStyle.mWater = {160, 200, 230};
+    tStyle.mHasBuiltUp = true;
+    tStyle.mBuiltUp = {240, 210, 90};  // tema rengi (sectional sari)
+
+    TerrainPalette tBase;
+    Settings tFlat;
+    tFlat.setDouble("shading", "strength", 0.0);
+    tBase.load(tFlat);
+    TerrainPalette tOverride = tBase;
+    tOverride.setBuiltUpColor({255, 0, 0});  // H-01: harita ezmesi kirmizi
+
+    const int tOut = 64;
+    std::vector<uint8_t> tImageBase;
+    std::vector<uint8_t> tImageOverride;
+    tRaster.buildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, tOut, tBase, tStyle, &tImageBase,
+                       nullptr, TerrainRaster::kAreaBuiltUp);
+    tRaster.buildImage(0, 0, TerrainRaster::kSize, TerrainRaster::kSize, tOut, tOverride, tStyle,
+                       &tImageOverride, nullptr, TerrainRaster::kAreaBuiltUp);
+
+    // Sehir yarisi degisir (kirmiziya kayar), cim yarisi piksel piksel ayni kalir
+    int tDiff = 0;
+    int tSame = 0;
+    int tRedUp = 0;
+    for (size_t tPixel = 0; tPixel + 3 < tImageBase.size(); tPixel += 4)
+    {
+        const bool tChanged = tImageBase[tPixel] != tImageOverride[tPixel] ||
+                              tImageBase[tPixel + 1] != tImageOverride[tPixel + 1] ||
+                              tImageBase[tPixel + 2] != tImageOverride[tPixel + 2];
+        if (tChanged)
+        {
+            ++tDiff;
+            tRedUp += tImageOverride[tPixel] > tImageBase[tPixel] ? 1 : 0;
+        }
+        else
+        {
+            ++tSame;
+        }
+    }
+    CHECK(tDiff > tOut * tOut / 4, "yerlesim ezmesi sehir alaninin goruntusunu degistirir (%d piksel)", tDiff);
+    CHECK(tSame >= tOut * tOut / 4, "cim alani etkilenmez (%d piksel ayni)", tSame);
+    CHECK(tRedUp == tDiff, "degisen pikseller ezme renginin kirmizisina kayar (%d/%d)", tRedUp, tDiff);
 }
 
 void testWorldTileMap()
@@ -3767,6 +3871,7 @@ int main()
     testTerrainRelief();
     testTerrainPaletteSettings();
     testTerrainImageRelief();
+    testTerrainBuiltUpColor();
     testWorldTileMap();
     testElevationCache();
     testDsfVectors();

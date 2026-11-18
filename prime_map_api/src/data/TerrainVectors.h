@@ -60,6 +60,7 @@ public:
     int south() const;
 
     bool addFromDsf(const DsfReader& pReader, std::string* pError);
+    void addArea(const VectorArea& pArea);  // hazir alan ekleme (addFromDsf disi kaynaklar ve testler)
     void addExclusions(const DsfInfo& pOverlayInfo);
     void applyNetworkExclusions();  // yollari dislama alanlarina gore keser
 

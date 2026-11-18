@@ -184,6 +184,20 @@ void TerrainPalette::load(const Settings& pSettings)
     mCloseupClassMix = std::clamp(pSettings.getDouble("closeup", "class_mix", kDefaultCloseupClassMix), 0.0,
                                   kMaxCloseupClassMix);
 
+    // [built_up]: yerlesim karisim rengi ezmesi; bolum yoksa tema rengi kullanilir (H-01)
+    mBuiltUpOverride = false;
+    mBuiltUp = {0, 0, 0};
+    const std::string tBuiltUp = pSettings.getString("built_up", "color", "");
+    int tBuiltUpR = 0;
+    int tBuiltUpG = 0;
+    int tBuiltUpB = 0;
+    if (std::sscanf(tBuiltUp.c_str(), "%d %d %d", &tBuiltUpR, &tBuiltUpG, &tBuiltUpB) == 3)
+    {
+        mBuiltUpOverride = true;
+        mBuiltUp = {static_cast<uint8_t>(tBuiltUpR & 255), static_cast<uint8_t>(tBuiltUpG & 255),
+                    static_cast<uint8_t>(tBuiltUpB & 255)};
+    }
+
     // [relief], [water], [vfr]: yoksa varsayilan; araliklar sinirlanir
     const TerrainReliefParams tRelief;
     mRelief.mMultiDirectional = pSettings.getBool("relief", "multi_directional", tRelief.mMultiDirectional);
@@ -266,6 +280,34 @@ void TerrainPalette::save(Settings& pSettings) const
         pSettings.setString("vfr", std::format("band_{}", tBand + 1),
                             std::format("{:.0f} {} {} {}", mVfr.mBandFeet[tBand], tColor.mR, tColor.mG, tColor.mB));
     }
+
+    // H-01: ezme yokken bolum yazilmaz (palet anahtari ve terrain_colors.json degismesin)
+    if (mBuiltUpOverride)
+    {
+        pSettings.setString("built_up", "color", std::format("{} {} {}", mBuiltUp.mR, mBuiltUp.mG, mBuiltUp.mB));
+    }
+}
+
+bool TerrainPalette::hasBuiltUpColor() const
+{
+    return mBuiltUpOverride;
+}
+
+TerrainColor TerrainPalette::builtUpColor() const
+{
+    return mBuiltUp;
+}
+
+void TerrainPalette::setBuiltUpColor(const TerrainColor& pColor)
+{
+    mBuiltUpOverride = true;
+    mBuiltUp = pColor;
+}
+
+void TerrainPalette::clearBuiltUpColor()
+{
+    mBuiltUpOverride = false;
+    mBuiltUp = {0, 0, 0};
 }
 
 const TerrainColor& TerrainPalette::colorOf(TerrainClass pClass) const

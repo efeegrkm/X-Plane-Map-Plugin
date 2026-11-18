@@ -16,8 +16,8 @@ namespace prime
 
 constexpr int kVersionMajor = 0;
 constexpr int kVersionMinor = 26;
-constexpr int kVersionPatch = 0;
-PRIME_MAP_EXPORT std::string versionString();  // "0.26.0"
+constexpr int kVersionPatch = 2;
+PRIME_MAP_EXPORT std::string versionString();  // "0.26.2"
 
 struct LatLon
 {

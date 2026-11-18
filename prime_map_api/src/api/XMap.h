@@ -2,6 +2,10 @@
 // ve ayar dosyalari bu nesnenin icinde; ortak veri (nav, havalimanlari, zemin iscisi, onbellek)
 // XMapData'dadir, katmanlar oraya referansla bakar. Nesneyi yalnizca XMapManager olusturur
 // (addXMap) ve yok eder (removeXMap); butun metotlar X-Plane ana thread'inden cagrilmalidir.
+// LIF-08: yonetici shutdown() ettikten sonra harita isaretcisi GECERLIDIR ama metotlar guvenli
+// no-op'tur (bir kez Log uyarisı, false / bos / varsayilan deger). Buna karsilik removeXMap ya
+// da destroyXMapManager sonrasi isaretci gecersizdir (nesne silinir); bu durum korunamaz, host
+// isaretcisini kullanmamalidir.
 #ifndef PRIME_MAP_SRC_API_XMAP_H
 #define PRIME_MAP_SRC_API_XMAP_H
 
@@ -218,13 +222,16 @@ private:
     RectI savedGeometry() const;      // kaydedilecek yer (pop-out'ta X-Plane icindeki son yer)
     uint64_t stateSignature() const;  // revizyon sayaclarinin gormedigi degisiklikler (yer, gorunurluk)
     void teardown();                  // shutdown: dosyalari yaz, pencereyi ve motor parcalarini birak
+    bool alive(const char* pWho) const;  // LIF-08: shutdown sonrasi cagrilar icin ortak koruma
     void update(float pNow);          // flight loop'tan her karede (XMapData)
     std::string folderName() const;   // ayar klasoru adi: safeFolderName(name), bos ise map_<id>
     static std::string safeFolderName(const std::string& pName);
     bool saveNow();                   // tum dosyalari hemen yazar
     void markChanged();               // API ile yapilan degisiklik: otomatik kaydi tetikler
+    void applyBuiltUpPalette();       // H-01: yerlesim rengini zemin paletine tasi (dokular yenilenir)
 
     XMapData& mData;
+    std::string mMapsDirectory;    // kurulumda alindi (shutdown sonrasi getSettingsDirectory icin)
     int mId = 0;
     std::string mName;
     Persistence mPersistence = Persistence::LoadAndSave;
@@ -252,6 +259,7 @@ private:
 
     std::atomic<bool> mIsDataLoaded{false};
     bool mTextureWarned = false;      // renderTexture yanlis stilde: uyari bir kez (her karede cagrilir)
+    mutable bool mShutdownWarned = false;  // LIF-08: shutdown sonrasi ilk no-op cagrida bir kez uyari
     XMapManager* mManager = nullptr;  // sahibi; yok olurken kendini listeden dusurur
 };
 

@@ -144,6 +144,7 @@ XMap::XMap(XMapData& pData, int pId)
       mId(pId)
 {
     mDataLoadedFlag = &mIsDataLoaded;
+    mMapsDirectory = pData.mapsDirectory();  // shutdown sonrasi yol sorgusu icin (mData gecersiz olur)
     mAircraft = std::make_unique<AircraftData>();
     mAircraft->init();
     mDrawings = std::make_unique<Drawings>();
@@ -173,7 +174,7 @@ XMap::~XMap()
     }
 }
 
-// shutdown: nesne yasar ama motoru bosaltir; sonrasindaki API cagrilari no-op
+// shutdown: nesne yasar ama motoru bosaltir; sonrasindaki API cagrilari alive() ile guvenli no-op
 void XMap::teardown()
 {
     close();
@@ -186,6 +187,24 @@ void XMap::teardown()
     mAircraft.reset();
     mDrawings.reset();
     mPalette.reset();
+}
+
+// LIF-08: shutdown sonrasi genel metot cagrilari icin ortak koruma. Motor (mLayers) bosaltildiysa
+// bir kez Log'a uyari yazar ve false doner; metot islem yapmadan false / bos / varsayilan degerini
+// verir. Tekrarlayan cagrilarda sessizdir. NOT: removeXMap / destroyXMapManager sonrasi isaretci
+// gecersizdir (nesne silinir); o durum kod tarafindan korunamaz.
+bool XMap::alive(const char* pWho) const
+{
+    if (mLayers)
+    {
+        return true;
+    }
+    if (!mShutdownWarned)
+    {
+        mShutdownWarned = true;
+        log("WARNING: XMap::{}: map {} is shut down; the call is ignored", pWho, mId);
+    }
+    return false;
 }
 
 void XMap::createLayers()
@@ -224,12 +243,16 @@ void XMap::createLayers()
 
 int XMap::getId() const
 {
-    return mLayers ? mId : 0;
+    if (!alive("getId"))
+    {
+        return 0;
+    }
+    return mId;
 }
 
 bool XMap::setName(const std::string& pName)
 {
-    if (!mLayers)
+    if (!alive("setName"))
     {
         return false;
     }
@@ -254,16 +277,28 @@ bool XMap::setName(const std::string& pName)
 
 std::string XMap::getName() const
 {
+    if (!alive("getName"))
+    {
+        return "";
+    }
     return mName;
 }
 
 std::string XMap::getSettingsDirectory() const
 {
-    return mData.mapsDirectory() + folderName() + "/";
+    if (!alive("getSettingsDirectory"))
+    {
+        return "";
+    }
+    return mMapsDirectory + folderName() + "/";
 }
 
 void XMap::setPersistence(Persistence pPersistence)
 {
+    if (!alive("setPersistence"))
+    {
+        return;
+    }
     mPersistence = pPersistence;
 }
 
@@ -274,11 +309,19 @@ Persistence XMap::getPersistence() const
 
 bool XMap::saveSettings()
 {
+    if (!alive("saveSettings"))
+    {
+        return false;
+    }
     return saveNow();
 }
 
 bool XMap::initialize()
 {
+    if (!alive("initialize"))
+    {
+        return false;
+    }
     if (mWindow->isCreated())
     {
         return true;
@@ -347,6 +390,10 @@ bool XMap::isInitialized() const
 
 void XMap::setStyle(WindowStyle pStyle)
 {
+    if (!alive("setStyle"))
+    {
+        return;
+    }
     // Texture, arayuz davranisinda Embedded gibidir (host yerlestirir, "Controls" dugmesi yok)
     mWindow->setEmbedded(pStyle != WindowStyle::Standalone);  // acik haritada uyari loglar, degistirmez
     mWindow->setTextureMode(pStyle == WindowStyle::Texture);
@@ -363,6 +410,10 @@ WindowStyle XMap::getStyle() const
 
 void XMap::setTitle(const std::string& pTitle)
 {
+    if (!alive("setTitle"))
+    {
+        return;
+    }
     mWindow->setTitle(pTitle);
 }
 
@@ -373,6 +424,10 @@ std::string XMap::getTitle() const
 
 void XMap::setGeometry(const Geometry& pGeometry)
 {
+    if (!alive("setGeometry"))
+    {
+        return;
+    }
     mWindow->setGeometry(toRect(pGeometry));
 }
 
@@ -389,57 +444,101 @@ Geometry XMap::getGeometry() const
 
 void XMap::setVisible(bool pVisible)
 {
+    if (!alive("setVisible"))
+    {
+        return;
+    }
     mWindow->setVisible(pVisible);
 }
 
 bool XMap::isVisible() const
 {
+    if (!alive("isVisible"))
+    {
+        return false;
+    }
     return mWindow->isVisible();
 }
 
 void XMap::bringToFront()
 {
+    if (!alive("bringToFront"))
+    {
+        return;
+    }
     mWindow->bringToFront();
 }
 
 void XMap::setPoppedOut(bool pPoppedOut)
 {
+    if (!alive("setPoppedOut"))
+    {
+        return;
+    }
     mWindow->setPoppedOut(pPoppedOut);
 }
 
 bool XMap::isPoppedOut() const
 {
+    if (!alive("isPoppedOut"))
+    {
+        return false;
+    }
     return mWindow->isPoppedOut();
 }
 
 void XMap::setIsUiVisible(bool pVisible)
 {
+    if (!alive("setIsUiVisible"))
+    {
+        return;
+    }
     mWindow->setUiVisible(pVisible);
 }
 
 bool XMap::isUiVisible() const
 {
+    if (!alive("isUiVisible"))
+    {
+        return false;
+    }
     return mWindow->isUiVisible();
 }
 
 void XMap::setIsMouseInputEnabled(bool pEnabled)
 {
+    if (!alive("setIsMouseInputEnabled"))
+    {
+        return;
+    }
     mWindow->setMouseInput(pEnabled);
 }
 
 bool XMap::isMouseInputEnabled() const
 {
+    if (!alive("isMouseInputEnabled"))
+    {
+        return false;
+    }
     return mWindow->isMouseInputEnabled();
 }
 
 void XMap::setCenter(double pLat, double pLon)
 {
+    if (!alive("setCenter"))
+    {
+        return;
+    }
     mWindow->setFollowAircraft(false);  // takip acik kalirsa harita hemen ucaga doner
     mWindow->view().setCenter({pLat, pLon});
 }
 
 LatLon XMap::getCenter() const
 {
+    if (!alive("getCenter"))
+    {
+        return LatLon{};
+    }
     LatLon tCenter;
     const ::LatLon tInner = mWindow->view().center();
     tCenter.mLat = tInner.mLat;
@@ -449,11 +548,19 @@ LatLon XMap::getCenter() const
 
 void XMap::setZoom(double pZoom)
 {
+    if (!alive("setZoom"))
+    {
+        return;
+    }
     mWindow->view().setZoom(pZoom);
 }
 
 double XMap::getZoom() const
 {
+    if (!alive("getZoom"))
+    {
+        return 0.0;
+    }
     return mWindow->view().zoom();
 }
 
@@ -474,6 +581,10 @@ double XMap::hardMaxZoom()
 
 bool XMap::setZoomLimits(double pMinZoom, double pMaxZoom)
 {
+    if (!alive("setZoomLimits"))
+    {
+        return false;
+    }
     if (!(pMinZoom <= pMaxZoom))
     {
         log("WARNING: setZoomLimits: min {} is greater than max {}", pMinZoom, pMaxZoom);
@@ -485,26 +596,46 @@ bool XMap::setZoomLimits(double pMinZoom, double pMaxZoom)
 
 double XMap::getMinZoomLimit() const
 {
+    if (!alive("getMinZoomLimit"))
+    {
+        return 0.0;
+    }
     return mWindow->view().minZoomLimit();
 }
 
 double XMap::getMaxZoomLimit() const
 {
+    if (!alive("getMaxZoomLimit"))
+    {
+        return 0.0;
+    }
     return mWindow->view().maxZoomLimit();
 }
 
 void XMap::zoomIn()
 {
+    if (!alive("zoomIn"))
+    {
+        return;
+    }
     setZoom(getZoom() + getZoomStep());
 }
 
 void XMap::zoomOut()
 {
+    if (!alive("zoomOut"))
+    {
+        return;
+    }
     setZoom(getZoom() - getZoomStep());
 }
 
 void XMap::setZoomStep(double pStep)
 {
+    if (!alive("setZoomStep"))
+    {
+        return;
+    }
     if (pStep > 0.0 && pStep <= 5.0)
     {
         mWindow->setZoomStep(pStep);
@@ -517,33 +648,57 @@ void XMap::setZoomStep(double pStep)
 
 double XMap::getZoomStep() const
 {
+    if (!alive("getZoomStep"))
+    {
+        return 0.0;
+    }
     return mWindow->zoomStep();
 }
 
 void XMap::panLeft()
 {
+    if (!alive("panLeft"))
+    {
+        return;
+    }
     // Sola bakmak = harita icerigi saga kayar
     panBy(getGeometry().mWidth * getPanStep(), 0.0);
 }
 
 void XMap::panRight()
 {
+    if (!alive("panRight"))
+    {
+        return;
+    }
     panBy(-getGeometry().mWidth * getPanStep(), 0.0);
 }
 
 void XMap::panUp()
 {
+    if (!alive("panUp"))
+    {
+        return;
+    }
     // Kuzeye bakmak = icerik asagi kayar (y yukari artar)
     panBy(0.0, -getGeometry().mHeight * getPanStep());
 }
 
 void XMap::panDown()
 {
+    if (!alive("panDown"))
+    {
+        return;
+    }
     panBy(0.0, getGeometry().mHeight * getPanStep());
 }
 
 void XMap::setPanStep(double pFractionOfView)
 {
+    if (!alive("setPanStep"))
+    {
+        return;
+    }
     if (pFractionOfView > 0.0 && pFractionOfView <= 1.0)
     {
         mWindow->setPanStep(pFractionOfView);
@@ -556,17 +711,29 @@ void XMap::setPanStep(double pFractionOfView)
 
 double XMap::getPanStep() const
 {
+    if (!alive("getPanStep"))
+    {
+        return 0.0;
+    }
     return mWindow->panStep();
 }
 
 void XMap::panBy(double pDeltaX, double pDeltaY)
 {
+    if (!alive("panBy"))
+    {
+        return;
+    }
     mWindow->setFollowAircraft(false);  // elle kaydirma gibi: takip biter
     mWindow->view().panByBoxels(pDeltaX, pDeltaY);
 }
 
 void XMap::fitBounds(const GeoBounds& pBounds)
 {
+    if (!alive("fitBounds"))
+    {
+        return;
+    }
     if (pBounds.mNorth <= pBounds.mSouth || pBounds.mEast <= pBounds.mWest)
     {
         log("WARNING: fitBounds: empty or invalid area");
@@ -596,6 +763,10 @@ void XMap::fitBounds(const GeoBounds& pBounds)
 
 GeoBounds XMap::getVisibleBounds() const
 {
+    if (!alive("getVisibleBounds"))
+    {
+        return GeoBounds{};
+    }
     GeoBounds tBounds;
     const ::GeoBounds tInner = mWindow->view().visibleBounds();
     tBounds.mSouth = tInner.mSouth;
@@ -607,11 +778,19 @@ GeoBounds XMap::getVisibleBounds() const
 
 double XMap::getMetersPerBoxel() const
 {
+    if (!alive("getMetersPerBoxel"))
+    {
+        return 0.0;
+    }
     return mWindow->view().metersPerBoxel();
 }
 
 void XMap::setFollowAircraft(bool pFollow)
 {
+    if (!alive("setFollowAircraft"))
+    {
+        return;
+    }
     mWindow->setFollowAircraft(pFollow);
 }
 
@@ -622,11 +801,19 @@ bool XMap::isFollowingAircraft() const
 
 void XMap::centerOnAircraft()
 {
+    if (!alive("centerOnAircraft"))
+    {
+        return;
+    }
     mWindow->centerOnAircraft();
 }
 
 bool XMap::goToAirport(const std::string& pIdent)
 {
+    if (!alive("goToAirport"))
+    {
+        return false;
+    }
     const AirportGeometryStore& tAirports = mData.airports();
     const std::string tWanted = api::upper(pIdent);
     for (int tIndex : ::findAirports(tAirports, pIdent, 8))
@@ -643,6 +830,10 @@ bool XMap::goToAirport(const std::string& pIdent)
 
 std::vector<AirportMatch> XMap::findAirports(const std::string& pQuery, int pMaxResults) const
 {
+    if (!alive("findAirports"))
+    {
+        return {};
+    }
     std::vector<AirportMatch> tMatches;
     const AirportGeometryStore& tAirports = mData.airports();
     for (int tIndex : ::findAirports(tAirports, pQuery, std::max(0, pMaxResults)))
@@ -661,6 +852,10 @@ std::vector<AirportMatch> XMap::findAirports(const std::string& pQuery, int pMax
 
 LatLon XMap::screenToGeo(int pX, int pY) const
 {
+    if (!alive("screenToGeo"))
+    {
+        return LatLon{};
+    }
     LatLon tPoint;
     const ::LatLon tInner = mWindow->view().boxelToLatLon(pX, pY);
     tPoint.mLat = tInner.mLat;
@@ -670,6 +865,10 @@ LatLon XMap::screenToGeo(int pX, int pY) const
 
 bool XMap::geoToScreen(double pLat, double pLon, int* pX, int* pY) const
 {
+    if (!alive("geoToScreen"))
+    {
+        return false;
+    }
     if (!pX || !pY)
     {
         return false;
@@ -685,21 +884,37 @@ bool XMap::geoToScreen(double pLat, double pLon, int* pX, int* pY) const
 
 void XMap::setMode(XMapMode pMode)
 {
+    if (!alive("setMode"))
+    {
+        return;
+    }
     mWindow->setMapMode(static_cast<::XMapMode>(pMode));
 }
 
 XMapMode XMap::getMode() const
 {
+    if (!alive("getMode"))
+    {
+        return XMapMode::Scenery;
+    }
     return static_cast<XMapMode>(mWindow->getMapMode());
 }
 
 void XMap::nextMode()
 {
+    if (!alive("nextMode"))
+    {
+        return;
+    }
     mWindow->nextMapMode();
 }
 
 void XMap::setIsLayerVisible(XMapLayer pLayer, bool pVisible)
 {
+    if (!alive("setIsLayerVisible"))
+    {
+        return;
+    }
     if (LayerRules::setVisible(*mLayers, themeFor(mWindow->getMapMode()), pLayer, pVisible))
     {
         mWindow->saveSettings();
@@ -708,11 +923,19 @@ void XMap::setIsLayerVisible(XMapLayer pLayer, bool pVisible)
 
 bool XMap::isLayerVisible(XMapLayer pLayer) const
 {
+    if (!alive("isLayerVisible"))
+    {
+        return false;
+    }
     return LayerRules::isVisible(*mLayers, pLayer);
 }
 
 void XMap::toggleLayer(XMapLayer pLayer)
 {
+    if (!alive("toggleLayer"))
+    {
+        return;
+    }
     if (LayerRules::toggle(*mLayers, themeFor(mWindow->getMapMode()), pLayer))
     {
         mWindow->saveSettings();
@@ -721,6 +944,10 @@ void XMap::toggleLayer(XMapLayer pLayer)
 
 void XMap::setLayersVisible(std::initializer_list<XMapLayer> pLayers, bool pVisible)
 {
+    if (!alive("setLayersVisible"))
+    {
+        return;
+    }
     for (XMapLayer tLayer : pLayers)
     {
         setIsLayerVisible(tLayer, pVisible);
@@ -729,22 +956,38 @@ void XMap::setLayersVisible(std::initializer_list<XMapLayer> pLayers, bool pVisi
 
 void XMap::showOnlyLayers(std::initializer_list<XMapLayer> pLayers)
 {
+    if (!alive("showOnlyLayers"))
+    {
+        return;
+    }
     LayerRules::showOnly(*mLayers, themeFor(mWindow->getMapMode()), pLayers.begin(), pLayers.end());
     mWindow->saveSettings();
 }
 
 void XMap::resetLayersToDefaults()
 {
+    if (!alive("resetLayersToDefaults"))
+    {
+        return;
+    }
     mWindow->resetLayers();
 }
 
 LayerState XMap::getLayerState(XMapLayer pLayer) const
 {
+    if (!alive("getLayerState"))
+    {
+        return LayerState{};
+    }
     return LayerRules::state(*mLayers, pLayer);
 }
 
 bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
 {
+    if (!alive("setLayerZoomRange"))
+    {
+        return false;
+    }
     if (!(pMinZoom <= pMaxZoom))
     {
         log("WARNING: setLayerZoomRange: min {} is greater than max {}", pMinZoom, pMaxZoom);
@@ -784,6 +1027,18 @@ bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
 
 void XMap::getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const
 {
+    if (!alive("getLayerZoomRange"))
+    {
+        if (pMinZoom)
+        {
+            *pMinZoom = Layer::kNoMinZoom;
+        }
+        if (pMaxZoom)
+        {
+            *pMaxZoom = Layer::kNoMaxZoom;
+        }
+        return;
+    }
     double tMin = Layer::kNoMinZoom;
     double tMax = Layer::kNoMaxZoom;
     XMapLayer tItem = pLayer;
@@ -815,23 +1070,39 @@ void XMap::clearLayerZoomRange(XMapLayer pLayer)
 
 void XMap::clearAllLayerZoomRanges()
 {
+    if (!alive("clearAllLayerZoomRanges"))
+    {
+        return;
+    }
     mLayers->resetZoomRanges();
     mWindow->saveSettings();
 }
 
 void XMap::setDrawTool(DrawTool pTool)
 {
+    if (!alive("setDrawTool"))
+    {
+        return;
+    }
     mDrawings->setMode(static_cast<Drawings::Mode>(pTool));  // yarim cizim biter
     mWindow->drawingsChanged();
 }
 
 DrawTool XMap::getDrawTool() const
 {
+    if (!alive("getDrawTool"))
+    {
+        return DrawTool::Pan;
+    }
     return static_cast<DrawTool>(mDrawings->getMode());
 }
 
 bool XMap::addDrawingPoint(double pLat, double pLon)
 {
+    if (!alive("addDrawingPoint"))
+    {
+        return false;
+    }
     if (mDrawings->getMode() == Drawings::Mode::Pan)
     {
         return false;
@@ -843,6 +1114,10 @@ bool XMap::addDrawingPoint(double pLat, double pLon)
 
 bool XMap::finishDrawing()
 {
+    if (!alive("finishDrawing"))
+    {
+        return false;
+    }
     if (!mDrawings->current())
     {
         return false;
@@ -854,6 +1129,10 @@ bool XMap::finishDrawing()
 
 bool XMap::undoDrawing()
 {
+    if (!alive("undoDrawing"))
+    {
+        return false;
+    }
     if (!mDrawings->current() && mDrawings->shapeCount() == 0)
     {
         return false;
@@ -865,17 +1144,29 @@ bool XMap::undoDrawing()
 
 void XMap::clearDrawings()
 {
+    if (!alive("clearDrawings"))
+    {
+        return;
+    }
     mDrawings->clear();
     mWindow->drawingsChanged();
 }
 
 bool XMap::hasUnfinishedDrawing() const
 {
+    if (!alive("hasUnfinishedDrawing"))
+    {
+        return false;
+    }
     return mDrawings->current() != nullptr;
 }
 
 std::vector<Shape> XMap::getShapes() const
 {
+    if (!alive("getShapes"))
+    {
+        return {};
+    }
     std::vector<Shape> tShapes;
     for (const Drawings::Shape& tInner : mDrawings->shapes())
     {
@@ -894,6 +1185,10 @@ std::vector<Shape> XMap::getShapes() const
 
 bool XMap::removeShape(int pId)
 {
+    if (!alive("removeShape"))
+    {
+        return false;
+    }
     const int tKind = pId / kShapeIdBase;
     if (tKind < 0 || tKind > 2 ||
         !mDrawings->remove(static_cast<Drawings::ShapeKind>(tKind), pId % kShapeIdBase))
@@ -912,6 +1207,10 @@ std::string XMap::exportDrawings() const
 
 bool XMap::importDrawings(const std::string& pText)
 {
+    if (!alive("importDrawings"))
+    {
+        return false;
+    }
     const int tCount = mDrawings->deserialize(pText);
     mWindow->drawingsChanged();
     log("drawings imported: {} shapes", tCount);
@@ -920,17 +1219,29 @@ bool XMap::importDrawings(const std::string& pText)
 
 void XMap::setAircraftSource(DataSource pSource)
 {
+    if (!alive("setAircraftSource"))
+    {
+        return;
+    }
     mAircraft->setFromHost(pSource == DataSource::Host);
     markChanged();
 }
 
 DataSource XMap::getAircraftSource() const
 {
+    if (!alive("getAircraftSource"))
+    {
+        return DataSource::XPlane;
+    }
     return mAircraft->isFromHost() ? DataSource::Host : DataSource::XPlane;
 }
 
 void XMap::setAircraft(const AircraftState& pState)
 {
+    if (!alive("setAircraft"))
+    {
+        return;
+    }
     ::AircraftState tInner;
     tInner.mValid = pState.mValid;
     tInner.mPosition = {pState.mPosition.mLat, pState.mPosition.mLon};
@@ -942,6 +1253,10 @@ void XMap::setAircraft(const AircraftState& pState)
 
 AircraftState XMap::getAircraft() const
 {
+    if (!alive("getAircraft"))
+    {
+        return AircraftState{};
+    }
     AircraftState tState;
     const ::AircraftState& tInner = mAircraft->state();
     tState.mValid = tInner.mValid;
@@ -954,30 +1269,36 @@ AircraftState XMap::getAircraft() const
 
 void XMap::clearTrack()
 {
-    if (mTrackLayer)
+    if (!alive("clearTrack"))
     {
-        mTrackLayer->clear();
-        log("flight track cleared (map {})", mId);
+        return;
     }
+    mTrackLayer->clear();
+    log("flight track cleared (map {})", mId);
 }
 
 void XMap::setRouteSource(DataSource pSource)
 {
-    if (mFmsLayer)
+    if (!alive("setRouteSource"))
     {
-        mFmsLayer->setFromHost(pSource == DataSource::Host);
-        markChanged();
+        return;
     }
+    mFmsLayer->setFromHost(pSource == DataSource::Host);
+    markChanged();
 }
 
 DataSource XMap::getRouteSource() const
 {
-    return (mFmsLayer && mFmsLayer->isFromHost()) ? DataSource::Host : DataSource::XPlane;
+    if (!alive("getRouteSource"))
+    {
+        return DataSource::XPlane;
+    }
+    return mFmsLayer->isFromHost() ? DataSource::Host : DataSource::XPlane;
 }
 
 void XMap::setRoute(const std::vector<RouteWaypoint>& pWaypoints, int pActiveIndex)
 {
-    if (!mFmsLayer)
+    if (!alive("setRoute"))
     {
         return;
     }
@@ -996,6 +1317,10 @@ void XMap::setRoute(const std::vector<RouteWaypoint>& pWaypoints, int pActiveInd
 
 std::vector<XMapObject> XMap::queryAt(double pLat, double pLon) const
 {
+    if (!alive("queryAt"))
+    {
+        return {};
+    }
     int tX = 0;
     int tY = 0;
     if (!geoToScreen(pLat, pLon, &tX, &tY))
@@ -1007,6 +1332,10 @@ std::vector<XMapObject> XMap::queryAt(double pLat, double pLon) const
 
 std::vector<XMapObject> XMap::queryAtScreen(int pX, int pY) const
 {
+    if (!alive("queryAtScreen"))
+    {
+        return {};
+    }
     std::vector<XMapObject> tObjects;
     if (!mWindow->isCreated())
     {
@@ -1024,36 +1353,64 @@ std::vector<XMapObject> XMap::queryAtScreen(int pX, int pY) const
 
 void XMap::setImageCache(bool pEnabled)
 {
+    if (!alive("setImageCache"))
+    {
+        return;
+    }
     mWindow->setImageCacheEnabled(pEnabled);
 }
 
 bool XMap::isImageCacheEnabled() const
 {
+    if (!alive("isImageCacheEnabled"))
+    {
+        return false;
+    }
     return mWindow->isImageCacheEnabled();
 }
 
 void XMap::setMaxRenderFps(int pFps)
 {
+    if (!alive("setMaxRenderFps"))
+    {
+        return;
+    }
     mWindow->setMaxRenderFps(pFps);
 }
 
 int XMap::getMaxRenderFps() const
 {
+    if (!alive("getMaxRenderFps"))
+    {
+        return 0;
+    }
     return mWindow->maxRenderFps();
 }
 
 void XMap::setXPlaneFont(bool pXPlaneFont)
 {
+    if (!alive("setXPlaneFont"))
+    {
+        return;
+    }
     mWindow->setXPlaneFont(pXPlaneFont);
 }
 
 bool XMap::isXPlaneFont() const
 {
+    if (!alive("isXPlaneFont"))
+    {
+        return false;
+    }
     return mWindow->usesXPlaneFont();
 }
 
 std::string XMap::exportSettings() const
 {
+    if (!alive("exportSettings"))
+    {
+        return "";
+    }
     storeExtraSections();
     mWindow->saveSettings();
     return mWindow->settingsStore().toText({kWindowSection, "view", "render", "text", "tools", "layers*",
@@ -1062,6 +1419,10 @@ std::string XMap::exportSettings() const
 
 bool XMap::importSettings(const std::string& pText)
 {
+    if (!alive("importSettings"))
+    {
+        return false;
+    }
     mWindow->importSettings(pText);
     // [window] / [sources] sadece metinde varsa uygulanir (importSettings bellekteki ayarlara ekledi)
     Settings tGiven;
@@ -1123,6 +1484,10 @@ TerrainSettings XMap::getTerrainSettings() const
 
 void XMap::setTerrainSettings(const TerrainSettings& pSettings)
 {
+    if (!alive("setTerrainSettings"))
+    {
+        return;
+    }
     Settings tStore;
     mPalette->save(tStore);  // [palette] version ve bilinmeyen anahtarlar korunur
     tStore.setString("palette", "source", pSettings.mUseXPlaneColors ? "xplane" : "colors");
@@ -1162,6 +1527,10 @@ void XMap::setTerrainSettings(const TerrainSettings& pSettings)
 
 std::string XMap::exportTerrainSettings() const
 {
+    if (!alive("exportTerrainSettings"))
+    {
+        return "";
+    }
     Settings tColors;
     mPalette->save(tColors);
     return tColors.toText({});
@@ -1169,10 +1538,21 @@ std::string XMap::exportTerrainSettings() const
 
 bool XMap::importTerrainSettings(const std::string& pText)
 {
+    if (!alive("importTerrainSettings"))
+    {
+        return false;
+    }
     Settings tColors;
     tColors.loadText(pText);
     TerrainPalette tPalette;
+    // H-01: yerlesim ezmesi katman rengidir, TerrainSettings'te tasinmaz; aktarimda koru
+    const bool tHadBuiltUp = mPalette->hasBuiltUpColor();
+    const TerrainColor tBuiltUp = mPalette->builtUpColor();
     tPalette.load(tColors);
+    if (tHadBuiltUp)
+    {
+        tPalette.setBuiltUpColor(tBuiltUp);
+    }
     *mPalette = tPalette;
     mPaletteId = mData.registerPalette(mPalette.get());  // X-Plane renkleri uygulanir; ayni ayar = ayni numara
     if (mTerrainLayer)
@@ -1190,21 +1570,37 @@ bool XMap::importTerrainSettings(const std::string& pText)
 
 uint64_t XMap::getSettingsRevision() const
 {
+    if (!alive("getSettingsRevision"))
+    {
+        return 0;
+    }
     return mWindow->settingsRevision();
 }
 
 uint64_t XMap::getDrawingsRevision() const
 {
+    if (!alive("getDrawingsRevision"))
+    {
+        return 0;
+    }
     return mWindow->drawingsRevision();
 }
 
 std::string XMap::getStatusText() const
 {
+    if (!alive("getStatusText"))
+    {
+        return "";
+    }
     return mStatusText;
 }
 
 int XMap::getTerrainPendingImages() const
 {
+    if (!alive("getTerrainPendingImages"))
+    {
+        return 0;
+    }
     return (mTerrainLayer && mTerrainLayer->isVisible() && mWindow->isVisible())
                ? mTerrainLayer->pendingTextureCount()
                : 0;
@@ -1212,11 +1608,19 @@ int XMap::getTerrainPendingImages() const
 
 bool XMap::precacheVisibleArea()
 {
+    if (!alive("precacheVisibleArea"))
+    {
+        return false;
+    }
     return precacheArea(getVisibleBounds());
 }
 
 bool XMap::precacheArea(const GeoBounds& pArea)
 {
+    if (!alive("precacheArea"))
+    {
+        return false;
+    }
     ::GeoBounds tInner;
     tInner.mSouth = pArea.mSouth;
     tInner.mWest = pArea.mWest;
@@ -1227,27 +1631,47 @@ bool XMap::precacheArea(const GeoBounds& pArea)
 
 void XMap::cancelPrecache()
 {
+    if (!alive("cancelPrecache"))
+    {
+        return;
+    }
     mData.cancelPrecache();
 }
 
 void XMap::setDiagnostics(bool pOn)
 {
+    if (!alive("setDiagnostics"))
+    {
+        return;
+    }
     mWindow->setDiagnostics(pOn);
     log("diagnostics mode: {} (DIAG lines in Log.txt)", pOn ? "on" : "off");
 }
 
 bool XMap::isDiagnosticsOn() const
 {
+    if (!alive("isDiagnosticsOn"))
+    {
+        return false;
+    }
     return mWindow->isDiagnosticsOn();
 }
 
 void XMap::onRender()
 {
+    if (!alive("onRender"))
+    {
+        return;
+    }
     mWindow->render();
 }
 
 bool XMap::setTextureSize(int pWidth, int pHeight, double pPixelsPerUnit)
 {
+    if (!alive("setTextureSize"))
+    {
+        return false;
+    }
     if (pWidth <= 0 || pHeight <= 0 || pPixelsPerUnit < 0.0)
     {
         log("WARNING: setTextureSize: invalid size {}x{} (pixels per unit {})", pWidth, pHeight, pPixelsPerUnit);
@@ -1259,16 +1683,28 @@ bool XMap::setTextureSize(int pWidth, int pHeight, double pPixelsPerUnit)
 
 int XMap::getTextureWidth() const
 {
+    if (!alive("getTextureWidth"))
+    {
+        return 0;
+    }
     return mWindow->textureWidth();
 }
 
 int XMap::getTextureHeight() const
 {
+    if (!alive("getTextureHeight"))
+    {
+        return 0;
+    }
     return mWindow->textureHeight();
 }
 
 bool XMap::renderTexture()
 {
+    if (!alive("renderTexture"))
+    {
+        return false;
+    }
     if (!mWindow->isTextureMode())
     {
         if (!mTextureWarned)
@@ -1283,11 +1719,19 @@ bool XMap::renderTexture()
 
 unsigned int XMap::getTextureId() const
 {
+    if (!alive("getTextureId"))
+    {
+        return 0;
+    }
     return mWindow->textureId();
 }
 
 bool XMap::injectMouse(int pX, int pY, MouseAction pAction, MouseButton pButton)
 {
+    if (!alive("injectMouse"))
+    {
+        return false;
+    }
     XPLMMouseStatus tStatus = xplm_MouseDown;
     if (pAction == MouseAction::Drag)
     {
@@ -1302,21 +1746,37 @@ bool XMap::injectMouse(int pX, int pY, MouseAction pAction, MouseButton pButton)
 
 void XMap::injectMouseMove(int pX, int pY)
 {
+    if (!alive("injectMouseMove"))
+    {
+        return;
+    }
     mWindow->injectMouseMove(pX, pY);
 }
 
 bool XMap::injectWheel(int pX, int pY, int pClicks)
 {
+    if (!alive("injectWheel"))
+    {
+        return false;
+    }
     return mWindow->injectWheel(pX, pY, pClicks) != 0;
 }
 
 bool XMap::injectKey(char pKey, int pFlags, char pVirtualKey)
 {
+    if (!alive("injectKey"))
+    {
+        return false;
+    }
     return mWindow->injectKey(pKey, static_cast<XPLMKeyFlags>(pFlags), pVirtualKey);
 }
 
 bool XMap::wantsKeyboard() const
 {
+    if (!alive("wantsKeyboard"))
+    {
+        return false;
+    }
     return mWindow->wantsKeyboard();
 }
 
@@ -1327,9 +1787,17 @@ bool XMap::isDataLoaded() const
 
 bool XMap::setColor(XMapLayer pLayer, const Rgb& pColor)
 {
+    if (!alive("setColor"))
+    {
+        return false;
+    }
     if (!mWindow->setLayerColor(pLayer, Rgba{pColor.mR / 255.0f, pColor.mG / 255.0f, pColor.mB / 255.0f}))
     {
         return false;
+    }
+    if (pLayer == XMapLayer::TerrainBuiltUp)
+    {
+        applyBuiltUpPalette();  // H-01: zemin dokusu da yeni rengi kullansin
     }
     markChanged();
     return true;
@@ -1337,20 +1805,58 @@ bool XMap::setColor(XMapLayer pLayer, const Rgb& pColor)
 
 Rgb XMap::getColor(XMapLayer pLayer) const
 {
+    if (!alive("getColor"))
+    {
+        return Rgb{-1, -1, -1};  // override yok (getColor sozlesmesi)
+    }
     const Rgba tColor = mWindow->layerColor(pLayer);
     return Rgb{int(tColor.mR * 255.0f + 0.5f), int(tColor.mG * 255.0f + 0.5f), int(tColor.mB * 255.0f + 0.5f)};
 }
 
 void XMap::clearColor(XMapLayer pLayer)
 {
+    if (!alive("clearColor"))
+    {
+        return;
+    }
     mWindow->clearLayerColor(pLayer);
+    if (pLayer == XMapLayer::TerrainBuiltUp)
+    {
+        applyBuiltUpPalette();  // H-01: ezme kalkti, tema rengine don
+    }
     markChanged();
 }
 
 void XMap::clearAllColors()
 {
+    if (!alive("clearAllColors"))
+    {
+        return;
+    }
     mWindow->clearLayerColors();
+    applyBuiltUpPalette();  // H-01: yerlesim ezmesi de kalkti
     markChanged();
+}
+
+// H-01: setColor(TerrainBuiltUp) katman rengini zemin goruntusune baglar: rengi paletle tanitir,
+// yeni palet numarasi zemin anahtarina girdigi icin ilgili dokular yeniden uretilir. Ezme kalkarsa
+// goruntude temanin mBuiltUp rengine donulur. Mod degisimi paleti degistirmediginden ve dosya
+// yuklemesinde [layer_colors] buraya aktarildiginden ezme her yolda gecerli kalir.
+void XMap::applyBuiltUpPalette()
+{
+    const Rgba tColor = mWindow->layerColor(XMapLayer::TerrainBuiltUp);
+    if (tColor.mR < 0.0f)
+    {
+        mPalette->clearBuiltUpColor();
+    }
+    else
+    {
+        mPalette->setBuiltUpColor(TerrainColor{static_cast<uint8_t>(tColor.mR * 255.0f + 0.5f),
+                                               static_cast<uint8_t>(tColor.mG * 255.0f + 0.5f),
+                                               static_cast<uint8_t>(tColor.mB * 255.0f + 0.5f)});
+    }
+    mPaletteId = mData.registerPalette(mPalette.get());
+    mTerrainLayer->setPalette(*mPalette, mPaletteId);
 }
 
 // --- Motor: harita basina durum ve dosyalar ---
@@ -1570,6 +2076,7 @@ void XMap::applyLayerColorsSection(const Settings& pStore)
         tColors[*tLayer] = Rgba{tNorm(tR), tNorm(tG), tNorm(tB), 1.0f};
     }
     mWindow->setLayerColors(tColors);
+    applyBuiltUpPalette();  // H-01: dosyadaki yerlesim ezmesi zemine de uygulanir
 }
 
 void XMap::loadFiles()

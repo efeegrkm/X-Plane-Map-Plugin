@@ -1,7 +1,7 @@
 # Prime XMap API — Sıfırdan Host Eklentisi Rehberi (yerel çalışma notu)
 
 > Bu dosya kişisel çalışma notudur, repoya pushlanmaz (.gitignore'da).
-> Amaç: prime-map-api kütüphanesini 0.26.0 sürümüyle sıfırdan bir X-Plane eklentisine
+> Amaç: prime-map-api kütüphanesini 0.26.2 sürümüyle sıfırdan bir X-Plane eklentisine
 > harita olarak gömmenin tüm adımlarını tek yerde toplamak. Referans örnek:
 > `examples/texture_host/`.
 
@@ -227,9 +227,12 @@ birbirinin karolarini itmesin diye bu buyume vardir.
   diski paylasilir (guvenli: icerik deterministik + okumada anahtar dogrulamasi). Ayni API surumunde
   bellek paylasimi olmaz; bu bir hata degil, surekler arasi izin verilemeyecek bir seydir.
 - `setDataDirectory` ile veri klasoru host'a ozel verilmezse varsayilan tek yer
-  (`%LOCALAPPDATA%/prime/prime-xmap`) kullanilir ve ayarlar cakisir. Ayrica iki yoneticinin ayni
-  disk onbellek klasorune ayni anda yazmasi guvenli degildir (ayni karo dosyalarina yarisma).
-  Bu yuzden v0.26 ornekleri kendi klasorunu verir (orn. texture-host: eklenti klasoru).
+  (`%LOCALAPPDATA%/prime/prime-xmap`) kullanilir ve ayarlar cakisir; initialize bunu tek satirlik
+  WARNING ile bildirir (cozum: her yoniciye `setDataDirectory` ile ayri klasor verin ya da harita
+  adlarini ayirin). Sadece ONBELLEK klasoru ayniysa (veri klasorleri farkli) bilincli bir kurulumdur:
+  onbellek yazimlari atomiktir (gecici dosya + yeniden adlandir), okumada anahtar dogrulanir, yarim
+  yazilmis dosya gorunmez; CacheTrim yarismasi kendini onarir. initialize bu durumda tek satirlik
+  bilgi yazar (WARNING degil).
 - Disk onbellegini silmek calisan haritayi etkilemez: karolar once bellekte yasar; disk onbellegi
   yalnizca yeniden baslatma sonrasi ilk yuklemeyi hizlandirir.
 

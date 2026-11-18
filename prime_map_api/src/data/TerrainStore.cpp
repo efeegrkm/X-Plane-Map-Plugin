@@ -12,6 +12,7 @@
 #include <system_error>
 
 #include "data/CacheTrim.h"
+#include "data/AtomicFile.h"
 #include "data/DsfReader.h"
 #include "data/SevenZip.h"
 #include "data/TerrainElevation.h"
@@ -75,8 +76,11 @@ bool hasNoBaseMarker(const std::string& pPath, const std::string& pKey)
 
 void writeNoBaseMarker(const std::string& pPath, const std::string& pKey)
 {
-    std::ofstream tFile(pPath, std::ios::binary | std::ios::trunc);
-    tFile << pKey;
+    writeFileAtomic(pPath,
+                    [&pKey](std::ofstream& tFile)
+                    {
+                        tFile << pKey;
+                    });
 }
 
 // istegin(karo / parca) ortasinin odaga uzakligi; tanimi asagida (pickRequest'in yaninda)

@@ -1,3 +1,7 @@
+// XMap pencerisinin(host tarafinin) ust duzey sahibi: XPLM penceresi (LEGACY) ya da
+// dokuya cizilen Texture modu; toolbar, paneller, ayarlar ve fare/klavye girdileri
+// burada birlesir. Cizim isini Gfx::Canvas'a, kamera isini XMapView'e devreder;
+// X-Plane callback'leri (draw, click, key) refcon uzerinden bu sinifa yonlenir.
 #ifndef PRIME_MAP_SRC_XMAPWINDOW_H
 #define PRIME_MAP_SRC_XMAPWINDOW_H
 

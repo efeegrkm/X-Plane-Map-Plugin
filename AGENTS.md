@@ -9,10 +9,11 @@
 > AGENTS.md yalnizca BU aktarim reposunda yasar; Bitbucket'e giden depolarda AGENTS.md,
 > yapay zeka araci izleri, AI kelimesi OLMAZ (taramalar sifir olmali).
 
-## 1. Anlik durum (17.11.2026, v0.26.0)
+## 1. Anlik durum (18.11.2026, v0.26.2)
 
-- Dort agac (a22=test, p22=plugin, t22=api-test, e22=texture-host) /W4 ile temiz derleniyor.
-- map_tests: 30.682 kontrol / 0 hata.
+- Dort agac (a22=test, e22=texture-host, api22=api-test/preview) /W4 ile temiz derleniyor
+  (a22 plugin + map_tests'i de uretir; ev makinesinde a22/e22/api22 + plugin-api-test t22).
+- map_tests: 30.690 kontrol / 0 hata (v0.26.2).
 - X-Plane 11'e deploy edildi ve hash dogrulandi: prime-map-plugin\64 ve plugin-api-test\64
   (prime_map.dll + win.xpl, build ciktilariyla birebir ayni).
 - #pragma temizligi TAMAM: 90 adet #pragma once -> include guard; C4251 yerine /wd4251 tum
@@ -46,6 +47,42 @@
   yalnizca gecis tablosu ve gecmis raporlarinda (ZEMIN_HIZ_RAPORU 0.23 donemine ait,
   gitignore'da).
 
+### 18 Kasim aksam eki (onayli is kuyrugu tamam -> v0.26.2)
+
+- LIF-08: shutdown sonrasi tum genel XMap metotlari guvenli no-op (alive() guard'i
+  104 metotta + ozel durumlar; mMapsDirectory snapshot uyesi). Ilk cagida tek seferlik
+  WARNING, sonra sessiz. Oz-teste (MultiXMapSelfTest.runCleanup) LIF-08 adimi eklendi:
+  harita acilir -> shutdown -> no-op cagrilar -> removeXMap guvenligi.
+- H-01: setColor(TerrainBuiltUp) zemin goruntusune isler. Ezme rengi palete
+  [built_up] bolumu olarak yazilir (ezme yokken dosya bicimi degismez);
+  composeImage yerlesim karisiminda kullanir; importTerrainSettings ezmeyi korur.
+  map_tests'e testTerrainBuiltUpColor eklendi (goruntu duzeyi).
+- Atomik yazimlar: 6 yazici noktasi (TerrainStore, TerrainElevation, TerrainPaletteSource,
+  TerrainRaster, TerrainVectors, AptDatIndexer) tmp+rename; yeni src/data/AtomicFile.h.
+- Iki yonetici uyarisi: ayni veri klasorune cozulen ikinci yonetici initialize'da tek
+  satir WARNING; yalnizca onbellek ortaksa bilgi satiri (surec-ici statik kayit,
+  kilit dosyasi yok).
+- H-04: 3 sarsak bekleme tests.cpp waitUntil yardimcisina cevrildi (30 sn ust sinir,
+  2 ms poll); 20x art arda + CPU yuku altinda 3x dogrulandi.
+- Kilavuz (build_api_doc.py, bu repoda docs/tools): 14b "Klasorler ve paylasim
+  senaryolari" (a-f) eklendi; shutdown sonrasi davranis; eksik fonksiyon adlari
+  (getTitle, isImageCacheEnabled, getMaxRenderFps, isXPlaneFont, panRight/Up/Down)
+  girildi; header->kilavuz taramasi 128/128. PDF 28 sayfa. MIMARI: 0.26.2 etiketleri,
+  14b matris atomik yazim notu, 9.6 tablosuna [built_up] satiri; PDF 21 sayfa.
+  SRS 0.26.2 (LIF-08/NF-REL-01, STY-06, NF-REL-05, MUL-05, 5.1 ozet tablosu);
+  CHANGELOG 0.26.2 girdisi.
+- Include/yorum temizligi (arka plan ajani): 5 kullanilmayan include silindi
+  (ElevationCodec.cpp <cstring>, AirportSurfaceLayer.cpp <algorithm>,
+  TerrainLayer.h <unordered_map>, XMapWindow.cpp <cstdio>+<sstream>);
+  XMapWindow.h'ye ust aciklama eklendi. Amacli aktarim header'lari (PrimeMap.h,
+  GlInclude.h) korunudu; Geri alinanlar: <array> (to_array) ve <iterator> kullanimlari.
+- Surum 0.26.2: XMapTypes.h kVersionPatch=2, api CMakeLists 0.26.2, eklenti CMakeLists
+  0.26.2, oz-test versionString kontrolu, plugin-api-test docs/API_LISTESI.md.
+  Dort agac /W4 temiz; map_tests 30.690 / 0; t22 (plugin-api-test) derlendi.
+- Taramalar (18.11 aksam): AI izi 0; GitHub adresi yalniz 3. taraf (mapbox/earcut,
+  nothings/stb); eski adlar yalnizca tarihsel notlarda (CHANGELOG gecmis girdileri,
+  ZEMIN_HIZ_RAPORU 0.23 donemi).
+
 ## 2. Onbellek mimarisi - bugunku arastirmanin ozeti (ONEM: yuksek)
 
 Kullanicinin gozlemi: resmi eklentinin map1+map2 arasi cache paylasimi anlik; UI test
@@ -75,17 +112,15 @@ eklentisinin haritasiyla paylasim yok. Arastirma sonucu SIKINTI YOK, tasarim boy
 ## 3. Bulunan eksikler ve onayli is kuyrugu
 
 Onayli duzeltmeler (kod):
-1. LIF-08: kapanista no-op korumalari.
-2. H-01: TerrainBuiltUp rengi.
-3. H-04: dalgalan (flaky) 1 sn'lik test beklemeleri.
-4. YENI (onaylandi): ayni surecte ikinci bir yonetici ayni veri/obellek klasorune cozulurse
-   Log'a SADE tek satir uyari (initialize'da surec-ici statik kayitla tespit). Not: surecler
-   arasi tespit icin kilit dosyasi gerekecek; gereksiz agir, YAPMA.
+1. [TAMAM 18.11] LIF-08: kapanista no-op korumalari.
+2. [TAMAM 18.11] H-01: TerrainBuiltUp rengi.
+3. [TAMAM 18.11] H-04: dalgalan (flaky) 1 sn'lik test beklemeleri.
+4. [TAMAM 18.11] Ayni surecte ikinci yonetici uyarisi (initialize'da tek satir WARNING;
+   surec-ici statik kayit; kilit dosyasi bilincli olarak YAPILMADI).
 
 Dokuman eksikleri:
-5. [ACIK - onay bekliyor] SRS: "farkli surecler setCacheDirectory ile karo onbellegini
-   paylasabilmeli (ayarlar izole)" gereksinimi + kabul testi; MUL-04 notuna "canli senkron
-   host sorumlulugudur".
+5. [TAMAM 18.11] SRS MUL-05 (farkli surecler karo onbellegini paylasir, ayarlar izole)
+   + MUL-04 canli senkron notu eklendi.
 6. [TAMAM 18.11] PrimeMap_API.html 0.26 icerigiyle yeniden uretildi (eski API adlari yok;
    0.23->0.26 gecis tablosu bilincli olarak duruyor) + PDF (26 sayfa).
 7. [TAMAM 18.11] MIMARI.html 0.26'ya cekildi (24 sayfalik PDF metni kaynak alindi) + 14b

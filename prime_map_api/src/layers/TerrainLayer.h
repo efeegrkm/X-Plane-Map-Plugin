@@ -5,7 +5,6 @@
 #define PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H
 
 #include <cstdint>
-#include <unordered_map>
 #include <vector>
 
 #include "Layer.h"

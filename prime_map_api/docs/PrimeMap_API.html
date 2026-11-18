@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Prime XMap API 0.26.0 Referansı</title>
+<title>Prime XMap API 0.26.2 Referansı</title>
 <style>
   body { font-family: "Segoe UI", Arial, sans-serif; font-size: 10pt; line-height: 1.4; color: #1d2329; margin: 26px 36px; }
   h1 { font-size: 20pt; margin: 0; color: #0b3d5c; }
@@ -24,8 +24,8 @@
 </head>
 <body>
 
-<h1>Prime XMap API 0.26.0 &mdash; Kullanım Kılavuzu ve Referans</h1>
-<div class="sub">Herhangi bir X-Plane 11 eklentisine gömülebilen katmanlı harita kütüphanesi &middot; 2026-11-17</div>
+<h1>Prime XMap API 0.26.2 &mdash; Kullanım Kılavuzu ve Referans</h1>
+<div class="sub">Herhangi bir X-Plane 11 eklentisine gömülebilen katmanlı harita kütüphanesi &middot; 2026-11-18</div>
 
 <ol class="toc">
 <li>Tanım ve ne sunar</li>
@@ -724,7 +724,7 @@ kaldırılır (<code>docs/SRS.md</code>). Texture kapsamlı denenene kadar LEGAC
 <tr><td><code>XMapManagerSettings getSettings()</code>, <code>bool setSettings(const XMapManagerSettings&amp;)</code></td><td>Merkezi ayarlar (bölüm 11.4); hemen uygulanır ve yazılır.</td></tr>
 <tr><td><code>getDataDirectory()</code>, <code>getSettingsFilePath()</code>, <code>getXMapsDirectory()</code>, <code>getCacheDirectory()</code></td><td>Yollar; <code>initialize</code> öncesi de doğru.</td></tr>
 <tr><td><code>parentOf</code>, <code>childrenOf</code>, <code>topLevelLayers</code>, <code>kindOf</code>, <code>layerName</code>, <code>layerKey</code>, <code>layerFromKey</code>, <code>isLayerDefaultVisible(layer, mode)</code></td><td>Katman ağacı, adları, dosya anahtarları ve mod başına varsayılanları (bölüm 10).</td></tr>
-<tr><td><code>std::string prime::versionString()</code></td><td><code>"0.26.0"</code></td></tr>
+<tr><td><code>std::string prime::versionString()</code></td><td><code>"0.26.2"</code></td></tr>
 </table>
 
 <h2>7. <code>XMap</code>: bütün fonksiyonlar</h2>
@@ -734,11 +734,12 @@ kaldırılır (<code>docs/SRS.md</code>). Texture kapsamlı denenene kadar LEGAC
 <tr><td><code>bool initialize()</code></td><td>Haritayı açar (Texture: doku hazırlanır; diğerleri: pencere). <code>LoadAndSave</code>'de dosyaları okur.</td></tr>
 <tr><td><code>void close()</code>, <code>bool isInitialized()</code></td><td>Kapatır; nesne ve ayarları durur.</td></tr>
 <tr><td><code>bool isDataLoaded()</code></td><td>Nav + havalimanı + zemin indeksi hazır ve bekleyen doku yok.</td></tr>
+<tr><td><code>shutdown()</code> sonrası çağrılar</td><td>Yönetici <code>shutdown()</code> ettikten sonra harita işaretçisi geçerli kalır ama tüm metotlar güvenli no-op'tur: ilk çağrıda tek satır Log uyarısı, sonra sessiz; <code>false</code> / boş / varsayılan döner. <code>removeXMap</code> ya da yönetici yıkıcısı sonrası işaretçi GECERSIZDIR (nesne silinir); bu korunamaz, host işaretçiyi bırakmalı.</td></tr>
 <tr><td><code>int getId()</code>, <code>bool setName(name)</code>, <code>getName()</code>, <code>getSettingsDirectory()</code></td><td>Kimlik ve ayar klasörü. <code>setName</code> sadece kapalıyken; kullanılan ad reddedilir.</td></tr>
 <tr><td><code>setPersistence(Persistence)</code>, <code>getPersistence()</code>, <code>bool saveSettings()</code></td><td>Bölüm 4.5; hemen yaz.</td></tr>
 <tr class="group"><td colspan="2">Pencere (LEGACY Standalone / Embedded; Texture'da çoğu etkisiz)</td></tr>
 <tr><td><code>setStyle(WindowStyle)</code>, <code>getStyle()</code></td><td>Sadece kapalıyken.</td></tr>
-<tr><td><code>setTitle</code>, <code>setGeometry(Geometry)</code>, <code>getGeometry()</code></td><td>Başlık, yer / boyut. Texture'da <code>setGeometry</code> yok sayılır, <code>getGeometry</code> doku alanını verir.</td></tr>
+<tr><td><code>setTitle</code>, <code>getTitle</code>, <code>setGeometry(Geometry)</code>, <code>getGeometry()</code></td><td>Başlık, yer / boyut. Texture'da <code>setGeometry</code> yok sayılır, <code>getGeometry</code> doku alanını verir.</td></tr>
 <tr><td><code>setVisible(bool)</code>, <code>isVisible()</code></td><td>Texture: görünmezken <code>renderTexture()</code> <code>false</code> döner.</td></tr>
 <tr><td><code>bringToFront()</code>, <code>setPoppedOut(bool)</code>, <code>isPoppedOut()</code></td><td>Sadece pencereli stillerde.</td></tr>
 <tr><td><code>setIsUiVisible(bool)</code>, <code>isUiVisible()</code></td><td>Haritanın kendi arayüzü: üst şerit (Layers, Map modu, Follow, Go to airport, Draw tools), katman paneli, durum şeridi.</td></tr>
@@ -757,7 +758,7 @@ kaldırılır (<code>docs/SRS.md</code>). Texture kapsamlı denenene kadar LEGAC
 <tr><td><code>static minZoom()</code>, <code>maxZoom()</code>, <code>hardMaxZoom()</code></td><td>3, 16.5, 18.</td></tr>
 <tr><td><code>bool setZoomLimits(min, max)</code>, <code>getMinZoomLimit()</code>, <code>getMaxZoomLimit()</code></td><td>Bu haritanın zoom sınırı.</td></tr>
 <tr><td><code>zoomIn()</code>, <code>zoomOut()</code>, <code>setZoomStep</code>, <code>getZoomStep</code></td><td>Adım varsayılanı 0.5 (tekerlek tıkı da).</td></tr>
-<tr><td><code>panLeft/Right/Up/Down()</code>, <code>setPanStep(fraction)</code>, <code>getPanStep</code>, <code>panBy(dx, dy)</code></td><td>Adım görünen alanın oranı (0.25); <code>panBy</code> boxel.</td></tr>
+<tr><td><code>panLeft()</code>, <code>panRight()</code>, <code>panUp()</code>, <code>panDown()</code>, <code>setPanStep(fraction)</code>, <code>getPanStep()</code>, <code>panBy(dx, dy)</code></td><td>Adım görünen alanın oranı (0.25); <code>panBy</code> boxel.</td></tr>
 <tr><td><code>fitBounds(GeoBounds)</code>, <code>getVisibleBounds()</code>, <code>getMetersPerBoxel()</code></td><td></td></tr>
 <tr><td><code>setFollowAircraft(bool)</code>, <code>isFollowingAircraft()</code>, <code>centerOnAircraft()</code></td><td>Takip varsayılan açık; elle kaydırınca kapanır.</td></tr>
 <tr><td><code>bool goToAirport(ident)</code>, <code>findAirports(query, max)</code></td><td>ICAO / kimlik / ad; havalimanı ekrana sığar.</td></tr>
@@ -782,7 +783,7 @@ kaldırılır (<code>docs/SRS.md</code>). Texture kapsamlı denenene kadar LEGAC
 <tr class="group"><td colspan="2">Sorgu</td></tr>
 <tr><td><code>queryAt(lat, lon)</code>, <code>queryAtScreen(x, y)</code></td><td>O noktadaki nesneler (<code>XMapObject</code>: katman + metin), en üstteki önce.</td></tr>
 <tr class="group"><td colspan="2">Çizim seçenekleri</td></tr>
-<tr><td><code>setImageCache(bool)</code>, <code>setMaxRenderFps(int)</code>, <code>setXPlaneFont(bool)</code> (+ getter'lar)</td><td>Harita resmi önbelleği (pencereli stiller), en çok yeniden çizim / s (varsayılan 15), yazı tipi.</td></tr>
+<tr><td><code>setImageCache(bool)</code>, <code>isImageCacheEnabled()</code>, <code>setMaxRenderFps(int)</code>, <code>getMaxRenderFps()</code>, <code>setXPlaneFont(bool)</code>, <code>isXPlaneFont()</code></td><td>Harita resmi önbelleği (pencereli stiller), en çok yeniden çizim / s (varsayılan 15), yazı tipi.</td></tr>
 <tr class="group"><td colspan="2">Ayarlar</td></tr>
 <tr><td><code>exportSettings()</code>, <code>bool importSettings(text)</code></td><td><code>map_settings.json</code> içeriği (görünüm, mod, katmanlar, zoom aralıkları, renkler, kaynaklar).</td></tr>
 <tr><td><code>getTerrainSettings()</code>, <code>setTerrainSettings(TerrainSettings)</code>, <code>exportTerrainSettings()</code>, <code>importTerrainSettings(text)</code></td><td>Bu haritanın zemini (11.2); hemen uygulanır.</td></tr>
@@ -874,7 +875,7 @@ map-&gt;setTerrainSettings(t);                                   // hemen; sadec
 <tr class="group"><td colspan="6">XMap &mdash; <code>XMapLayer::XMapGroup</code> (grup)</td></tr>
 <tr><td><code>Terrain</code></td><td><code>terrain</code></td><td>Terrain (scenery)</td><td>5</td><td><span class="dots">&#9679;&#9679;&#9679;&#9679;&#9679;</span></td><td>zemin: <code>TerrainSettings</code></td></tr>
 <tr><td>&nbsp;&nbsp;&#8627; <code>TerrainForests</code></td><td><code>terrain.forests</code></td><td>Forests</td><td></td><td><span class="dots">&#9675;&#9679;&#9679;&#9679;&#9675;</span></td><td>&mdash;</td></tr>
-<tr><td>&nbsp;&nbsp;&#8627; <code>TerrainBuiltUp</code></td><td><code>terrain.built_up</code></td><td>Built-up areas</td><td></td><td><span class="dots">&#9679;&#9679;&#9675;&#9675;&#9675;</span></td><td>kabul eder, <b>etkisi yok</b> (bilinen hata)</td></tr>
+<tr><td>&nbsp;&nbsp;&#8627; <code>TerrainBuiltUp</code></td><td><code>terrain.built_up</code></td><td>Built-up areas</td><td></td><td><span class="dots">&#9679;&#9679;&#9675;&#9675;&#9675;</span></td><td>evet (VFR/IFR yerleşim karışımı)</td></tr>
 <tr><td><code>Roads</code></td><td><code>roads</code></td><td>Roads and railways</td><td>7.5</td><td><span class="dots">&#9675;&#9675;&#9675;&#9675;&#9675;</span></td><td>&mdash; (alt katmanlar)</td></tr>
 <tr><td>&nbsp;&nbsp;&#8627; <code>RoadsMotorways</code></td><td><code>roads.motorways</code></td><td>Motorways</td><td>7.5</td><td><span class="dots">&#9675;&#9679;&#9679;&#9679;&#9675;</span></td><td>evet</td></tr>
 <tr><td>&nbsp;&nbsp;&#8627; <code>RoadsPrimary</code></td><td><code>roads.primary</code></td><td>Primary roads</td><td>9</td><td><span class="dots">&#9675;&#9679;&#9679;&#9679;&#9675;</span></td><td>evet</td></tr>
@@ -1067,11 +1068,68 @@ for (prime::XMap* m : manager-&gt;getXMaps()) { m-&gt;setMaxRenderFps(10); }</pr
 <tr><td><code>prime_map_plugin</code></td><td>Resmî eklenti: LEGACY Standalone ana harita (<code>maps/main</code>), menüden ikinci harita, komut &harr; API eşleşmesi. Texture'a geçişi planlıdır.</td></tr>
 </table>
 
+<h2>14b. Klasörler ve paylaşım senaryoları</h2>
+<p>Her yöneticinin iki klasörü vardır: <b>veri klasörü</b> (<code>setDataDirectory</code>; içinde merkez <code>prime_map.json</code> ve harita başına <code>maps/&lt;ad&gt;/</code> ayarları) ve <b>karo önbellek klasörü</b> (<code>setCacheDirectory</code>; verilmezse <code>&lt;veri&gt;/cache/</code>). Kural: ayarlar her zaman veri klasörüne bağlıdır, karo önbelleği ise ayrı seçilebilir. Aynı süreçte ikinci bir yönetici aynı veri klasörüne çözülürse <code>initialize</code> tek satır WARNING yazar; yalnızca önbellek klasörü ortaksa tek satır bilgi yazar (yazımlar atomiktir, paylaşım güvenlidir).</p>
+<h3>a) Tek yönetici, n harita: ayarlar ayrı, önbellek ortak (önerilen)</h3>
+<pre>prime::XMapManager* mgr = prime::XMapManagerFactory::createXMapManager();
+mgr-&gt;setDataDirectory(&quot;C:/X-Plane/prime-xmap&quot;);   // hepsi icin tek veri klasoru (isteden)
+mgr-&gt;initialize();
+prime::XMap* a = mgr-&gt;addXMap();  a-&gt;setName(&quot;kaptan&quot;);   a-&gt;initialize();
+prime::XMap* b = mgr-&gt;addXMap();  b-&gt;setName(&quot;plan&quot;);     b-&gt;initialize();</pre>
+
+<pre>&amp;lt;veri&amp;gt;/prime_map.json      merkez: onbellek butceleri
+&amp;lt;veri&amp;gt;/maps/kaptan/        harita a ayarlari (ayri)
+&amp;lt;veri&amp;gt;/maps/uydu/          harita b ayarlari (ayri)
+&amp;lt;veri&amp;gt;/cache/              ortak karo onbellegi</pre>
+
+<p>Haritalar arası karo ve veri paylaşımı anlıktır (tek yönetici, tek işçi). Dikkat: yönetici içinde harita adları eşsiz olmalıdır; aynı ad ikinci haritaya verilmez.</p>
+<h3>b) İki host eklentisi: ayarlar izole, karolar ortak</h3>
+<pre>// host A (veri klasoru kendine ozel):
+mgr-&gt;setDataDirectory(&quot;C:/X-Plane/pluginA/prime-xmap&quot;);
+mgr-&gt;setCacheDirectory(&quot;C:/X-Plane/prime-cache&quot;);   // ikisi de ayniyi verir
+mgr-&gt;initialize();
+
+// host B:
+mgr-&gt;setDataDirectory(&quot;C:/X-Plane/pluginB/prime&quot;);  // farkli
+mgr-&gt;setCacheDirectory(&quot;C:/X-Plane/prime-cache&quot;);   // ayni
+mgr-&gt;initialize();</pre>
+
+<pre>&amp;lt;veri-A&amp;gt;/prime_map.json + maps/&amp;lt;ad&amp;gt;/   ayarlar izole
+&amp;lt;veri-B&amp;gt;/prime_map.json + maps/&amp;lt;ad&amp;gt;/   ayarlar izole
+&amp;lt;ortak&amp;gt;/terrain/...                    karo onbellegi paylasilir</pre>
+
+<p>Güvenlik notu: önbellek yazımları geçici dosya + yeniden adlandırmayla atomiktir; okuma tarafında anahtar doğrulanır, yarım yazılmış dosya asla görünmez; <code>CacheTrim</code> yarışması kendini onarır (silinen karo yeniden üretilir). Paylaşım bilinçli kurulumsa <code>initialize</code> bunu tek satır bilgi olarak yazar.</p>
+<h3>c) Tam izolasyon</h3>
+<pre>mgrA-&gt;setDataDirectory(&quot;C:/X-Plane/pluginA/prime-xmap&quot;);   // onbellek kendiliginden
+mgrB-&gt;setDataDirectory(&quot;C:/X-Plane/pluginB/prime-xmap&quot;);   // &amp;lt;veri&amp;gt;/cache/ olur</pre>
+
+<p>Ayarlar da karolar da ayrıdır; iki host hiçbir diske dokunmaz. Bellek / doku bütçeleri yönetici başına ayrı tutulur (paylaşım yoktur).</p>
+<h3>d) Hiçbir klasör verilmezse (varsayılan)</h3>
+<pre>// ikinci yonetici de veri klasorune dokunmuyorsa:
+// &amp;lt;veri&amp;gt; = %LOCALAPPDATA%/prime/prime-xmap , onbellek = &amp;lt;veri&amp;gt;/cache</pre>
+
+<p>Risk: iki yöneticinin ayarları çakışır — aynı <code>prime_map.json</code> (farklı değer yazan ezer) ve aynı adlı <code>maps/&lt;ad&gt;/</code> klasörleri. <code>initialize</code> bunu tek satır WARNING ile bildirir: <i>give each manager its own data directory (setDataDirectory) or use distinct map names</i>. Önbellek klasörü de aynı olduğundan ikinci yönetici DSF taramadan önbellekten okur.</p>
+<h3>e) Ayar kopyası (klasörlerden bağımsız)</h3>
+<pre>mapB-&gt;importSettings(mapA-&gt;exportSettings());               // gorunum, mod, katmanlar,
+                                                            // zoom araliklari, renkler,
+                                                            // kaynaklar + pencere/view bolumleri
+mapB-&gt;importTerrainSettings(mapA-&gt;exportTerrainSettings()); // zemin
+mapB-&gt;importDrawings(mapA-&gt;exportDrawings());               // cizimler</pre>
+
+<p><code>exportSettings</code> pencere (başlık, yer, stil) ve görünüm (merkez, zoom, takip) bölümlerini de taşır: kopya, kaynağıyla aynı yerde ve aynı görünümde açılır. Bunu istemiyorsanız aktarım sonrası <code>setGeometry</code> / <code>setCenter</code> / <code>setZoom</code> ile ezin.</p>
+<h3>f) Canlı senkron (kütüphanede yoktur)</h3>
+<pre>// host tarafinda iki yol:
+// 1) her setX cagrisini iki haritaya da yapmak
+// 2) revizyonlari izleyip fark degistiyse aktarmak
+if (mapA-&gt;getSettingsRevision() != tLast) { tLast = mapA-&gt;getSettingsRevision(); mapB-&gt;importSettings(mapA-&gt;exportSettings()); }
+if (mapA-&gt;getDrawingsRevision() != tLastDrw) { tLastDrw = mapA-&gt;getDrawingsRevision(); mapB-&gt;importDrawings(mapA-&gt;exportDrawings()); }</pre>
+
+<p>Sınırlar: <code>importSettings</code> pencere / görünümü de kopyalar (yukarıdaki e maddesi); <code>importDrawings</code> çizimleri bütün olarak değiştirir (artımlı değil); geri yansıma (<code>mapB</code> değişince <code>mapA</code>'ya yazmak) sonsuz döngüye açıktır — host bunu engellemeli. Dizin paylaşımı canlı senkron sağlamaz: ayarlar <code>initialize</code>'da bir kez okunur.</p>
 <h2>15. Sınırlar ve bilinen hatalar</h2>
 <ul>
-<li><code>setColor(TerrainBuiltUp)</code> <code>true</code> döner ama görüntüye yansımaz (zemin dokusu modun sabit rengini kullanır).</li>
 <li>Katman zoom aralığı yerleşik eşiği sadece daraltır; renkler modlar arası ortak; 14 katman dışında renk, hiçbir katmanda kalınlık / boy ayarı yok (bölüm 9).</li>
 <li>Log öneki süreç genelinde tektir: aynı süreçte birden çok host varsa son <code>setLogPrefix</code> bütün satırlarda görünür.</li>
+<li>Aynı süreçte ikinci yönetici aynı veri klasörüne çözülürse <code>initialize</code> tek satır WARNING, yalnızca önbellek klasörü ortaksa tek satır bilgi yazar (bölüm 14b).</li>
 <li>Aynı süreçteki bütün host'lar aynı <code>prime_map.dll</code>'yi kullanır (Windows aynı adlı DLL'i bir kez yükler): sürümler aynı olmalı.</li>
 <li>Her yöneticinin bir zemin işçisi vardır; birbirinden uzak yerlere bakan çok sayıda harita aynı işçiyi paylaşır. Bölge ön önbelleği aynı anda tek alan içindir.</li>
 <li>Texture: host penceresi pop-out edilmişse (ayrı GL bağlamı) çizilmez. <code>setXPlaneFont(true)</code> ile etiketler dokuda yanlış yere düşebilir.</li>
@@ -1080,7 +1138,7 @@ for (prime::XMap* m : manager-&gt;getXMaps()) { m-&gt;setMaxRenderFps(10); }</pr
 <li>Bina / 3B nesne yok; 180. boylam civarı kısmen; yazılar ASCII; ILS yönü gerçek (true).</li>
 </ul>
 <h2>16. Sürüm ve geçiş</h2>
-<p>0.26.0 (2026-11-17). 0.26: <code>WindowStyle::Texture</code> (varsayılan) ve <code>inject*</code>, <code>MouseAction</code>, <code>MouseButton</code>; Embedded / Standalone LEGACY; INI desteği ve eski sürüm dosya göçü kaldırıldı (sadece JSON); zemin paleti kaynağı <code>"ini"</code> yerine <code>"colors"</code>; <code>Geometry</code> alt kenar hatası düzeldi; yol sorguları <code>initialize</code> öncesi çalışır; verilmeyen önbellek ayarları artık 0 yazılmaz. Ürün geliştirme aşamasındadır: sürümler arasında geriye uyumluluk sağlanmaz.</p>
+<p>0.26.2 (2026-11-18). 0.26: <code>WindowStyle::Texture</code> (varsayılan) ve <code>inject*</code>, <code>MouseAction</code>, <code>MouseButton</code>; Embedded / Standalone LEGACY; INI desteği ve eski sürüm dosya göçü kaldırıldı (sadece JSON); zemin paleti kaynağı <code>"ini"</code> yerine <code>"colors"</code>; <code>Geometry</code> alt kenar hatası düzeldi; yol sorguları <code>initialize</code> öncesi çalışır; verilmeyen önbellek ayarları artık 0 yazılmaz. 0.26.2: <code>shutdown</code> sonrası harita metotları güvenli no-op (tek seferlik uyarı); <code>setColor(TerrainBuiltUp)</code> zemin görüntüsüne işler; aynı klasöre çözülen ikinci yönetici <code>initialize</code>'da uyarır; önbellek yazımları atomik. Ürün geliştirme aşamasındadır: sürümler arasında geriye uyumluluk sağlanmaz.</p>
 <table>
 <tr><th>0.23</th><th>0.24 / 0.25 / 0.26</th></tr>
 <tr><td><code>prime::MapLibrary::Get().Init(InitConfig)</code></td><td><code>XMapManagerFactory::createXMapManager()</code> + <code>set...</code> + <code>initialize()</code></td></tr>

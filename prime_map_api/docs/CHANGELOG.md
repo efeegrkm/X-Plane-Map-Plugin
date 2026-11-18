@@ -1,5 +1,29 @@
 # Prime Map API — CHANGELOG
 
+## 0.26.2 (ömür döngüsü güvenliği, zemin rengi düzeltmesi, 2026-11-18)
+
+map_tests 30.690 / 0. X-Plane'de denenecek (öz-test'e LIF-08 adımı eklendi).
+
+- **`shutdown` sonrası güvenli no-op (LIF-08)**: yönetici `shutdown()` ettikten
+  sonra halâ tutulan `XMap` işaretçileri çökmez; tüm genel metotlar no-op olur
+  (ilk çağrıda tek satır Log uyarısı, sonra sessiz; `false` / boş / varsayılan
+  döner). `removeXMap` / yıkıcı sonrası işaretçi geçersizdir (korunamaz).
+- **`setColor(TerrainBuiltUp)` görüntüye işler (H-01)**: ezme rengi zemin
+  paletine `[built_up]` bölümü olarak yazılır ve `composeImage` yerleşim
+  karışımında kullanılır; palet ezmesi yoksa dosya biçimi değişmez.
+- **Önbellek yazımları atomik**: altı yazıcı noktası (karo, yükseklik, palet
+  kaynağı, raster, vektör, AptDat) geçici dosya + yeniden adlandırma ile
+  yazar; yarım yazılmış dosya asla kalmaz.
+- **İki yönetici uyarısı**: aynı veri klasörüne çözülen ikinci yönetici
+  `initialize`'da tek satır WARNING; yalnızca önbellek klasörü ortaksa tek
+  satır bilgi yazar.
+- **Sarsak testler sabitlendi (H-04)**: beklemeler koşullu `waitUntil`
+  yardımcısına çevrildi (30 sn üst sınır); 20× art arda + CPU yükü altında
+  doğrulandı.
+- **Kılavuz**: 14b "Klasörler ve paylaşım senaryoları" bölümü eklendi;
+  `shutdown` sonrası davranış belgelendi; referans tablosuna eksik fonksiyon
+  adları girildi; PDF (28 sayfa) yeniden basıldı.
+
 ## 0.26.1 (çalışma durumu temizliği, 2026-11-17)
 
 Kod davranışı değişmedi; sürüm numaraları 0.26.0 olarak kaldı. X-Plane'de denendi
