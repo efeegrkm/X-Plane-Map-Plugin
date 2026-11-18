@@ -254,7 +254,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | SRC-01 | Uçak konumu / yönü / hızı / irtifası X-Plane'den ya da host'tan alınabilmeli. | Z | K | X | `setAircraftSource`, `setAircraft` |
 | SRC-02 | Rota X-Plane FMS'inden ya da host'tan alınabilmeli. | Z | K | İ | `setRouteSource`, `setRoute` |
 | SRC-03 | Uçuş izi silinebilmeli. | İ | K | İ | |
-| SRC-04 | Birden çok uçak (trafik, AI, çok oyunculu) gösterilebilmeli. | Ö | Y | — | |
+| SRC-04 | Birden çok uçak (X-Plane trafik uçakları ve çok oyunculu uçaklar) gösterilebilmeli. | Ö | Y | — | |
 
 #### 3.2.11 Çizimler (DRW)
 
@@ -327,7 +327,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | Kimlik | Gereksinim | Ö | Durum | Doğ. | Not |
 |---|---|---|---|---|---|
 | NF-MNT-01 | Kod KIS-04 standardına uymalı ve `/W4` uyarısız derlenmeli (kütüphane, örnek, eklentiler). | Z | K | İ | 0 uyarı |
-| NF-MNT-02 | Her genel API değişikliği kullanım kılavuzuna (`docs/PrimeMap_API.pdf`) ve bu SRS'e işlenmeli. | Z | K | İ | Kılavuz `docs/tools/build_api_doc.py`'den üretilir; örnek kod derlenen dosyadan |
+| NF-MNT-02 | Her genel API değişikliği kullanım kılavuzuna (`docs/PrimeMap_API.pdf`) ve bu SRS'e işlenmeli. | Z | K | İ | Kılavuz HTML + PDF olarak `docs/`'ta tutulur; örnek kod derlenen dosyadan |
 | NF-MNT-03 | Sürüm numarası kütüphane, CMake ve resmî eklentide tutarlı olmalı (configure denetimi). | Z | K | İ | |
 | NF-POR-01 | X-Plane 12 (Vulkan / Metal arka uçları, OpenGL uyumluluk katmanı) desteklenmeli. | İ | Y | — | Denenmedi |
 | NF-POR-02 | macOS / Linux desteklenmeli. | İ | Y | — | Yalnızca Windows x64 |

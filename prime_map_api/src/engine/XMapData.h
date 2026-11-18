@@ -32,7 +32,7 @@ struct XMapDataConfig
 {
     std::string mDataDirectory;   // sonunda ayirici ile; altinda prime_map.json, maps/
     std::string mCacheDirectory;  // sonunda ayirici ile; altinda terrain/ ve airports/
-    // prime_map.json'da karsiligi olmayan anahtarlarin ilk degeri (host'un InitConfig'inden)
+    // prime_map.json'da karsiligi olmayan anahtarlarin ilk degeri (host'un XMapManagerSettings'i)
     prime::XMapManagerSettings mDefaults;
 };
 

@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Prime Map Plugin Mimarisi</title>
+<title>Prime XMap - Mimari (surum 0.26)</title>
 <!--
   MIMARI.pdf'in kaynagi. PDF'i yeniden uretmek icin (proje kokunden):
   "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu
@@ -49,53 +49,45 @@
 </style>
 </head>
 <body>
+<h1>Prime XMap &mdash; Mimari</h1>
+<p class="sub">X-Plane 11 için katmanlı harita kütüphanesi ve API &middot; sürüm 0.26 &middot; kodun nasıl çalıştığı, hangi parçanın ne yaptığı ve parçaların birbirine nasıl bağlandığı</p>
+<p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de; kullanım kılavuzu ve API referansı <code>docs/PrimeMap_API.pdf</code>'tedir.</p>
 
-<h1>Prime Map Plugin — Mimari</h1>
-<div class="subtitle">X-Plane 11 için katmanlı harita eklentisi · sürüm 0.19 · kodun nasıl çalıştığı, hangi parçanın
-ne yaptığı ve parçaların birbirine nasıl bağlandığı</div>
-
-<p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de.</p>
-
+<h2>İçindekiler</h2>
 <ol class="toc">
-  <li>Amaç ve temel fikir</li>
-  <li>Büyük resim</li>
-  <li>Bağımlılık kuralı: çekirdek ve X-Plane kabuğu</li>
-  <li>Bir karede ne oluyor?</li>
-  <li>Thread modeli</li>
-  <li>Koordinat sistemleri ve görünüm</li>
-  <li>Katman sistemi</li>
-  <li>Havalimanı verisi (apt.dat)</li>
-  <li>Zemin (DSF sahnesi)</li>
-  <li>Nav verisi, hava yolları, uçak</li>
-  <li>Çizim katmanı (OpenGL 3.3)</li>
-  <li>Arayüz ve fare</li>
-  <li>Harita modları (tema)</li>
-  <li>Ayar ve önbellek dosyaları</li>
-  <li>Dosya dizini</li>
-  <li>Testler ve araçlar</li>
-  <li>Hız ve bellek yöntemleri</li>
+<li>Amaç ve temel fikir</li>
+<li>Büyük resim</li>
+<li>Bağımlılık kuralı: çekirdek ve X-Plane kabuğu</li>
+<li>Bir karede ne oluyor?</li>
+<li>Thread modeli</li>
+<li>Koordinat sistemleri ve görünüm</li>
+<li>Katman sistemi</li>
+<li>Havalimanı verisi (apt.dat)</li>
+<li>Zemin (DSF sahnesi)</li>
+<li>Nav verisi, hava yolları, uçak</li>
+<li>Çizim katmanı (OpenGL 3.3)</li>
+<li>Arayüz ve fare</li>
+<li>Harita modları (tema); 13b API katmanı; 13c çoklu harita; 13d çizim yolları (Texture / LEGACY)</li>
+<li>Ayar ve önbellek dosyaları</li>
+<li>Dosya dizini</li>
+<li>Testler ve araçlar</li>
+<li>Hız ve bellek yöntemleri</li>
 </ol>
 
-<!-- ================================================================== -->
 <h2>1. Amaç ve temel fikir</h2>
-<p>Eklenti, X-Plane'in içinde <b>kendi penceresinde</b> çalışan bir harita çizer. Dış harita servisi
-(OSM, karo sunucusu) kullanmaz; her şey o bilgisayarda kurulu X-Plane verisinden gelir:</p>
+<p>Eklenti, X-Plane'in içinde kendi penceresinde çalışan bir harita çizer. Dış harita servisi (OSM, karo sunucusu) kullanmaz; her şey o bilgisayarda kurulu X-Plane verisinden gelir:</p>
 <ul>
-  <li><b>Zemin:</b> kurulu DSF sahne dosyaları (arazi türü, su, kabartma).</li>
-  <li><b>Havalimanları:</b> apt.dat dosyaları (pistler, apron, taksi yolları, boya çizgileri, kapılar, ışıklar).</li>
-  <li><b>Navaid'ler:</b> X-Plane SDK'sının nav veritabanı (VOR, NDB, ILS, fix).</li>
-  <li><b>Hava yolları:</b> <code>earth_awy.dat</code>.</li>
-  <li><b>Uçak, FMS rotası:</b> dataref'ler ve FMS API'si.</li>
+<li><b>Zemin:</b> kurulu DSF sahne dosyaları (arazi türü, su, kabartma).</li>
+<li><b>Havalimanları:</b> <code>apt.dat</code> dosyaları (pistler, apron, taksi yolları, boya çizgileri, kapılar, ışıklar).</li>
+<li><b>Navaid'ler:</b> X-Plane SDK'sının nav veritabanı (VOR, NDB, ILS, fix).</li>
+<li><b>Hava yolları:</b> <code>earth_awy.dat</code>.</li>
+<li><b>Uçak, FMS rotası:</b> dataref'ler ve FMS API'si.</li>
 </ul>
-<p>Böylece haritada görünen her şey simülatördekiyle birebir aynıdır; yeni sahne kurulunca harita da kendiliğinden
-güncellenir. Asıl kullanım yeri simülatörlerin <b>eğitmen istasyonu (IOS)</b> ekranlarıdır.</p>
-<p>Neden X-Plane'in kendi haritasına (<code>XPLMMap</code>) katman eklemiyoruz? O pencerenin yan bölmesi
-kaldırılamıyor, X-Plane'in kendi katmanları açılıp kapatılamıyor ve harita katmanları fare olayı almıyor. Kendi
-penceremizde bu sınırların hiçbiri yok.</p>
+<p>Böylece haritada görünen her şey simülatördekiyle birebir aynıdır; yeni sahne kurulunca harita da kendiliğinden güncellenir. Asıl kullanım yeri simülatörlerin eğitmen istasyonu (IOS) ekranlarıdır.</p>
+<p>Neden X-Plane'in kendi haritasına (<code>XPLMMap</code>) katman eklemiyoruz? O pencerenin yan bölmesi kaldırılamıyor, X-Plane'in kendi katmanları açılıp kapatılamıyor ve harita katmanları fare olayı almıyor. Kendi penceremizde bu sınırların hiçbiri yok.</p>
 
-<!-- ================================================================== -->
 <h2>2. Büyük resim</h2>
-<figure>
+﻿<figure>
 <svg viewBox="0 0 760 430" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -160,35 +152,26 @@ penceremizde bu sınırların hiçbiri yok.</p>
 <figcaption>Şekil 1 — Ana parçalar. Düz oklar veri/çağrı yönü; kesikli çizgiler MapWindow'un arayüz parçalarını
 çizdirmesi.</figcaption>
 </figure>
-<p>Okuma sırası önerisi: <code>Plugin.cpp</code> → <code>MapWindow.cpp</code> (<code>Draw</code>) →
-<code>Layer.h</code> → basit bir katman (<code>layers/GridLayer.cpp</code>) → <code>gfx/Mesh.h</code> ve
-<code>gfx/Canvas.h</code> → ilgilendiğin veri deposu.</p>
+<p>Okuma sırası önerisi: <code>Plugin.cpp</code> &rarr; <code>XMapWindow.cpp</code> (<code>Draw</code>) &rarr; <code>Layer.h</code> &rarr; basit bir katman (<code>layers/GridLayer.cpp</code>) &rarr; <code>gfx/Mesh.h</code> ve <code>gfx/Canvas.h</code> &rarr; ilgilendiğin veri deposu.</p>
 
-<!-- ================================================================== -->
 <h2>3. Bağımlılık kuralı: çekirdek ve X-Plane kabuğu</h2>
-<div class="rule"><b>Kural:</b> kodun büyük kısmı X-Plane'e bağımlı <b>değildir</b> ("çekirdek"). XPLM başlığı
-yalnızca ince bir kabukta kullanılır. Bu sayede çekirdek, X-Plane açılmadan testlerde (<code>tests/</code>) ve
-önizleme aracında (<code>tools/preview</code>) çalışır.</div>
+<p><b>Kural:</b> kodun büyük kısmı X-Plane'e bağımlı değildir ("çekirdek"). XPLM başlığı yalnızca ince bir kabukta kullanılır. Bu sayede çekirdek, X-Plane açılmadan testlerde (<code>tests/</code>) ve önizleme aracında (<code>tools/preview</code>) çalışır.</p>
 <table>
-  <tr><th>Kabuk (XPLM kullanır)</th><th>Neden</th></tr>
-  <tr><td><code>Plugin.cpp</code></td><td>Eklenti giriş noktaları, menü, komut, flight loop</td></tr>
-  <tr><td><code>MapWindow.*</code></td><td>Pencere oluşturma, fare/tekerlek callback'leri, pop-out</td></tr>
-  <tr><td><code>data/NavLoader.*</code></td><td>SDK'nın nav veritabanını gezer</td></tr>
-  <tr><td><code>data/AircraftData.*</code></td><td>Dataref'ler (konum, yön)</td></tr>
-  <tr><td><code>layers/FmsLayer.cpp</code></td><td>FMS API'si</td></tr>
-  <tr><td><code>Log.cpp</code></td><td><code>XPLMDebugString</code> → Log.txt</td></tr>
-  <tr><td><code>gfx/Canvas.cpp</code>, <code>gfx/Texture.cpp</code></td><td>Grafik durumu, doku numarası</td></tr>
-  <tr><td><code>ui/UiDraw.cpp</code></td><td>Yazı (<code>XPLMDrawString</code>)</td></tr>
+<tr><th>Kabuk (XPLM kullanır)</th><th>Neden</th></tr>
+<tr><td><code>Plugin.cpp</code></td><td>Eklenti giriş noktaları, menü, komut, flight loop</td></tr>
+<tr><td><code>XMapWindow.*</code></td><td>Pencere oluşturma, fare/tekerlek callback'leri, pop-out</td></tr>
+<tr><td><code>data/NavLoader.*</code></td><td>SDK'nın nav veritabanını gezer</td></tr>
+<tr><td><code>data/AircraftData.*</code></td><td>Dataref'ler (konum, yön)</td></tr>
+<tr><td><code>layers/FmsLayer.cpp</code></td><td>FMS API'si</td></tr>
+<tr><td><code>Log.cpp</code></td><td><code>XPLMDebugString</code> &rarr; Log.txt</td></tr>
+<tr><td><code>gfx/Canvas.cpp</code>, <code>gfx/Texture.cpp</code></td><td>Grafik durumu, doku numarası</td></tr>
+<tr><td><code>ui/UiDraw.cpp</code></td><td>Yazı (<code>XPLMDrawString</code>)</td></tr>
 </table>
-<p>CMake bu ayrımı iki listeyle yapar: <code>CORE_SOURCES</code> (eklenti + testler + önizleme) ve
-<code>PLUGIN_SOURCES</code> (sadece eklenti; önizleme XPLM fonksiyonlarını <code>tools/preview/XplmStubs</code>
-ile taklit eder). OpenGL çağrısı ise sadece <code>src/gfx/</code> içindedir.</p>
+<p>CMake bu ayrımı iki listeyle yapar: <code>CORE_SOURCES</code> (eklenti + testler + önizleme) ve <code>PLUGIN_SOURCES</code> (sadece eklenti; önizleme XPLM fonksiyonlarını <code>tools/preview/XplmStubs</code> ile taklit eder). OpenGL çağrısı ise sadece <code>src/gfx/</code> içindedir.</p>
 
-<!-- ================================================================== -->
 <h2>4. Bir karede ne oluyor?</h2>
-<p>X-Plane eklentiye iki ayrı yerden zaman verir: <b>flight loop</b> (her simülasyon karesi) ve pencerenin
-<b>draw callback</b>'i (pencere çizilirken). İkisi de ana thread'de çalışır.</p>
-<figure>
+<p>X-Plane eklentiye iki ayrı yerden zaman verir: flight loop (her simülasyon karesi) ve pencerenin draw callback'i (pencere çizilirken). İkisi de ana thread'de çalışır.</p>
+﻿<figure>
 <svg viewBox="0 0 760 345" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -243,15 +226,10 @@ ile taklit eder). OpenGL çağrısı ise sadece <code>src/gfx/</code> içindedir
 </svg>
 <figcaption>Şekil 2 — Bir karede ana thread'in yaptıkları.</figcaption>
 </figure>
-<p>Önemli tasarım noktası: katmanlar veriyi <b>istekle</b> alır. Bir katman ekrandaki bir havalimanının ayrıntısına
-ihtiyaç duyduğunda <code>AirportDetailStore::Use(i)</code> çağırır; ayrıntı hazırsa hemen döner, değilse istek
-kaydedilir ve katman o karede yer tutucu (yanıp sönen kesikli kutu) çizer. Bir sonraki flight loop isteği işçiye
-verir. Zemin de aynı biçimde çalışır (<code>TerrainStore::Request</code> / <code>PopImage</code>). Böylece hiçbir
-yavaş iş çizimi bekletmez.</p>
+<p><b>Önemli tasarım noktası:</b> katmanlar veriyi istekle alır. Bir katman ekrandaki bir havalimanının ayrıntısına ihtiyaç duyduğunda <code>AirportDetailStore::Use(i)</code> çağırır; ayrıntı hazırsa hemen döner, değilse istek kaydedilir ve katman o karede yer tutucu (yanıp sönen kesikli kutu) çizer. Bir sonraki flight loop isteği işçiye verir. Zemin de aynı biçimde çalışır (<code>TerrainStore::Request</code> / <code>PopImage</code>). Böylece hiçbir yavaş iş çizimi bekletmez.</p>
 
-<!-- ================================================================== -->
 <h2>5. Thread modeli</h2>
-<figure>
+﻿<figure>
 <svg viewBox="0 0 760 270" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -286,98 +264,76 @@ yavaş iş çizimi bekletmez.</p>
 </svg>
 <figcaption>Şekil 3 — Arka plan thread'leri. Hepsi saf C++; X-Plane'i hiç çağırmaz.</figcaption>
 </figure>
-<div class="rule"><b>Kurallar:</b> (1) Arka plan thread'inde hiçbir XPLM fonksiyonu, <code>Log</code> dahil, çağrılmaz;
-iş bir rapor metni döndürür, ana thread loglar. (2) Katmanlar sadece ana thread'de çalışır ve depoların ana thread
-tarafındaki kopyasını okur. (3) İşçiyle paylaşılan kuyruklar <code>std::mutex</code> + <code>condition_variable</code>
-ile korunur; tek seferlik işler <code>BackgroundJob::Poll</code> ile devralınır (join, yazılanların görünür olmasını
-garanti eder).</div>
+<p><b>Kurallar:</b> (1) Arka plan thread'inde hiçbir XPLM fonksiyonu, <code>Log</code> dahil, çağrılmaz; iş bir rapor metni döndürür, ana thread loglar. (2) Katmanlar sadece ana thread'de çalışır ve depoların ana thread tarafındaki kopyasını okur. (3) İşçiyle paylaşılan kuyruklar <code>std::mutex</code> + <code>condition_variable</code> ile korunur; tek seferlik işler <code>BackgroundJob::Poll</code> ile devralınır (join, yazılanların görünür olmasını garanti eder).</p>
 
-<!-- ================================================================== -->
 <h2>6. Koordinat sistemleri ve görünüm</h2>
 <table>
-  <tr><th>Sistem</th><th>Birim</th><th>Nerede kullanılır</th></tr>
-  <tr><td>Coğrafi</td><td>lat/lon (derece)</td><td>Tüm veriler, çizimler, ayarlar</td></tr>
-  <tr><td>Mercator</td><td>0..1 (dünya bir kare)</td><td><code>MapView</code> merkezi; havalimanı şekilleri referansa göre fark olarak</td></tr>
-  <tr><td>Boxel</td><td>XPLM pencere birimi (global masaüstü)</td><td>Bütün çizim ve fare; UI ölçeği %100 değilse pikselden farklı</td></tr>
-  <tr><td>Piksel</td><td>gerçek ekran pikseli</td><td>Sadece <code>glScissor</code>; dönüşüm <code>gfx/GlScreen</code></td></tr>
+<tr><th>Sistem</th><th>Birim</th><th>Nerede kullanılır</th></tr>
+<tr><td>Coğrafi</td><td>lat/lon (derece)</td><td>Tüm veriler, çizimler, ayarlar</td></tr>
+<tr><td>Mercator</td><td>0..1 (dünya bir kare)</td><td><code>XMapView</code> merkezi; havalimanı şekilleri referansa göre fark olarak</td></tr>
+<tr><td>Boxel</td><td>XPLM pencere birimi (global masaüstü)</td><td>Bütün çizim ve fare; UI ölçeği %100 değilse pikselden farklı</td></tr>
+<tr><td>Piksel</td><td>gerçek ekran pikseli</td><td>Sadece <code>glScissor</code>; dönüşüm <code>gfx/GlScreen</code></td></tr>
 </table>
-<p><code>MapView</code> haritanın "kamerası"dır: Web Mercator, merkez + sürekli zoom (zoom 0'da dünya 256 boxel;
-her zoom adımında kenar iki katı; en çok 16.5). <code>ToScreen</code> / <code>ToLatLon</code> dönüşümleri ve
-imleç etrafında zoom (<code>ZoomAt</code>) buradadır. Web Mercator'da ekrana çevirme bir ölçek + kaydırma olduğu
-için, sabit şekiller GPU'ya bir kez yüklenip her karede sadece bu iki sayı değiştirilerek çizilebilir
-(<code>StaticMesh</code>, bölüm 11).</p>
+<p><code>XMapView</code> haritanın "kamerası"dır: Web Mercator, merkez + sürekli zoom (zoom 0'da dünya 256 boxel; her zoom adımında kenar iki katı; en çok 16.5). <code>ToScreen</code> / <code>ToLatLon</code> dönüşümleri ve imleç etrafında zoom (<code>ZoomAt</code>) buradadır. Web Mercator'da ekrana çevirme bir ölçek + kaydırma olduğu için, sabit şekiller GPU'ya bir kez yüklenip her karede sadece bu iki sayı değiştirilerek çizilebilir (<code>StaticMesh</code>, bölüm 11).</p>
 
-<!-- ================================================================== -->
-<h2 class="page-break">7. Katman sistemi</h2>
+<h2>7. Katman sistemi</h2>
 <h3>7.1 Layer arayüzü</h3>
 <pre>class Layer                                    // src/Layer.h
 {
-    Draw(const DrawContext&amp;)                   // geometri: Mesh uret, Canvas'a ver
-    DrawLabels(const DrawContext&amp;)             // yazilar; LabelPlacer'dan yer iste
-    Describe(const DrawContext&amp;, x, y)         // fare ustundeyse kisa aciklama (tooltip)
+    Draw(const drawContext&amp;)                   // geometri: Mesh uret, Canvas'a ver
+    DrawLabels(const drawContext&amp;)             // yazilar; LabelPlacer'dan yer iste
+    Describe(const drawContext&amp;, x, y)         // fare ustundeyse kisa aciklama (tooltip)
     LabelPriority()                            // kucuk = etiketi once yerlesir
     Id() / Name() / IsVisible() / DefaultVisible()
     AddSubLayer(id, name) / IsSubLayerVisible(i)   // istege bagli alt katmanlar
 };
 
-struct DrawContext
+struct drawContext
 {
-    const MapView* mView;        // projeksiyon
+    const XMapView* mView;        // projeksiyon
     Gfx::Canvas*   mCanvas;      // tek cizim kapisi
     LabelPlacer*   mLabels;      // ortak etiket / sembol cakisma onleyici
-    const MapTheme* mTheme;      // harita modunun renkleri
+    const XMapTheme* mTheme;      // harita modunun renkleri
     ...                          // pencere siniri, fare konumu
 };</pre>
-<p><b>Etiket yerleşimi:</b> <code>LabelPlacer</code> ekrana konan kutuları hatırlar; yeni kutu öncekilerden biriyle
-çakışıyorsa reddedilir. Katmanlar etiketlerini <code>LabelPriority</code> sırasıyla ister (havalimanı 10, pist 15,
-VOR 20, NDB 30, ILS 40, fix 60, hava yolu 70); semboller de <code>Reserve</code> ile kutularını önceden ayırır.
-Sonuç: hiçbir yazı bir sembolün üstüne binmez, sığmayan yazı yakınlaşınca görünür.</p>
-<p><b>Alt katmanlar:</b> bir katman yapıcısında parçalarını <code>AddSubLayer("pavement", "Pavement")</code> ile
-tanıtır, <code>Draw</code> içinde <code>IsSubLayerVisible(indeks)</code> ile o parçayı çizip çizmeyeceğine bakar.
-Panelde katmanın altında açılır liste olarak çıkar; ayar anahtarı <code>&lt;katman&gt;.&lt;alt katman&gt;</code>.</p>
+<p><b>Etiket yerleşimi:</b> <code>LabelPlacer</code> ekrana konan kutuları hatırlar; yeni kutu öncekilerden biriyle çakışıyorsa reddedilir. Katmanlar etiketlerini <code>LabelPriority</code> sırasıyla ister (havalimanı 10, pist 15, VOR 20, NDB 30, ILS 40, fix 60, hava yolu 70); semboller de <code>Reserve</code> ile kutularını önceden ayırır. Sonuç: hiçbir yazı bir sembolün üstüne binmez, sığmayan yazı yakınlaşınca görünür.</p>
+<p><b>Alt katmanlar:</b> bir katman yapıcısında parçalarını <code>AddSubLayer("pavement", "Pavement")</code> ile tanıtır, <code>Draw</code> içinde <code>IsSubLayerVisible(indeks)</code> ile o parçayı çizip çizmeyeceğine bakar. Panelde katmanın altında açılır liste olarak çıkar; ayar anahtarı <code>&lt;katman&gt;.&lt;alt katman&gt;</code>.</p>
 
 <h3>7.2 Çizim sırası ve katmanlar</h3>
-<p>Sıra <code>Plugin.cpp::CreateLayers()</code>'tadır (alttan üste). Zoom eşikleri her katmanın .cpp dosyasının
-başındaki sabitlerdedir.</p>
+<p>Sıra <code>Plugin.cpp::CreateLayers()</code>'tadır (alttan üste). Zoom eşikleri her katmanın <code>.cpp</code> dosyasının başındaki sabitlerdedir.</p>
 <table>
-  <tr><th>#</th><th>Katman</th><th>Veri</th><th>Ne çizer / alt katmanlar</th></tr>
-  <tr><td>1</td><td><code>TerrainLayer</code></td><td>TerrainStore</td><td>Zemin dokuları (zoom 5+); seviye seçimi, doku LRU (512 MB); alt katmanlar Forests, Built-up areas</td></tr>
-  <tr><td>1b</td><td><code>RoadLayer</code></td><td>TerrainStore (vektörler)</td><td>Yollar, demiryolu, enerji hattı (0.17; bölüm 9.8)</td></tr>
-  <tr><td>2</td><td><code>AirportSurfaceLayer</code></td><td>AirportDetailStore</td><td>Apron/taksi yolu yüzeyi, kenarları, havalimanı sınırı, boya çizgileri</td></tr>
-  <tr><td>3</td><td><code>GridLayer</code></td><td>—</td><td>Enlem/boylam ızgarası, aralık zoom'a göre</td></tr>
-  <tr><td>4</td><td><code>NavaidLayer</code> (ILS)</td><td>NavDatabase + pistler</td><td>Localizer tüyü pist eşiğinden (pistlerin altında kalsın diye burada)</td></tr>
-  <tr><td>5</td><td><code>RunwayLayer</code></td><td>AirportGeometryStore</td><td>Gerçek ölçekli pistler; kaplamalı/kaplamasız/su, blast pad, işaretler, numaralar</td></tr>
-  <tr><td>6</td><td><code>TaxiRouteLayer</code></td><td>AirportDetailStore</td><td>ATC taksi ağı (1201/1202), varsayılan kapalı</td></tr>
-  <tr><td>7</td><td><code>AirportObjectsLayer</code></td><td>AirportDetailStore</td><td>Işıklar, helipad, beacon, rüzgâr tulumu, kapı/bağlama/hangar, park adları, PAPI/VASI, tabelalar</td></tr>
-  <tr><td>8–9</td><td><code>AirwayLayer</code> ×2</td><td>AirwayDatabase</td><td>Alçak / yüksek hava yolları, adlar, yön okları</td></tr>
-  <tr><td>10</td><td><code>AirportLayer</code></td><td>NavDatabase + özet</td><td>Havalimanı sembolleri ve adları (zoom'a göre seyreltme, kule rengi)</td></tr>
-  <tr><td>11–13</td><td><code>NavaidLayer</code> (VOR, NDB, Fix)</td><td>NavDatabase</td><td>Semboller, kimlik/frekans; VFR'de VOR pusula gülü</td></tr>
-  <tr><td>14</td><td><code>FmsLayer</code></td><td>XPLM FMS</td><td>Uçuş planı (geçilmiş / aktif / kalan bacak)</td></tr>
-  <tr><td>15</td><td><code>TrackLayer</code></td><td>AircraftData</td><td>Uçuş izi</td></tr>
-  <tr><td>16</td><td><code>AircraftLayer</code></td><td>AircraftData</td><td>Uçak sembolü ve yön çizgisi</td></tr>
-  <tr><td>17</td><td><code>DrawingLayer</code></td><td>Drawings</td><td>Kullanıcı çizimleri: noktalar, rotalar, bölgeler, adlar/mesafeler</td></tr>
+<tr><th>#</th><th>Katman</th><th>Veri</th><th>Ne çizer / alt katmanlar</th></tr>
+<tr><td>1</td><td><code>TerrainLayer</code></td><td><code>TerrainStore</code></td><td>Zemin dokuları (zoom 5+); seviye seçimi, doku LRU (512 MB); alt katmanlar Forests, Built-up areas</td></tr>
+<tr><td>1b</td><td><code>RoadLayer</code></td><td><code>TerrainStore</code> (vektörler)</td><td>Yollar, demiryolu, enerji hattı (0.17; bölüm 9.8)</td></tr>
+<tr><td>2</td><td><code>AirportSurfaceLayer</code></td><td><code>AirportDetailStore</code></td><td>Apron/taksi yolu yüzeyi, kenarları, havalimanı sınırı, boya çizgileri</td></tr>
+<tr><td>3</td><td><code>GridLayer</code></td><td>&mdash;</td><td>Enlem/boylam ızgarası, aralık zoom'a göre</td></tr>
+<tr><td>4</td><td><code>NavaidLayer</code> (ILS)</td><td><code>NavDatabase</code> + pistler</td><td>Localizer tüyü pist eşiğinden (pistlerin altında kalsın diye burada)</td></tr>
+<tr><td>5</td><td><code>RunwayLayer</code></td><td><code>AirportGeometryStore</code></td><td>Gerçek ölçekli pistler; kaplamalı/kaplamasız/su, blast pad, işaretler, numaralar</td></tr>
+<tr><td>6</td><td><code>TaxiRouteLayer</code></td><td><code>AirportDetailStore</code></td><td>ATC taksi ağı (1201/1202), varsayılan kapalı</td></tr>
+<tr><td>7</td><td><code>AirportObjectsLayer</code></td><td><code>AirportDetailStore</code></td><td>Işıklar, helipad, beacon, rüzgâr tulumu, kapı/bağlama/hangar, park adları, PAPI/VASI, tabelalar</td></tr>
+<tr><td>8&ndash;9</td><td><code>AirwayLayer</code> &times;2</td><td><code>AirwayDatabase</code></td><td>Alçak / yüksek hava yolları, adlar, yön okları</td></tr>
+<tr><td>10</td><td><code>AirportLayer</code></td><td><code>NavDatabase</code> + özet</td><td>Havalimanı sembolleri ve adları (zoom'a göre seyreltme, kule rengi)</td></tr>
+<tr><td>11&ndash;13</td><td><code>NavaidLayer</code> (VOR, NDB, Fix)</td><td><code>NavDatabase</code></td><td>Semboller, kimlik/frekans; VFR'de VOR pusula gülü</td></tr>
+<tr><td>14</td><td><code>FmsLayer</code></td><td>XPLM FMS</td><td>Uçuş planı (geçilmiş / aktif / kalan bacak)</td></tr>
+<tr><td>15</td><td><code>TrackLayer</code></td><td><code>AircraftData</code></td><td>Uçuş izi</td></tr>
+<tr><td>16</td><td><code>AircraftLayer</code></td><td><code>AircraftData</code></td><td>Uçak sembolü ve yön çizgisi</td></tr>
+<tr><td>17</td><td><code>DrawingLayer</code></td><td><code>Drawings</code></td><td>Kullanıcı çizimleri: noktalar, rotalar, bölgeler, adlar/mesafeler</td></tr>
 </table>
-<p>Ortak yardımcılar: <code>layers/MapSymbols</code> (sembol ölçüleri, etiketi sembolün yanına yerleştirme),
-<code>layers/AirportVisibility</code> (ekrana değen havalimanlarını haritanın merkezine yakınlık sırasıyla bulur —
-ayrıntısı önce merkezdekinin okunsun diye).</p>
+<p>Ortak yardımcılar: <code>layers/XMapSymbols</code> (sembol ölçüleri, etiketi sembolün yanına yerleştirme), <code>layers/AirportVisibility</code> (ekrana değen havalimanlarını haritanın merkezine yakınlık sırasıyla bulur &mdash; ayrıntısı önce merkezdekinin okunsun diye).</p>
 
 <h3>7.3 Yeni katman eklemek</h3>
 <ol>
-  <li><code>Layer</code>'dan türeyen bir sınıf yaz (örnek: <code>layers/GridLayer.*</code>); <code>Draw</code>,
-      gerekirse <code>DrawLabels</code> ve <code>Describe</code>.</li>
-  <li>Renkleri sabit yazma, <code>pContext.mTheme</code>'den oku (gerekirse <code>MapTheme</code>'ye alan ekle).</li>
-  <li><code>Plugin.cpp::CreateLayers()</code>'ta doğru sıraya ekle; dosyayı CMake listesine koy.</li>
-  <li>Mod başına varsayılan görünürlük: <code>MapTheme.cpp</code> (<code>mLayerDefaults</code>).</li>
-  <li>Panelde grubu: <code>ui/LayerPanel.cpp</code> içindeki <code>kGroups</code> tablosu.</li>
+<li><code>Layer</code>'dan türeyen bir sınıf yaz (örnek: <code>layers/GridLayer.*</code>); <code>Draw</code>, gerekirse <code>DrawLabels</code> ve <code>Describe</code>.</li>
+<li>Renkleri sabit yazma, <code>pContext.mTheme</code>'den oku (gerekirse <code>XMapTheme</code>'ye alan ekle).</li>
+<li><code>Plugin.cpp::CreateLayers()</code>'ta doğru sıraya ekle; dosyayı CMake listesine koy.</li>
+<li>Mod başına varsayılan görünürlük: <code>XMapTheme.cpp</code> (<code>mLayerDefaults</code>).</li>
+<li>Panelde grubu: <code>ui/LayerPanel.cpp</code> içindeki <code>kGroups</code> tablosu.</li>
 </ol>
 <p>Görünürlüğün ayar dosyasına kaydı, panelde onay kutusu ve alt katman listesi kendiliğinden gelir.</p>
 
-<!-- ================================================================== -->
-<h2 class="page-break">8. Havalimanı verisi (apt.dat)</h2>
-<p>apt.dat okuyucu projenin kendisinindir (saf C++, kaynak: XP-APT-1100 spesifikasyonu). Global Airports apt.dat'ı
-yüzlerce MB olduğu için iki seviyeli çalışır: <b>özet</b> her zaman bellekte, <b>ayrıntı</b> sadece ekrandaki
-havalimanları için.</p>
-<figure>
+<h2>8. Havalimanı verisi (apt.dat)</h2>
+<p>apt.dat okuyucu projenin kendisinindir (saf C++, kaynak: XP-APT-1100 spesifikasyonu). Global Airports apt.dat'ı yüzlerce MB olduğu için iki seviyeli çalışır: özet her zaman bellekte, ayrıntı sadece ekrandaki havalimanları için.</p>
+﻿<figure>
 <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -445,25 +401,16 @@ havalimanları için.</p>
 </svg>
 <figcaption>Şekil 4 — apt.dat'tan ekrana: iki seviyeli okuma.</figcaption>
 </figure>
-<ul>
-  <li><b>Öncelik:</b> Custom Scenery paketleri <code>scenery_packs.ini</code> sırasıyla, sonra varsayılan apt.dat;
-      aynı kimlikte ilk gelen kazanır (X-Plane'in kuralı). <code>scenery_packs.ini</code> sadece okunur.</li>
-  <li><b>AptLine:</b> sayıları yerel ayardan bağımsız okur (Türkçe Windows'ta <code>strtod</code> virgül bekleyebilir).</li>
-  <li><b>AirportDetail:</b> apt.dat satır kodlarının birebir karşılığı (100 pist, 102 helipad, 110 yüzey, 120 çizgi,
-      130 sınır, 111–116 düğümler, 14/15/18/19/20/21, 1201/1202, 1300...).</li>
-  <li><b>AirportShapes:</b> hesaplar havalimanı çevresinde metre cinsinden düz bir düzlemde (LocalFrame) yapılır;
-      sonuç noktaları referans noktasına göre Mercator farkı (float) olarak saklanır.</li>
-  <li><b>Gerçek veri ≠ spesifikasyon:</b> kodda <code>GERCEK VERI</code> notları var (düğüm sonunda 0–3 stil değeri,
-      başlıktaki kule alanı hep 0, Bezier kontrol noktasının yönü...). Biçim değiştirmeden önce bu notları oku.</li>
-  <li><b>LocalizerMatch:</b> SDK localizer'ın sadece anten yerini verir; ILS tüyü eşikten başlasın diye uyumlu pist ucu
-      bulunur.</li>
-</ul>
+<p><b>Öncelik:</b> Custom Scenery paketleri <code>scenery_packs.ini</code> sırasıyla, sonra varsayılan apt.dat; aynı kimlikte ilk gelen kazanır (X-Plane'in kuralı). <code>scenery_packs.ini</code> sadece okunur.</p>
+<p><code>AptLine</code>: sayıları yerel ayardan bağımsız okur (Türkçe Windows'ta <code>strtod</code> virgül bekleyebilir).</p>
+<p><code>AirportDetail</code>: apt.dat satır kodlarının birebir karşılığı (100 pist, 102 helipad, 110 yüzey, 120 çizgi, 130 sınır, 111&ndash;116 düğümler, 14/15/18/19/20/21, 1201/1202, 1300...).</p>
+<p><code>AirportShapes</code>: hesaplar havalimanı çevresinde metre cinsinden düz bir düzlemde (LocalFrame) yapılır; sonuç noktaları referans noktasına göre Mercator farkı (float) olarak saklanır.</p>
+<p>Gerçek veri &ne; spesifikasyon: kodda <code>GERCEK VERI</code> notları var (düğüm sonunda 0&ndash;3 stil değeri, başlıktaki kule alanı hep 0, Bezier kontrol noktasının yönü...). Biçim değiştirmeden önce bu notları oku.</p>
+<p><code>LocalizerMatch</code>: SDK localizer'ın sadece anten yerini verir; ILS tüyü eşikten başlasın diye uyumlu pist ucu bulunur.</p>
 
-<!-- ================================================================== -->
-<h2 class="page-break">9. Zemin (DSF sahnesi)</h2>
-<p>Zemin, o bilgisayarda kurulu <b>her</b> sahneyle çalışır (bölgeye özel iş yok). Özel sahne global sahneyi ezer,
-sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka plandaki zemin işçisinde yapılır.</p>
-<figure>
+<h2>9. Zemin (DSF sahnesi)</h2>
+<p>Zemin, o bilgisayarda kurulu her sahneyle çalışır (bölgeye özel iş yok). Özel sahne global sahneyi ezer, sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka plandaki zemin işçisinde yapılır.</p>
+﻿<figure>
 <svg viewBox="0 0 760 390" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -503,7 +450,7 @@ sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka p
     <!-- image building -->
     <rect x="40" y="226" width="710" height="76" rx="5" fill="#e5f3ea" stroke="#2e7d4f"/>
     <text x="395" y="246" text-anchor="middle" font-weight="600">Görüntü üretimi (BuildImage / BuildDetailImage) — istenen karo + seviye + biçim için RGBA</text>
-    <text x="54" y="264">renk: TerrainPalette (terrain_colors.ini) · biçim: Classes (Scenery) / Elevation (VFR) / LandWater (IFR)</text>
+    <text x="54" y="264">renk: TerrainPalette (terrain_colors.json) · biçim: Classes (Scenery) / Elevation (VFR) / LandWater (IFR)</text>
     <text x="54" y="280" fill="#5b6575">Scenery yakın zoom: TerrainNoise (sınırları kıvırır) · LandColorField (kara sınıfları arası yumuşak geçiş)</text>
     <text x="54" y="295" fill="#5b6575">ComposeImage: her pikselde DEM'den kabartma / VFR bandı, su tonu, kıyı çizgisi (9.6) · BleedTransparent</text>
     <line x1="200" y1="196" x2="200" y2="224" stroke="#5b6575" stroke-width="1.3" marker-end="url(#ar5)"/>
@@ -524,96 +471,53 @@ sahne güncellenince harita da güncellenir. Tüm iş eklentinin içinde, arka p
 </svg>
 <figcaption>Şekil 5 — Kurulu DSF sahnesinden zemin dokusuna.</figcaption>
 </figure>
+
 <h3>9.1 Seviye seçimi</h3>
 <table>
-  <tr><th>Seviye</th><th>Ne zaman (ekranda derece başına piksel)</th><th>Görüntü</th><th>Kaynak</th></tr>
-  <tr><td>0</td><td>&lt; 100</td><td>64 px, tüm karo</td><td>sınıf raster'ı</td></tr>
-  <tr><td>1</td><td>&lt; 400</td><td>256 px, tüm karo</td><td>sınıf raster'ı</td></tr>
-  <tr><td>2</td><td>&lt; 1600</td><td>1024 px, tüm karo</td><td>sınıf raster'ı</td></tr>
-  <tr><td>3</td><td>&lt; seviye 4 eşiği</td><td>4×4 parçadan biri, 1024 px</td><td>sınıf raster'ı</td></tr>
-  <tr><td>4</td><td>yakın</td><td>32×32 parçadan biri (1/32°), 1024 px</td><td>DSF üçgenleri</td></tr>
-  <tr><td>5</td><td>çok yakın</td><td>128×128 parçadan biri (1/128°), 1024 px</td><td>DSF üçgenleri</td></tr>
+<tr><th>Seviye</th><th>Ne zaman (ekranda derece başına piksel)</th><th>Görüntü</th><th>Kaynak</th></tr>
+<tr><td>0</td><td>&lt; 100</td><td>64 px, tüm karo</td><td>sınıf raster'ı</td></tr>
+<tr><td>1</td><td>&lt; 400</td><td>256 px, tüm karo</td><td>sınıf raster'ı</td></tr>
+<tr><td>2</td><td>&lt; 1600</td><td>1024 px, tüm karo</td><td>sınıf raster'ı</td></tr>
+<tr><td>3</td><td>&lt; seviye 4 eşiği</td><td>4&times;4 parçadan biri, 1024 px</td><td>sınıf raster'ı</td></tr>
+<tr><td>4</td><td>yakın</td><td>32&times;32 parçadan biri (1/32&deg;), 1024 px</td><td>DSF üçgenleri</td></tr>
+<tr><td>5</td><td>çok yakın</td><td>128&times;128 parçadan biri (1/128&deg;), 1024 px</td><td>DSF üçgenleri</td></tr>
 </table>
+
 <h3>9.2 Önbellek ve senkron kalma</h3>
-<ul>
-  <li>Her karonun önbellek dosyası, üretildiği <b>bütün aday DSF'lerin</b> yol + boyut + değişiklik zamanı listesiyle
-      etiketlidir. Sahne eklenir, çıkarılır, sırası değişir veya güncellenirse etiket tutmaz, karo yeniden üretilir.</li>
-  <li>Temel mesh'i olmayan karo (DSF yok ya da sadece overlay): <b>deniz</b> mi <b>veri yok</b> mu, X-Plane'in dünya
-      tablosu <code>dsf_files</code>'tan (bölüm 9.7). Sadece overlay DSF'i olan karo için <code>.nobase</code> işareti
-      yazılır (her açılışta yeniden açılmasın).</li>
-  <li>Rakım ayrı dosyada (<code>&lt;karo&gt;.elevation</code>), aynı anahtarla: raster ile birlikte üretilir, birlikte
-      geçersiz olur. DEM'i olmayan karo için boş rakım dosyası yazılır (kabartmasız karo, yeniden üretilmez).</li>
-  <li>Biçim değişirse <code>TerrainRaster.cpp</code>'deki <code>kFileVersion</code> (şu an 3) ya da
-      <code>TerrainElevation.cpp</code>'deki <code>kFileVersion</code> (şu an 1) artırılır; eski dosyalar kendiliğinden
-      yeniden üretilir. Palet varsayılanları değişirse <code>TerrainPalette::kPaletteVersion</code> artırılır.</li>
-  <li><b>Disk sınırı (0.18, <code>data/CacheTrim</code>):</b> <code>[cache] terrain_mb</code> (varsayılan 1024 MB). Karonun dosyaları (<code>.terrain .elevation .vectors .nobase</code>) bir grup sayılır ve birlikte silinir. "Son kullanım" = dosyanın değiştirilme zamanı: önbellekten okunan <code>.terrain</code> okununca şimdiye çekilir (Windows'un son erişim zamanı çoğu makinede kapalı). İşçi açılışta bir kez ve yeni karo ürettikten sonra boşta kalınca klasörü tarar; sınır aşıldıysa en eski karoları toplam sınırın %90'ına inene kadar siler. Silme işçi thread'inde yapılır: dosyaları zaten sadece işçi okuyup yazıyor, yarış yok. Silinen karo gerekirse yeniden üretilir.</li>
-</ul>
+<p>Her karonun önbellek dosyası, üretildiği bütün aday DSF'lerin yol + boyut + değişiklik zamanı listesiyle etiketlidir. Sahne eklenir, çıkarılır, sırası değişir veya güncellenirse etiket tutmaz, karo yeniden üretilir.</p>
+<p>Temel mesh'i olmayan karo (DSF yok ya da sadece overlay): deniz mi veri yok mu, X-Plane'in dünya tablosu <code>dsf_files</code>'tan (bölüm 9.7). Sadece overlay DSF'i olan karo için <code>.nobase</code> işareti yazılır (her açılışta yeniden açılmasın).</p>
+<p>Rakım ayrı dosyada (<code>&lt;karo&gt;.elevation</code>), aynı anahtarla: raster ile birlikte üretilir, birlikte geçersiz olur. DEM'i olmayan karo için boş rakım dosyası yazılır (kabartmasız karo, yeniden üretilmez).</p>
+<p>Biçim değişirse <code>TerrainRaster.cpp</code>'deki <code>kFileVersion</code> (şu an 3) ya da <code>TerrainElevation.cpp</code>'deki <code>kFileVersion</code> (şu an 1) artırılır; eski dosyalar kendiliğinden yeniden üretilir. Palet varsayılanları değişirse <code>TerrainPalette::kPaletteVersion</code> artırılır.</p>
+<p>Disk sınırı (0.18, <code>data/CacheTrim</code>): <code>[cache] terrain_mb</code> (varsayılan 1024 MB). Karonun dosyaları (<code>.terrain</code> <code>.elevation</code> <code>.vectors</code> <code>.nobase</code>) bir grup sayılır ve birlikte silinir. "Son kullanım" = dosyanın değiştirilme zamanı: önbellekten okunan <code>.terrain</code> okununca şimdiye çekilir (Windows'un son erişim zamanı çoğu makinede kapalı). İşçi açılışta bir kez ve yeni karo ürettikten sonra boşta kalınca klasörü tarar; sınır aşıldıysa en eski karoları toplam sınırın %90'ına inene kadar siler. Silme işçi thread'inde yapılır: dosyaları zaten sadece işçi okuyup yazıyor, yarış yok. Silinen karo gerekirse yeniden üretilir.</p>
+
 <h3>9.3 Yakın zoom görüntüsü neden ayrı?</h3>
-<p>Sınıf raster'ı derece başına 4096 pikseldir (enlem 47'de piksel başına ~27 × 18 m); yaklaşınca her piksel ekranda
-bir blok olur. Bu yüzden seviye 4–5'te görüntü doğrudan DSF üçgenlerinden boyanır. Ama DSF'te arazi türü üçgen
-başına atandığı için düz renkle boyanınca üçgenler keskin bir mozaik gibi görünür. Bunu iki adım düzeltir:</p>
+<p>Sınıf raster'ı derece başına 4096 pikseldir (enlem 47'de piksel başına ~27 &times; 18 m); yaklaşınca her piksel ekranda bir blok olur. Bu yüzden seviye 4&ndash;5'te görüntü doğrudan DSF üçgenlerinden boyanır. Ama DSF'te arazi türü üçgen başına atandığı için düz renkle boyanınca üçgenler keskin bir mozaik gibi görünür. Bunu iki adım düzeltir:</p>
 <ul>
-  <li><b>TerrainNoise</b> ("domain warp"): sınıf okunurken bakılan nokta, enlem/boylama bağlı deterministik bir
-      gürültüyle birkaç on metre kaydırılır; sınırlar kıvrılır. Gürültü coğrafi koordinattan üretildiği için her
-      seviyede ve her parçada aynıdır (dikiş olmaz).</li>
-  <li><b>LandColorField</b>: sadece kara renkleri belirli bir yer mesafesinde (<code>[blend] meters</code>) normalize
-      bulanıklıkla karıştırılır; su ve kıyı keskin kalır, gölge sonra eklenir. Doku kenar payıyla üretilip kırpılır,
-      komşu parçalar arasında dikiş olmaz.</li>
+<li><b>TerrainNoise</b> ("domain warp"): sınıf okunurken bakılan nokta, enlem/boylama bağlı deterministik bir gürültüyle birkaç on metre kaydırılır; sınırlar kıvrılır. Gürültü coğrafi koordinattan üretildiği için her seviyede ve her parçada aynıdır (dikiş olmaz).</li>
+<li><b>LandColorField</b>: sadece kara renkleri belirli bir yer mesafesinde (<code>[blend] meters</code>) normalize bulanıklıkla karıştırılır; su ve kıyı keskin kalır, gölge sonra eklenir. Doku kenar payıyla üretilip kırpılır, komşu parçalar arasında dikiş olmaz.</li>
 </ul>
-<p>Ayar anahtarları (<code>[blend]</code>, <code>[warp]</code>, <code>[closeup]</code>) <code>terrain_colors.ini</code>'nin
-başındaki açıklamada listelidir (dosyayı <code>Plugin::LoadTerrainColors</code> yazar).</p>
+<p>Ayar anahtarları (<code>[blend]</code>, <code>[warp]</code>, <code>[closeup]</code>) <code>terrain_colors.json</code>'nin başındaki açıklamada listelidir (dosyayı <code>Plugin::LoadTerrainColors</code> yazar).</p>
 
 <h3>9.4 Zemin görüntüsünde kullanılan yöntemler</h3>
 <table>
-  <tr><th>Yöntem</th><th>Nerede</th><th>Ne işe yarar</th></tr>
-  <tr><td>Üçgenden doğrudan boyama</td><td><code>TerrainRaster::BuildDetailImage</code>, <code>TerrainTriangles</code></td>
-      <td>Seviye 4 (1/32°) ve 5 (1/128°, ~0,85 m/piksel) parçaları raster'dan büyütülmez, DSF üçgenlerinden yüksek
-      çözünürlükte boyanır: yakında piksel blokları görünmez. Üçgenler parçalara göre dizinlidir, bir parça için sadece
-      ona değen üçgenler gezilir; bellekte en çok 2 karonun üçgenleri tutulur.</td></tr>
-  <tr><td>Piksel başına kabartma (0.16)</td><td><code>ElevationSampler</code>, <code>ReliefFactor</code></td>
-      <td>Gölge ara bir raster'dan değil, her doku pikselinde DEM'in bikubik (Catmull-Rom) türevinden hesaplanır;
-      piksel boyuna uygun piramit seviyesi kullanılır (bölüm 9.5). Eski 1024² gölge ve 512² rakım raster'ları kaldırıldı.</td></tr>
-  <tr><td>Çok yönlü ışık (0.16)</td><td><code>ReliefFactor</code>; <code>[relief]</code></td>
-      <td>225/270/315/360° ışık, ağırlık 315°'te (ters kabartma yanılsaması olmasın); dik yamaç ışıktan bağımsız biraz
-      koyulaşır (<code>slope_tone</code>); kaba seviyede abartma hafif artar (<code>coarse_boost</code>).</td></tr>
-  <tr><td>VFR yükseklik bantları (0.16)</td><td><code>VfrBandColor</code>; <code>[vfr]</code></td>
-      <td>Sectional sınırları (0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft). Sınır piksel başına bikubik
-      rakımdan bulunur: her zoomda keskin, kıvrımlı kontur; kenar bir piksel genişliğinde yumuşatılır. İsteğe bağlı ince
-      kontur çizgisi.</td></tr>
-  <tr><td>Kıyı çizgisi, kıyı şeridi, derinlik tonu (0.16)</td><td><code>CoastlineStrength</code>,
-      <code>DistanceToLand</code>, <code>DepthDarkening</code>; <code>[water]</code></td>
-      <td>Suyun tarafında tek piksel kıyı çizgisi (IFR dahil; kaba seviyede kara oranı ondalıklı olduğu için kenarı
-      kendiliğinden yumuşak); kıyıdan açığa ~200 m açık şerit (piksel tavanlı, payla üretilir); açıkta DSF
-      <code>sea_level</code> derinliğine göre koyu maviye doğru koyulaşma. Kıyının şekli değişmez.</td></tr>
-  <tr><td>Saydam piksel doldurma</td><td><code>BleedTransparent</code></td>
-      <td>Saydam piksellerin rengi en yakın opak komşudan doldurulur (alfa 0 kalır). Doğrusal süzme ve mipmap saydam
-      pikselin siyahını kenara karıştırıp koyu saçak yapmasın diye.</td></tr>
-  <tr><td>Mipmap'li doku</td><td><code>Texture::FromRgba(..., true)</code></td>
-      <td>Uzaktan bakınca kumlanma / titreme olmaz (bellek 4/3 kat).</td></tr>
-  <tr><td>Sınır kıvırma</td><td><code>TerrainNoise</code>, <code>WarpedClassAt</code>; <code>[warp] meters / wavelength</code> (65 / 250)</td>
-      <td>Değer gürültüsü + fBm ile bakılan nokta kaydırılır; düz üçgen kenarları doğal sınırlara döner. Genlik pikselin
-      ~0,75'inden küçükse (uzak seviyeler) kendiliğinden etkisizdir. Sadece Scenery (Classes) biçiminde.</td></tr>
-  <tr><td>Kara renklerinin yumuşak geçişi</td><td><code>LandColorField</code>; <code>[blend] meters</code> (150)</td>
-      <td>Normalize evrişim (kutu bulanıklığı): sadece kara örnekleri karışır, su rengine çekilmez, kıyı keskin kalır;
-      gölge en son eklenir. Doku kenarlarda payla üretilip kırpılır, komşu parçalar arasında dikiş olmaz. Erim 1,5
-      pikselin altına düşünce plan boş döner (uzak seviyelerde eski görünüm değişmez).</td></tr>
-  <tr><td>Erim tavanı</td><td><code>[blend] max_pixels</code> (5)</td>
-      <td>Yakın seviyelerde yumuşatma erimi doku pikseliyle sınırlanır; havalimanı ayrıntılarının göründüğü zoomlarda
-      zemin bulanıklaşmaz.</td></tr>
-  <tr><td>Yakın zoom sınıf karışımı</td><td><code>CloseupMixAt</code>, <code>MixedColors</code>; <code>[closeup] class_mix</code> (0,3)</td>
-      <td>Piksel boyu 50 m'den küçüldükçe (5 m'de tam oran, arası logaritmik) kara sınıf renkleri ortak bir kara tonuna
-      yaklaşır; yakında renk mozaiği sakinleşir. Su, kar ve "None" karışmaz.</td></tr>
-  <tr><td>Palet sürümü</td><td><code>TerrainPalette::kPaletteVersion</code> (2)</td>
-      <td>Varsayılan renkler değişince dosyadaki eski renkler atılır, dosya yeni varsayılanlarla yeniden yazılır
-      (shading / blend korunur).</td></tr>
+<tr><th>Yöntem</th><th>Nerede</th><th>Ne işe yarar</th></tr>
+<tr><td>Üçgenden doğrudan boyama</td><td><code>TerrainRaster::BuildDetailImage</code>, <code>TerrainTriangles</code></td><td>Seviye 4 (1/32&deg;) ve 5 (1/128&deg;, ~0,85 m/piksel) parçaları raster'dan büyütülmez, DSF üçgenlerinden yüksek çözünürlükte boyanır: yakında piksel blokları görünmez. Üçgenler parçalara göre dizinlidir, bir parça için sadece ona değen üçgenler gezilir; bellekte en çok 2 karonun üçgenleri tutulur.</td></tr>
+<tr><td>Piksel başına kabartma (0.16)</td><td><code>ElevationSampler</code>, <code>ReliefFactor</code></td><td>Gölge ara bir raster'dan değil, her doku pikselinde DEM'in bikubik (Catmull-Rom) türevinden hesaplanır; piksel boyuna uygun piramit seviyesi kullanılır (bölüm 9.5). Eski 1024² gölge ve 512² rakım raster'ları kaldırıldı.</td></tr>
+<tr><td>Çok yönlü ışık (0.16)</td><td><code>ReliefFactor</code>; <code>[relief]</code></td><td>225/270/315/360&deg; ışık, ağırlık 315&deg;'te (ters kabartma yanılsaması olmasın); dik yamaç ışıktan bağımsız biraz koyulaşır (<code>slope_tone</code>); kaba seviyede abartma hafif artar (<code>coarse_boost</code>).</td></tr>
+<tr><td>VFR yükseklik bantları (0.16)</td><td><code>VfrBandColor</code>; <code>[vfr]</code></td><td>Sectional sınırları (0 / 1000 / 2000 / 3000 / 5000 / 7000 / 9000 / 12000+ ft). Sınır piksel başına bikubik rakımdan bulunur: her zoomda keskin, kıvrımlı kontur; kenar bir piksel genişliğinde yumuşatılır. İsteğe bağlı ince kontur çizgisi.</td></tr>
+<tr><td>Kıyı çizgisi, kıyı şeridi, derinlik tonu (0.16)</td><td><code>CoastlineStrength</code>, <code>DistanceToLand</code>, <code>DepthDarkening</code>; <code>[water]</code></td><td>Suyun tarafında tek piksel kıyı çizgisi (IFR dahil; kaba seviyede kara oranı ondalıklı olduğu için kenarı kendiliğinden yumuşak); kıyıdan açığa ~200 m açık şerit (piksel tavanlı, payla üretilir); açıkta DSF <code>sea_level</code> derinliğine göre koyu maviye doğru koyulaşma. Kıyının şekli değişmez.</td></tr>
+<tr><td>Saydam piksel doldurma</td><td><code>BleedTransparent</code></td><td>Saydam piksellerin rengi en yakın opak komşudan doldurulur (alfa 0 kalır). Doğrusal süzme ve mipmap saydam pikselin siyahını kenara karıştırıp koyu saçak yapmasın diye.</td></tr>
+<tr><td>Mipmap'li doku</td><td><code>Texture::FromRgba(..., true)</code></td><td>Uzaktan bakınca kumlanma / titreme olmaz (bellek 4/3 kat).</td></tr>
+<tr><td>Sınır kıvırma</td><td><code>TerrainNoise</code>, <code>WarpedClassAt</code>; <code>[warp]</code></td><td><code>meters / wavelength</code> (65 / 250): Değer gürültüsü + fBm ile bakılan nokta kaydırılır; düz üçgen kenarları doğal sınırlara döner. Genlik pikselin ~0,75'inden küçükse (uzak seviyeler) kendiliğinden etkisizdir. Sadece Scenery (Classes) biçiminde.</td></tr>
+<tr><td>Kara renklerinin yumuşak geçişi</td><td><code>LandColorField</code>; <code>[blend] meters</code> (150)</td><td>Normalize evrişim (kutu bulanıklığı): sadece kara örnekleri karışır, su rengine çekilmez, kıyı keskin kalır; gölge en son eklenir. Doku kenarlarda payla üretilip kırpılır, komşu parçalar arasında dikiş olmaz. Erim 1,5 pikselin altına düşünce plan boş döner (uzak seviyelerde eski görünüm değişmez).</td></tr>
+<tr><td>Erim tavanı <code>[blend] max_pixels</code> (5)</td><td></td><td>Yakın seviyelerde yumuşatma erimi doku pikseliyle sınırlanır; havalimanı ayrıntılarının göründüğü zoomlarda zemin bulanıklaşmaz.</td></tr>
+<tr><td>Yakın zoom sınıf karışımı</td><td><code>CloseupMixAt</code>, <code>MixedColors</code>; <code>[closeup] class_mix</code> (0,3)</td><td>Piksel boyu 50 m'den küçüldükçe (5 m'de tam oran, arası logaritmik) kara sınıf renkleri ortak bir kara tonuna yaklaşır; yakında renk mozaiği sakinleşir. Su, kar ve "None" karışmaz.</td></tr>
+<tr><td>Palet sürümü</td><td><code>TerrainPalette::kPaletteVersion</code> (2)</td><td>Varsayılan renkler değişince dosyadaki eski renkler atılır, dosya yeni varsayılanlarla yeniden yazılır (shading / blend korunur).</td></tr>
 </table>
 
-
-<h3 class="page-break">9.5 Rakım: tam çözünürlük, piramit, komşu karolar (0.16)</h3>
-<p>0.15'e kadar rakım 512² (~200 m), gölge 1024²'lik ara raster'dan okunuyordu: yakında bulanık, uzakta seyrek örnekleme
-yüzünden parazitli (aliasing). 0.16'da DSF'in DEM'i <b>tam çözünürlükte</b> (1201 × 1201 nokta, ~92 m) saklanır ve her
-doku pikseli onu kendi boyuna uygun bir <b>piramit seviyesinden</b> okur.</p>
-<figure>
+<h3>9.5 Rakım: tam çözünürlük, piramit, komşu karolar (0.16)</h3>
+<p>0.15'e kadar rakım 512² (~200 m), gölge 1024²'lik ara raster'dan okunuyordu: yakında bulanık, uzakta seyrek örnekleme yüzünden parazitli (aliasing). 0.16'da DSF'in DEM'i tam çözünürlükte (1201 &times; 1201 nokta, ~92 m) saklanır ve her doku pikseli onu kendi boyuna uygun bir piramit seviyesinden okur.</p>
+﻿<figure>
 <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">
   <g font-size="10.5">
     <!-- piramit -->
@@ -656,118 +560,64 @@ doku pikseli onu kendi boyuna uygun bir <b>piramit seviyesinden</b> okur.</p>
 </svg>
 <figcaption>Şekil 5b — Rakım piramidi ve komşu karolu örnekleme.</figcaption>
 </figure>
-<ul>
-  <li><b>Saklama:</b> <code>ElevationCodec</code> — satır içi fark (<i>delta</i>), bayt düzlemlerine ayırma, LZMA (seviye 4,
-      tek thread; <code>third_party/lzma</code>'ya aynı SDK'nın sıkıştırıcısı eklendi). Gerçek DEM'de 2,9 MB → ~0,75 MB;
-      sıkıştırma ~0,25–0,3 s (karo üretilirken bir kez), açma ~50 ms. Seviye 5 normal moda geçer: %10 daha küçük, 5 kat
-      yavaş (ölçüldü).</li>
-  <li><b>Komşu kuralı:</b> komşu karonun rakımı sadece bellekten ya da önbellekten alınır, komşu için DSF açılmaz. Komşusu
-      henüz üretilmemiş bir doku <code>TerrainImage::mMissingNeighbors</code> listesiyle işaretlenir; komşu hazır olunca
-      (<code>TerrainStore::HasElevation</code>) katman o dokuyu yeniden ister, yenisi gelince eskisinin yerine koyar.</li>
-  <li><b>GERÇEK VERİ:</b> komşu karoların ortak kenar noktaları <b>aynı değil</b> (demo DSF'lerinde ortalama 1–2 m, en çok
-      ~30 m fark). Bu yüzden ortak kenar ve köşede var olan bütün karoların ortalaması alınır; iki taraf sınırda aynı
-      yüksekliği görür, gölge ve VFR bant sınırında basamak olmaz.</li>
-  <li><b>Beklenti:</b> DEM ~92 m aralıklıdır. z15+ zoomda (piksel ~3 m) kabartma yumuşak görünür; bikübik okuma bloğu
-      yok eder ama yeni ayrıntı yaratamaz. Simülatörün kendi zemini de aynı veriden oluşur: bu, X-Plane verisinin sınırı.</li>
-</ul>
+<p><b>Saklama:</b> <code>ElevationCodec</code> &mdash; satır içi fark (delta), bayt düzlemlerine ayırma, LZMA (seviye 4, tek thread; <code>third_party/lzma</code>'ya aynı SDK'nın sıkıştırıcısı eklendi). Gerçek DEM'de 2,9 MB &rarr; ~0,75 MB; sıkıştırma ~0,25&ndash;0,3 s (karo üretilirken bir kez), açma ~50 ms. Seviye 5 normal moda geçer: %10 daha küçük, 5 kat yavaş (ölçüldü).</p>
+<p><b>Komşu kuralı:</b> komşu karonun rakımı sadece bellekten ya da önbellekten alınır, komşu için DSF açılmaz. Komşusu henüz üretilmemiş bir doku <code>TerrainImage::mMissingNeighbors</code> listesiyle işaretlenir; komşu hazır olunca (<code>TerrainStore::HasElevation</code>) katman o dokuyu yeniden ister, yenisi gelince eskisinin yerine koyar.</p>
+<p>GERÇEK VERİ: komşu karoların ortak kenar noktaları aynı değil (demo DSF'lerinde ortalama 1&ndash;2 m, en çok ~30 m fark). Bu yüzden ortak kenar ve köşede var olan bütün karoların ortalaması alınır; iki taraf sınırda aynı yüksekliği görür, gölge ve VFR bant sınırında basamak olmaz.</p>
+<p>Beklenti: DEM ~92 m aralıklıdır. z15+ zoomda (piksel ~3 m) kabartma yumuşak görünür; bikübik okuma bloğu yok eder ama yeni ayrıntı yaratamaz. Simülatörün kendi zemini de aynı veriden oluşur: bu, X-Plane verisinin sınırı.</p>
 
 <h3>9.6 Görüntünün son adımı: ComposeImage (0.16)</h3>
-<p>İki üretici (kaba seviyeler: <code>BuildImage</code>, yakın zoom: <code>BuildDetailImage</code>) önce aynı ara sonucu
-doldurur: payla genişletilmiş alanda her pikselin <b>kara oranı</b> (0..1, veri yoksa −1), <b>kaplama</b> (alfa) ve çıktı
-piksellerinde Scenery kara rengi. Sonra tek bir fonksiyon her seviyede aynı formülle bitirir; bu yüzden ton seviyeden
-seviyeye tutarlıdır.</p>
-<pre>
-payli alan (kara orani)  -> CoastlineStrength (4 komsu)   -> kiyi cizgisi (suyun tarafinda 1 piksel)
-                         -> DistanceToLand (3-4 chamfer)  -> kiyiya uzaklik (serit)
+<p>İki üretici (kaba seviyeler: <code>BuildImage</code>, yakın zoom: <code>BuildDetailImage</code>) önce aynı ara sonucu doldurur: payla genişletilmiş alanda her pikselin kara oranı (0..1, veri yoksa &minus;1), kaplama (alfa) ve çıktı piksellerinde Scenery kara rengi. Sonra tek bir fonksiyon her seviyede aynı formülle bitirir; bu yüzden ton seviyeden seviyeye tutarlıdır.</p>
+<pre>payli alan (kara orani)  -&gt; CoastlineStrength (4 komsu)   -&gt; kiyi cizgisi (suyun tarafinda 1 piksel)
+                         -&gt; DistanceToLand (3-4 chamfer)  -&gt; kiyiya uzaklik (serit)
 her cikti pikseli:
    rakim + egim (ElevationSampler, uygun seviye)
    kara : Classes = sinif rengi | Elevation = VFR bandi (VfrBandColor) | LandWater = duz renk
           x ReliefFactor (Scenery ve VFR)
    su   : su rengi x (1 - DepthDarkening(sea_level)) + kiyi seridi aciklik   (IFR'da duz su)
-   renk = kara * oran + su * (1 - oran);  kiyi cizgisi ustune;  alfa = kaplama
-</pre>
+   renk = kara * oran + su * (1 - oran);  kiyi cizgisi ustune;  alfa = kaplama</pre>
 <table>
-  <tr><th>Ayar (<code>terrain_colors.ini</code>)</th><th>Varsayılan</th><th>Ne</th></tr>
-  <tr><td><code>[relief] multi_directional</code></td><td>1</td><td>4 yönlü ışık (0: tek ışık 315°)</td></tr>
-  <tr><td><code>[relief] exaggeration / coarse_boost / slope_tone</code></td><td>2,5 / 0,35 / 0,12</td><td>Eğim abartması; kaba seviyede artış üssü; dik yamaç koyuluğu</td></tr>
-  <tr><td><code>[relief] flat_slope</code></td><td>0,02</td><td>Bu eğimin altı yumuşakça bastırılır: <code>s·s²/(s²+s₀²)</code>. DEM tam metre saklandığı için düz ovada 1 m'lik basamaklar (~%1 eğim) dalga gibi görünüyordu; %2'de basamak etkisi %23'e iner, %5 yamaç %86'sını, %15+ tamamını korur (ölçüldü)</td></tr>
-  <tr><td><code>[water] coastline / coastline_strength</code></td><td>1 / 0,5</td><td>Kıyı çizgisi</td></tr>
-  <tr><td><code>[water] band_meters / band_max_pixels / band_strength</code></td><td>200 / 24 / 0,10</td><td>Kıyıdan açığa açık şerit, kıyı çizgisinin bir piksel arkasından başlar (0 = kapalı)</td></tr>
-  <tr><td><code>[water] depth_tone / depth_full_meters</code></td><td>0,25 / 200</td><td>Derinliğe göre koyulaşma; kanal ağırlıkları R 1,0 · G 0,8 · B 0,5 (eşit koyulaşma suyu griye çeviriyordu)</td></tr>
-  <tr><td><code>[vfr] bands / contour_lines / contour_strength</code></td><td>1 / 0 / 0,35</td><td>Bantlar (0: eski rampa); ince kontur</td></tr>
-  <tr><td><code>[vfr] band_1 .. band_8</code></td><td>sectional</td><td><code>&lt;alt sınır feet&gt; R G B</code>; sınırlar artan olmalı</td></tr>
+<tr><th>Ayar (terrain_colors.json)</th><th>Varsayılan</th><th>Ne</th></tr>
+<tr><td><code>[relief] multi_directional</code></td><td>1</td><td>4 yönlü ışık (0: tek ışık 315&deg;)</td></tr>
+<tr><td><code>[relief] exaggeration / coarse_boost / slope_tone</code></td><td>2,5 / 0,35 / 0,12</td><td>Eğim abartması; kaba seviyede artış üssü; dik yamaç koyuluğu</td></tr>
+<tr><td><code>[relief] flat_slope</code></td><td>0,02</td><td>Bu eğimin altı yumuşakça bastırılır: s&middot;s²/(s²+s₀²). DEM tam metre saklandığı için düz ovada 1 m'lik basamaklar (~%1 eğim) dalga gibi görünüyordu; %2'de basamak etkisi %23'e iner, %5 yamaç %86'sını, %15+ tamamını korur (ölçüldü)</td></tr>
+<tr><td><code>[water] coastline / coastline_strength</code></td><td>1 / 0,5</td><td>Kıyı çizgisi</td></tr>
+<tr><td><code>[water] band_meters / band_max_pixels / band_strength</code></td><td>200 / 24 / 0,10</td><td>Kıyıdan açığa açık şerit, kıyı çizgisinin bir piksel arkasından başlar (0 = kapalı)</td></tr>
+<tr><td><code>[water] depth_tone / depth_full_meters</code></td><td>0,25 / 200</td><td>Derinliğe göre koyulaşma; kanal ağırlıkları R 1,0 &middot; G 0,8 &middot; B 0,5 (eşit koyulaşma suyu griye çeviriyordu)</td></tr>
+<tr><td><code>[vfr] bands / contour_lines / contour_strength</code></td><td>1 / 0 / 0,35</td><td>Bantlar (0: eski rampa); ince kontur</td></tr>
+<tr><td><code>[vfr] band_1 .. band_8</code></td><td>sectional</td><td>&lt;alt sınır feet&gt; R G B; sınırlar artan olmalı</td></tr>
 </table>
-<p><b>GERÇEK VERİ (<code>sea_level</code>, 256² hücre merkezli, satır 0 = güney):</b> denizde deniz tabanı yüksekliği gibi
-davranır (Puget Sound en derin −242 m). Verisi olmayan deniz hücresi −10 (Juneau kanallarının çoğu), göllerde ≥ 0,
-karadaki değerlerin anlamı yok. DSF'teki <code>bathymetry</code> katmanının adı var ama verisi yok. Biçim belgelenmemiş;
-anlam ölçümden çıkarıldı, bu yüzden derinlik tonu sadece −10'dan derin hücrelerde uygulanır ve kapatılabilir.</p>
+<p>GERÇEK VERİ (<code>sea_level</code>, 256² hücre merkezli, satır 0 = güney): denizde deniz tabanı yüksekliği gibi davranır (Puget Sound en derin &minus;242 m). Verisi olmayan deniz hücresi &minus;10 (Juneau kanallarının çoğu), göllerde &ge; 0, karadaki değerlerin anlamı yok. DSF'teki <code>bathymetry</code> katmanının adı var ama verisi yok. Biçim belgelenmemiş; anlam ölçümden çıkarıldı, bu yüzden derinlik tonu sadece &minus;10'dan derin hücrelerde uygulanır ve kapatılabilir.</p>
 
 <h3>9.7 Deniz mi, veri yok mu: dsf_files (0.16)</h3>
-<ul>
-  <li><code>Resources/dsf_files</code> (<code>WorldTileMap</code>): 5 bayt başlık (anlamı bilinmiyor) + 360 × 180 bayt,
-      boylam öncelikli, <code>indeks = (boylam + 180) × 180 + (enlem + 90)</code>; 255 = X-Plane'in tam global sahnesinde
-      bu karonun DSF'i var, 0 = yok (açık deniz). Kurulu 35 demo karosu ve bilinen kara/deniz noktalarıyla doğrulandı.</li>
-  <li>Temel mesh'i olmayan karo: tabloda 0 ise <b>deniz</b>, 255 ise <b>veri yok</b> (kara ama sahnesi bu bilgisayarda
-      kurulu değil). "Veri yok" karosu deniz gibi boyanmaz; temanın nötr <code>mNoData</code> rengiyle doldurulur.</li>
-  <li>Güvenlik: tablo açılışta Global Scenery'de kurulu karolarla doğrulanır (hepsi 255 olmalı, %2 pay). Dosya yoksa,
-      boyutu farklıysa ya da doğrulama tutmazsa eski kural çalışır (karonun 10°'lik klasörü kuruluysa deniz). Sonuç
-      Log.txt'ye yazılır: <code>world tile map: ... (N mismatches)</code>.</li>
-  <li><code>Resources/map data/water/*.shp</code> (X-Plane'in kendi haritasının suyu) incelendi: DSF kıyısının
-      sadeleştirilmiş hâli, sadece büyük su kütleleri. Simülatördeki su DSF olduğu için esas DSF; shapefile ileride sadece
-      kurulu olmayan karolar ve hızlı ilk görüntü için düşünülebilir (Aşama 4).</li>
-</ul>
+<p><code>Resources/dsf_files</code> (WorldTileMap): 5 bayt başlık (anlamı bilinmiyor) + 360 &times; 180 bayt, boylam öncelikli, indeks = (boylam + 180) &times; 180 + (enlem + 90); 255 = X-Plane'in tam global sahnesinde bu karonun DSF'i var, 0 = yok (açık deniz). Kurulu 35 demo karosu ve bilinen kara/deniz noktalarıyla doğrulandı.</p>
+<p>Temel mesh'i olmayan karo: tabloda 0 ise deniz, 255 ise veri yok (kara ama sahnesi bu bilgisayarda kurulu değil). "Veri yok" karosu deniz gibi boyanmaz; temanın nötr <code>mNoData</code> rengiyle doldurulur.</p>
+<p>Güvenlik: tablo açılışta Global Scenery'de kurulu karolarla doğrulanır (hepsi 255 olmalı, %2 pay). Dosya yoksa, boyutu farklıysa ya da doğrulama tutmazsa eski kural çalışır (karonun 10&deg;'lik klasörü kuruluysa deniz). Sonuç Log.txt'ye yazılır: <code>world tile map: ... (N mismatches)</code>.</p>
+<p><code>Resources/map data/water/*.shp</code> (X-Plane'in kendi haritasının suyu) incelendi: DSF kıyısının sadeleştirilmiş hâli, sadece büyük su kütleleri. Simülatördeki su DSF olduğu için esas DSF; shapefile ileride sadece kurulu olmayan karolar ve hızlı ilk görüntü için düşünülebilir (Aşama 4).</p>
 
 <h3>9.8 DSF vektörleri ve X-Plane paleti (0.17)</h3>
-<ul>
-  <li><b>Okuma:</b> <code>DsfReader::ForEachVector</code> poligonları 16 bitlik (<code>POOL</code>), ağ zincirlerini
-      32 bitlik (<code>PO32</code>/<code>SC32</code>) havuzlardan okur. <code>TerrainVectors</code> tanım adına göre
-      sınıflar: <code>.for</code> → orman / çalı / sulak / tarla, autogen <code>urban_ / ind_ / com_</code> → yerleşim,
-      <code>park_</code> → çimen; yollar alt türe göre otoyol / ana / tali / yerel / demiryolu / enerji hattı.
-      Noktalar Douglas-Peucker ile 2,5–4 m'ye sadeleştirilir.</li>
-  <li><b>Dışlama:</b> aynı karonun overlay DSF'lerinden (Global Airports) <code>sim/exclude_for|obj|fac|net</code>
-      (<code>batı/güney/doğu/kuzey</code>). Yollar dışlama alanında kesilir; alanlar boyanırken piksel piksel atlanır.</li>
-  <li><b>Alanlar zemine işlenir:</b> karo üretilirken 4096²'lik ayrı bir alan katmanına taranır (çift-tek kuralı,
-      sadece karada); yakın zoom parçalarında doğrudan poligonlardan. Görüntü anahtarındaki maske
-      (<code>TerrainImageKey::mAreas</code>, Terrain alt katmanları Forests / Built-up areas) uygulanıp uygulanmayacağını
-      seçer. Scenery'de sınıf rengi olarak, VFR/IFR'da yerleşim temanın <code>mBuiltUp</code> rengine karışarak.</li>
-  <li><b>Yollar:</b> <code>RoadLayer</code> vektörleri <code>TerrainStore::RequestVectors / PopVectors</code> ile alır,
-      karo başına tür başına bir <code>StaticMesh</code> (çizgi) yükler; renk temadan (<code>mRoads</code>), kalınlık
-      ekran pikseli. Önbellek <code>*.vectors</code> (16 bit nokta + LZMA).</li>
-  <li><b>Palet (Aşama 3):</b> <code>TerrainPaletteSource</code> <code>terrain10/*.ter</code> dosyalarının
-      <code>BASE_TEX</code> DDS dokularının küçük bir mip seviyesini çözer (DXT1/3/5, BGRA), sınıf başına ortalar
-      (~3.450 doku). <code>[palette] source = xplane</code> varsayılan; sonuç önbelleğe yazılır.</li>
-</ul>
+<p>Okuma: <code>DsfReader::ForEachVector</code> poligonları 16 bitlik (<code>POOL</code>), ağ zincirlerini 32 bitlik (<code>PO32 / SC32</code>) havuzlardan okur. <code>TerrainVectors</code> tanım adına göre sınıflar: <code>.for</code> &rarr; orman / çalı / sulak / tarla, autogen <code>urban_ / ind_ / com_</code> &rarr; yerleşim, <code>park_</code> &rarr; çimen; yollar alt türe göre otoyol / ana / tali / yerel / demiryolu / enerji hattı. Noktalar Douglas-Peucker ile 2,5&ndash;4 m'ye sadeleştirilir.</p>
+<p>Dışlama: aynı karonun overlay DSF'lerinden (Global Airports) <code>sim/exclude_for|obj|fac|net</code> (batı/güney/doğu/kuzey). Yollar dışlama alanında kesilir; alanlar boyanırken piksel piksel atlanır.</p>
+<p>Alanlar zemine işlenir: karo üretilirken 4096²'lik ayrı bir alan katmanına taranır (çift-tek kuralı, sadece karada); yakın zoom parçalarında doğrudan poligonlardan. Görüntü anahtarındaki maske (<code>TerrainImageKey::mAreas</code>, Terrain alt katmanları Forests / Built-up areas) uygulanıp uygulanmayacağını seçer. Scenery'de sınıf rengi olarak, VFR/IFR'da yerleşim temanın <code>mBuiltUp</code> rengine karışarak.</p>
+<p>Yollar: <code>RoadLayer</code> vektörleri <code>TerrainStore::RequestVectors / PopVectors</code> ile alır, karo başına tür başına bir <code>StaticMesh</code> (çizgi) yükler; renk temadan (<code>mRoads</code>), kalınlık ekran pikseli. Önbellek <code>*.vectors</code> (16 bit nokta + LZMA).</p>
+<p>Palet (Aşama 3): <code>TerrainPaletteSource</code> terrain10/*.ter dosyalarının <code>BASE_TEX</code> DDS dokularının küçük bir mip seviyesini çözer (DXT1/3/5, BGRA), sınıf başına ortalar (~3.450 doku). <code>[palette] source = xplane</code> varsayılan; sonuç önbelleğe yazılır.</p>
 
 <h3>9.9 Aşama 4: öncelik, önceden yükleme, bölge önbelleği (0.19)</h3>
-<ul>
-  <li><b>Merkezden kenara:</b> <code>TerrainLayer</code> her çizimde <code>TerrainStore::SetFocus</code>'a harita merkezini verir. <code>PickRequest</code> sırası: en son istenen kare → kaba seviye → merkeze yakın parça.</li>
-  <li><b>Arka plan kuyruğu:</b> ekranın isteği yokken işçi <code>ServeBackgroundTile</code> ile bir karonun disk önbelleğini (raster, rakım, vektör) hazırlar; geçici nesnelere çalışır, bellek LRU'sunu ve <code>IsIdle</code>'ı etkilemez (harita resmi boşuna yenilenmez). Önce bölge listesi, sonra önceden yükleme listesi.</li>
-  <li><b>Önceden yükleme:</b> eklenti 5 s'de bir uçağın gidiş yönünde 120 NM'ye kadar ve FMS rotasının kalan kısmında (<code>FmsLayer::RouteAhead</code>, 10 NM örnekleme) en çok <code>[cache] prefetch_tiles</code> (20) karoyu verir.</li>
-  <li><b>Görünen alanı önbellekle:</b> komut / menü. Kurulu karolar × ~3,5 MB önbellek sınırının %80'ini aşarsa başlamaz (yoksa <code>CacheTrim</code> yeni karoları silerdi). İlerleme ve iptal alt şeritte / menüde.</li>
-  <li><b>İkinci işçi yok (karar):</b> raster / rakım / vektör LRU'ları kilitsiz ve tek işçinin; bölmek bunları paylaşılan ve kilitli yapmayı gerektirirdi, ölçülmüş bir ihtiyaç yok. İşçi düşük thread önceliğinde.</li>
-</ul>
+<p><b>Merkezden kenara:</b> <code>TerrainLayer</code> her çizimde <code>TerrainStore::SetFocus</code>'a harita merkezini verir. <code>PickRequest</code> sırası: en son istenen kare &rarr; kaba seviye &rarr; merkeze yakın parça.</p>
+<p><b>Arka plan kuyruğu:</b> ekranın isteği yokken işçi <code>ServeBackgroundTile</code> ile bir karonun disk önbelleğini (raster, rakım, vektör) hazırlar; geçici nesnelere çalışır, bellek LRU'sunu ve <code>IsIdle</code>'ı etkilemez (harita resmi boşuna yenilenmez). Önce bölge listesi, sonra önceden yükleme listesi.</p>
+<p><b>Önceden yükleme:</b> eklenti 5 s'de bir uçağın gidiş yönünde 120 NM'ye kadar ve FMS rotasının kalan kısmında (<code>FmsLayer::RouteAhead</code>, 10 NM örnekleme) en çok <code>[cache] prefetch_tiles</code> (20) karoyu verir.</p>
+<p><b>Görünen alanı önbellekle:</b> komut / menü. Kurulu karolar &times; ~3,5 MB önbellek sınırının %80'ini aşarsa başlamaz (yoksa <code>CacheTrim</code> yeni karoları silerdi). İlerleme ve iptal alt şeritte / menüde.</p>
+<p><b>İkinci işçi yok (karar):</b> raster / rakım / vektör LRU'ları kilitsiz ve tek işçinin; bölmek bunları paylaşılan ve kilitli yapmayı gerektirirdi, ölçülmüş bir ihtiyaç yok. İşçi düşük thread önceliğinde.</p>
 
-<!-- ================================================================== -->
 <h2>10. Nav verisi, hava yolları, uçak</h2>
-<ul>
-  <li><b>NavLoader</b> X-Plane'in o an yüklü nav veritabanını SDK ile gezer (<code>XPLMGetFirstNavAid</code> /
-      <code>XPLMGetNextNavAid</code> / <code>XPLMGetNavAidInfo</code>). XPLM sadece ana thread'den çağrılabildiği için iş
-      flight loop'ta 4 ms'lik dilimlere bölünür. Dosya okumaz: haritadaki navaid'ler simülatördekiyle aynıdır.</li>
-  <li><b>NavDatabase</b> kayıtları tutar ve her tür için ayrı bir <b>1×1° ızgara</b> (<code>GeoGrid</code>) kurar;
-      katmanlar sadece ekrandaki hücrelere bakar (yüz binlerce fix var).</li>
-  <li><b>AirwayDatabase</b> <code>earth_awy.dat</code>'ı (XP11, 1100 biçimi) okur; önce <code>Custom Data</code>, sonra
-      varsayılan. Satırda uçların koordinatı yok: kimlik + bölge + türle nav verisinden çözülür.</li>
-  <li><b>AircraftData</b> kullanıcı uçağının konumu ve yönünü dataref'lerden okur; uçak katmanı, iz ve "uçağı takip
-      et" aynı veriyi kullanır.</li>
-  <li><b>Drawings</b> kullanıcı çizimlerinin modeli (lat/lon olarak saklanır, <code>map_drawings.txt</code>).
-      <code>Geo</code> büyük daire mesafesi, ara nokta ve alan hesabını yapar.</li>
-</ul>
-<p>SDK gerçekleri: ILS yönü <b>gerçek</b> yöndür (manyetik değil); TACAN frekansı kanal numarasıdır; "----" kimlikli
-yer tutucu ILS kayıtları filtrelenir. VOR pusula gülü <code>NavRecord::mVariation</code> ile döner.</p>
+<p><code>NavLoader</code> X-Plane'in o an yüklü nav veritabanını SDK ile gezer (<code>XPLMGetFirstNavAid</code> / <code>XPLMGetNextNavAid</code> / <code>XPLMGetNavAidInfo</code>). XPLM sadece ana thread'den çağrılabildiği için iş flight loop'ta 4 ms'lik dilimlere bölünür. Dosya okumaz: haritadaki navaid'ler simülatördekiyle aynıdır.</p>
+<p><code>NavDatabase</code> kayıtları tutar ve her tür için ayrı bir 1&times;1&deg; ızgara (<code>GeoGrid</code>) kurar; katmanlar sadece ekrandaki hücrelere bakar (yüz binlerce fix var).</p>
+<p><code>AirwayDatabase</code> <code>earth_awy.dat</code>'ı (XP11, 1100 biçimi) okur; önce <code>Custom Data</code>, sonra varsayılan. Satırda uçların koordinatı yok: kimlik + bölge + türle nav verisinden çözülür.</p>
+<p><code>AircraftData</code> kullanıcı uçağının konumu ve yönünü dataref'lerden okur; uçak katmanı, iz ve "uçağı takip et" aynı veriyi kullanır.</p>
+<p><code>Drawings</code> kullanıcı çizimlerinin modeli (lat/lon olarak saklanır, <code>map_drawings.txt</code>). <code>Geo</code> büyük daire mesafesi, ara nokta ve alan hesabını yapar.</p>
+<p>SDK gerçekleri: ILS yönü gerçek yöndür (manyetik değil); TACAN frekansı kanal numarasıdır; "----" kimlikli yer tutucu ILS kayıtları filtrelenir. VOR pusula gülü <code>NavRecord::mVariation</code> ile döner.</p>
 
-<!-- ================================================================== -->
-<h2 class="page-break">11. Çizim katmanı (OpenGL 3.3)</h2>
-<figure>
+<h2>11. Çizim katmanı (OpenGL 3.3)</h2>
+﻿<figure>
 <svg viewBox="0 0 760 170" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="ar6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -808,317 +658,240 @@ yer tutucu ILS kayıtları filtrelenir. VOR pusula gülü <code>NavRecord::mVari
 <figcaption>Şekil 6 — İki çizim yolu: her karede üretilen Mesh ve GPU'da kalıcı StaticMesh.</figcaption>
 </figure>
 <table>
-  <tr><th>Dosya</th><th>Görev</th></tr>
-  <tr><td><code>gfx/Mesh.*</code></td><td>CPU'daki renkli üçgen listesi. Modern GL'de <code>glLineWidth</code> güvenilmez olduğu için kalın çizgi, daire, çerçeve hepsi burada üçgene çevrilir; kalınlıklar boxel. <code>OutlinedLines</code> okunurluk için önce koyu/açık hale, sonra renkli çizgi.</td></tr>
-  <tr><td><code>gfx/Canvas.*</code></td><td>Tek çizim kapısı: VBO + VAO + GLSL 330. Her çizimde X-Plane'in program/VAO/VBO/cull durumunu kaydedip geri koyar; matris = GL_PROJECTION × GL_MODELVIEW (BeginFrame'de okunur). Dokulu şeritler (zemin) de buradan.</td></tr>
-  <tr><td><code>gfx/StaticMesh.*</code></td><td>GPU'da kalıcı şekil; <code>DrawStatic</code> ile ölçek + kaydırma.</td></tr>
-  <tr><td><code>gfx/ContextVertexArray.*</code></td><td>Pop-out pencere ayrı OpenGL bağlamında çizilir. Buffer, doku ve shader'lar bağlamlar arasında paylaşılır ama <b>VAO paylaşılmaz</b>; başka bağlamın VAO'sunu bağlamak X-Plane'i çökertir. Bu sınıf VAO'yu o anki bağlam için (gerekirse yeniden) oluşturur.</td></tr>
-  <tr><td><code>gfx/GlApi.*</code></td><td>Windows'un <code>opengl32.lib</code>'i sadece GL 1.1 verir; 3.3 fonksiyonları ilk çizimde <code>wglGetProcAddress</code> ile yüklenir. Bağlam değişimini (<code>ContextGeneration</code>) izler.</td></tr>
-  <tr><td><code>gfx/Texture.*</code></td><td>RAII doku; numara <code>XPLMGenerateTextureNumbers</code>, bağlama <code>XPLMBindTexture2d</code>. İsteğe bağlı mipmap.</td></tr>
-  <tr><td><code>gfx/GlScreen.*</code></td><td>Boxel → piksel dönüşümü (GL matrisinden) ve pencere alanıyla kırpma (scissor).</td></tr>
+<tr><th>Dosya</th><th>Görev</th></tr>
+<tr><td><code>gfx/Mesh.*</code></td><td>CPU'daki renkli üçgen listesi. Modern GL'de <code>glLineWidth</code> güvenilmez olduğu için kalın çizgi, daire, çerçeve hepsi burada üçgene çevrilir; kalınlıklar boxel. <code>OutlinedLines</code> okunurluk için önce koyu/açık hale, sonra renkli çizgi.</td></tr>
+<tr><td><code>gfx/Canvas.*</code></td><td>Tek çizim kapısı: VBO + VAO + GLSL 330. Her çizimde X-Plane'in program/VAO/VBO/cull durumunu kaydedip geri koyar; matris = GL_PROJECTION &times; GL_MODELVIEW (BeginFrame'de okunur). Dokulu şeritler (zemin) de buradan.</td></tr>
+<tr><td><code>gfx/StaticMesh.*</code></td><td>GPU'da kalıcı şekil; <code>DrawStatic</code> ile ölçek + kaydırma.</td></tr>
+<tr><td><code>gfx/ContextVertexArray.*</code></td><td>Pop-out pencere ayrı OpenGL bağlamında çizilir. Buffer, doku ve shader'lar bağlamlar arasında paylaşılır ama VAO paylaşılmaz; başka bağlamın VAO'sunu bağlamak X-Plane'i çökertir. Bu sınıf VAO'yu o anki bağlam için (gerekirse yeniden) oluşturur.</td></tr>
+<tr><td><code>gfx/GlApi.*</code></td><td>Windows'un <code>opengl32.lib</code>'i sadece GL 1.1 verir; 3.3 fonksiyonları ilk çizimde <code>wglGetProcAddress</code> ile yüklenir. Bağlam değişimini (<code>ContextGeneration</code>) izler.</td></tr>
+<tr><td><code>gfx/Texture.*</code></td><td>RAII doku; numara <code>XPLMGenerateTextureNumbers</code>, bağlama <code>XPLMBindTexture2d</code>. İsteğe bağlı mipmap.</td></tr>
+<tr><td><code>gfx/GlScreen.*</code></td><td>Boxel &rarr; piksel dönüşümü (GL matrisinden) ve pencere alanıyla kırpma (scissor).</td></tr>
 </table>
-<div class="note"><b>X-Plane ile birlikte yaşamak:</b> <code>XPLMDrawString</code> doku açar, X-Plane GL_CULL_FACE'i açık
-bırakabilir; bu yüzden her geometri çiziminden önce <code>XPLMSetGraphicsState</code> çağrılır ve cull kapatılır
-(Canvas bunu kendisi yapar — Canvas dışından çizim yapma). Yazılar sadece ASCII çizilebilir (Türkçe harf, derece işareti
-yok).</div>
+<p><b>X-Plane ile birlikte yaşamak:</b> <code>XPLMDrawString</code> doku açar, X-Plane <code>GL_CULL_FACE</code>'i açık bırakabilir; bu yüzden her geometri çiziminden önce <code>XPLMSetGraphicsState</code> çağrılır ve cull kapatılır (Canvas bunu kendisi yapar &mdash; Canvas dışından çizim yapma). Yazılar sadece ASCII çizilebilir (Türkçe harf, derece işareti yok).</p>
 
-<!-- ================================================================== -->
-<h3>11.1 Harita resmi önbelleği (0.19, <code>MapImageCache</code>)</h3>
+<h3>11.1 Harita resmi önbelleği (0.19, XMapImageCache)</h3>
 <p>Harita her karede baştan çizilmez. Katmanlar bir FBO dokusuna (<code>gfx/RenderTarget</code>) çizilir; her karede bu doku tek bir dörtgen olarak (saydamlıksız) ekrana basılır.</p>
-<pre>OnDraw:  PrepareAll (hazir dokular / vektorler)  -> yeni veri?
-         SceneSignature (mod, katmanlar, cizim)    -> degisti mi?
-         MapImageCache::Draw
-             gerekirse: BeginOffscreen -> arka plan + LayerPass::Cached -> EndOffscreen
-             eski resmi kaydir (tam piksel) / olcekle -> bas
-         LayerPass::Overlay (ucak, iz, yarim cizim) -> tooltip -> kontroller -> FlushText</pre>
-<ul>
-  <li><b>Pay:</b> doku pencereden her yanda %25 büyük; kaydırırken ve takipte kenar boş kalmaz. Gösterim: resmin noktası p → <code>M + (c0 − c)·W + (p − M0)·W/W0</code>; sadece kaydırmada tam piksele yuvarlanır (bulanıklık yok).</li>
-  <li><b>Ne zaman çizilir:</b> hemen (ilk kez, boyut / UI ölçeği, imza değişti, resim pencereyi kaplamıyor); hız sınırında <code>[render] max_fps</code> (görünüm değişti, yeni veri, veri yükleniyor); güvenlik için en geç 1 s.</li>
-  <li><b>Görünüm:</b> resmin <code>MapView</code>'ı aynı zoom, geniş viewport; merkezi, içerik pencereyle birebir aynı yere düşecek şekilde kaydırılır. Etiketler pencerenin boş alanına yerleşir (payda etiket yok).</li>
-  <li><b>X-Plane ile yaşamak:</b> <code>BeginOffscreen</code> X-Plane'in draw/read framebuffer'ını, viewport'u, scissor'ı ve temizleme rengini kaydedip geri koyar. FBO nesnesi bağlamlar arası paylaşılmaz: pop-out'ta <code>RenderTarget</code> o bağlam için yenisini aynı dokuya bağlar.</li>
-  <li><b>Yedek:</b> FBO kurulamazsa ya da <code>[render] cache = 0</code> / <code>[text] renderer = xplane</code> ise harita eskisi gibi her karede doğrudan çizilir.</li>
-  <li><b>Katman kuralları:</b> her karede gereken iş <code>Layer::PrepareFrame</code>'de; her karede değişen çizim <code>Layer::IsOverlay</code> ile üstte; pencere kenarına yapışık parçalar (ızgara yazıları) <code>Layer::DrawOverlay</code>'de. Havalimanı yükleniyor çerçevesinin yanıp sönmesi bu yüzden kaldırıldı.</li>
-</ul>
+<pre>OnDraw:  PrepareAll (hazir dokular / vektorler)  -&gt; yeni veri?
+         SceneSignature (mod, katmanlar, cizim)    -&gt; degisti mi?
+         XMapImageCache::Draw
+             gerekirse: BeginOffscreen -&gt; arka plan + LayerPass::Cached -&gt; EndOffscreen
+             eski resmi kaydir (tam piksel) / olcekle -&gt; bas
+         LayerPass::Overlay (ucak, iz, yarim cizim) -&gt; tooltip -&gt; kontroller -&gt; FlushText</pre>
+<p><b>Pay:</b> doku pencereden her yanda %25 büyük; kaydırırken ve takipte kenar boş kalmaz. <b>Gösterim:</b> resmin noktası p &rarr; M + (c0 &minus; c)&middot;W + (p &minus; M0)&middot;W/W0; sadece kaydırmada tam piksele yuvarlanır (bulanıklık yok).</p>
+<p><b>Ne zaman çizilir:</b> hemen (ilk kez, boyut / UI ölçeği, imza değişti, resim pencereyi kaplamıyor); hız sınırında <code>[render] max_fps</code> (görünüm değişti, yeni veri, veri yükleniyor); güvenlik için en geç 1 s.</p>
+<p><b>Görünüm:</b> resmin <code>XMapView</code>'ı aynı zoom, geniş viewport; merkezi, içerik pencereyle birebir aynı yere düşecek şekilde kaydırılır. Etiketler pencerenin boş alanına yerleşir (payda etiket yok).</p>
+<p><b>X-Plane ile yaşamak:</b> <code>BeginOffscreen</code> X-Plane'in draw/read framebuffer'ını, viewport'u, scissor'ı ve temizleme rengini kaydedip geri koyar. FBO nesnesi bağlamlar arası paylaşılmaz: pop-out'ta <code>RenderTarget</code> o bağlam için yenisini aynı dokuya bağlar.</p>
+<p><b>Yedek:</b> FBO kurulamazsa ya da <code>[render] cache = 0</code> / <code>[text] renderer = xplane</code> ise harita eskisi gibi her karede doğrudan çizilir.</p>
+<p><b>Katman kuralları:</b> her karede gereken iş <code>Layer::PrepareFrame</code>'de; her karede değişen çizim <code>Layer::IsOverlay</code> ile üstte; pencere kenarına yapışık parçalar (ızgara yazıları) <code>Layer::DrawOverlay</code>'de. Havalimanı yükleniyor çerçevesinin yanıp sönmesi bu yüzden kaldırıldı.</p>
+
 <h3>11.2 Yazı çizici (0.19)</h3>
-<ul>
-  <li><code>gfx/FontAtlas</code>: X-Plane'in <code>Resources/fonts/DejaVuSans.ttf</code>'i (dağıtmıyoruz) stb_truetype ile (<code>third_party/stb</code>, kamu malı) bir RGBA atlasa basılır: ASCII, Latin-1, Türkçe harfler. Boyut büyük harf yüksekliğiyle verilir = X-Plane yazısının yüksekliği (<code>XPLMGetFontDimensions</code>), yerleşim değişmez.</li>
-  <li><code>ui/AtlasTextRenderer</code> (<code>TextRenderer</code> arayüzü; <code>Ui::SetTextRenderer</code>): harfleri tam piksele oturtur, UI ölçeği değişince atlası yeniden basar, köşeleri <code>Canvas::QueueText</code>'e verir. Canvas bir sonraki şekilden önce ya da <code>FlushText</code>'te hepsini tek çağrıyla çizer.</li>
-  <li>Yedek: <code>XPLMDrawString</code> (<code>[text] renderer = xplane</code> ya da font okunamazsa).</li>
-</ul>
+<p><code>gfx/FontAtlas</code>: X-Plane'in <code>Resources/fonts/DejaVuSans.ttf</code>'i (dağıtmıyoruz) stb_truetype ile (<code>third_party/stb</code>, kamu malı) bir RGBA atlasa basılır: ASCII, Latin-1, Türkçe harfler. Boyut büyük harf yüksekliğiyle verilir = X-Plane yazısının yüksekliği (<code>XPLMGetFontDimensions</code>), yerleşim değişmez.</p>
+<p><code>ui/AtlasTextRenderer</code> (<code>TextRenderer</code> arayüzü; <code>Ui::SetTextRenderer</code>): harfleri tam piksele oturtur, UI ölçeği değişince atlası yeniden basar, köşeleri <code>Canvas::QueueText</code>'e verir. Canvas bir sonraki şekilden önce ya da <code>FlushText</code>'te hepsini tek çağrıyla çizer.</p>
+<p>Yedek: <code>XPLMDrawString</code> (<code>[text] renderer = xplane</code> ya da font okunamazsa).</p>
 
 <h2>12. Arayüz ve fare</h2>
-<p>Pencerenin tamamı haritadır; kontroller haritanın üstünde ince ve yarı saydamdır. Arayüz parçaları <b>sadece
-çizer ve tıklamanın neye denk geldiğini söyler</b> (<code>HitTest</code>); ne yapılacağına <code>MapWindow</code> karar
-verir. Ortak palet ve çizim yardımcıları <code>ui/UiDraw</code>'dadır (<code>Ui::k...</code> renkleri).</p>
+<p>Pencerenin tamamı haritadır; kontroller haritanın üstünde ince ve yarı saydamdır. Arayüz parçaları sadece çizer ve tıklamanın neye denk geldiğini söyler (<code>HitTest</code>); ne yapılacağına <code>XMapWindow</code> karar verir. Ortak palet ve çizim yardımcıları <code>ui/UiDraw</code>'dadır (<code>Ui::k...</code> renkleri).</p>
 <table>
-  <tr><th>Parça</th><th>Ne</th></tr>
-  <tr><td><code>Toolbar</code></td><td>Üst şerit: Layers · Map: &lt;mod&gt; | Follow / Center on aircraft · Go to airport | Draw tools … Pop out · Hide. Gruplar arasında ayırıcı; dar pencerede pencere düğmeleri ikinci satıra iner.</td></tr>
-  <tr><td><code>ToolPalette</code></td><td>Yüzen çizim paleti: Pan / Point / Route / Region + Finish / Undo / Clear. Başlıktan sürüklenir, seçili araca katlanır; yeri sağ üst köşeye göre <code>[tools]</code>'a kaydedilir.</td></tr>
-  <tr><td><code>LayerPanel</code></td><td>Grup › katman › alt katman listesi; üç durumlu kutu (hepsi / hiçbiri / karışık), ok ile aç/kapa, tekerlekle kaydırma. Gruplar <code>kGroups</code> tablosunda.</td></tr>
-  <tr><td><code>ModePanel</code></td><td>Harita modu seçimi (tek seçim).</td></tr>
-  <tr><td><code>AirportSearchPanel</code></td><td>(0.18) "Go to airport": yazı kutusu + en iyi 8 sonuç (<code>data/AirportSearch</code>: kimlik / ICAO tam → önek → ad kelime başı → ad içinde; eşitlikte uzun pistli önce). Seçilince <code>MapWindow::GoToAirport</code> haritayı ortalar ve havalimanını sığdıran zoom'u seçer (<code>ZoomToFitAirport</code>); <b>uçağa dokunmaz</b> (kullanıcı kararı), takibi kapatır. Panel açıkken pencere klavye odağını alır (<code>XPLMTakeKeyboardFocus</code>); haritaya tıklama, Esc, panelin kapanması veya pencerenin gizlenmesi odağı X-Plane'e geri verir.</td></tr>
-  <tr><td><code>StatusBar</code></td><td>İmleç koordinatı, zoom, durum mesajı, ölçek çubuğu (NM). 0.18: <code>TerrainLayer::PendingTextureCount</code> &gt; 0 (son karede istenen seviyede olmayan doku) ve zemin işçisi boşta değilken <code>Loading terrain: N images</code> yazar; işçi boştaysa yazmaz (üretilemeyen parça yazıyı takılı bırakmasın).</td></tr>
+<tr><th>Parça</th><th>Ne</th></tr>
+<tr><td>Toolbar</td><td>Üst şerit: Layers &middot; Map: &lt;mod&gt; | Follow / Center on aircraft &middot; Go to airport | Draw tools &hellip; Pop out &middot; Hide. Gruplar arasında ayırıcı; dar pencerede pencere düğmeleri ikinci satıra iner.</td></tr>
+<tr><td>ToolPalette</td><td>Yüzen çizim paleti: Pan / Point / Route / Region + Finish / Undo / Clear. Başlıktan sürüklenir, seçili araca katlanır; yeri sağ üst köşeye göre <code>[tools]</code>'a kaydedilir.</td></tr>
+<tr><td>LayerPanel</td><td>Grup &rsaquo; katman &rsaquo; alt katman listesi; üç durumlu kutu (hepsi / hiçbiri / karışık), ok ile aç/kapa, tekerlekle kaydırma. Gruplar <code>kGroups</code> tablosunda.</td></tr>
+<tr><td>ModePanel</td><td>Harita modu seçimi (tek seçim).</td></tr>
+<tr><td>AirportSearchPanel (0.18)</td><td>"Go to airport": yazı kutusu + en iyi 8 sonuç (<code>data/AirportSearch</code>: kimlik / ICAO tam &rarr; önek &rarr; ad kelime başı &rarr; ad içinde; eşitlikte uzun pistli önce). Seçilince <code>XMapWindow::GoToAirport</code> haritayı ortalar ve havalimanını sığdıran zoom'u seçer (<code>ZoomToFitAirport</code>); uçağa dokunmaz (kullanıcı kararı), takibi kapatır. Panel açıkken pencere klavye odağını alır (<code>XPLMTakeKeyboardFocus</code>); haritaya tıklama, Esc, panelin kapanması veya pencerenin gizlenmesi odağı X-Plane'e geri verir.</td></tr>
+<tr><td>StatusBar</td><td>İmleç koordinatı, zoom, durum mesajı, ölçek çubuğu (NM). 0.18: <code>TerrainLayer::PendingTextureCount</code> &gt; 0 (son karede istenen seviyede olmayan doku) ve zemin işçisi boşta değilken <code>Loading terrain: N images</code> yazar; işçi boştaysa yazmaz (üretilemeyen parça yazıyı takılı bırakmasın).</td></tr>
 </table>
-<h3>Fare akışı (MapWindow)</h3>
-<pre>basildi  -> once kontroller: HandleControlClick (toolbar, paneller, palet basligi)
+<h3>Fare akışı (XMapWindow)</h3>
+<pre>basildi  -&gt; once kontroller: HandleControlClick (toolbar, paneller, palet basligi)
            degilse haritaya basildi (mPressOnMap)
-hareket  -> 4 px'ten fazla: surukleme = haritayi kaydir (ucak takibi kapanir)
+hareket  -&gt; 4 px'ten fazla: surukleme = haritayi kaydir (ucak takibi kapanir)
            palet basligindan tutulduysa: paleti tasi
-birakti  -> hic hareket yoksa tiklama: HandleMapClick
+birakti  -&gt; hic hareket yoksa tiklama: HandleMapClick
            Point / Route / Region modunda nokta / kose ekler
-sag tik  -> yarim rota / bolgeyi bitirir
-tekerlek -> imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin etrafinda);
+sag tik  -&gt; yarim rota / bolgeyi bitirir
+tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin etrafinda);
            imlec katman panelindeyse paneli kaydirir</pre>
-<p>Tıklama asla alttaki pencereye geçirilmez (SDK dokümanına göre fare takibini bozar). Pop-out modunda imleç konumu
-cursor callback'ten okunur.</p>
+<p>Tıklama asla alttaki pencereye geçirilmez (SDK dokümanına göre fare takibini bozar). Pop-out modunda imleç konumu cursor callback'ten okunur.</p>
 
-<!-- ================================================================== -->
 <h2>13. Harita modları (tema)</h2>
-<p><code>src/MapTheme.*</code> beş modu tanımlar. Her mod bir <code>MapTheme</code>: arka plan ve su rengi, zemin biçimi,
-hale rengi, açık/koyu tema bayrağı, ızgara, havalimanı/navaid/hava yolu/pist renkleri ve mod başına varsayılan katman
-görünürlüğü. <code>DrawContext::mTheme</code> her zaman doludur; katmanlar renkleri buradan okur.</p>
+<p><code>src/XMapTheme.*</code> beş modu tanımlar. Her mod bir <code>XMapTheme</code>: arka plan ve su rengi, zemin biçimi, hale rengi, açık/koyu tema bayrağı, ızgara, havalimanı/navaid/hava yolu/pist renkleri ve mod başına varsayılan katman görünürlüğü. <code>drawContext::mTheme</code> her zaman doludur; katmanlar renkleri buradan okur.</p>
 <table>
-  <tr><th>Mod</th><th>Zemin biçimi</th><th>Özellik</th></tr>
-  <tr><td>Scenery</td><td>Classes — arazi sınıfları + kabartma</td><td>Koyu tema</td></tr>
-  <tr><td>VFR</td><td>Elevation — rakım rampası + kabartma</td><td>Kuleli havalimanı mavi, kulesiz macenta; VOR pusula gülü</td></tr>
-  <tr><td>IFR Low</td><td>LandWater — iki düz renk</td><td>Açık tema; alçak hava yolları, VOR/NDB/ILS/fix</td></tr>
-  <tr><td>IFR High</td><td>LandWater</td><td>Sadece büyük havalimanları, yüksek hava yolları</td></tr>
-  <tr><td>Dark (0.18)</td><td>LandWater — siyah kara, koyu lacivert su</td><td>Uçuş kontrol ekranı tarzı minimal: havalimanı, pist, navaid, ILS, hava yolları; ızgara / yol / nesne yok</td></tr>
+<tr><th>Mod</th><th>Zemin biçimi</th><th>Özellik</th></tr>
+<tr><td>Scenery</td><td>Classes &mdash; arazi sınıfları + kabartma</td><td>Koyu tema</td></tr>
+<tr><td>VFR</td><td>Elevation &mdash; rakım rampası + kabartma</td><td>Kuleli havalimanı mavi, kulesiz macenta; VOR pusula gülü</td></tr>
+<tr><td>IFR Low</td><td>LandWater &mdash; iki düz renk</td><td>Açık tema; alçak hava yolları, VOR/NDB/ILS/fix</td></tr>
+<tr><td>IFR High</td><td>LandWater</td><td>Sadece büyük havalimanları, yüksek hava yolları</td></tr>
+<tr><td>Dark (0.18)</td><td>LandWater &mdash; siyah kara, koyu lacivert su</td><td>Uçuş kontrol ekranı tarzı minimal: havalimanı, pist, navaid, ILS, hava yolları; ızgara / yol / nesne yok</td></tr>
 </table>
-<p><b>Varsayılan katmanlar (0.18):</b> <code>MapTheme::mLayerDefaults</code> bir <code>std::span</code>; <code>MapTheme.cpp</code> başındaki tablolar her katman ve alt katman (<code>katman.alt</code>) için mod başına değer verir. Scenery / VFR / IFR tabloları kullanıcının X-Plane'de kaydettiği ayarlardan üretildi. Tabloda olmayan katman <code>Layer</code>'ın kendi varsayılanını alır; <code>map_settings.ini</code>'deki değer her zaman önceliklidir.</p>
-<p>Mod değişince (<code>MapWindow::SetMapMode</code>) eski modun katman görünürlüğü kaydedilir, yenisininki yüklenir.
-Zemin görüntü anahtarı biçimi de içerir (<code>TerrainImageKey::mStyle</code>), böylece her modun dokusu ayrı üretilip
-önbelleklenir.</p>
+<p><b>Varsayılan katmanlar (0.18):</b> <code>XMapTheme::mLayerDefaults</code> bir <code>std::span</code>; <code>XMapTheme.cpp</code> başındaki tablolar her katman ve alt katman (<code>katman.alt</code>) için mod başına değer verir. Scenery / VFR / IFR tabloları kullanıcının X-Plane'de kaydettiği ayarlardan üretildi. Tabloda olmayan katman <code>Layer</code>'ın kendi varsayılanını alır; <code>map_settings.json</code>'deki değer her zaman önceliklidir.</p>
+<p>Mod değişince (<code>XMapWindow::SetMapMode</code>) eski modun katman görünürlüğü kaydedilir, yenisininki yüklenir. Zemin görüntü anahtarı biçimi de içerir (<code>TerrainImageKey::mStyle</code>), böylece her modun dokusu ayrı üretilip önbelleklenir.</p>
 
-<!-- ================================================================== -->
-<h2>13b. Prime Map API (0.20; 0.22'de ekip kalıbına geçti)</h2>
-<p>Harita bir kütüphane (<code>prime_map</code>) oldu; tek genel başlık <code>PrimeMap.h</code>
-(0.22'de repo köküne taşındı; sadece standart C++). Ayrıntılı referans: <code>docs/PrimeMap_API.pdf</code>.</p>
-<pre>
-eski (0.19)                         yeni (0.20)
-Plugin.cpp  (veri + menu + komut)   engine/MapData.*      veri depolari, yukleme, prefetch, precache, palet, flight loop
-                                    plugin/PluginMain.cpp menu, prime/map/* komutlari, ini dosyalari (sadece API ile)
-MapWindow   (pencere + ayar dosya)  MapWindow             motor: pencere (Embedded/Standalone), cizim, fare, UI;
-                                                          ayarlar bellekte + revizyon sayaci
-MapWindow::ApplyLayerPanelHit       engine/LayerTable.*   MapLayer enum <-> anahtar tablosu + panel kurallari
-                                    api/PrimeMap.*        genel API kopru (coklu harita; durum MapLibrary nesnesinde)
-</pre>
-<ul>
-<li><b>Fare yönlendirmesi:</b> basmada önce UI'a sorulur; almazsa ve fare kapalıysa basma-sürükleme-bırakma hepsi 0 döner
-(alttaki pencereye). Tekerlek ve sağ tık da aynı.</li>
-<li><b>Dosyalar:</b> kütüphane ayar/çizim dosyası yazmaz. <code>GetSettingsRevision</code>/<code>GetDrawingsRevision</code>
-değişince host <code>Export...</code> ile alıp yazar. Eklenti bunu her karede kontrol eder.</li>
-<li><b>Zemin ayarı:</b> <code>Open</code>'dan hemen sonra (ilk kareden önce) verilirse tam etkili; zemin işçisi ilk karede başlar.</li>
-<li><b>CMake (0.22):</b> <code>prime_map</code> SHARED DLL (lzma OBJECT kütüphanesi DLL'in içinde),
-CRT <code>/MD</code> sabit, export makrosu <code>primemapglobal.h</code> (<code>PRIME_MAP_EXPORT</code>),
-kutuphane nesnesi <code>MapLibrary</code>; SDK paketi/install yok &mdash; tüketim <code>add_subdirectory</code> +
-hedef-adına link (<code>prime_map_plugin</code>, <code>plugin-api-test</code>, <code>examples/map_api_test</code>);
-<code>map_tests</code>/<code>map_preview</code> iç sınıfları test ettiği için kaynakla derlemeye devam eder.</li>
-</ul>
+<h2>13b. API katmanı: XMapManagerFactory &rarr; XMapManager &rarr; XMap (0.24&ndash;0.26)</h2>
+<p>Harita bir SHARED kütüphanedir (CMake hedefi <code>prime-map-api</code>, çıktı <code>prime_map.dll</code>). Toplama başlık <code>PrimeMap.h</code> (repo kökü) <code>src/api/</code> altındaki dört başlığı verir. Kullanım kılavuzu ve referans: <code>docs/PrimeMap_API.pdf</code>.</p>
+<table>
+<tr><td><code>api/XMapManagerFactory.*</code></td><td>createXMapManager / destroyXMapManager (singleton yok; her cagri yeni yonetici)</td></tr>
+<tr><td><code>api/XMapManager.*</code></td><td>initialize / shutdown, addXMap / removeXMap, merkezi ayarlar, yol sorgulari, katman agaci</td></tr>
+<tr><td><code>api/XMap.*</code></td><td>TEK haritanin her seyi: API yuzeyi + motor (katmanlar, cizimler, ucak, palet, dosyalar, XMapWindow). 0.25'te XMapInstance buraya birlesti.</td></tr>
+<tr><td><code>api/XMapTypes.h</code></td><td>ortak tipler (XMapLayer, XMapMode, WindowStyle, XMapConfig, TerrainSettings ...), surum</td></tr>
+<tr><td><code>api/XMapApiUtil.h</code></td><td>yol / yardimci</td></tr>
+<tr><td><code>engine/XMapData.*</code></td><td>bir yoneticinin ORTAK verisi: nav, havalimanlari, hava yollari, zemin iscisi + TerrainHub, prime_map.json, sinirlar, flight loop (her karede haritalarin update'i)</td></tr>
+<tr><td><code>engine/LayerTable.*</code></td><td>XMapLayer enum &lt;-&gt; anahtar tablosu, panel kurallari (LayerRules), X-Plane'siz</td></tr>
+<tr><td><code>XMapWindow.*</code></td><td>bir haritanin gorunumu, cizimi, arayuzu ve girdisi (Texture: doku; LEGACY: XPLM penceresi)</td></tr>
+</table>
+<p><b>Sahiplik:</b> host yöneticiyi fabrikadan alır ve bırakır; haritaları yönetici oluşturur / siler. Bütün çağrılar ana thread'dendir.</p>
+<p><b>Ayarlar:</b> harita durumu <code>XMapWindow</code>'daki bellek içi <code>Settings</code> deposunda tutulur; dosyaya yazma / okuma <code>XMap</code>'tedir (JSON). Revizyon sayaçları otomatik kaydı tetikler.</p>
+<p>Genel başlıklar iç başlıkları da içerir (<code>Drawings.h</code>, <code>LayerManager.h</code>, <code>XMapWindow.h</code>); dışa açık sınıflarda C4251 yalnızca sınıf boyunca kapatılır. Pimpl ile gizleme planlıdır (<code>docs/SRS.md</code>).</p>
+<p>Kod standardı (0.24'ten): metotlar camelCase, türler PascalCase, önekler m p t k g.</p>
 
-<!-- ================================================================== -->
-<h2>13c. Çoklu harita: fabrika, MapInstance, TerrainHub (0.23)</h2>
-<p>0.22'de birden çok pencere açılabiliyordu ama hepsi aynı katmanlara, çizimlere ve uçağa bakıyordu. 0.23'te
-"harita başına" olan her şey ayrıldı; ortak kalan sadece veri ve önbellek.</p>
-<pre>
-prime::MapLibrary (surecte tek)                 prime::Map (host'ta unique_ptr)
-        |                                               |
-   engine/MapData  &lt;------- referans -------  engine/MapInstance  (harita basina)
-   - NavDatabase, AirportGeometryStore          - LayerManager + 18 katman nesnesi
-   - AirportDetailStore, AirwayDatabase         - Drawings, AircraftData (kaynak: X-Plane / host)
-   - TerrainStore (isci) + TerrainHub           - TerrainPalette + palet numarasi
-   - prime_map.ini -> sinirlar (ApplyLimits)    - MapWindow (gorunum, mod, UI; XPLM penceresi acik ya da degil)
-   - flight loop: her karede haritalari gezer   - ayar dosyalari: &lt;veri&gt;/maps/&lt;ad&gt;/
-</pre>
-<h3>Neden böyle</h3>
-<ul>
-<li><b>Katmanlar harita başına nesne:</b> katmanın görünürlüğü, alt katmanları, zoom aralığı ve çizim önbelleği (GPU mesh'leri)
-kendi içinde. Paylaşılsaydı bir haritada kapatılan katman diğerinde de kapanırdı. Veri depoları ise <code>const&amp;</code> ile
-paylaşılır: aynı havalimanı iki kez okunmaz.</li>
-<li><b>Fabrika (pencere olmadan nesne):</b> <code>MapWindow</code> XPLM penceresi olmadan da bütün durumu tutar; <code>Create()</code>
-pencereyi o durumla açar, <code>Destroy()</code> kapatır ama durum kalır. Böylece API'nin her fonksiyonu açılmadan önce de çalışır.</li>
-<li><b>Dosya önceliği:</b> <code>Open</code> sırasında önce o anki durum belleğe yazılır (<code>SaveSettings</code>), sonra dosya üstüne
-okunur (<code>MergeText</code>), sonra uygulanır. Dosyada olmayan anahtar için varsayılan = o anki değer (kodla verilen).</li>
-</ul>
-<h3>TerrainHub: zeminin ortak kullanımı</h3>
-<pre>
-TerrainStore (isci) --PopImage----&gt; TerrainHub: dokular (GPU, tek kopya)   &lt;-- TerrainLayer (harita 1, 2 ...)
-                    --PopVectors--&gt; TerrainHub: vektorler (bellek)         &lt;-- RoadLayer    (harita 1, 2 ...)
-</pre>
-<ul>
-<li>İşçinin sonuç kuyruğunu "ilk alan" sahiplenseydi iki harita birbirinin dokusunu çalardı. Hub sonuçları tek yerde toplar;
-her doku onu son çiziminde kullanan haritaların bitleriyle işaretlidir (<code>BeginDraw</code> siler, <code>UseTexture</code> koyar);
-bütçe aşılınca sadece işaretsiz dokular, en eskiden başlayarak silinir.</li>
-<li>Doku yükleme hakkı (karede 3) bütün haritalar için ortaktır; flight loop <code>BeginFrame</code> ile yeniler.
-Katmanlar "yeni doku geldi mi"yi <code>TextureGeneration</code> sayacından anlar (başka haritanın yüklediği doku da sayılır).</li>
-<li><b>Palet numarası</b> zemin anahtarındadır (<code>TerrainImageKey::mPalette</code>): her farklı zemin ayarı
-<code>TerrainStore::AddPalette</code> ile bir kez tanıtılır (<code>MapData::RegisterPalette</code> aynı içeriğe aynı numarayı verir).
-Ayar değişince yeni numarayla yeni dokular istenir: X-Plane'i yeniden başlatmak gerekmez; aynı ayarlı haritalar dokuları paylaşır.</li>
-<li>İstek önceliği isteğin yapıldığı andaki odağa (isteyen haritanın merkezi) göre hesaplanıp istekle saklanır.</li>
-<li>Sınırlar (<code>MapData::ApplyLimits</code>): <code>sınır(n) = taban × (1 + artış% × (n − 1) / 100)</code>; disk sınırı
-(<code>TerrainStore::SetCacheLimit</code>, çalışırken değişir, işçi boş anında kırpar), doku bütçesi
-(<code>TerrainHub::SetTextureBudget</code>), işçinin bellek listeleri (<code>SetMemoryScale</code>), yüklü havalimanı sayısı.</li>
-</ul>
-<h3>Diğer</h3>
-<ul>
-<li><b>Yazı çizici:</b> <code>Ui</code>'nin yazı çizicisi süreçte tek işaretçi; her pencere çizim / tıklama işinin başında
-kendisininkini seçer (<code>MapWindow::UseOwnText</code>). Yoksa son açılan pencerenin atlası hepsinin yazısını alırdı.</li>
-<li><b>Zoom aralığı:</b> <code>Layer::SetZoomRange</code> / <code>SetSubLayerZoomRange</code>; <code>LayerManager::DrawAll</code> her çizimde
-o anki zoom'u katmanlara verir. Katmanlar <code>Draw</code> içinde <code>IsSubLayerDrawn</code> (kutu + zoom) kullanır;
-<code>IsSubLayerVisible</code> sadece kutudur (panel, kurallar, dosya).</li>
-<li><b>Otomatik kayıt:</b> <code>MapInstance::Update</code> revizyon sayaçlarına ve pencere yerine bakar; en sık
-<code>autosave_seconds</code> arayla yazar. Görünüm (merkez / zoom) tek başına yazmayı tetiklemez (uçak takibinde her karede değişir).</li>
-<li><b>Yer tutucu:</b> dokusu hiç gelmemiş kurulu karo Scenery'de ortalama kara tonuyla doldurulur (siyah yerine).</li>
-<li><b>Yok etme sırası:</b> katman yıkıcıları hub'a haber verir; hub katmanlardan sonra yok olmalı (<code>MapData</code> haritalardan
-sonra durur; önizlemede <code>TerrainHub</code> <code>LayerManager</code>'dan önce tanımlı).</li>
-</ul>
+<h2>13c. Çoklu harita ve ortak zemin (TerrainHub)</h2>
+<p>"Harita başına" olan her şey <code>XMap</code>'te; bir yöneticinin haritaları arasında ortak olan sadece veri ve önbellektir.</p>
+<pre>XMapManager (host basina, istege gore birden cok)       XMap (yonetici basina sinirsiz)
+        |                                                     |
+   engine/XMapData  &lt;------------ referans ---------------  LayerManager + 18 katman nesnesi
+   - NavDatabase, AirportGeometryStore                      Drawings, AircraftData (kaynak: X-Plane / host)
+   - AirportDetailStore, AirwayDatabase                     TerrainPalette + palet numarasi
+   - TerrainStore (isci) + TerrainHub                       XMapWindow (gorunum, mod, UI, Texture / LEGACY pencere)
+   - prime_map.json -&gt; sinirlar (applyLimits)               dosyalar: &lt;veri&gt;/maps/&lt;ad&gt;/*.json, map_drawings.txt
+   - flight loop: her karede haritalarin update'i</pre>
+<p>Katmanlar harita başına nesne: görünürlük, alt katmanlar, zoom aralığı ve GPU mesh önbelleği kendi içinde; veri depoları <code>const&amp;</code> ile paylaşılır (aynı havalimanı iki kez okunmaz).</p>
+<p><b>Fabrika (açılmadan nesne):</b> <code>XMapWindow</code> pencere / doku olmadan da bütün durumu tutar; <code>create()</code> açar, <code>destroy()</code> kapatır ama durum kalır. Böylece her API fonksiyonu açılmadan önce de çalışır.</p>
+<p><b>Dosya önceliği:</b> initialize sırasında önce o anki durum belleğe yazılır, sonra dosya üstüne okunur, sonra uygulanır.</p>
+<p><b>TerrainHub:</b> işçinin sonuçları (dokular GPU'da tek kopya, vektörler bellekte) tek yerde toplanır; her doku onu son çiziminde kullanan haritaların bitleriyle işaretlidir; bütçe aşılınca işaretsiz dokular en eskiden silinir. Doku yükleme hakkı (karede 3) ortaktır. Pop-out bağlamı VAO paylaşmaz (<code>gfx/ContextVertexArray</code>), doku / buffer paylaşır.</p>
+<p><b>Palet numarası zemin anahtarındadır:</b> her farklı zemin ayarı <code>XMapData::registerPalette</code> ile bir kez tanıtılır; ayar değişince yeni numarayla yeni dokular istenir, aynı ayarlı haritalar dokuları paylaşır.</p>
+<p><b>Sınırlar</b> (<code>XMapData::applyLimits</code>): sınır(n) = taban &times; (1 + artış% &times; (n &minus; 1) / 100); disk sınırı, doku bütçesi, işçinin bellek listeleri, yüklü havalimanı sayısı.</p>
+<p><b>Yazı çizici süreçte tek işaretçi:</b> her harita çizim / tıklama başında kendisininkini seçer (<code>useOwnText</code>).</p>
+<p><b>Log öneki süreçte tektir</b> (<code>Log.cpp</code>); aynı süreçte birden çok yönetici varsa son önek geçerlidir.</p>
+
+<h2>13d. Çizim yolları: Texture (hedef) ve LEGACY pencere stilleri (0.26)</h2>
+<p><code>XMapWindow</code>'un çizimi üç ortak parçadan oluşur; iki giriş yolu bunları farklı hazırlıkla çağırır:</p>
+<pre>                     prepareFrame()        gorunum alani (mArea), ucak takibi, arac seridi yerlesimi (GL yok)
+                     beginCanvasFrame()    Canvas hazir mi, bu GL baglaminda shader'lar gecerli mi
+                     drawFrame(...)        zemin, katmanlar (resim onbellegi ile ya da dogrudan), tooltip, kontroller</pre>
+<table>
+<tr><th>Texture (hedef)</th><th>LEGACY pencere (Standalone / Embedded)</th></tr>
+<tr><td>host draw callback &rarr; <code>XMap::renderTexture()</code></td><td>X-Plane &rarr; XPLM draw callback &rarr; <code>onDraw()</code></td></tr>
+<tr><td><code>mArea = {0, h, w, 0}</code> (doku alanı, boxel)</td><td><code>mArea = XPLMGetWindowGeometry</code> (global boxel)</td></tr>
+<tr><td>ölçek = <code>setTextureSize</code> ya da host'un UI ölçeği</td><td>ölçek = <code>readBoxelToPixel</code> (X-Plane matrisleri)</td></tr>
+<tr><td>gerek yoksa çizmeden dön (eski doku geçerli)</td><td>scissor = pencere alanı</td></tr>
+<tr><td><code>Canvas::beginOffscreen(mTextureTarget, mArea)</code></td><td><code>XMapImageCache</code>: harita resmi FBO'da, uçak / iz üstte</td></tr>
+<tr><td><code>drawFrame(.., resim önbelleği KAPALI)</code></td><td><code>drawFrame(.., resim önbelleği AÇIK)</code></td></tr>
+<tr><td><code>Canvas::endOffscreen()</code> &rarr; host <code>getTextureId</code>'yi basar</td><td></td></tr>
+<tr><td>girdi: host &rarr; <code>inject*</code> &rarr; <code>onClick / onWheel / onKey</code></td><td>girdi: XPLM callback'leri &rarr; aynı <code>onClick / onWheel / onKey</code></td></tr>
+</table>
+<p><b>Yeniden çizim kararı (Texture):</b> ilk kez, doku boyutu, <code>sceneSignature</code> (mod, katman, renk, çizim, arayüz alanı), görünüm (Mercator merkez, zoom) değişince ya da girdi gelince hemen; aksi halde en çok <code>max_fps</code>.</p>
+<p><b>GL durumu:</b> <code>beginOffscreen</code> framebuffer / viewport / scissor / clear color / MVP'yi saklar ve geri koyar; <code>BindingGuard</code> program / VAO / buffer'ı geri koyar; dokular <code>XPLMBindTexture2d</code> ile bağlanır (X-Plane'in bağlama önbelleği tutarlı kalır). Host kendi çiziminden önce <code>XPLMSetGraphicsState</code> çağırır.</p>
+<p><b>Girdi:</b> Texture'da pencere yoktur; imleç konumu <code>injectMouseMove</code> ile gelir (0.25 s gelmezse "dışarıda"). Klavye odağı host'tadır: <code>wantsKeyboard()</code> arama kutusu açıkken true.</p>
+<p><b>İç içe offscreen yok:</b> Texture'da harita resmi önbelleği (<code>XMapImageCache</code>) kullanılmaz; zaten dokuya çizilir ve hız sınırı aynı işi görür.</p>
+<p><b>LEGACY stiller</b> (<code>WindowStyle::Embedded</code>, <code>Standalone</code>): Texture kapsamlı denenene kadar kod ve davranış korunur. Standalone'un Texture'dan fazla verdiği tek şey pop-out'tur (Texture, pop-out edilmiş host penceresinin ayrı GL bağlamında çizemez). Plan: Texture'a pop-out, Texture üstüne hazır pencere yardımcısı, resmî eklentinin Texture'a geçişi, sonra LEGACY yolların kaldırılması (<code>docs/SRS.md</code>).</p>
 
 <h2>14. Ayar ve önbellek dosyaları</h2>
-<p><b>0.23:</b> dosyaları kütüphane yönetir: <code>prime_map.ini</code> (merkezi), <code>maps/&lt;ad&gt;/map_settings.ini</code>,
-<code>map_drawings.txt</code>, <code>terrain_colors.ini</code> (harita başına), <code>cache/</code> (ortak). Anahtarlar:
-<code>docs/PrimeMap_API.pdf</code> bölüm 8&ndash;9. Aşağıdaki tablo 0.22 ve öncesinin kökteki dosyalarını anlatır; anahtar adları aynıdır
-(<code>[cache]</code> hariç: o artık <code>prime_map.ini</code>'de).</p>
-<p>Hepsi <code>C:\X-Plane 11\Resources\plugins\prime-map-plugin\</code> altında (eklenti X-Plane klasöründe başka hiçbir yere
-yazmaz). INI dosyaları <code>Settings</code> sınıfıyla okunur/yazılır.</p>
+<p>Dosyaları kütüphane yönetir; biçim yalnızca JSON'dur (<code>Settings</code>: <code>{ "bölüm": { "anahtar": "değer" } }</code>, değerler metin). INI desteği ve eski sürüm dosya göçü 0.26'da kaldırıldı. Hepsi yöneticinin veri klasöründedir (<code>setDataDirectory</code>; boşsa <code>%LOCALAPPDATA%\prime\prime-xmap\</code>). Anahtarlar: <code>docs/PrimeMap_API.pdf</code> bölüm 11.</p>
 <table>
-  <tr><th>Dosya</th><th>İçerik</th></tr>
-  <tr><td><code>64/win.xpl</code></td><td>Eklentinin kendisi</td></tr>
-  <tr><td><code>map_settings.ini</code></td><td><code>[window]</code> yer/boyut/görünür · <code>[view]</code> merkez, zoom, takip, kontroller, <code>mode</code> · <code>[tools]</code> palet · <code>[layers.scenery]</code>, <code>[layers.vfr]</code>, <code>[layers.ifr_low]</code>, <code>[layers.ifr_high]</code>, <code>[layers.dark]</code> (katman ve <code>katman.alt</code> anahtarları); eski <code>[layers]</code> Scenery'ye okunur · <code>[cache] terrain_mb</code> zemin önbelleği sınırı</td></tr>
-  <tr><td><code>map_drawings.txt</code></td><td>Kullanıcı çizimleri (metin)</td></tr>
-  <tr><td><code>terrain_colors.ini</code></td><td><code>[colors]</code>, <code>[shading]</code>, <code>[blend]</code>, <code>[warp]</code>, <code>[closeup]</code>, <code>[relief]</code>, <code>[water]</code>, <code>[vfr]</code>, <code>[palette] version</code> (bölüm 9.6)</td></tr>
-  <tr><td><code>cache/terrain/</code></td><td>Zemin önbelleği (silinebilir): <code>*.terrain</code> sınıf raster'ı, <code>*.elevation</code> tam çözünürlüklü DEM + sea_level, <code>*.vectors</code>, <code>*.nobase</code>, <code>xplane_palette.txt</code>; en çok <code>terrain_mb</code> (9.2)</td></tr>
-  <tr><td><code>cache/airports/airport_index.bin</code></td><td>apt.dat özet indeksi (silinebilir)</td></tr>
+<tr><th>Dosya</th><th>İçerik</th></tr>
+<tr><td><code>prime_map.json</code></td><td><code>cache</code> (disk sınırı, büyüme, tavan, önceden yükleme) &middot; <code>memory</code> (doku bütçesi) &middot; <code>maps</code> (otomatik kayıt)</td></tr>
+<tr><td><code>maps/&lt;ad&gt;/map_settings.json</code></td><td><code>window</code> (LEGACY Standalone yeri) &middot; <code>view</code> &middot; <code>render</code> &middot; <code>text</code> &middot; <code>tools</code> &middot; <code>layers.&lt;mod&gt;</code> &times; 5 &middot; <code>layer_zoom</code> &middot; <code>layer_colors</code> &middot; <code>sources</code></td></tr>
+<tr><td><code>maps/&lt;ad&gt;/terrain_colors.json</code></td><td><code>palette</code> (<code>source</code>: <code>xplane</code> | <code>colors</code>, <code>version</code>), <code>colors</code>, <code>shading</code>, <code>blend</code>, <code>warp</code>, <code>closeup</code>, <code>relief</code>, <code>water</code>, <code>vfr</code></td></tr>
+<tr><td><code>maps/&lt;ad&gt;/map_drawings.txt</code></td><td>Kullanıcı çizimleri (satır başına şekil)</td></tr>
+<tr><td><code>cache/terrain/</code></td><td>Zemin önbelleği (silinebilir): <code>*.terrain</code> sınıf raster'ı, <code>*.elevation</code> DEM + sea_level, <code>*.vectors</code>, <code>*.nobase</code>, <code>xplane_palette.txt</code>; en çok <code>terrain_mb</code></td></tr>
+<tr><td><code>cache/airports/airport_index.bin</code></td><td>apt.dat özet indeksi (silinebilir)</td></tr>
 </table>
 
-<!-- ================================================================== -->
-<h2 class="page-break">15. Dosya dizini</h2>
-<h3>src/ — giriş, pencere, çekirdek</h3>
+<h3>14b. Klasörler ve paylaşım: kim neyi paylaşır (0.26)</h3>
+<p>Paylaşım birimi <b>yöneticidir</b> (sürüm değil). Aynı yöneticinin haritaları veri depolarını, bellekteki dokuları ve disk önbelleğini anında paylaşır; farklı yöneticiler ise ancak aynı klasörleri gösteriyorlarsa paylaşır. Klasörler:</p>
+<ul>
+<li><b>Veri klasörü</b> (<code>setDataDirectory</code>; boşsa <code>%LOCALAPPDATA%\prime\prime-xmap\</code>): ayar dosyaları (<code>prime_map.json</code>, <code>maps/&lt;ad&gt;/*.json</code>) ve varsayılan önbellek (<code>&lt;veri&gt;/cache/</code>).</li>
+<li><b>Önbellek klasörü</b> (<code>setCacheDirectory</code>; ayrı API, varsayılan <code>&lt;veri&gt;/cache/</code>): yalnızca silinebilir karo önbelleği (<code>cache/terrain/</code>, <code>cache/airports/</code>). İçeriği ayarlardan bağımsızdır: karo anahtarı aday DSF listesidir; mod, stil, renkler ve karışım ayarları görüntü üretilirken uygulanır, önbelleği etkilemez.</li>
+</ul>
 <table>
-  <tr><th>Dosya</th><th>Görev</th></tr>
-  <tr><td><code>Plugin.cpp</code></td><td>XPluginStart/Stop/Enable/Disable; menü "Prime Map Plugin"; komutlar <code>prime/map/toggle</code>, <code>controls</code>, <code>diagnostics</code>, <code>next_mode</code>; flight loop; <code>CreateLayers()</code>; terrain_colors.ini</td></tr>
-  <tr><td><code>MapWindow.*</code></td><td>Pencere (pop-out), fare/tekerlek, arayüz olayları, mod değişimi, ayar kaydı, tooltip</td></tr>
-  <tr><td><code>MapView.*</code></td><td>Web Mercator kamera, lat/lon ↔ boxel, imleç etrafında zoom</td></tr>
-  <tr><td><code>ScreenMath.*</code></td><td>Ekran koordinatı yardımcıları (dikdörtgen, nokta)</td></tr>
-  <tr><td><code>Layer.h</code>, <code>LayerManager.*</code></td><td>Katman arayüzü, alt katmanlar, DrawContext; liste, aç/kapa, mod başına kayıt</td></tr>
-  <tr><td><code>MapTheme.*</code></td><td>Harita modları ve renkleri</td></tr>
-  <tr><td><code>LabelPlacer.*</code></td><td>Etiket/sembol çakışma önleme</td></tr>
-  <tr><td><code>MapFormat.*</code></td><td>Koordinat/mesafe yazı biçimleri, ızgara ve ölçek aralığı</td></tr>
-  <tr><td><code>Geo.*</code>, <code>GeoGrid.*</code></td><td>Büyük daire hesapları, poligon üçgenleme; 1×1° uzamsal indeks</td></tr>
-  <tr><td><code>Drawings.*</code></td><td>Kullanıcı çizim modeli ve dosyası</td></tr>
-  <tr><td><code>Settings.*</code>, <code>Log.*</code>, <code>BackgroundJob.*</code>, <code>Color.h</code></td><td>INI, Log.txt yazımı, tek seferlik arka plan işi, Rgba</td></tr>
+<tr><th>Senaryo</th><th>Veri klasörü</th><th>Önbellek klasörü</th><th>Sonuç</th></tr>
+<tr><td>Aynı yöneticide 2+ harita</td><td>ortak</td><td>ortak</td><td>Her şey anında paylaşılır; ayarlar harita başına <code>maps/&lt;ad&gt;/</code>'da ayrıdır.</td></tr>
+<tr><td>Aynı süreçte 2 yönetici, aynı klasörler</td><td>ortak</td><td>ortak</td><td>Ayar dosyaları çakışır (son yazan kazanır); initialize bunu Log'a uyarı olarak yazar. Önerilmez.</td></tr>
+<tr><td>Aynı süreçte 2 yönetici, ayrı veri klasörü</td><td>ayrı</td><td>ayrı</td><td>Tam yalıtım; disk önbelleği ikiye bölünür, her yönetici kendi karolarını üretir.</td></tr>
+<tr><td>Aynı süreçte 2 yönetici, ayrı veri + ortak önbellek (<code>setCacheDirectory</code>)</td><td>ayrı</td><td>ortak</td><td>Altın kurulum: ayarlar yalıtık, karo önbelleği tek havuz &mdash; aynı bölge iki kez üretilmez.</td></tr>
+<tr><td>Ayrı süreçler (ör. texture-host + test eklentisi)</td><td>ayrı</td><td>ortak (<code>setCacheDirectory</code>)</td><td>Önbellek paylaşımı güvenlidir: dosyalar deterministik içerikli, okuma tarafı anahtar doğrulaması yapar; Windows açık dosyayı sildiği için yazma çakışması bozulma yaratmaz (yanlış dosya okunmaz, karo yeniden üretilir).</td></tr>
 </table>
-<h3>src/data/ — veri</h3>
+<p><b>Notlar:</b> (1) Ayarlar initialize sırasında bir kez okunur; iki harita arasında canlı eşitleme kütüphane işi değildir &mdash; host, değişikliği her iki haritaya da <code>set...</code> ile bildirir. (2) Aynı ada iki harita aynı veri klasörünü paylaşırsa <code>maps/&lt;ad&gt;/</code> dosyaları çakışır; harita adları aynı veri klasöründe eşsiz olmalıdır. (3) Önbellek klasöründe kilit dosyası yoktur; paylaşım "kural olarak" güvenlidir, kod düzeyinde koruma içerik doğrulamasıdır (bölüm 9.2).</p>
+
+<h2>15. Dosya dizini</h2>
+<h3>Kök ve src/api, src/engine</h3>
 <table>
-  <tr><th>Dosya</th><th>Görev</th></tr>
-  <tr><td><code>AptLine.*</code></td><td>apt.dat satırını yerel ayardan bağımsız okuyan alan okuyucu</td></tr>
-  <tr><td><code>AptDatIndexer.*</code></td><td>Özet indeksi + disk önbelleği</td></tr>
-  <tr><td><code>AptDatParser.*</code></td><td>Tek havalimanı metni → <code>AirportDetail</code></td></tr>
-  <tr><td><code>AirportGeometry.*</code>, <code>AirportGeometryStore.*</code></td><td>Özet yapısı; özet deposu + ızgara</td></tr>
-  <tr><td><code>AirportSearch.*</code></td><td>(0.18) Havalimanı arama ve sığdırma zoom'u (Go to airport)</td></tr>
-  <tr><td><code>AirportDetail.h</code>, <code>AirportDetailStore.*</code></td><td>Ayrıntı yapısı; istekle okuyan işçi + LRU</td></tr>
-  <tr><td><code>AirportShapes.*</code></td><td>Bezier, earcut üçgenleme, çizgi/ışık dizileri</td></tr>
-  <tr><td><code>LocalizerMatch.*</code></td><td>ILS → pist eşiği</td></tr>
-  <tr><td><code>NavDatabase.*</code>, <code>NavLoader.*</code></td><td>Nav kayıtları + ızgara; SDK'dan dilimli yükleme</td></tr>
-  <tr><td><code>AirwayDatabase.*</code></td><td>earth_awy.dat</td></tr>
-  <tr><td><code>AircraftData.*</code></td><td>Uçak konumu/yönü</td></tr>
-  <tr><td><code>SceneryPacks.*</code>, <code>SceneryIndex.*</code></td><td>Sahne sırası; karo → aday DSF'ler</td></tr>
-  <tr><td><code>SevenZip.*</code>, <code>DsfReader.*</code></td><td>7z açma; DSF okuma (arazi adları, üçgenler — yama bayrağı ve düzlem sayısı dahil, DEM)</td></tr>
-  <tr><td><code>TerrainClasses.*</code></td><td>Arazi türü → sınıf, palet (sürüm 2), rakım rampası (<code>ElevationColor</code>), blend / warp / closeup / relief / water / vfr ayarları</td></tr>
-  <tr><td><code>TerrainRaster.*</code></td><td>Sınıf raster'ı, görüntü üretimi (kaba ve yakın) ve son adım <code>ComposeImage</code>, önbellek dosyası</td></tr>
-  <tr><td><code>TerrainElevation.*</code></td><td>Tam çözünürlüklü DEM, piramit, sea_level, rakım dosyası; 3 × 3 komşulu bikubik örnekleyici</td></tr>
-  <tr><td><code>ElevationCodec.*</code></td><td>16 bitlik ızgara için satır farkı + LZMA (kayıpsız)</td></tr>
-  <tr><td><code>TerrainRelief.*</code></td><td>Piksel formülleri: kabartma, VFR bandı, derinlik tonu, kıyı şeridi, kıyı mesafesi ve çizgisi</td></tr>
-  <tr><td><code>WorldTileMap.*</code></td><td><code>dsf_files</code>: dünyada hangi karonun DSF'i var (deniz / veri yok ayrımı)</td></tr>
-  <tr><td><code>TerrainVectors.*</code></td><td>DSF orman / yerleşim alanları, yollar, dışlamalar; sadeleştirme, önbellek, alan taraması</td></tr>
-  <tr><td><code>TerrainPaletteSource.*</code></td><td>Sınıf renklerini X-Plane'in arazi dokularından (DDS) çıkarma</td></tr>
-  <tr><td><code>TerrainTriangles.*</code></td><td>Yakın zoom için hafif üçgen deposu (parça dizinli)</td></tr>
-  <tr><td><code>TerrainNoise.*</code>, <code>LandColorField.*</code></td><td>Sınır kıvırma gürültüsü; kara renklerinin yumuşak geçişi</td></tr>
-  <tr><td><code>CacheTrim.*</code></td><td>(0.18) Zemin disk önbelleği sınırı: karo gruplarını en eski kullanılandan siler</td></tr>
-  <tr><td><code>TerrainStore.*</code></td><td>Zemin işçi thread'i, istek/sonuç kuyrukları, raster / üçgen / rakım LRU, eksik komşu takibi, süre özeti</td></tr>
+<tr><th>Dosya</th><th>Görev</th></tr>
+<tr><td><code>PrimeMap.h</code>, <code>primemapglobal.h</code></td><td>Toplama genel başlık; <code>PRIME_MAP_EXPORT</code></td></tr>
+<tr><td><code>api/*</code>, <code>engine/*</code></td><td>Bölüm 13b</td></tr>
+</table>
+<h3>src/ &mdash; pencere, görünüm, çekirdek</h3>
+<table>
+<tr><th>Dosya</th><th>Görev</th></tr>
+<tr><td><code>XMapWindow.*</code></td><td>Bir haritanın çizimi (Texture ve LEGACY pencere yolu), fare / tekerlek / klavye, arayüz olayları, mod değişimi, bellek içi ayarlar, tooltip</td></tr>
+<tr><td><code>XMapView.*</code></td><td>Web Mercator kamera, lat/lon &harr; boxel, imleç etrafında zoom</td></tr>
+<tr><td><code>XMapImageCache.*</code></td><td>Harita resmi önbelleği (FBO, hız sınırı; LEGACY pencere yolu)</td></tr>
+<tr><td><code>ScreenMath.*</code></td><td>Dikdörtgen / afin dönüşüm; <code>rectFromTopLeft</code> (API Geometry &rarr; RectI)</td></tr>
+<tr><td><code>Layer.h</code>, <code>LayerManager.*</code></td><td>Katman arayüzü, alt katmanlar, <code>drawContext</code>; liste, aç/kapa, mod başına kayıt, zoom aralıkları</td></tr>
+<tr><td><code>XMapTheme.*</code></td><td>Harita modları, renkleri, katman varsayılanları; <code>themeLayerColor</code> (renk verilebilen katmanlar)</td></tr>
+<tr><td><code>LabelPlacer.*</code></td><td>Etiket / sembol çakışma önleme</td></tr>
+<tr><td><code>XMapFormat.*</code></td><td>Koordinat / mesafe yazı biçimleri, ızgara ve ölçek aralığı</td></tr>
+<tr><td><code>Geo.*</code>, <code>GeoGrid.*</code></td><td>Büyük daire hesapları, poligon üçgenleme; 1&times;1&deg; uzamsal indeks</td></tr>
+<tr><td><code>Drawings.*</code></td><td>Kullanıcı çizim modeli ve metni</td></tr>
+<tr><td><code>Settings.*</code>, <code>Log.*</code>, <code>BackgroundJob.*</code>, <code>Color.h</code></td><td>JSON ayar deposu, Log.txt yazımı, tek seferlik arka plan işi, Rgba</td></tr>
+</table>
+<h3>src/data/ &mdash; veri</h3>
+<table>
+<tr><th>Dosya</th><th>Görev</th></tr>
+<tr><td><code>AptLine.*</code>, <code>AptDatIndexer.*</code>, <code>AptDatParser.*</code></td><td>apt.dat satır okuyucu; özet indeksi + disk önbelleği; tek havalimanı &rarr; AirportDetail</td></tr>
+<tr><td><code>AirportGeometry.*</code>, <code>AirportGeometryStore.*</code>, <code>AirportSearch.*</code></td><td>Özet yapısı ve deposu; arama ve sığdırma zoom'u</td></tr>
+<tr><td><code>AirportDetail.h</code>, <code>AirportDetailStore.*</code>, <code>AirportShapes.*</code></td><td>Ayrıntı yapısı; istekle okuyan işçi + LRU; Bezier, earcut, çizgi / ışık dizileri</td></tr>
+<tr><td><code>LocalizerMatch.*</code>, <code>NavDatabase.*</code>, <code>NavLoader.*</code>, <code>AirwayDatabase.*</code></td><td>ILS &rarr; pist eşiği; nav kayıtları + ızgara, dilimli yükleme; <code>earth_awy.dat</code></td></tr>
+<tr><td><code>AircraftData.*</code></td><td>Uçak konumu / yönü (X-Plane ya da host)</td></tr>
+<tr><td><code>SceneryPacks.*</code>, <code>SceneryIndex.*</code>, <code>WorldTileMap.*</code></td><td>Sahne sırası; karo &rarr; aday DSF'ler; deniz / veri yok ayrımı</td></tr>
+<tr><td><code>SevenZip.*</code>, <code>DsfReader.*</code></td><td>7z açma; DSF okuma</td></tr>
+<tr><td><code>TerrainClasses.*</code>, <code>TerrainPaletteSource.*</code></td><td>Arazi türü &rarr; sınıf, palet ve zemin ayarları; sınıf renklerini X-Plane dokularından çıkarma</td></tr>
+<tr><td><code>TerrainRaster.*</code>, <code>TerrainElevation.*</code>, <code>ElevationCodec.*</code>, <code>TerrainRelief.*</code></td><td>Sınıf raster'ı ve görüntü üretimi; DEM, piramit, rakım dosyası; kayıpsız kodlama; kabartma / VFR / su formülleri</td></tr>
+<tr><td><code>TerrainVectors.*</code>, <code>TerrainTriangles.*</code>, <code>TerrainNoise.*</code>, <code>LandColorField.*</code></td><td>DSF alanları ve yollar; yakın zoom üçgenleri; sınır kıvırma; kara rengi geçişi</td></tr>
+<tr><td><code>CacheTrim.*</code>, <code>TerrainStore.*</code></td><td>Disk önbelleği sınırı; zemin işçi thread'i, kuyruklar, LRU'lar</td></tr>
 </table>
 <h3>src/layers/, src/gfx/, src/ui/</h3>
-<p>Bölüm 7.2 (katmanlar), 11 (gfx) ve 12 (ui) tablolarına bak. Her dosyanın başında Türkçe bir açıklama bloğu vardır
-(ne yapar, neden, zoom eşikleri, şema); ayrıntı için önce o bloğu oku.</p>
+<p>Bölüm 7.2 (katmanlar), 11 (gfx: <code>Canvas</code>, <code>RenderTarget</code>, <code>Texture</code>, <code>GlScreen</code> ...) ve 12 (ui). Her dosyanın başında Türkçe bir açıklama bloğu vardır.</p>
 <h3>Diğer</h3>
 <table>
-  <tr><th>Yer</th><th>Ne</th></tr>
-  <tr><td><code>tests/tests.cpp</code></td><td>X-Plane'siz testler (bölüm 16)</td></tr>
-  <tr><td><code>tools/preview/</code></td><td><code>map_preview</code>: aynı katman kodunu XPLM taklitleriyle resme çizer</td></tr>
-  <tr><td><code>tools/dsfinfo/</code></td><td><code>dsf_info</code>: bir DSF dosyasının içeriğini döker</td></tr>
-  <tr><td><code>third_party/</code></td><td>XPSDK (XPLM200..301 açık), LZMA SDK 23.01 (7z açıcı + 0.16'dan beri LZMA sıkıştırıcı, tek thread; <code>lzma/README.txt</code>), mapbox earcut 2.2.4 (tek belgelenmiş yama: <code>README.txt</code>). Dış kod sadece burada.</td></tr>
-  <tr><td><code>CMakeLists.txt</code></td><td>Hedefler: <code>prime-map-plugin</code> (win.xpl), <code>map_tests</code>, <code>map_preview</code>, <code>dsf_info</code>, <code>lzma_sdk</code></td></tr>
+<tr><th>Yer</th><th>Ne</th></tr>
+<tr><td><code>tests/tests.cpp</code></td><td>X-Plane'siz testler (bölüm 16)</td></tr>
+<tr><td><code>tools/preview/</code>, <code>tools/dsfinfo/</code></td><td><code>map_preview</code>: aynı katman kodunu XPLM taklitleriyle resme çizer; <code>dsf_info</code>: DSF dökümü</td></tr>
+<tr><td><code>examples/texture_host/</code></td><td>En küçük tam host (Texture); API belgesinin bölüm 3'ü</td></tr>
+<tr><td>COTS (repo dışında)</td><td>X-Plane SDK 3.0, LZMA SDK 24.05, earcut 2.2.4, stb_truetype 1.26 (<code>C:\workspace\cots</code> ya da kardeş cots)</td></tr>
+<tr><td><code>CMakeLists.txt</code></td><td>Hedefler: <code>prime-map-api</code> (<code>prime_map.dll</code>), <code>map_tests</code>, <code>map_preview</code>, <code>dsf_info</code>, <code>lzma_sdk</code></td></tr>
 </table>
 
-<!-- ================================================================== -->
 <h2>16. Testler ve araçlar</h2>
-<ul>
-  <li><b><code>map_tests</code></b> (<code>-DMAP_TESTS=ON</code>): çekirdeği X-Plane'siz dener — Mesh geometrisi,
-      MapView gidiş-dönüş ve zoom, LabelPlacer, ayarlar, Drawings, Geo, apt.dat ayrıştırma ve Bezier, AirportShapes,
-      AirwayDatabase satırları, DSF okuma ve overlay sayımı, zemin raster'ı, gürültü ve renk karışımı, temalar, mod başına
-      görünürlük; 0.16: rakım kodlayıcısı, piramit, komşulu örnekleme (karo sınırında dikiş yok), kabartma / VFR bandı /
-      su formülleri, <code>dsf_files</code> ve doğrulaması, rakım önbelleği. Hepsi geçmeli.</li>
-  <li><b><code>map_preview</code></b> (<code>-DMAP_PREVIEW=ON</code>): eklentinin kendi katman ve arayüz kodunu
-      gerçek X-Plane verisiyle görünmez bir OpenGL penceresinde çizip PPM resim yazar. Örnek:
-      <code>map_preview --lat 47.45 --lon -122.30 --zoom 12 --mode vfr --out ksea.ppm</code>
-      (ayrıca <code>--size --show --hide --panel --describe x,y --demo-drawings --no-ui --terrain-colors ini</code>).
-      Görsel kontrol için hızlıdır ama gerçek X-Plane denemesinin yerine geçmez.</li>
-  <li><b><code>dsf_info</code></b>: DSF'in özellikleri, dışlama alanları, arazi türleri, üçgen sayıları, yama bayrağı ×
-      düzlem sayısı, nesne / poligon / yol ağı envanteri, raster katmanları, aşama süreleri; <code>--raw</code> ile açılmış
-      hâlini, <code>--dump-terrain</code> ile bir arazi türünün üçgenlerini yazar. DSF biçimiyle ilgili bir şey
-      değiştirmeden önce gerçek dosyaya bununla bak.</li>
-</ul>
+<p><code>map_tests</code> (<code>-DMAP_TESTS=ON</code>): çekirdeği X-Plane'siz dener &mdash; Mesh geometrisi, XMapView gidiş-dönüş ve zoom, LabelPlacer, ayarlar, Drawings, Geo, apt.dat ayrıştırma ve Bezier, AirportShapes, AirwayDatabase satırları, DSF okuma ve overlay sayımı, zemin raster'ı, gürültü ve renk karışımı, temalar, mod başına görünürlük; 0.16: rakım kodlayıcısı, piramit, komşulu örnekleme (karo sınırında dikiş yok), kabartma / VFR bandı / su formülleri, <code>dsf_files</code> ve doğrulaması, rakım önbelleği. Hepsi geçmeli.</p>
+<p><code>map_preview</code> (<code>-DMAP_PREVIEW=ON</code>): eklentinin kendi katman ve arayüz kodunu gerçek X-Plane verisiyle görünmez bir OpenGL penceresinde çizip PPM resim yazar. Örnek: <code>map_preview --lat 47.45 --lon -122.30 --zoom 12 --mode vfr --out ksea.ppm</code> (ayrıca <code>--size --show --hide --panel --describe x,y --demo-drawings --no-ui --terrain-colors ini</code>). Görsel kontrol için hızlıdır ama gerçek X-Plane denemesinin yerine geçmez.</p>
+<p><code>dsf_info</code>: DSF'in özellikleri, dışlama alanları, arazi türleri, üçgen sayıları, yama bayrağı &times; düzlem sayısı, nesne / poligon / yol ağı envanteri, raster katmanları, aşama süreleri; <code>--raw</code> ile açılmış hâlini, <code>--dump-terrain</code> ile bir arazi türünün üçgenlerini yazar. DSF biçimiyle ilgili bir şey değiştirmeden önce gerçek dosyaya bununla bak.</p>
 
-<!-- ================================================================== -->
 <h2>17. Hız ve bellek yöntemleri (genel)</h2>
 <p>Haritanın X-Plane'in FPS'ini düşürmemesi için kullanılan yöntemler; yeni kod yazarken aynı kalıpları izle.</p>
 <table>
-  <tr><th>Yöntem</th><th>Nerede</th><th>Neden</th></tr>
-  <tr><td>1×1° uzamsal ızgara</td><td><code>GeoGrid</code>, <code>NavDatabase</code>, <code>AirportGeometryStore</code></td>
-      <td>Yüz binlerce kayıt var; her karede sadece ekrandaki hücrelere bakılır.</td></tr>
-  <tr><td>Dilimli yükleme</td><td><code>NavLoader</code></td>
-      <td>SDK sadece ana thread'den çağrılabildiği için iş flight loop'ta 4 ms'lik dilimlere bölünür; simülatör takılmaz.</td></tr>
-  <tr><td>İstekle, arka planda hazırlama</td><td><code>AirportDetailStore</code>, <code>TerrainStore</code></td>
-      <td>Katman <code>Use</code>/<code>Request</code> ile ister, hazır değilse yer tutucu çizer; yavaş iş çizimi bekletmez.
-      En son istenen önce yapılır.</td></tr>
-  <tr><td>İki seviyeli veri</td><td>apt.dat özet + ayrıntı</td>
-      <td>Yüzlerce MB'lık dosyanın sadece özeti bellekte; ayrıntı ekrana gelen havalimanı için dosyanın o bayt aralığından okunur.</td></tr>
-  <tr><td>Disk önbellekleri</td><td><code>airport_index.bin</code>, <code>cache/terrain</code></td>
-      <td>Pahalı tarama / DSF açma bir kez yapılır; anahtar yol|boyut|mtime olduğu için kaynak değişince kendiliğinden yenilenir.</td></tr>
-  <tr><td>LRU sınırları</td><td>Ayrıntı (64 havalimanı), zemin dokusu (512 MB), üçgen (2 karo), raster</td>
-      <td>Bellek dolaşılan alanla sınırsız büyümez; en uzun süredir kullanılmayan atılır.</td></tr>
-  <tr><td>GPU'da kalıcı şekil</td><td><code>StaticMesh</code> + <code>DrawStatic</code></td>
-      <td>Büyük havalimanı yüzeyleri (yüz binlerce nokta) bir kez yüklenir; her karede sadece ölçek + kaydırma gönderilir.</td></tr>
-  <tr><td>Harita resmi önbelleği</td><td><code>MapImageCache</code></td>
-      <td>Dururken harita saniyede ~1 kez, kayarken en çok 15 kez çizilir; aradaki karelerde tek dokulu dörtgen.</td></tr>
-  <tr><td>Yazı toplu çizimi</td><td><code>AtlasTextRenderer</code>, <code>Canvas::QueueText</code></td>
-      <td>Yüzlerce etiket tek çizim çağrısında; X-Plane'in durum değişikliği etiket başına değil.</td></tr>
-  <tr><td>Doku yükleme sınırı</td><td><code>TerrainLayer</code></td>
-      <td>Karede en çok 3 doku yüklenir (takılma olmasın); ince seviye gelene kadar elde olan kaba seviye gösterilir.</td></tr>
-  <tr><td>Merkezden dışa öncelik</td><td><code>AirportVisibility</code></td>
-      <td>Ekranın ortasındaki havalimanının ayrıntısı önce istenir.</td></tr>
-  <tr><td>Zoom eşikleri</td><td>Her katmanın .cpp başındaki <code>k...MinZoom</code> sabitleri</td>
-      <td>Uzakta anlamsız ayrıntı (fix, ışık, tabela, boya çizgisi) hiç işlenmez.</td></tr>
-  <tr><td>Hücreli çakışma testi</td><td><code>LabelPlacer</code> (32 boxel hücreler)</td>
-      <td>Yeni etiket kutusu sadece değdiği hücrelerdeki kutularla karşılaştırılır.</td></tr>
-  <tr><td>Üçgenleme hızı</td><td><code>third_party/earcut</code> (tek yama)</td>
-      <td>Earcut'ın <code>isValidDiagonal</code>'ında ucuz yerel testler pahalı halka taramasından önce yapılır; sonuç aynı,
-      çok delikli apronlarda çok daha hızlı. Ayrıntı <code>third_party/earcut/README.txt</code>.</td></tr>
-  <tr><td>Tek çizim kapısı, toplu çizim</td><td><code>Canvas</code>, <code>Mesh</code></td>
-      <td>Bir katmanın bütün sembolleri tek Mesh'te toplanıp tek çağrıda çizilir.</td></tr>
-  <tr><td>Rakım piramidi (0.16)</td><td><code>ElevationGrid</code></td>
-      <td>Uzak seviyeler seyrek nokta okumaz, önceden ortalanmış kaba seviyeyi okur: hem hızlı hem parazitsiz.</td></tr>
-  <tr><td>Sıkıştırılmış rakım (0.16)</td><td><code>ElevationCodec</code>, <code>*.elevation</code></td>
-      <td>Karo başına 2,9 MB yerine ~0,75 MB; açma ~50 ms. Rakım raster'dan ayrı dosyada: komşu karo için sadece rakım okunur.</td></tr>
-  <tr><td>Aynı işi iki kez yapmama (0.16)</td><td><code>TerrainStore::Request</code></td>
-      <td>Üretilmekte olan ya da sonucu kuyrukta bekleyen doku tekrar istenirse yok sayılır.</td></tr>
-  <tr><td>İki katmanlı rakım belleği (0.16)</td><td><code>TerrainStore::ElevationFor</code></td>
-      <td>Tam ızgara (~5 MB) en çok 12 karo; uzak zoom için sadece seviye 2+ (~0,5 MB) en çok 64 karo. Tam listeden atılan
-      ızgara silinmez, küçültülüp kaba listeye geçer. İlk sürümde z8.5'te 15 karo × 3×3 komşuluk 12'lik listeyi sürekli
-      boşaltıyor, aynı rakım görünüm başına ~30 kez diskten okunuyordu (ölçüldü).</td></tr>
-  <tr><td>Hedefli yenileme (0.16)</td><td><code>mMissingNeighbors</code></td>
-      <td>Sadece komşusu eksik üretilmiş ve o komşusu artık hazır olan doku yeniden üretilir; eski doku yenisi gelene kadar
-      çizilir. Bir kez hazır olup artık bulunamayan komşu beklenmez (sonsuz yenileme olmaz).</td></tr>
+<tr><th>Yöntem</th><th>Nerede</th><th>Neden</th></tr>
+<tr><td>1&times;1&deg; uzamsal ızgara</td><td><code>GeoGrid</code>, <code>NavDatabase</code>, <code>AirportGeometryStore</code></td><td>Yüz binlerce kayıt var; her karede sadece ekrandaki hücrelere bakılır.</td></tr>
+<tr><td>Dilimli yükleme</td><td><code>NavLoader</code></td><td>SDK sadece ana thread'den çağrılabildiği için iş flight loop'ta 4 ms'lik dilimlere bölünür; simülatör takılmaz.</td></tr>
+<tr><td>İstekle, arka planda hazırlama</td><td><code>AirportDetailStore</code>, <code>TerrainStore</code></td><td>Katman <code>Use / Request</code> ile ister, hazır değilse yer tutucu çizer; yavaş iş çizimi bekletmez. En son istenen önce yapılır.</td></tr>
+<tr><td>İki seviyeli veri</td><td>apt.dat özet + ayrıntı</td><td>Yüzlerce MB'lık dosyanın sadece özeti bellekte; ayrıntı ekrana gelen havalimanı için dosyanın o bayt aralığından okunur.</td></tr>
+<tr><td>Disk önbellekleri</td><td><code>airport_index.bin</code>, <code>cache/terrain</code></td><td>Pahalı tarama / DSF açma bir kez yapılır; anahtar yol|boyut|mtime olduğu için kaynak değişince kendiliğinden yenilenir.</td></tr>
+<tr><td>LRU sınırları</td><td>Ayrıntı (64 havalimanı), zemin dokusu (512 MB), üçgen (2 karo), raster</td><td>Bellek dolaşılan alanla sınırsız büyümez; en uzun süredir kullanılmayan atılır.</td></tr>
+<tr><td>GPU'da kalıcı şekil</td><td><code>StaticMesh</code> + <code>DrawStatic</code></td><td>Büyük havalimanı yüzeyleri (yüz binlerce nokta) bir kez yüklenir; her karede sadece ölçek + kaydırma gönderilir.</td></tr>
+<tr><td>Harita resmi önbelleği</td><td><code>XMapImageCache</code></td><td>Dururken harita saniyede ~1 kez, kayarken en çok 15 kez çizilir; aradaki karelerde tek dokulu dörtgen.</td></tr>
+<tr><td>Yazı toplu çizimi</td><td><code>AtlasTextRenderer</code>, <code>Canvas::QueueText</code></td><td>Yüzlerce etiket tek çizim çağrısında; X-Plane'in durum değişikliği etiket başına değil.</td></tr>
+<tr><td>Doku yükleme sınırı</td><td><code>TerrainLayer</code></td><td>Karede en çok 3 doku yüklenir (takılma olmasın); ince seviye gelene kadar elde olan kaba seviye gösterilir.</td></tr>
+<tr><td>Merkezden dışa öncelik</td><td><code>AirportVisibility</code></td><td>Ekranın ortasındaki havalimanının ayrıntısı önce istenir.</td></tr>
+<tr><td>Zoom eşikleri</td><td>Her katmanın <code>.cpp</code> başındaki <code>k...MinZoom</code> sabitleri</td><td>Uzakta anlamsız ayrıntı (fix, ışık, tabela, boya çizgisi) hiç işlenmez.</td></tr>
+<tr><td>Hücreli çakışma testi</td><td><code>LabelPlacer</code> (32 boxel hücreler)</td><td>Yeni etiket kutusu sadece değdiği hücrelerdeki kutularla karşılaştırılır.</td></tr>
+<tr><td>Üçgenleme hızı</td><td><code>third_party/earcut</code> (tek yama)</td><td>Earcut'ın <code>isValidDiagonal</code>'ında ucuz yerel testler pahalı halka taramasından önce yapılır; sonuç aynı, çok delikli apronlarda çok daha hızlı. Ayrıntı <code>third_party/earcut/README.txt</code>.</td></tr>
+<tr><td>Tek çizim kapısı, toplu çizim</td><td><code>Canvas</code>, <code>Mesh</code></td><td>Bir katmanın bütün sembolleri tek Mesh'te toplanıp tek çağrıda çizilir.</td></tr>
+<tr><td>Rakım piramidi (0.16)</td><td><code>ElevationGrid</code></td><td>Uzak seviyeler seyrek nokta okumaz, önceden ortalanmış kaba seviyeyi okur: hem hızlı hem parazitsiz.</td></tr>
+<tr><td>Sıkıştırılmış rakım (0.16)</td><td><code>ElevationCodec</code>, <code>*.elevation</code></td><td>Karo başına 2,9 MB yerine ~0,75 MB; açma ~50 ms. Rakım raster'dan ayrı dosyada: komşu karo için sadece rakım okunur.</td></tr>
+<tr><td>Aynı işi iki kez yapmama (0.16)</td><td><code>TerrainStore::Request</code></td><td>Üretilmekte olan ya da sonucu kuyrukta bekleyen doku tekrar istenirse yok sayılır.</td></tr>
+<tr><td>İki katmanlı rakım belleği (0.16)</td><td><code>TerrainStore::ElevationFor</code></td><td>Tam ızgara (~5 MB) en çok 12 karo; uzak zoom için sadece seviye 2+ (~0,5 MB) en çok 64 karo. Tam listeden atılan ızgara silinmez, küçültülüp kaba listeye geçer. İlk sürümde z8.5'te 15 karo &times; 3&times;3 komşuluk 12'lik listeyi sürekli boşaltıyor, aynı rakım görünüm başına ~30 kez diskten okunuyordu (ölçüldü).</td></tr>
+<tr><td>Hedefli yenileme (0.16)</td><td><code>mMissingNeighbors</code></td><td>Sadece komşusu eksik üretilmiş ve o komşusu artık hazır olan doku yeniden üretilir; eski doku yenisi gelene kadar çizilir. Bir kez hazır olup artık bulunamayan komşu beklenmez (sonsuz yenileme olmaz).</td></tr>
 </table>
 
+<p class="foot">Prime XMap &mdash; Mimari, sürüm 0.26 (2026-11-18).</p>
 </body>
 </html>
+

@@ -1584,7 +1584,7 @@ void XMapWindow::saveSettings()
 
     mLayers.saveVisibility(mSettings, themeFor(mMapMode));
     mLayers.saveZoomRanges(mSettings);
-    ++mSettingsRevision;  // degisti: XMapInstance ayar dosyasini yazar (host da bu sayaca bakabilir)
+    ++mSettingsRevision;  // degisti: XMap ayar dosyasini yazar (host da bu sayaca bakabilir)
 }
 
 void XMapWindow::saveDrawings()

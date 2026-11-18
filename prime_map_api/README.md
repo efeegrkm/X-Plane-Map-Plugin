@@ -12,7 +12,7 @@ stilleri (`Standalone`, `Embedded`) **LEGACY**'dir: kodları Texture kapsamlı d
 
 | Belge | Kimin için |
 |---|---|
-| `docs/PrimeMap_API.pdf` | **Kullanım kılavuzu ve referans**: hızlı başlangıç, sıfırdan entegrasyon, bütün fonksiyonlar, özelleştirme, dosya biçimleri, sınırlar (kaynağı `docs/tools/build_api_doc.py`) |
+| `docs/PrimeMap_API.pdf` | **Kullanım kılavuzu ve referans**: hızlı başlangıç, sıfırdan entegrasyon, bütün fonksiyonlar, özelleştirme, dosya biçimleri, sınırlar |
 | `docs/SRS.md` | Yazılım gereksinimleri: hedef ("API ile haritanın her yerinde tam kontrol") ve her gereksinimin bugünkü durumu |
 | `docs/MIMARI.pdf` | Kodu anlamak isteyen geliştirici: mimari, veri akışı, çizim yolları, dosya görevleri |
 | `examples/texture_host/` | En küçük tam host eklentisi (derlenir; kılavuzun bölüm 3'ü) |

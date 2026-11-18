@@ -1,5 +1,62 @@
 # Prime Map API — CHANGELOG
 
+## 0.26.1 (çalışma durumu temizliği, 2026-11-17)
+
+Kod davranışı değişmedi; sürüm numaraları 0.26.0 olarak kaldı. X-Plane'de denendi
+(v0.26 `prime_map.dll` hash doğrulamalı), map_tests 30.682 / 0.
+
+- **`#pragma` kaldırıldı**: 90 başlıkta `#pragma once` → klasik include guard'ları
+  (`TerrainVectors.inl` dahil). DLL sınırından geçen STL üyelerinin C4251 uyarısı
+  `#pragma` yerine derleyici seçeneği `/wd4251` ile kapatıldı; `StbTruetypeImpl.cpp`
+  `/W0` ile izole edildi. Depoda `#pragma` kalmadı.
+- **Yorum inceltme**: kütüphane başlık ve kaynaklarında sadeleştirme ("neden"
+  notları korundu); dört ağaç /W4 uyarısız.
+- **Doküman taraması**: genel belgelerdeki dış depo bağlantıları Bitbucket'e
+  çevrildi; API kılavuzu ve mimari belgesi 0.26 içeriğiyle (HTML + PDF) yeniden
+  üretildi. SRS ve README'de artık repoda bulunmayan dosyalara atıf yok.
+- Önbellek klasör paylaşımı araştırıldı (kod değişikliği yok): paylaşım birimi
+  yöneticidir; disk karo önbelleği ayarlardan bağımsız, aday DSF listesi
+  anahtarlıdır; farklı süreçler `setCacheDirectory` ile aynı havuzu
+  paylaşabilir (içerik doğrulamalı okuma).
+
+## 0.26 (Texture çizim yolu, salt-JSON ayarlar, 2026-11-17)
+
+X-Plane'de **denendi** (resmî eklenti + UI test eklentisi, v0.26). map_tests 30.682 / 0.
+
+- **`WindowStyle::Texture`** (varsayılan): harita artık host'un sağladığı
+  framebuffer'a (doku) çizilir; X-Plane penceresi gerekmez. `XMap::renderTexture()`,
+  `getTextureId()`, `setTextureSize()`, `sceneSignature()`; yeniden çizim kararı
+  imza/görünüm değişiminde, hız sınırı `max_fps`. GL durumu (framebuffer, viewport,
+  scissor, MVP) `beginOffscreen` tarafından saklanır ve geri konur.
+- **`inject*` girdi API'si**: Texture yolunda pencere yoktur; host imleç / düğme /
+  tekerlek / tuş olaylarını `injectMouseMove` vb. ile aktarır, `onClick` / `onWheel` /
+  `onKey` aynı yürütücüye gider. Klavye odağı isteği `wantsKeyboard()`.
+- **Ayarlar salt JSON**: INI okuma ve eski sürüm dosya göçü tamamen kaldırıldı;
+  `prime_map.ini` → `prime_map.json`, `map_settings.ini` →
+  `maps/<ad>/map_settings.json`, `terrain_colors.ini` →
+  `maps/<ad>/terrain_colors.json`. Depo biçimi yalnızca JSON'dur
+  (`Settings`: bölüm/anahtar/değer, değerler metin).
+- Dokümanlar yeniden yazıldı (kullanım kılavuzu 26 sayfa, mimari 24 sayfa) ve SRS
+  güncellendi.
+- LEGACY pencere yolları (`Embedded` / `Standalone`) korunur; Texture'a pop-out ve
+  LEGACY yolların kaldırılması planlıdır (SRS).
+
+## 0.25 (dosya düzeni, isimlendirme, JSON ayar deposu, 2026-11-16)
+
+X-Plane'de **denenmedi** (derlendi, 30.682 test yeşil).
+
+- **Her sınıf kendi dosyasında**: çok sınıflı kaynak dosyaları bölündü; h+cpp
+  çiftleri CMake listelerinde tek satırda.
+- **`XMapInstance` → `XMap` birleşmesi**: ara "instance" katmanı kaldırıldı;
+  `XMap` hem API yüzeyi hem motordur (katmanlar, çizimler, uçak, palet, dosyalar,
+  `XMapWindow`).
+- **Map-\* → XMap-\***: kütüphane içindeki bütün sınıf ve dosya adları `XMap`
+  önekine çevrildi (`XMapView`, `XMapWindow`, `XMapTheme`, `XMapImageCache`,
+  `XMapFormat`, `XMapSymbols`...).
+- **Ayar deposu JSON biçimine geçti**: ayar dosyaları `.json` olarak yazılır/okunur
+  (INI desteği 0.26'da tamamen kaldırıldı); revizyon sayaçları otomatik kaydı
+  tetikler.
+
 ## 0.24 (API yeniden yapılanma, 2026-11-13)
 
 Yapısal standardizasyon: yeni API yüzeyi, isimlendirme, yorum temizliği, CMake ekip standardı.

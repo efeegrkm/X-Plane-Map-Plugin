@@ -87,7 +87,7 @@ struct Options
     bool mDemoDrawings = false;
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
-    std::string mTerrainColors;  // --terrain-colors <ini>: eklentinin terrain_colors.ini'si (bossa varsayilan)
+    std::string mTerrainColors;  // --terrain-colors <dosya>: terrain_colors.json (bossa varsayilan)
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
     XMapMode mMode = XMapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac

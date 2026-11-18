@@ -105,7 +105,7 @@ void MultiXMapSelfTest::runImmediate()
     Check(!tLibrary.getDataDirectory().empty() && !tLibrary.getCacheDirectory().empty() &&
               !tLibrary.getXMapsDirectory().empty(),
           "data / cache / maps directories", tLibrary.getDataDirectory());
-    Check(fileExists(tLibrary.getSettingsFilePath()), "prime_map.ini exists", tLibrary.getSettingsFilePath());
+    Check(fileExists(tLibrary.getSettingsFilePath()), "prime_map.json exists", tLibrary.getSettingsFilePath());
     mOriginalSettings = tLibrary.getSettings();
     prime::XMapManagerSettings tSettings = mOriginalSettings;
     tSettings.mTerrainCacheMb = 1000;
@@ -312,6 +312,6 @@ void MultiXMapSelfTest::runCleanup()
     Check(tLibrary.getOpenXMapCount() == mMapsBefore, "maps released: open count back",
           std::format("{}", tLibrary.getOpenXMapCount()));
     Check(tLibrary.findXMap("selftest_a") == nullptr, "released map is no longer found");
-    tLibrary.setSettings(mOriginalSettings);  // prime_map.ini eski haline
+    tLibrary.setSettings(mOriginalSettings);  // prime_map.json eski haline
     write(std::format("DONE: {} passed, {} failed", mPassed, mFailed));
 }

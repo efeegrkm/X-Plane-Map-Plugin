@@ -9,19 +9,6 @@
 namespace
 {
 
-// Bastaki ve sondaki bosluklari at
-std::string trim(const std::string& pText)
-{
-    const char* tSpaces = " \t\r\n";
-    const size_t tBegin = pText.find_first_not_of(tSpaces);
-    if (tBegin == std::string::npos)
-    {
-        return "";
-    }
-    const size_t tEnd = pText.find_last_not_of(tSpaces);
-    return pText.substr(tBegin, tEnd - tBegin + 1);
-}
-
 // JSON dizgi kacisleri: "\\" ve '"' zorunlu, kontrol karakterleri \n \t \r biciminde
 std::string jsonEscape(const std::string& pText)
 {
