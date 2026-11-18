@@ -24,7 +24,10 @@
 namespace
 {
 
-const char* kVersion = "0.26";  // CMake project(VERSION) ile ayni olmali
+#ifndef PRIME_MAP_VERSION
+#define PRIME_MAP_VERSION "1.0.0"
+#endif
+const char* kVersion = PRIME_MAP_VERSION;  // CMake'ten tanim olarak gelir (project VERSION)
 const char* kMainMapName = "main";      // ayar klasoru: maps/main/
 const char* kSecondMapName = "second";  // ayar klasoru: maps/second/
 

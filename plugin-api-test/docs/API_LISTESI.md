@@ -1,4 +1,4 @@
-# Prime XMap API — Çağrı Listesi (v0.26.2)
+# Prime XMap API — Çağrı Listesi (v1.0.0)
 
 Tam kullanım kılavuzu ve referans: `prime_map_api/docs/PrimeMap_API.pdf`. Bu dosya kısa çağrı listesidir.
 
@@ -26,7 +26,9 @@ prime::XMapManagerFactory::destroyXMapManager(tManager);
 |---|---|
 | `XMapManagerFactory::createXMapManager()` | Yeni yönetici (ve ayrı önbellek bütçeleri). Singleton yoktur |
 | `XMapManagerFactory::destroyXMapManager(m)` | Yöneticiyi ve kalan haritaları bırakır |
-| `prime::versionString()` | `"0.26.2"` |
+| `prime::versionString()` | `"1.0.0"` |
+| `prime::isLibraryVersionMatching()` | Host'un derlendiği sürümle yüklü DLL'in sürümü aynı mı (inline; uyuşmazlıkta fabrika zaten tek satır WARNING yazar) |
+| `prime::libraryPath()` | Yüklü `prime_map.dll`'nin tam yolu |
 
 ## 2. XMapManager
 
@@ -35,7 +37,7 @@ prime::XMapManagerFactory::destroyXMapManager(tManager);
 | `setDataDirectory(path)` | Veri klasörü (boş = `%LOCALAPPDATA%/prime/prime-xmap/`). `initialize` öncesi |
 | `setCacheDirectory(path)` | Önbellek klasörü (boş = `<veri>/cache/`). `initialize` öncesi |
 | `setLogPrefix(prefix)`, `setLogCallback(fn)` | Log.txt satır öneki / satırları host'a da ilet |
-| `setTerrainCacheMb(mb)`, `setPrefetchTiles(n)` | `prime_map.json` henüz yoksa ilk değerler (verilmezse 1024 MB / 20 karo) |
+| `setTerrainCacheMb(mb)`, `setPrefetchTiles(n)` | `prime_map.json` henüz yoksa ilk değerler (verilmezse 1024 MB / 20 karo). `setPrefetchTiles(0)` ön yüklemeyi kapatır; açık harita yokken de uçak konumu çevresi arka planda yüklenir (tek satır Log) |
 | `initialize()`, `shutdown()`, `isInitialized()` | Ortak veriyi başlat / durdur |
 | `getStatus()` | `Status`: nav / havalimanı / hava yolu / zemin hazır mı, bekleyen zemin resmi, ön önbellek, açık harita, sınırlar |
 | `addXMap(XMapConfig = {})` | Yeni harita nesnesi (açılmaz) |
@@ -45,7 +47,7 @@ prime::XMapManagerFactory::destroyXMapManager(tManager);
 | `getDataDirectory()`, `getSettingsFilePath()`, `getXMapsDirectory()`, `getCacheDirectory()` | Yollar; **`initialize` öncesi de** doğru döner |
 | `parentOf`, `childrenOf`, `topLevelLayers`, `kindOf`, `layerName`, `layerKey`, `layerFromKey`, `isLayerDefaultVisible(layer, mode)` | Katman ağacı ve kuralları |
 
-`XMapConfig`: `mName`, `mPersistence`, `mGeometry`, `mStyle` (varsayılan `Texture`), `mMode`, `mUiVisible`, `mMouseInput`, `mVisible`,
+`XMapConfig`: `mName`, `mPersistence`, `mGeometry`, `mStyle` (varsayılan `Texture`), `mMode` (1.0.0'da varsayılan **Dark**; eski davranış için host `Vfr` verir), `mUiVisible`, `mMouseInput`, `mVisible`,
 `mImageCache`, `mMaxRenderFps`, `mXPlaneFont` (hepsi sonradan da ayarlanabilir).
 
 ## 3. XMap
@@ -57,7 +59,7 @@ prime::XMapManagerFactory::destroyXMapManager(tManager);
 | Pencere | `setStyle` / `getStyle` (`Texture`; LEGACY: `Embedded`, `Standalone`; sadece kapalıyken), `setTitle`, `setGeometry` / `getGeometry`, `setVisible` / `isVisible`, `bringToFront`, `setPoppedOut` / `isPoppedOut`, `setIsUiVisible` / `isUiVisible`, `setIsMouseInputEnabled` / `isMouseInputEnabled` |
 | Görünüm | `setCenter` / `getCenter`, `setZoom` / `getZoom`, `minZoom`, `maxZoom`, `hardMaxZoom`, `setZoomLimits`, `getMinZoomLimit`, `getMaxZoomLimit`, `zoomIn`, `zoomOut`, `setZoomStep` / `getZoomStep`, `panLeft/Right/Up/Down`, `setPanStep` / `getPanStep`, `panBy`, `fitBounds`, `getVisibleBounds`, `getMetersPerBoxel`, `setFollowAircraft` / `isFollowingAircraft`, `centerOnAircraft`, `goToAirport`, `findAirports`, `screenToGeo`, `geoToScreen` |
 | Mod | `setMode` / `getMode` (`Scenery`, `Vfr`, `IfrLow`, `IfrHigh`, `Dark`), `nextMode` |
-| Katmanlar | `setIsLayerVisible`, `isLayerVisible`, `toggleLayer`, `setLayersVisible`, `showOnlyLayers`, `resetLayersToDefaults`, `getLayerState` (`Off`/`On`/`Mixed`), `setLayerZoomRange` / `getLayerZoomRange` / `clearLayerZoomRange` / `clearAllLayerZoomRanges` |
+| Katmanlar | `setIsLayerVisible`, `isLayerVisible`, `toggleLayer`, `setLayersVisible`, `showOnlyLayers`, `resetLayersToDefaults`, `getLayerState` (`Off`/`On`/`Mixed`), `setLayerZoomRange` / `getLayerZoomRange` / `clearLayerZoomRange` / `clearAllLayerZoomRanges` / `getDefaultLayerZoomRange` / `getLayerHardMinZoom` (1.0.0: host aralığı yerleşik eşiğin yerine geçer; aşağı çekme sert alt sınıra kadar, altındaki istek kırpılıp uyarır; `(0, 99)` = host aralığını kaldır) |
 | Katman rengi | `setColor(layer, Rgb)`, `getColor` (yoksa `mR < 0`), `clearColor`, `clearAllColors` — dosyada `layer_colors` |
 | Çizimler | `setDrawTool` / `getDrawTool` (`Pan`, `Point`, `Route`, `Region`), `addDrawingPoint`, `finishDrawing`, `undoDrawing`, `clearDrawings`, `hasUnfinishedDrawing`, `getShapes`, `removeShape`, `exportDrawings`, `importDrawings` |
 | Uçak / iz / rota | `setAircraftSource` / `getAircraftSource` (`XPlane`, `Host`), `setAircraft` / `getAircraft`, `clearTrack`, `setRouteSource` / `getRouteSource`, `setRoute` |

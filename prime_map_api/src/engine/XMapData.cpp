@@ -343,6 +343,17 @@ float XMapData::onFlightLoop()
     const float tNow = XPLMGetElapsedTime();
     stepLoading();
     mHub.beginFrame();  // bu karenin doku yukleme hakki (butun haritalar icin ortak)
+    // Haritasiz prefetch: acik harita yokken ucak konumunu okuyabilmek icin (ucuz: birkac dataref)
+    const bool tAnyOpenMap =
+        std::any_of(mInstances.begin(), mInstances.end(),
+                    [](const prime::XMap* pInstance)
+                    {
+                        return pInstance->isInitialized();
+                    });
+    if (!tAnyOpenMap)
+    {
+        mAircraft.refresh();
+    }
     updatePrefetch(tNow);
     updateStatus();
     // Haritalar: ucak, katman verisi, durum yazisi, ayar dosyalari. Kopya liste: bir harita
@@ -528,7 +539,8 @@ void XMapData::updatePrefetch(float pNow)
             }
         }
         // FMS rotasinin kalan kismi: bacaklar ~10 NM aralikla orneklenir
-        const std::vector<LatLon> tRoute = tInstance->mFmsLayer ? tInstance->mFmsLayer->routeAhead() : std::vector<LatLon>();
+        const std::vector<LatLon> tRoute =
+            tInstance->mFmsLayer ? tInstance->mFmsLayer->routeAhead() : std::vector<LatLon>();
         for (size_t tIndex = 0; tIndex < tRoute.size(); ++tIndex)
         {
             if (tIndex == 0 && !tAircraft.mValid)
@@ -543,6 +555,28 @@ void XMapData::updatePrefetch(float pNow)
             }
             tAdd(tRoute[tIndex]);
             tFrom = tRoute[tIndex];
+        }
+    }
+    // Acik harita yoksa (ya da henuz setup olmadiysa) yine de one bak: harita ilk acilista hizli olsun
+    if (tTiles.empty())
+    {
+        const AircraftState& tAircraft = mAircraft.state();
+        if (tAircraft.mValid)
+        {
+            tAdd(tAircraft.mPosition);
+            if (tAircraft.mGroundSpeedKt > 40.0)
+            {
+                for (double tDistance = 15.0; tDistance <= 120.0; tDistance += 15.0)
+                {
+                    tAdd(destinationPoint(tAircraft.mPosition, tAircraft.mHeadingDeg, tDistance));
+                }
+            }
+            if (!tTiles.empty() && !mMaplessPrefetchLogged)
+            {
+                mMaplessPrefetchLogged = true;
+                log("prefetch without open maps: {} tile(s) around the aircraft (setPrefetchTiles(0) disables)",
+                    tTiles.size());
+            }
         }
     }
     mTerrainStore.setPrefetchTiles(tTiles);

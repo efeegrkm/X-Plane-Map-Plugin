@@ -7,7 +7,8 @@
 // (touchCacheFile); Windows'ta "son erisim zamani" guvenilir degil.
 //
 // Sinirin ustundeyse en uzun suredir kullanilmayan karolar, toplam sinirin
-// %90'ina inene kadar silinir. Karo adi olmayan dosyalara dokunulmaz.
+// %90'ina inene kadar silinir. Karo adi olmayan dosyalara dokunulmaz; tek istisna
+// 1 saatten eski .tmp dosyalari (cokerkenden kalan yarim yazimlar) silinir.
 // Sadece zemin iscisinin thread'inden cagrilir: silinen dosya baska yerde okunmuyor.
 #ifndef PRIME_MAP_SRC_DATA_CACHETRIM_H
 #define PRIME_MAP_SRC_DATA_CACHETRIM_H
@@ -20,6 +21,7 @@ struct CacheTrimResult
     uint64_t mTotalBytes = 0;    // silmeden onceki toplam (karo dosyalari)
     uint64_t mRemovedBytes = 0;
     int mRemovedTiles = 0;
+    int mRemovedTempFiles = 0;   // cokerkenden kalan eski gecici (.tmp) dosyalar
 };
 
 // Dosyanin degistirilme zamanini simdiye ceker (hata sessizce yok sayilir)

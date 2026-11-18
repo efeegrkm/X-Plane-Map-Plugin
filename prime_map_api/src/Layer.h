@@ -3,6 +3,7 @@
 #ifndef PRIME_MAP_SRC_LAYER_H
 #define PRIME_MAP_SRC_LAYER_H
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -36,7 +37,7 @@ struct drawContext
     // Tum katmanlarin ortak etiket yerlestiricisi (drawLabels icinde kullanilir)
     LabelPlacer* mLabels = nullptr;
 
-    const XMapTheme* mTheme = &themeFor(XMapMode::Scenery);
+    const XMapTheme* mTheme = &themeFor(XMapMode::Dark);
 
     // Yazi golgesi: temanin halesi, tam opak
     Rgba labelShadow() const
@@ -137,8 +138,12 @@ public:
         std::string mName;
         bool mVisible = true;
         bool mDefaultVisible = true;
-        double mMinZoom = kNoMinZoom;
+        double mMinZoom = kNoMinZoom;   // host'un verdigi aralik (mHostRange)
         double mMaxZoom = kNoMaxZoom;
+        double mBuiltInMin = kNoMinZoom;   // yerlesik gorunme esigi (LayerTable tablosundan)
+        double mBuiltInMax = kNoMaxZoom;
+        double mHardMin = kNoMinZoom;      // olculmus sert alt sinir: altindaki istek kirpilir
+        bool mHostRange = false;           // host (veya ayar dosyasi) aralik verdi mi
     };
 
     int subLayerCount() const
@@ -181,29 +186,113 @@ public:
     static constexpr double kNoMinZoom = 0.0;
     static constexpr double kNoMaxZoom = 99.0;
 
+    // Yerlesik gorunme esigi ve sert alt sinir (LayerTable tablosu); LayerManager kurulumda uygular
+    void setBuiltInZoomRange(double pMinZoom, double pMaxZoom, double pHardMinZoom)
+    {
+        mBuiltInMin = pMinZoom;
+        mBuiltInMax = pMaxZoom;
+        mHardMin = pHardMinZoom;
+    }
+
+    void setSubLayerBuiltInZoomRange(int pIndex, double pMinZoom, double pMaxZoom, double pHardMinZoom)
+    {
+        if (pIndex >= 0 && pIndex < subLayerCount())
+        {
+            SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
+            tSub.mBuiltInMin = pMinZoom;
+            tSub.mBuiltInMax = pMaxZoom;
+            tSub.mHardMin = pHardMinZoom;
+        }
+    }
+
+    // Etkin aralik: host (veya ayar dosyasi) verdiyse kirpilmis host degeri, yoksa yerlesik esik
+    double minZoomEff() const
+    {
+        return mHostRange ? (std::max)(mMinZoom, mHardMin) : (std::max)(mBuiltInMin, mHardMin);
+    }
+
+    double maxZoomEff() const
+    {
+        return mHostRange ? mMaxZoom : mBuiltInMax;
+    }
+
+    double hardMinZoom() const
+    {
+        return mHardMin;
+    }
+
+    // Host aralik verdi mi (kalici: ayar dosyasina yalnizca bu yazilir)
+    bool hasHostZoomRange() const
+    {
+        return mHostRange;
+    }
+
     void setZoomRange(double pMinZoom, double pMaxZoom)
     {
         mMinZoom = pMinZoom;
         mMaxZoom = pMaxZoom;
+        mHostRange = true;
     }
 
-    double minZoom() const
+    void clearZoomRange()
     {
-        return mMinZoom;
-    }
-
-    double maxZoom() const
-    {
-        return mMaxZoom;
+        mMinZoom = kNoMinZoom;
+        mMaxZoom = kNoMaxZoom;
+        mHostRange = false;
     }
 
     void setSubLayerZoomRange(int pIndex, double pMinZoom, double pMaxZoom)
     {
         if (pIndex >= 0 && pIndex < subLayerCount())
         {
-            mSubLayers[static_cast<size_t>(pIndex)].mMinZoom = pMinZoom;
-            mSubLayers[static_cast<size_t>(pIndex)].mMaxZoom = pMaxZoom;
+            SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
+            tSub.mMinZoom = pMinZoom;
+            tSub.mMaxZoom = pMaxZoom;
+            tSub.mHostRange = true;
         }
+    }
+
+    void clearSubLayerZoomRange(int pIndex)
+    {
+        if (pIndex >= 0 && pIndex < subLayerCount())
+        {
+            SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
+            tSub.mMinZoom = kNoMinZoom;
+            tSub.mMaxZoom = kNoMaxZoom;
+            tSub.mHostRange = false;
+        }
+    }
+
+    double subMinZoomEff(int pIndex) const
+    {
+        if (pIndex < 0 || pIndex >= subLayerCount())
+        {
+            return kNoMinZoom;
+        }
+        const SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
+        return tSub.mHostRange ? (std::max)(tSub.mMinZoom, tSub.mHardMin)
+                               : (std::max)(tSub.mBuiltInMin, tSub.mHardMin);
+    }
+
+    double subMaxZoomEff(int pIndex) const
+    {
+        if (pIndex < 0 || pIndex >= subLayerCount())
+        {
+            return kNoMaxZoom;
+        }
+        const SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
+        return tSub.mHostRange ? tSub.mMaxZoom : tSub.mBuiltInMax;
+    }
+
+    double subHardMinZoom(int pIndex) const
+    {
+        return (pIndex < 0 || pIndex >= subLayerCount()) ? kNoMinZoom
+                                                         : mSubLayers[static_cast<size_t>(pIndex)].mHardMin;
+    }
+
+    bool subHasHostRange(int pIndex) const
+    {
+        return pIndex >= 0 && pIndex < subLayerCount() && mSubLayers[static_cast<size_t>(pIndex)].mHostRange;
     }
 
     // LayerManager her cizimden once haritanin o anki zoom'unu verir
@@ -215,7 +304,20 @@ public:
     // Katman su anki zoom'da ciziliyor mu (kendi kutusundan bagimsiz)
     bool isInZoomRange() const
     {
-        return mCurrentZoom >= mMinZoom && mCurrentZoom <= mMaxZoom;
+        return mCurrentZoom >= minZoomEff() && mCurrentZoom <= maxZoomEff();
+    }
+
+    // Gorunur alt katmanlardan biri etkin araliginda mi (yukleme / erken cikis kapilari icin)
+    bool isAnySubLayerInZoomRange() const
+    {
+        for (int tSub = 0; tSub < subLayerCount(); ++tSub)
+        {
+            if (isSubLayerDrawn(tSub))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // Alt katmanin kutusu acik VE su anki zoom araliginda; gecersiz indeks: cizilir say
@@ -226,7 +328,7 @@ public:
             return true;
         }
         const SubLayer& tSub = mSubLayers[static_cast<size_t>(pIndex)];
-        return tSub.mVisible && mCurrentZoom >= tSub.mMinZoom && mCurrentZoom <= tSub.mMaxZoom;
+        return tSub.mVisible && mCurrentZoom >= subMinZoomEff(pIndex) && mCurrentZoom <= subMaxZoomEff(pIndex);
     }
 
 protected:
@@ -247,8 +349,12 @@ private:
     std::string mName;
     bool mVisible;
     bool mDefaultVisible;
-    double mMinZoom = kNoMinZoom;
+    double mMinZoom = kNoMinZoom;      // host'un verdigi aralik (mHostRange)
     double mMaxZoom = kNoMaxZoom;
+    double mBuiltInMin = kNoMinZoom;   // yerlesik gorunme esigi (LayerTable tablosundan)
+    double mBuiltInMax = kNoMaxZoom;
+    double mHardMin = kNoMinZoom;      // olculmus sert alt sinir: altindaki istek kirpilir
+    bool mHostRange = false;
     double mCurrentZoom = 10.0;  // setCurrentZoom gelene kadar ortalama bir deger
     std::vector<SubLayer> mSubLayers;
 };

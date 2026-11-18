@@ -4,6 +4,7 @@
 #define PRIME_MAP_SRC_API_XMAPTYPES_H
 
 #include <cstdint>
+#include <format>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,10 +15,26 @@
 namespace prime
 {
 
-constexpr int kVersionMajor = 0;
-constexpr int kVersionMinor = 26;
-constexpr int kVersionPatch = 2;
-PRIME_MAP_EXPORT std::string versionString();  // "0.26.2"
+constexpr int kVersionMajor = 1;
+constexpr int kVersionMinor = 0;
+constexpr int kVersionPatch = 0;
+PRIME_MAP_EXPORT std::string versionString();  // "1.0.0"
+PRIME_MAP_EXPORT std::string libraryPath();    // yuklu DLL'in tam yolu (alinamazsa bos)
+
+// Host'un derleme anindaki surum metni: surum sabitleri HOST ikilisine islenir (inline, DLL
+// cagrisi yok). Host ve DLL farkli surum basliklariyla derlendiyse govde farklidir; bu niyetli:
+// asagidaki eslestirme her tarafta kendi sabitleriyle derlenir.
+inline std::string hostVersionString()
+{
+    return std::format("{}.{}.{}", kVersionMajor, kVersionMinor, kVersionPatch);
+}
+
+// Host'un derledigi surum ile yuklu DLL'in surumu ayni mi. Host tarafinda derlenen kisim
+// host'un sabitlerini kullanir; versionString() yuklu DLL'den gelir (1.0.0, LIF-08).
+inline bool isLibraryVersionMatching()
+{
+    return versionString() == hostVersionString();
+}
 
 struct LatLon
 {
@@ -231,7 +248,7 @@ struct XMapConfig
     Persistence mPersistence = Persistence::LoadAndSave;
     Geometry mGeometry;
     WindowStyle mStyle = WindowStyle::Texture;
-    XMapMode mMode = XMapMode::Scenery;
+    XMapMode mMode = XMapMode::Dark;
     bool mUiVisible = false;
     bool mMouseInput = false;
     bool mVisible = true;

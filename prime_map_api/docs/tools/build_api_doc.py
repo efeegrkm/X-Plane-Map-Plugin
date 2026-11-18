@@ -7,7 +7,7 @@ import os
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 OUT = os.path.join(ROOT, 'docs', 'PrimeMap_API.html')
-VERSION = '0.26.2'
+VERSION = '1.0.0'
 DATE = '2026-11-18'
 
 
@@ -47,52 +47,52 @@ def dots(s):
 
 LAYERS = [
     'XMap &mdash; <code>XMapLayer::XMapGroup</code> (grup)',
-    ('Terrain', 'terrain', 'Terrain (scenery)', '5', '11111', 'zemin: <code>TerrainSettings</code>'),
+    ('Terrain', 'terrain', 'Terrain (scenery)', '5 (sert 4)', '11111', 'zemin: <code>TerrainSettings</code>'),
     ('TerrainForests', 'terrain.forests', 'Forests', '', '01110', '&mdash;'),
     ('TerrainBuiltUp', 'terrain.built_up', 'Built-up areas', '', '11000', 'evet (VFR/IFR yerleşim karışımı)'),
     ('Roads', 'roads', 'Roads and railways', '7.5', '00000', '&mdash; (alt katmanlar)'),
     ('RoadsMotorways', 'roads.motorways', 'Motorways', '7.5', '01110', 'evet'),
-    ('RoadsPrimary', 'roads.primary', 'Primary roads', '9', '01110', 'evet'),
-    ('RoadsSecondary', 'roads.secondary', 'Secondary roads', '10.5', '01110', 'evet'),
-    ('RoadsLocal', 'roads.local', 'Local roads', '12', '01110', 'evet'),
-    ('RoadsRailways', 'roads.railways', 'Railways', '9.5', '01110', 'evet'),
-    ('RoadsPowerLines', 'roads.power_lines', 'Power lines', '11', '01000', 'evet'),
+    ('RoadsPrimary', 'roads.primary', 'Primary roads', '9 (sert 8)', '01110', 'evet'),
+    ('RoadsSecondary', 'roads.secondary', 'Secondary roads', '10.5 (sert 9.5)', '01110', 'evet'),
+    ('RoadsLocal', 'roads.local', 'Local roads', '12 (sert 11)', '01110', 'evet'),
+    ('RoadsRailways', 'roads.railways', 'Railways', '9.5 (sert 8.5)', '01110', 'evet'),
+    ('RoadsPowerLines', 'roads.power_lines', 'Power lines', '11 (sert 10)', '01000', 'evet'),
     ('Grid', 'grid', 'Lat / lon grid', 'her zoom', '11110', 'evet (çizgi)'),
     'Airports &mdash; <code>XMapLayer::AirportsGroup</code> (grup)',
     ('AirportSymbols', 'airports', 'Airport symbols', '4 (büyük 4, küçük 8, deniz üssü 9, heliport / kapalı 11)', '11111', 'hayır'),
-    ('Runways', 'runways', 'Runways', '11', '11111', 'evet (pist kenarı)'),
+    ('Runways', 'runways', 'Runways', '11 (sert 10)', '11111', 'evet (pist kenarı)'),
     ('RunwaysPaved', 'runways.paved', 'Paved (land)', '', '11111', '&mdash;'),
     ('RunwaysUnpaved', 'runways.unpaved', 'Unpaved (land)', '', '11111', '&mdash;'),
     ('RunwaysWater', 'runways.water', 'Water runways', '', '11111', '&mdash;'),
     ('RunwaysOverruns', 'runways.overruns', 'Blast pads / overruns', '12', '11111', '&mdash;'),
     ('RunwaysMarkings', 'runways.markings', 'Markings', '13', '11111', '&mdash;'),
     ('RunwaysNumbers', 'runways.numbers', 'Runway numbers', '11.5', '11111', '&mdash;'),
-    ('Surfaces', 'airport_surfaces', 'Airport surfaces', '10.5', '11111', 'hayır'),
-    ('SurfacesPavement', 'airport_surfaces.pavement', 'Pavement', '11', '11111', 'hayır'),
+    ('Surfaces', 'airport_surfaces', 'Airport surfaces', '10.5 (sert 9.5)', '11111', 'hayır'),
+    ('SurfacesPavement', 'airport_surfaces.pavement', 'Pavement', '11 (sert 10.5)', '11111', 'hayır'),
     ('SurfacesPavementEdges', 'airport_surfaces.pavement_edges', 'Pavement edges', '', '10111', 'hayır'),
-    ('SurfacesBoundary', 'airport_surfaces.boundary', 'Airport boundary', '10.5', '11110', 'hayır'),
-    ('SurfacesMarkings', 'airport_surfaces.markings', 'Painted lines', '13.5', '00000', 'hayır'),
-    ('Objects', 'airport_objects', 'Airport objects', '12.5', '01010', 'hayır'),
-    ('ObjectsLighting', 'airport_objects.lighting', 'Edge / taxi lights', '14.5', '00000', 'hayır'),
-    ('ObjectsHelipads', 'airport_objects.helipads', 'Helipads', '', '01010', 'hayır'),
-    ('ObjectsBeacons', 'airport_objects.beacons', 'Beacons', '12.5', '00000', 'hayır'),
-    ('ObjectsWindsocks', 'airport_objects.windsocks', 'Windsocks', '13.5', '00000', 'hayır'),
-    ('ObjectsGates', 'airport_objects.gates', 'Gates', '', '00000', 'hayır'),
-    ('ObjectsTieDowns', 'airport_objects.tie_downs', 'Tie-downs', '', '00000', 'hayır'),
-    ('ObjectsHangars', 'airport_objects.hangars', 'Hangars', '', '00000', 'hayır'),
-    ('ObjectsOtherStarts', 'airport_objects.other_starts', 'Other start locations', '14', '00000', 'hayır'),
-    ('ObjectsStartNames', 'airport_objects.start_names', 'Parking names', '15.5', '00000', 'hayır'),
-    ('ObjectsApproachLights', 'airport_objects.approach_lights', 'PAPI / VASI', '14.5', '00000', 'hayır'),
-    ('ObjectsSigns', 'airport_objects.signs', 'Taxi signs', '15.5', '00000', 'hayır'),
-    ('TaxiRoutes', 'taxi_routes', 'Taxi routes', '13.5', '00000', 'hayır'),
+    ('SurfacesBoundary', 'airport_surfaces.boundary', 'Airport boundary', '10.5 (sert 9.5)', '11110', 'hayır'),
+    ('SurfacesMarkings', 'airport_surfaces.markings', 'Painted lines', '13.5 (sert 12.5)', '00000', 'hayır'),
+    ('Objects', 'airport_objects', 'Airport objects', '12.5 (sert 11.5)', '01010', 'hayır'),
+    ('ObjectsLighting', 'airport_objects.lighting', 'Edge / taxi lights', '14.5 (sert 13.5)', '00000', 'hayır'),
+    ('ObjectsHelipads', 'airport_objects.helipads', 'Helipads', '12.5 (sert 11.5)', '01010', 'hayır'),
+    ('ObjectsBeacons', 'airport_objects.beacons', 'Beacons', '12.5 (sert 11.5)', '00000', 'hayır'),
+    ('ObjectsWindsocks', 'airport_objects.windsocks', 'Windsocks', '13.5 (sert 12.5)', '00000', 'hayır'),
+    ('ObjectsGates', 'airport_objects.gates', 'Gates', '14 (sert 13)', '00000', 'hayır'),
+    ('ObjectsTieDowns', 'airport_objects.tie_downs', 'Tie-downs', '14 (sert 13)', '00000', 'hayır'),
+    ('ObjectsHangars', 'airport_objects.hangars', 'Hangars', '14 (sert 13)', '00000', 'hayır'),
+    ('ObjectsOtherStarts', 'airport_objects.other_starts', 'Other start locations', '14 (sert 13)', '00000', 'hayır'),
+    ('ObjectsStartNames', 'airport_objects.start_names', 'Parking names', '15.5 (sert 14.5)', '00000', 'hayır'),
+    ('ObjectsApproachLights', 'airport_objects.approach_lights', 'PAPI / VASI', '14.5 (sert 13.5)', '00000', 'hayır'),
+    ('ObjectsSigns', 'airport_objects.signs', 'Taxi signs', '15.5 (sert 14.5)', '00000', 'hayır'),
+    ('TaxiRoutes', 'taxi_routes', 'Taxi routes', '13.5 (sert 12.5)', '00000', 'hayır'),
     'Navaids &mdash; <code>XMapLayer::NavaidsGroup</code> (grup)',
     ('Vor', 'vor', 'VOR / DME', '5', '11111', 'evet'),
     ('Ndb', 'ndb', 'NDB', '7', '11111', 'evet'),
     ('Ils', 'ils', 'ILS / LOC', '8.5', '00001', 'evet'),
     ('Fixes', 'fix', 'Fixes', '9', '00011', 'evet'),
     'Airways &mdash; <code>XMapLayer::AirwaysGroup</code> (grup)',
-    ('AirwaysLow', 'airways_low', 'Airways (low)', '6.5 (adlar 8, oklar 9)', '11101', 'evet'),
-    ('AirwaysHigh', 'airways_high', 'Airways (high)', '6.5 (adlar 8, oklar 9)', '10011', 'evet'),
+    ('AirwaysLow', 'airways_low', 'Airways (low)', '6.5 (sert 5; adlar 8, oklar 9)', '11101', 'evet'),
+    ('AirwaysHigh', 'airways_high', 'Airways (high)', '6.5 (sert 5; adlar 8, oklar 9)', '10011', 'evet'),
     'Flight &mdash; <code>XMapLayer::FlightGroup</code> (grup)',
     ('Aircraft', 'aircraft', 'Aircraft', 'her zoom', '11111', 'hayır'),
     ('FmsRoute', 'fms', 'FMS route', 'her zoom', '11111', 'hayır'),
@@ -243,7 +243,7 @@ add('<h3>2.5 Kapanış (XPluginDisable)</h3>')
 add(pre('''gManager->removeXMap(gMap);                        // ayarlar yazilir
 gManager->shutdown();
 prime::XMapManagerFactory::destroyXMapManager(gManager);'''))
-add('<p>Kurulum: <code>&lt;X-Plane&gt;/Resources/plugins/&lt;eklentiniz&gt;/64/</code> altında <b>win.xpl ve prime_map.dll yan yana</b>. Log.txt\'de <code>Prime Map API 0.26.0 ready</code> satırını görün.</p>')
+add('<p>Kurulum: <code>&lt;X-Plane&gt;/Resources/plugins/&lt;eklentiniz&gt;/64/</code> altında <b>win.xpl ve prime_map.dll yan yana</b>. Log.txt\'de <code>Prime Map API 1.0.0 ready (... dll: ...)</code> satırını görün — satır yüklü DLL\'in yolunu da yazar (bölüm 16).</p>')
 
 # 3 -------------------------------------------------------------------------------------------------
 add('<h2>3. Sıfırdan entegrasyon (adım adım)</h2>')
@@ -295,7 +295,7 @@ add('<h3>Adım 7 &mdash; Doğrulama</h3>')
 add('<p><code>&lt;X-Plane 11&gt;/Log.txt</code> içinde sırayla (önek <code>setLogPrefix</code> ile verdiğiniz):</p>')
 add(pre('''[texture-host] central settings created: ...\\plugins\\texture-host\\prime_map.json
 [texture-host] cache limits for 0 open map(s): terrain disk 1024 MB, terrain textures 512 MB, memory scale 1.00
-[texture-host] Prime Map API 0.26.0 ready (data: ...\\plugins\\texture-host\\, cache: ...\\texture-host\\cache/)
+[texture-host] Prime Map API 1.0.0 ready (data: ...\\plugins\\texture-host\\, cache: ...\\texture-host\\cache/, dll: ...\\plugins\\texture-host\\64\\prime_map.dll)
 [texture-host] map 1 'main': no settings file yet, using the values given through the API
 [texture-host] map texture created (584 x 534 boxels)
 [texture-host] map 1 'main' opened (settings: ...\\texture-host\\maps/main/)
@@ -309,7 +309,7 @@ add(table(['Belirti', 'Neden / çözüm'], [
     ['CMake: <code>Surum uyusmazligi</code>', 'Kütüphaneyi değiştirdiyseniz <code>src/api/XMapTypes.h</code> <code>kVersion*</code> ile <code>project(VERSION)</code>\'ı birlikte güncelleyin'],
     ['Link: <code>unresolved external</code> (prime:: sembolleri) ya da tuhaf çökmeler', 'Host <code>/MT</code> ile derleniyor: <code>CMAKE_MSVC_RUNTIME_LIBRARY</code> satırını ekleyin (<code>/MD</code>)'],
     ['X-Plane eklentiyi yüklemiyor (Log: <code>could not be loaded</code>, hata 126)', '<code>prime_map.dll</code> <code>64/</code>\'da yok ya da <code>VC_redist.x64</code> kurulu değil'],
-    ['İki eklenti aynı süreçte farklı <code>prime_map.dll</code> sürümü kullanıyor', 'Windows aynı adlı DLL\'i bir kez yükler: bütün host\'lara <b>aynı</b> <code>prime_map.dll</code>\'yi koyun'],
+    ['İki eklenti aynı süreçte farklı <code>prime_map.dll</code> sürümü kullanıyor', 'Windows aynı adlı DLL\'i bir kez yükler: bütün host\'lara <b>aynı</b> <code>prime_map.dll</code>\'yi koyun. Uyuşmazlıkta fabrika tek satır WARNING yazar: <i>host built with X, loaded DLL is Y at ...</i>; <code>isLibraryVersionMatching()</code> ile kendiniz de denetleyebilirsiniz'],
     ['<code>addXMap</code> <code>nullptr</code> döndü', '<code>XMapManager::initialize()</code> çağrılmadı (Log: <code>addXMap before initialize</code>)'],
     ['Doku siyah / boş', 'İlk saniyelerde veri yükleniyor (<code>getStatus()</code>); <code>renderTexture</code> host\'un draw callback\'i <b>içinde</b> çağrılmalı; <code>false</code> döndüyse basmayın'],
     ['Tıklama haritaya gitmiyor', '<code>mMouseInput = true</code> mı; koordinatı dokuya göre (sol-alt orijin) mi verdiniz; basma haritada başladıysa sürükleme / bırakmayı da iletin'],
@@ -397,7 +397,7 @@ add(table(['Fonksiyon', 'Açıklama'], [
     ['<code>void setCacheDirectory(const std::string&amp;)</code>', '<code>initialize</code> öncesi. Boş: <code>&lt;veri&gt;/cache/</code>.'],
     ['<code>void setLogPrefix(const std::string&amp;)</code>', 'Log.txt satır öneki (süreçte tek; bölüm 15).'],
     ['<code>void setLogCallback(std::function&lt;void(std::string_view)&gt;)</code>', 'Log satırları host\'a da iletilir.'],
-    ['<code>void setTerrainCacheMb(int)</code>, <code>void setPrefetchTiles(int)</code>', '<code>prime_map.json</code> henüz yoksa ilk değerler. Verilmezse 1024 MB / 20 karo. 0 = sınırsız / kapalı.'],
+    ['<code>void setTerrainCacheMb(int)</code>, <code>void setPrefetchTiles(int)</code>', '<code>prime_map.json</code> henüz yoksa ilk değerler. Verilmezse 1024 MB / 20 karo. 0 = sınırsız / kapalı (<code>setPrefetchTiles(0)</code> ön yüklemeyi tamamen kapatır). Açık harita yokken de uçak konumu çevresindeki karolar arka planda yüklenir (tek satır Log; ilk harita hızlı açılır).'],
     ['<code>bool initialize()</code>', 'Ortak veriyi ve arka plan işlerini başlatır; zaten çalışıyorsa <code>true</code>.'],
     ['<code>void shutdown()</code>, <code>bool isInitialized() const</code>', 'Durdurur (açık haritalar kapatılır, dosyalar yazılır).'],
     ['<code>Status getStatus() const</code>', 'Nav / havalimanı / hava yolu / zemin indeksi hazır mı, bekleyen zemin resmi, ön önbellek ilerlemesi, açık harita sayısı, geçerli önbellek / doku sınırları, durum ve performans metni.'],
@@ -408,7 +408,9 @@ add(table(['Fonksiyon', 'Açıklama'], [
     ['<code>XMapManagerSettings getSettings()</code>, <code>bool setSettings(const XMapManagerSettings&amp;)</code>', 'Merkezi ayarlar (bölüm 11.4); hemen uygulanır ve yazılır.'],
     ['<code>getDataDirectory()</code>, <code>getSettingsFilePath()</code>, <code>getXMapsDirectory()</code>, <code>getCacheDirectory()</code>', 'Yollar; <code>initialize</code> öncesi de doğru.'],
     ['<code>parentOf</code>, <code>childrenOf</code>, <code>topLevelLayers</code>, <code>kindOf</code>, <code>layerName</code>, <code>layerKey</code>, <code>layerFromKey</code>, <code>isLayerDefaultVisible(layer, mode)</code>', 'Katman ağacı, adları, dosya anahtarları ve mod başına varsayılanları (bölüm 10).'],
-    ['<code>std::string prime::versionString()</code>', '<code>"0.26.2"</code>'],
+    ['<code>std::string prime::versionString()</code>', '<code>"1.0.0"</code>'],
+    ['<code>std::string prime::libraryPath()</code>', 'Yüklü <code>prime_map.dll</code>\'nin tam yolu (ready satırında da yazar; alınamazsa boş).'],
+    ['<code>bool prime::isLibraryVersionMatching()</code>', 'Host\'un derlendiği sürümle yüklü DLL\'in sürümü aynı mı (inline, DLL çağrısı gerektirmez). Uyuşmazlıkta fabrika yine de çalışır ama tek satır WARNING yazar (bölüm 16).'],
 ]))
 
 # 7 -------------------------------------------------------------------------------------------------
@@ -453,7 +455,7 @@ G = [
     ['<code>setIsLayerVisible(XMapLayer, bool)</code>, <code>isLayerVisible</code>, <code>toggleLayer</code>', 'Geçerli mod için.'],
     ['<code>setLayersVisible({..}, bool)</code>, <code>showOnlyLayers({..})</code>, <code>resetLayersToDefaults()</code>', ''],
     ['<code>LayerState getLayerState(XMapLayer)</code>', 'Off / On / Mixed (alt katmanların bir kısmı açık).'],
-    ['<code>bool setLayerZoomRange(layer, min, max)</code>, <code>getLayerZoomRange</code>, <code>clearLayerZoomRange</code>, <code>clearAllLayerZoomRanges</code>', 'Grup verilirse bütün katmanlarına uygulanır. Yerleşik eşiği daraltır, erkene alamaz.'],
+    ['<code>bool setLayerZoomRange(layer, min, max)</code>, <code>getLayerZoomRange</code>, <code>clearLayerZoomRange</code>, <code>clearAllLayerZoomRanges</code>, <code>getDefaultLayerZoomRange</code>, <code>getLayerHardMinZoom</code>', 'Grup verilirse bütün katmanlarına uygulanır. 1.0.0: host aralığı yerleşik eşiğin <b>yerine geçer</b> — aşağı da çekilebilir, katman başına ölçülmüş sert alt sınıra kadar (bölüm 9.2); <code>(0, 99)</code> vermek host aralığını kaldırır (yerleşik eşiğe döner).'],
     ['<code>bool setColor(layer, Rgb)</code>, <code>Rgb getColor(layer)</code>, <code>clearColor</code>, <code>clearAllColors</code>', 'Renk verilebilen katmanlar bölüm 9.3. Desteklenmeyen katman: <code>false</code>. <code>getColor</code>: yazma yoksa <code>mR &lt; 0</code>.'],
     'Çizimler',
     ['<code>setDrawTool(DrawTool)</code>, <code>getDrawTool()</code>', 'Pan, Point, Route, Region.'],
@@ -501,7 +503,7 @@ add(table(['Alan', 'Durum', 'Nasıl / sınır'], [
     ['Yerleşim: istenen yer, boyut, birden çok harita', '<span class="ok">Var</span>', 'Texture (bölüm 8); sınırsız bağımsız harita'],
     ['Harita modu (tema)', '<span class="part">Kısmen</span>', '5 hazır mod; host yeni tema tanımlayamaz'],
     ['Katman / alt katman görünürlüğü', '<span class="ok">Var</span>', '56 öğe, mod başına ayrı (bölüm 10)'],
-    ['Katman zoom aralığı', '<span class="part">Kısmen</span>', '<code>setLayerZoomRange</code> yerleşik eşiği <b>daraltır</b>; daha uzaktan göstermek (eşiği düşürmek) mümkün değil'],
+    ['Katman zoom aralığı', '<span class="ok">Var</span>', 'Host aralığı yerleşik eşiğin yerine geçer; aşağı çekme katman başına ölçülmüş sert alt sınıra kadar serbest (1.0.0, bölüm 9.2)'],
     ['Katman rengi', '<span class="part">Kısmen</span>', '14 katman (9.3); havalimanı sembolleri, yüzeyler, nesneler, uçak, rota, iz, çizimler, etiket yazıları, arka plan / su (Dark / IFR) renklendirilemez; renkler modlar arası ortak'],
     ['Çizgi kalınlığı, sembol boyu, yazı boyu / tipi', '<span class="no">Yok</span>', 'Tema içinde sabit; sadece atlas / X-Plane yazı tipi seçimi'],
     ['Zemin renkleri ve görünümü', '<span class="ok">Var</span>', '15 arazi sınıfı rengi, X-Plane paleti / elle, kabartma, kıyı, su şeridi, derinlik, VFR bantları ve konturları (11.2)'],
@@ -518,12 +520,20 @@ add(table(['Alan', 'Durum', 'Nasıl / sınır'], [
 add('<h3>9.1 Görünürlük</h3>')
 add('<ul><li>Üst öğeyi kapatmak alt öğeleri gizler; alt öğelerin kendi durumu korunur.</li><li>Kapalı katmanın bir alt katmanını açmak sadece o alt katmanı açar (katman <code>Mixed</code>).</li><li>Son alt katman kapanınca katman da kapanır; bütün alt katmanları kapalı bir katman açılınca hepsi açılır.</li><li>Grup açmak o modda varsayılan açık katmanları açar. Durum mod başına ve harita başına saklanır; mod değişince o modun durumu gelir.</li></ul>')
 add('<h3>9.2 Zoom aralığı</h3>')
-add('<p>Her katmanın yerleşik bir görünme eşiği vardır (bölüm 10). <code>setLayerZoomRange</code> bu eşiğin <b>üstüne</b> bir pencere koyar: katman ancak hem yerleşik eşiği hem verilen aralığı geçince çizilir. Kutu durumu (<code>isLayerVisible</code>) değişmez.</p>')
+add('<p>Her katmanın yerleşik bir görünme eşiği vardır (bölüm 10, "Eşik" sütunu). 1.0.0\'da <code>setLayerZoomRange</code> '
+    'artık bu eşiğin üstüne pencere koymak yerine <b>yerine geçer</b>: host aralığı verildiyse katman yalnızca host '
+    'aralığına göre çizilir. Yerleşik eşiği yukarı çekmek serbesttir; <b>aşağı çekmek</b> katman başına ölçülmüş '
+    '<b>sert alt sınıra</b> (<code>getLayerHardMinZoom</code>, bölüm 10\'da "sert") kadar serbesttir — daha agresif '
+    'istek kırpılır ve Log\'a tek satır uyarı yazılır (<i>min ... clamped to ...</i>). <code>(0, 99)</code> vermek host '
+    'aralığını kaldırır: katman yerleşik eşiğine döner. Kutu durumu (<code>isLayerVisible</code>) değişmez; etkili '
+    'aralık değiştiği için harita resmi yenilenir. Yerleşik değerler <code>getDefaultLayerZoomRange</code> ile okunur.</p>')
 add(pre('''map->setLayerZoomRange(prime::XMapLayer::AirwaysGroup, 8.0, 99.0);  // hava yollari ancak zoom 8'den yakinda
+map->setLayerZoomRange(prime::XMapLayer::AirwaysLow, 5.0, 99.0);    // yerlesik 6.5'i sert sinir 5.0'a kadar asagi cek
 map->setLayerZoomRange(prime::XMapLayer::Fixes, 10.5, 99.0);        // fix'ler 10.5'ten itibaren
 map->setLayerZoomRange(prime::XMapLayer::Terrain, 0.0, 12.0);       // zemin 12'den yakinda cizilmez
 map->setLayerZoomRange(prime::XMapLayer::RoadsLocal, 13.0, 99.0);   // alt katman: yerel yollar 13+
-map->clearLayerZoomRange(prime::XMapLayer::Fixes);                  // siniri kaldir'''))
+map->setLayerZoomRange(prime::XMapLayer::Runways, 3.0, 99.0);       // WARNING: 10.0'a (sert sinir) kirpilir
+map->clearLayerZoomRange(prime::XMapLayer::Fixes);                  // (0, 99) ile ayni: yerlesik esige don'''))
 add('<h3>9.3 Renk verilebilen katmanlar</h3>')
 add(table(['Katman', 'Neyi boyar'], [
     ['<code>Grid</code>', 'Enlem / boylam çizgileri'],
@@ -550,8 +560,13 @@ add('<p>Sınıf adları: <code>water, urban, forest_conifer, forest_broadleaf, s
 
 # 10 ------------------------------------------------------------------------------------------------
 add('<h2>10. Katmanlar: tam liste</h2>')
-add('<p>Son sütunlardan ilki mod başına varsayılan (Scenery, VFR, IFR Low, IFR High, Dark: &#9679; açık, &#9675; kapalı). "Eşik": katmanın yerleşik görünmeye başladığı zoom (boşsa üst katmanınki). Anahtar: <code>map_settings.json</code>\'daki ad (<code>XMapManager::layerKey</code>). Grupların anahtarı yoktur, durumu katmanlarından gelir. Bir alt katmanın çizilmesi için katmanının da açık olması gerekir.</p>')
-add(table(['XMapLayer', 'Anahtar', 'Panelde adı', 'Eşik (zoom)', 'S V L H D', 'Renk'], layer_rows()))
+add('<p>Son sütunlardan ilki mod başına varsayılan (Scenery, VFR, IFR Low, IFR High, Dark: &#9679; açık, &#9675; kapalı). '
+    '"Eşik": katmanın yerleşik görünmeye başladığı zoom (boşsa üst katmanınki); parantezdeki <b>sert</b> değeri, host '
+    'aralığının kaçak aşağı çekilebileceği alt sınırdır (<code>getLayerHardMinZoom</code>; yalnızca bölüm 9.2\'deki '
+    'tablodaki katmanlar için tanımlı) ve <code>getDefaultLayerZoomRange</code> yerleşik eşik çiftini verir. Anahtar: '
+    '<code>map_settings.json</code>\'daki ad (<code>XMapManager::layerKey</code>). Grupların anahtarı yoktur, durumu '
+    'katmanlarından gelir. Bir alt katmanın çizilmesi için katmanının da açık olması gerekir.</p>')
+add(table(['XMapLayer', 'Anahtar', 'Panelde adı', 'Eşik (sert alt sınır)', 'S V L H D', 'Renk'], layer_rows()))
 
 # 11 ------------------------------------------------------------------------------------------------
 add('<h2>11. Ayar dosyaları</h2>')
@@ -625,7 +640,7 @@ manager->setSettings(s);       // hemen uygulanir + prime_map.json'a yazilir''')
 # 12 ------------------------------------------------------------------------------------------------
 add('<h2>12. Tipler</h2>')
 add(table(['Tip', 'Alanlar / değerler'], [
-    ['<code>XMapConfig</code>', '<code>mName</code>, <code>mPersistence</code> (LoadAndSave), <code>mGeometry</code>, <code>mStyle</code> (Texture), <code>mMode</code> (Scenery), <code>mUiVisible</code> (false), <code>mMouseInput</code> (false), <code>mVisible</code> (true), <code>mImageCache</code> (true), <code>mMaxRenderFps</code> (15), <code>mXPlaneFont</code> (false)'],
+    ['<code>XMapConfig</code>', '<code>mName</code>, <code>mPersistence</code> (LoadAndSave), <code>mGeometry</code>, <code>mStyle</code> (Texture), <code>mMode</code> (Dark; 1.0.0\'da varsayılan mod Dark, host eskisi gibi <code>Vfr</code> verebilir), <code>mUiVisible</code> (false), <code>mMouseInput</code> (false), <code>mVisible</code> (true), <code>mImageCache</code> (true), <code>mMaxRenderFps</code> (15), <code>mXPlaneFont</code> (false)'],
     ['<code>WindowStyle</code>', '<code>Texture</code>; LEGACY: <code>Embedded</code>, <code>Standalone</code>'],
     ['<code>MouseAction</code> / <code>MouseButton</code>', '<code>Down, Drag, Up</code> / <code>Left, Right</code>'],
     ['<code>XMapMode</code>', '<code>Scenery, Vfr, IfrLow, IfrHigh, Dark</code>'],
@@ -714,10 +729,10 @@ mgr->initialize();'''))
 add(pre('''&lt;veri-A&gt;/prime_map.json + maps/&lt;ad&gt;/   ayarlar izole
 &lt;veri-B&gt;/prime_map.json + maps/&lt;ad&gt;/   ayarlar izole
 &lt;ortak&gt;/terrain/...                    karo onbellegi paylasilir'''))
-add('<p>Güvenlik notu: önbellek yazımları geçici dosya + yeniden adlandırmayla atomiktir; okuma tarafında '
-    'anahtar doğrulanır, yarım yazılmış dosya asla görünmez; <code>CacheTrim</code> yarışması kendini onarır '
-    '(silinen karo yeniden üretilir). Paylaşım bilinçli kurulumsa <code>initialize</code> bunu tek satır bilgi '
-    'olarak yazar.</p>')
+add('<p>Güvenlik notu: önbellek yazımları <b>benzersiz adlı</b> geçici dosya (<code>&lt;yol&gt;.&lt;pid&gt;.&lt;iş&gt;.&lt;sayaç&gt;.tmp</code>) + '
+    'yeniden adlandırmayla atomiktir; okuma tarafında anahtar doğrulanır, yarım yazılmış dosya asla görünmez; '
+    '<code>CacheTrim</code> yarışması kendini onarır (silinen karo yeniden üretilir) ve çökerten kalan 1 saatten eski '
+    'geçici dosyaları siler. Paylaşım bilinçli kurulumsa <code>initialize</code> bunu tek satır bilgi olarak yazar.</p>')
 
 add('<h3>c) Tam izolasyon</h3>')
 add(pre('''mgrA->setDataDirectory("C:/X-Plane/pluginA/prime-xmap");   // onbellek kendiliginden
@@ -757,10 +772,10 @@ add('<p>Sınırlar: <code>importSettings</code> pencere / görünümü de kopyal
 add('<h2>15. Sınırlar ve bilinen hatalar</h2>')
 add('<ul>')
 for li in [
-    'Katman zoom aralığı yerleşik eşiği sadece daraltır; renkler modlar arası ortak; 14 katman dışında renk, hiçbir katmanda kalınlık / boy ayarı yok (bölüm 9).',
+    'Katman zoom aralığı: host aralığı yerleşik eşiğin yerine geçer; aşağı çekme katman başına ölçülmüş sert alt sınıra kadar (bölüm 9.2). Renkler modlar arası ortak; 14 katman dışında renk, hiçbir katmanda kalınlık / boy ayarı yok (bölüm 9).',
     'Log öneki süreç genelinde tektir: aynı süreçte birden çok host varsa son <code>setLogPrefix</code> bütün satırlarda görünür.',
     'Aynı süreçte ikinci yönetici aynı veri klasörüne çözülürse <code>initialize</code> tek satır WARNING, yalnızca önbellek klasörü ortaksa tek satır bilgi yazar (bölüm 14b).',
-    'Aynı süreçteki bütün host\'lar aynı <code>prime_map.dll</code>\'yi kullanır (Windows aynı adlı DLL\'i bir kez yükler): sürümler aynı olmalı.',
+    'Aynı süreçteki bütün host\'lar aynı <code>prime_map.dll</code>\'yi kullanır (Windows aynı adlı DLL\'i bir kez yükler): sürümler aynı olmalıdır. Farklıysa <code>createXMapManager</code> tek satır WARNING yazar (host built with X, loaded DLL is Y at ...); <code>isLibraryVersionMatching()</code> ile host bunu baştan denetleyebilir.',
     'Her yöneticinin bir zemin işçisi vardır; birbirinden uzak yerlere bakan çok sayıda harita aynı işçiyi paylaşır. Bölge ön önbelleği aynı anda tek alan içindir.',
     'Texture: host penceresi pop-out edilmişse (ayrı GL bağlamı) çizilmez. <code>setXPlaneFont(true)</code> ile etiketler dokuda yanlış yere düşebilir.',
     'LEGACY Embedded stilde harita ayrı bir penceredir: host penceresinin önünde tutmak host\'un işidir ve tıklama / sıralama sorunları çıkar. LEGACY stiller ileride kaldırılacaktır.',
@@ -772,7 +787,22 @@ add('</ul>')
 
 # 16 ------------------------------------------------------------------------------------------------
 add('<h2>16. Sürüm ve geçiş</h2>')
-add(f'<p>{VERSION} ({DATE}). 0.26: <code>WindowStyle::Texture</code> (varsayılan) ve <code>inject*</code>, <code>MouseAction</code>, <code>MouseButton</code>; Embedded / Standalone LEGACY; INI desteği ve eski sürüm dosya göçü kaldırıldı (sadece JSON); zemin paleti kaynağı <code>"ini"</code> yerine <code>"colors"</code>; <code>Geometry</code> alt kenar hatası düzeldi; yol sorguları <code>initialize</code> öncesi çalışır; verilmeyen önbellek ayarları artık 0 yazılmaz. 0.26.2: <code>shutdown</code> sonrası harita metotları güvenli no-op (tek seferlik uyarı); <code>setColor(TerrainBuiltUp)</code> zemin görüntüsüne işler; aynı klasöre çözülen ikinci yönetici <code>initialize</code>\'da uyarır; önbellek yazımları atomik. Ürün geliştirme aşamasındadır: sürümler arasında geriye uyumluluk sağlanmaz.</p>')
+add(f'<p><b>{VERSION}</b> ({DATE}). MVP yayını. 1.0.0: varsayılan harita modu <b>Dark</b> (host eskisi gibi '
+    '<code>mMode = Vfr</code> verebilir); katman zoom eşikleri tek bir tabloda toplandı ve host aralığı yerleşik '
+    'eşiğin <b>yerine geçti</b> — aşağı çekme katman başına ölçülmüş sert alt sınıra kadar serbest, <code>min &gt; max</code> '
+    'reddedilir, <code>(0, 99)</code> sınırlamayı kaldırır; yeni <code>getDefaultLayerZoomRange</code> ve '
+    '<code>getLayerHardMinZoom</code>; açık harita yokken uçak konumu çevresi ön yüklenir (<code>setPrefetchTiles(0)</code> '
+    'kapatır); önbellek geçici dosyaları benzersiz adlı, çökerten kalanlar CacheTrim tarafından silinir; hazırda '
+    '<code>Prime Map API 1.0.0 ready (... dll: ...)</code> satırı yüklü DLL\'in yolunu verir; sürüm uyuşmazlığında '
+    'fabrika tek satır WARNING yazar, <code>isLibraryVersionMatching()</code> host\'un kendi denetimidir. Ürün 1.0.0 '
+    'ile yayındır: sürümler arasında geriye uyumluluk sağlanmaz.</p>')
+add('<p>0.26: <code>WindowStyle::Texture</code> (varsayılan) ve <code>inject*</code>, <code>MouseAction</code>, '
+    '<code>MouseButton</code>; Embedded / Standalone LEGACY; INI desteği ve eski sürüm dosya göçü kaldırıldı '
+    '(sadece JSON); zemin paleti kaynağı <code>"ini"</code> yerine <code>"colors"</code>; <code>Geometry</code> alt kenar '
+    'hatası düzeldi; yol sorguları <code>initialize</code> öncesi çalışır; verilmeyen önbellek ayarları artık 0 yazılmaz. '
+    '0.26.2: <code>shutdown</code> sonrası harita metotları güvenli no-op (tek seferlik uyarı); '
+    '<code>setColor(TerrainBuiltUp)</code> zemin görüntüsüne işler; aynı klasöre çözülen ikinci yönetici '
+    '<code>initialize</code>\'da uyarır; önbellek yazımları atomik.</p>')
 add(table(['0.23', '0.24 / 0.25 / 0.26'], [
     ['<code>prime::MapLibrary::Get().Init(InitConfig)</code>', '<code>XMapManagerFactory::createXMapManager()</code> + <code>set...</code> + <code>initialize()</code>'],
     ['<code>MapLibrary::CreateMap()</code> / <code>Map::Open()</code> / <code>Close()</code> / <code>unique_ptr</code> bırakma', '<code>addXMap()</code> / <code>XMap::initialize()</code> / <code>close()</code> / <code>removeXMap()</code>'],

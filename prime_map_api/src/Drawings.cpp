@@ -193,7 +193,8 @@ std::string Drawings::serialize() const
     std::ostringstream tStream;
     tStream.imbue(std::locale::classic());  // ondalik ayirici her zaman nokta
     tStream.precision(12);  // ~0.1 mm: kayit/yukleme koordinati bozmasin
-    tStream << "# Prime XMap Plugin drawings: P = point, R = route, A = area (region). <type> <number> <lat> <lon> ...\n";
+    tStream << "# Prime XMap Plugin drawings: P = point, R = route, A = area (region)."
+               " <type> <number> <lat> <lon> ...\n";
     for (const Shape& tShape : mShapes)
     {
         tStream << labelOf(tShape).substr(0, 1) << ' ' << tShape.mNumber;

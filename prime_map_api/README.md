@@ -1,4 +1,4 @@
-# Prime XMap API 0.26 — X-Plane 11 harita kütüphanesi
+# Prime XMap API 1.0.0 — X-Plane 11 harita kütüphanesi
 
 Herhangi bir X-Plane 11 eklentisinin kendi arayüzüne katmanlı, hareketli bir harita koymasını sağlayan C++20
 kütüphanesi (CMake hedefi `prime-map-api`, çıktı `prime_map.dll`, ad alanı `prime`). Dış harita servisi yok: zemin,

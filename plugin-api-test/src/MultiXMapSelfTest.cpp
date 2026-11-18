@@ -101,7 +101,7 @@ void MultiXMapSelfTest::runImmediate()
     prime::XMapManager& tLibrary = *mManager;
 
     // --- Kutuphane: surum, klasorler, merkezi ayarlar
-    Check(prime::versionString() == "0.26.2", "VersionString", prime::versionString());
+    Check(prime::isLibraryVersionMatching(), "VersionString", prime::versionString());
     Check(!tLibrary.getDataDirectory().empty() && !tLibrary.getCacheDirectory().empty() &&
               !tLibrary.getXMapsDirectory().empty(),
           "data / cache / maps directories", tLibrary.getDataDirectory());
@@ -156,19 +156,42 @@ void MultiXMapSelfTest::runImmediate()
     Check(mFirst->isVisible(), "opened visible");
     const prime::Geometry tAfter = mFirst->getGeometry();
     Check(tAfter.mLeft == 900 && tAfter.mTop == 720 && tAfter.mWidth == 420 && tAfter.mHeight == 300,
-          "geometry kept by Open", std::format("{} {} {} {}", tAfter.mLeft, tAfter.mTop, tAfter.mWidth, tAfter.mHeight));
+          "geometry kept by Open",
+          std::format("{} {} {} {}", tAfter.mLeft, tAfter.mTop, tAfter.mWidth, tAfter.mHeight));
     Check(mFirst->getMode() == prime::XMapMode::Vfr && nearEqual(mFirst->getZoom(), 10.0, 1e-9) &&
               !mFirst->isLayerVisible(XMapLayer::Grid),
           "pre-open settings are in effect after Open");
     mFirst->setZoom(16.0);
-    Check(nearEqual(mFirst->getZoom(), 14.0, 1e-9), "zoom limit of this map (max 14)", std::format("{}", mFirst->getZoom()));
+    Check(nearEqual(mFirst->getZoom(), 14.0, 1e-9), "zoom limit of this map (max 14)",
+          std::format("{}", mFirst->getZoom()));
     mFirst->setZoom(10.0);
     mFirst->zoomIn();
     Check(nearEqual(mFirst->getZoom(), 11.0, 1e-9), "zoomIn uses this map's zoom step (1.0)");
     double tMinZoom = 0.0;
     double tMaxZoom = 0.0;
     mFirst->getLayerZoomRange(XMapLayer::AirwaysLow, &tMinZoom, &tMaxZoom);
-    Check(nearEqual(tMinZoom, 8.0, 1e-9), "group zoom range reaches its layers", std::format("{} {}", tMinZoom, tMaxZoom));
+    Check(nearEqual(tMinZoom, 8.0, 1e-9), "group zoom range reaches its layers",
+          std::format("{} {}", tMinZoom, tMaxZoom));
+    // Yerlesik zoom esikleri (1.0.0): tablo degeri, sert sinir kirpmasi, host ezmesi, clear
+    double tDefMin = 0.0;
+    double tDefMax = 0.0;
+    mFirst->getDefaultLayerZoomRange(XMapLayer::Terrain, &tDefMin, &tDefMax);
+    Check(nearEqual(tDefMin, 5.0, 1e-9) && nearEqual(tDefMax, 99.0, 1e-9), "terrain built-in threshold is 5.0",
+          std::format("{} {}", tDefMin, tDefMax));
+    Check(nearEqual(mFirst->getLayerHardMinZoom(XMapLayer::Terrain), 4.0, 1e-9), "terrain hard minimum is 4.0",
+          std::format("{}", mFirst->getLayerHardMinZoom(XMapLayer::Terrain)));
+    mFirst->setLayerZoomRange(XMapLayer::Terrain, 3.0, 99.0);
+    mFirst->getLayerZoomRange(XMapLayer::Terrain, &tMinZoom, &tMaxZoom);
+    Check(nearEqual(tMinZoom, 4.0, 1e-9), "request below the hard minimum is clamped",
+          std::format("{} {}", tMinZoom, tMaxZoom));
+    mFirst->setLayerZoomRange(XMapLayer::Terrain, 4.5, 99.0);
+    mFirst->getLayerZoomRange(XMapLayer::Terrain, &tMinZoom, &tMaxZoom);
+    Check(nearEqual(tMinZoom, 4.5, 1e-9), "host can lower the built-in threshold down to the hard minimum",
+          std::format("{} {}", tMinZoom, tMaxZoom));
+    mFirst->clearLayerZoomRange(XMapLayer::Terrain);
+    mFirst->getLayerZoomRange(XMapLayer::Terrain, &tMinZoom, &tMaxZoom);
+    Check(nearEqual(tMinZoom, 5.0, 1e-9), "clear restores the built-in threshold",
+          std::format("{} {}", tMinZoom, tMaxZoom));
     Check(!mFirst->setLayerZoomRange(XMapLayer::Vor, 12.0, 9.0), "inverted zoom range is refused");
     Check(!mFirst->setName("other"), "setName refused while the map is open");
     Check(fileExists(mFirst->getSettingsDirectory() + "map_settings.json") &&
@@ -185,6 +208,7 @@ void MultiXMapSelfTest::runImmediate()
     Check(!mSecond->setName("selftest_a"), "a name used by another map is refused");
     Check(mSecond->setName("selftest_b"), "second map named");
     mSecond->setPersistence(prime::Persistence::SaveOnly);
+    Check(mSecond->getMode() == prime::XMapMode::Dark, "default mode is Dark before any setMode");
     mSecond->setStyle(prime::WindowStyle::Embedded);
     mSecond->setGeometry({900, 400, 420, 300});
     mSecond->setMode(prime::XMapMode::Dark);
@@ -210,12 +234,14 @@ void MultiXMapSelfTest::runImmediate()
     Check(nearEqual(mSecond->getZoom(), prime::XMap::maxZoom(), 1e-9), "map 2 keeps the default zoom limit (16.5)");
     mSecond->setZoom(8.0);
     // Mod ve katmanlar
-    Check(mFirst->getMode() == prime::XMapMode::Vfr && mSecond->getMode() == prime::XMapMode::Dark, "independent modes");
+    Check(mFirst->getMode() == prime::XMapMode::Vfr && mSecond->getMode() == prime::XMapMode::Dark,
+          "independent modes");
     mSecond->setMode(prime::XMapMode::Scenery);
     Check(mFirst->getMode() == prime::XMapMode::Vfr, "changing the mode of map 2 keeps map 1");
     Check(!mFirst->isLayerVisible(XMapLayer::Grid) && mSecond->isLayerVisible(XMapLayer::Grid), "independent layers");
     mSecond->setIsLayerVisible(XMapLayer::Roads, false);
-    Check(mFirst->isLayerVisible(XMapLayer::Roads) == tLibrary.isLayerDefaultVisible(XMapLayer::Roads, prime::XMapMode::Vfr),
+    Check(mFirst->isLayerVisible(XMapLayer::Roads) ==
+              tLibrary.isLayerDefaultVisible(XMapLayer::Roads, prime::XMapMode::Vfr),
           "hiding a layer on map 2 keeps map 1");
     // Cizimler
     mFirst->setDrawTool(prime::DrawTool::Point);
@@ -285,7 +311,8 @@ void MultiXMapSelfTest::runAfterDraw()
           std::format("mode {}", static_cast<int>(mFirst->getMode())));
     Check(!mFirst->isLayerVisible(XMapLayer::Grid), "layers restored from the file");
     Check(mFirst->getShapes().size() == 1, "drawings restored from the file");
-    Check(nearEqual(mFirst->getTerrainSettings().mShadingStrength, 0.95, 1e-6), "terrain settings restored from the file");
+    Check(nearEqual(mFirst->getTerrainSettings().mShadingStrength, 0.95, 1e-6),
+          "terrain settings restored from the file");
     Check(mFirst->getAircraftSource() == prime::DataSource::Host, "aircraft source restored from the file");
     double tMinZoom = 0.0;
     double tMaxZoom = 0.0;

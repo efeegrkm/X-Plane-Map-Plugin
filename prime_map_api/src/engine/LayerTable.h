@@ -44,5 +44,20 @@ const char* layerKey(prime::XMapLayer pLayer);  // ayar anahtari ("runways.water
 std::optional<prime::XMapLayer> layerFromKey(std::string_view pKey);
 bool isLayerDefaultVisible(prime::XMapLayer pLayer, prime::XMapMode pMode);
 
+// --- Katman zoom esikleri (1.0.0, ZOOM-02) ---
+
+struct LayerZoomDefaults
+{
+    double mMinZoom;      // yerlesik gorunme esigi (0 / 99: sinirsiz)
+    double mMaxZoom;
+    double mHardMinZoom;  // olculmus sert alt sinir: host istegi buradan asagi kirpilir
+};
+
+// Tabloda olmayan katman / alt katman: {0, 99, 0}
+LayerZoomDefaults zoomDefaultsOf(prime::XMapLayer pLayer);
+
+// Tabloyu katmanlara ve alt katmanlarina isler (LayerManager kurulumunda bir kez)
+void applyBuiltInZoomRanges(LayerManager& pLayers);
+
 }  // namespace LayerRules
 #endif  // PRIME_MAP_SRC_ENGINE_LAYERTABLE_H

@@ -1,6 +1,6 @@
 // prime::XMapManager: haritalarin sahibi. initialize() ortak veriyi (XMapData) ve arka plan
 // islerini baslatir; addXMap() yeni harita nesnesi verir (acilmaz), removeXMap() yazar ve
-// yok eder. Nesneyi yalnizca XMapManagerFactory olusturur / bırakır.
+// yok eder. Nesneyi yalnizca XMapManagerFactory olusturur / birakir.
 #ifndef PRIME_MAP_SRC_API_XMAPMANAGER_H
 #define PRIME_MAP_SRC_API_XMAPMANAGER_H
 
@@ -38,6 +38,7 @@ public:
 
     bool initialize();  // veri yuklemesi arka planda baslar; zaten calisiyorsa true
     void shutdown();
+
     bool isInitialized() const;
     Status getStatus() const;
 
@@ -62,8 +63,10 @@ public:
     std::vector<XMapLayer> childrenOf(XMapLayer pLayer) const;
     std::vector<XMapLayer> topLevelLayers() const;
     LayerKind kindOf(XMapLayer pLayer) const;
+
     const char* layerName(XMapLayer pLayer) const;
     const char* layerKey(XMapLayer pLayer) const;
+
     std::optional<XMapLayer> layerFromKey(std::string_view pKey) const;
     bool isLayerDefaultVisible(XMapLayer pLayer, XMapMode pMode) const;
 
@@ -71,6 +74,7 @@ private:
     XMapManager();
     XMapManager(const XMapManager&) = delete;
     XMapManager& operator=(const XMapManager&) = delete;
+
     std::string resolvedDataDirectory() const;   // setDataDirectory ya da %LOCALAPPDATA%/prime/prime-xmap/
     std::string resolvedCacheDirectory() const;  // setCacheDirectory ya da <veri>/cache/
 

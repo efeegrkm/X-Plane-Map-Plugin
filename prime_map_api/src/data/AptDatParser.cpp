@@ -62,8 +62,8 @@ bool readRunwayEnd(AptLine& pLine, RunwayEnd& pOut)
     int tTouchdown = 0;
     const bool tOk = pLine.token(pOut.mName) && readLatLon(pLine, pOut.mPosition) &&
                      pLine.readDouble(pOut.mDisplacedThresholdM) && pLine.readDouble(pOut.mOverrunM) &&
-                     pLine.readInt(pOut.mMarkings) && pLine.readInt(pOut.mApproachLights) && pLine.readInt(tTouchdown) &&
-                     pLine.readInt(pOut.mReil);
+                     pLine.readInt(pOut.mMarkings) && pLine.readInt(pOut.mApproachLights) &&
+                     pLine.readInt(tTouchdown) && pLine.readInt(pOut.mReil);
     pOut.mTouchdownLights = tTouchdown != 0;
     return tOk;
 }
@@ -233,7 +233,8 @@ bool parseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
             double tSmoothness = 0.0;
             int tEdgeLights = 0;
             if (!pLine.token(tPad.mName) || !readLatLon(pLine, tPad.mCenter) || !pLine.readDouble(tPad.mHeadingDeg) ||
-                !pLine.readDouble(tPad.mLengthM) || !pLine.readDouble(tPad.mWidthM) || !pLine.readInt(tPad.mSurfaceCode))
+                !pLine.readDouble(tPad.mLengthM) || !pLine.readDouble(tPad.mWidthM) ||
+                !pLine.readInt(tPad.mSurfaceCode))
             {
                 return false;
             }
@@ -360,8 +361,8 @@ bool parseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         {
             AptSign tSign;
             int tReserved = 0;
-            if (!readLatLon(pLine, tSign.mPosition) || !pLine.readDouble(tSign.mHeadingDeg) || !pLine.readInt(tReserved) ||
-                !pLine.readInt(tSign.mSize))
+            if (!readLatLon(pLine, tSign.mPosition) || !pLine.readDouble(tSign.mHeadingDeg) ||
+                !pLine.readInt(tReserved) || !pLine.readInt(tSign.mSize))
             {
                 return false;
             }
@@ -372,7 +373,8 @@ bool parseDetailLine(int pCode, AptLine& pLine, std::string_view pText, AirportD
         case kLightObject:
         {
             AptLightObject tLight;
-            if (!readLatLon(pLine, tLight.mPosition) || !pLine.readInt(tLight.mType) || !pLine.readDouble(tLight.mHeadingDeg))
+            if (!readLatLon(pLine, tLight.mPosition) || !pLine.readInt(tLight.mType) ||
+                !pLine.readDouble(tLight.mHeadingDeg))
             {
                 return false;
             }
@@ -523,8 +525,8 @@ bool parseHeader(std::string_view pLine, AirportType* pOutType, int* pOutElevati
     AptLine tLine(pLine);
     int tCode = 0;
     int tDeprecated = 0;
-    if (!tLine.readInt(tCode) || !tLine.readInt(*pOutElevationFt) || !tLine.readInt(tDeprecated) || !tLine.readInt(tDeprecated) ||
-        !tLine.token(*pOutId))
+    if (!tLine.readInt(tCode) || !tLine.readInt(*pOutElevationFt) || !tLine.readInt(tDeprecated) ||
+        !tLine.readInt(tDeprecated) || !tLine.token(*pOutId))
     {
         return false;
     }
@@ -553,9 +555,9 @@ bool parseRunway(std::string_view pLine, Runway* pOut)
     double tSmoothness = 0.0;
     int tCenterLights = 0;
     int tDistanceSigns = 0;
-    if (!tLine.readInt(tCode) || tCode != kRunway || !tLine.readDouble(pOut->mWidthM) || !tLine.readInt(pOut->mSurfaceCode) ||
-        !tLine.readInt(pOut->mShoulderCode) || !tLine.readDouble(tSmoothness) || !tLine.readInt(tCenterLights) ||
-        !tLine.readInt(pOut->mEdgeLights) || !tLine.readInt(tDistanceSigns))
+    if (!tLine.readInt(tCode) || tCode != kRunway || !tLine.readDouble(pOut->mWidthM) ||
+        !tLine.readInt(pOut->mSurfaceCode) || !tLine.readInt(pOut->mShoulderCode) || !tLine.readDouble(tSmoothness) ||
+        !tLine.readInt(tCenterLights) || !tLine.readInt(pOut->mEdgeLights) || !tLine.readInt(tDistanceSigns))
     {
         return false;
     }

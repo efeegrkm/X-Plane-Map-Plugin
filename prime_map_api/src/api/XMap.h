@@ -3,7 +3,7 @@
 // XMapData'dadir, katmanlar oraya referansla bakar. Nesneyi yalnizca XMapManager olusturur
 // (addXMap) ve yok eder (removeXMap); butun metotlar X-Plane ana thread'inden cagrilmalidir.
 // LIF-08: yonetici shutdown() ettikten sonra harita isaretcisi GECERLIDIR ama metotlar guvenli
-// no-op'tur (bir kez Log uyarisı, false / bos / varsayilan deger). Buna karsilik removeXMap ya
+// no-op'tur (bir kez Log uyarisi, false / bos / varsayilan deger). Buna karsilik removeXMap ya
 // da destroyXMapManager sonrasi isaretci gecersizdir (nesne silinir); bu durum korunamaz, host
 // isaretcisini kullanmamalidir.
 #ifndef PRIME_MAP_SRC_API_XMAP_H
@@ -125,6 +125,8 @@ public:
     void getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const;
     void clearLayerZoomRange(XMapLayer pLayer);
     void clearAllLayerZoomRanges();
+    void getDefaultLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const;
+    double getLayerHardMinZoom(XMapLayer pLayer) const;
     bool setColor(XMapLayer pLayer, const Rgb& pColor);  // katman cizim rengi (dosyada layer_colors)
     Rgb getColor(XMapLayer pLayer) const;                 // override yoksa mR < 0 doner
     void clearColor(XMapLayer pLayer);

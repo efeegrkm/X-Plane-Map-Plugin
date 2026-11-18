@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Prime XMap - Mimari (surum 0.26.2)</title>
+<title>Prime XMap - Mimari (surum 1.0.0)</title>
 <!--
   MIMARI.pdf'in kaynagi. PDF'i yeniden uretmek icin (proje kokunden):
   "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu
@@ -50,7 +50,7 @@
 </head>
 <body>
 <h1>Prime XMap &mdash; Mimari</h1>
-<p class="sub">X-Plane 11 için katmanlı harita kütüphanesi ve API &middot; sürüm 0.26.2 &middot; kodun nasıl çalıştığı, hangi parçanın ne yaptığı ve parçaların birbirine nasıl bağlandığı</p>
+<p class="sub">X-Plane 11 için katmanlı harita kütüphanesi ve API &middot; sürüm 1.0.0 &middot; kodun nasıl çalıştığı, hangi parçanın ne yaptığı ve parçaların birbirine nasıl bağlandığı</p>
 <p>Bu belge kodu ilk kez okuyacak bir geliştirici için yazıldı. Kullanım ve test listesi <code>README.md</code>'de; kullanım kılavuzu ve API referansı <code>docs/PrimeMap_API.pdf</code>'tedir.</p>
 
 <h2>İçindekiler</h2>
@@ -300,7 +300,7 @@ struct drawContext
 <p><b>Alt katmanlar:</b> bir katman yapıcısında parçalarını <code>AddSubLayer("pavement", "Pavement")</code> ile tanıtır, <code>Draw</code> içinde <code>IsSubLayerVisible(indeks)</code> ile o parçayı çizip çizmeyeceğine bakar. Panelde katmanın altında açılır liste olarak çıkar; ayar anahtarı <code>&lt;katman&gt;.&lt;alt katman&gt;</code>.</p>
 
 <h3>7.2 Çizim sırası ve katmanlar</h3>
-<p>Sıra <code>Plugin.cpp::CreateLayers()</code>'tadır (alttan üste). Zoom eşikleri her katmanın <code>.cpp</code> dosyasının başındaki sabitlerdedir.</p>
+<p>Sıra <code>Plugin.cpp::CreateLayers()</code>'tadır (alttan üste). 1.0.0'da zoom eşikleri tek tabloda toplandı: <code>engine/LayerTable.cpp</code>'deki <code>kZoomTable</code> katman / alt katman başına yerleşik eşiği ve ölçülmüş sert alt sınırı tutar; <code>LayerRules::applyBuiltInZoomRanges</code> bunları harita kurulumunda katmanlara uygular (<code>map_preview</code> de aynı tabloyu kullanır). Host aralığı (<code>setLayerZoomRange</code>) yerleşik eşiğin yerine geçer, sert sınıra kadar aşağı çekilebilir; <code>clearZoomRange</code> yerleşik değere döner.</p>
 <table>
 <tr><th>#</th><th>Katman</th><th>Veri</th><th>Ne çizer / alt katmanlar</th></tr>
 <tr><td>1</td><td><code>TerrainLayer</code></td><td><code>TerrainStore</code></td><td>Zemin dokuları (zoom 5+); seviye seçimi, doku LRU (512 MB); alt katmanlar Forests, Built-up areas</td></tr>
@@ -605,7 +605,7 @@ her cikti pikseli:
 <h3>9.9 Aşama 4: öncelik, önceden yükleme, bölge önbelleği (0.19)</h3>
 <p><b>Merkezden kenara:</b> <code>TerrainLayer</code> her çizimde <code>TerrainStore::SetFocus</code>'a harita merkezini verir. <code>PickRequest</code> sırası: en son istenen kare &rarr; kaba seviye &rarr; merkeze yakın parça.</p>
 <p><b>Arka plan kuyruğu:</b> ekranın isteği yokken işçi <code>ServeBackgroundTile</code> ile bir karonun disk önbelleğini (raster, rakım, vektör) hazırlar; geçici nesnelere çalışır, bellek LRU'sunu ve <code>IsIdle</code>'ı etkilemez (harita resmi boşuna yenilenmez). Önce bölge listesi, sonra önceden yükleme listesi.</p>
-<p><b>Önceden yükleme:</b> eklenti 5 s'de bir uçağın gidiş yönünde 120 NM'ye kadar ve FMS rotasının kalan kısmında (<code>FmsLayer::RouteAhead</code>, 10 NM örnekleme) en çok <code>[cache] prefetch_tiles</code> (20) karoyu verir.</p>
+<p><b>Önceden yükleme:</b> eklenti 5 s'de bir uçağın gidiş yönünde 120 NM'ye kadar ve FMS rotasının kalan kısmında (<code>FmsLayer::RouteAhead</code>, 10 NM örnekleme) en çok <code>[cache] prefetch_tiles</code> (20) karoyu verir. 1.0.0: açık harita yokken de (eklenti yeni yüklendi, harita henüz açılmadı ya da <code>addXMap</code> edilip <code>initialize</code> bekliyorsa) <code>XMapData</code> kendi uçak okumasıyla aynı listeyi üretir; ilk harita açılışı böylece sıcak önbellekle başlar. Haritasız ön yükleme bir kez tek satır Log yazar; <code>setPrefetchTiles(0)</code> tümünü kapatır.</p>
 <p><b>Görünen alanı önbellekle:</b> komut / menü. Kurulu karolar &times; ~3,5 MB önbellek sınırının %80'ini aşarsa başlamaz (yoksa <code>CacheTrim</code> yeni karoları silerdi). İlerleme ve iptal alt şeritte / menüde.</p>
 <p><b>İkinci işçi yok (karar):</b> raster / rakım / vektör LRU'ları kilitsiz ve tek işçinin; bölmek bunları paylaşılan ve kilitli yapmayı gerektirirdi, ölçülmüş bir ihtiyaç yok. İşçi düşük thread önceliğinde.</p>
 
@@ -729,16 +729,17 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <h2>13b. API katmanı: XMapManagerFactory &rarr; XMapManager &rarr; XMap (0.24&ndash;0.26)</h2>
 <p>Harita bir SHARED kütüphanedir (CMake hedefi <code>prime-map-api</code>, çıktı <code>prime_map.dll</code>). Toplama başlık <code>PrimeMap.h</code> (repo kökü) <code>src/api/</code> altındaki dört başlığı verir. Kullanım kılavuzu ve referans: <code>docs/PrimeMap_API.pdf</code>.</p>
 <table>
-<tr><td><code>api/XMapManagerFactory.*</code></td><td>createXMapManager / destroyXMapManager (singleton yok; her cagri yeni yonetici)</td></tr>
+<tr><td><code>api/XMapManagerFactory.*</code></td><td>createXMapManager / destroyXMapManager (singleton yok; her cagri yeni yonetici). createXMapManager kasitli olarak INLINE'dir: surum eslestirmesi host tarafinda derlenir, uyusmazlikta tek satir WARNING (bolum 13b sonunda)</td></tr>
 <tr><td><code>api/XMapManager.*</code></td><td>initialize / shutdown, addXMap / removeXMap, merkezi ayarlar, yol sorgulari, katman agaci</td></tr>
 <tr><td><code>api/XMap.*</code></td><td>TEK haritanin her seyi: API yuzeyi + motor (katmanlar, cizimler, ucak, palet, dosyalar, XMapWindow). 0.25'te XMapInstance buraya birlesti.</td></tr>
-<tr><td><code>api/XMapTypes.h</code></td><td>ortak tipler (XMapLayer, XMapMode, WindowStyle, XMapConfig, TerrainSettings ...), surum</td></tr>
+<tr><td><code>api/XMapTypes.h</code></td><td>ortak tipler (XMapLayer, XMapMode, WindowStyle, XMapConfig, TerrainSettings ...), surum; <code>hostVersionString</code> / <code>isLibraryVersionMatching</code> inline eslestirme (host sabitleri ikilige islenir, <code>versionString()</code> DLL'den gelir) ve <code>libraryPath()</code> (GetModuleHandleExW + GetModuleFileNameW)</td></tr>
 <tr><td><code>api/XMapApiUtil.h</code></td><td>yol / yardimci</td></tr>
 <tr><td><code>engine/XMapData.*</code></td><td>bir yoneticinin ORTAK verisi: nav, havalimanlari, hava yollari, zemin iscisi + TerrainHub, prime_map.json, sinirlar, flight loop (her karede haritalarin update'i)</td></tr>
-<tr><td><code>engine/LayerTable.*</code></td><td>XMapLayer enum &lt;-&gt; anahtar tablosu, panel kurallari (LayerRules), X-Plane'siz</td></tr>
+<tr><td><code>engine/LayerTable.*</code></td><td>XMapLayer enum &lt;-&gt; anahtar tablosu, panel kurallari (LayerRules) ve 1.0.0 zoom esik tablosu <code>kZoomTable</code> + <code>zoomDefaultsOf</code> / <code>applyBuiltInZoomRanges</code>, X-Plane'siz</td></tr>
 <tr><td><code>XMapWindow.*</code></td><td>bir haritanin gorunumu, cizimi, arayuzu ve girdisi (Texture: doku; LEGACY: XPLM penceresi)</td></tr>
 </table>
 <p><b>Sahiplik:</b> host yöneticiyi fabrikadan alır ve bırakır; haritaları yönetici oluşturur / siler. Bütün çağrılar ana thread'dendir.</p>
+<p><b>Sürüm denetimi (1.0.0):</b> <code>createXMapManager</code> inline derlenir, bu yüzden host'un derleme anındaki sürüm sabitleri host ikilisine işlenir; fabrika çağrısı <code>isLibraryVersionMatching()</code> ile host sabitlerini yüklü DLL'in <code>versionString()</code>'i ile karşılaştırır. Uyuşmazlıkta yükleme engellenmez ama tek satır WARNING yazılır: <i>host built with X, loaded DLL is Y at &lt;yol&gt;</i>. Ready satırı da <code>libraryPath()</code> ile yüklü DLL'in yolunu verir (GetModuleHandleExW FROM_ADDRESS + GetModuleFileNameW).</p>
 <p><b>Ayarlar:</b> harita durumu <code>XMapWindow</code>'daki bellek içi <code>Settings</code> deposunda tutulur; dosyaya yazma / okuma <code>XMap</code>'tedir (JSON). Revizyon sayaçları otomatik kaydı tetikler.</p>
 <p>Genel başlıklar iç başlıkları da içerir (<code>Drawings.h</code>, <code>LayerManager.h</code>, <code>XMapWindow.h</code>); dışa açık sınıflarda C4251 yalnızca sınıf boyunca kapatılır. Pimpl ile gizleme planlıdır (<code>docs/SRS.md</code>).</p>
 <p>Kod standardı (0.24'ten): metotlar camelCase, türler PascalCase, önekler m p t k g.</p>
@@ -808,7 +809,7 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <tr><td>Aynı süreçte 2 yönetici, aynı klasörler</td><td>ortak</td><td>ortak</td><td>Ayar dosyaları çakışır (son yazan kazanır); initialize bunu Log'a uyarı olarak yazar. Önerilmez.</td></tr>
 <tr><td>Aynı süreçte 2 yönetici, ayrı veri klasörü</td><td>ayrı</td><td>ayrı</td><td>Tam yalıtım; disk önbelleği ikiye bölünür, her yönetici kendi karolarını üretir.</td></tr>
 <tr><td>Aynı süreçte 2 yönetici, ayrı veri + ortak önbellek (<code>setCacheDirectory</code>)</td><td>ayrı</td><td>ortak</td><td>Altın kurulum: ayarlar yalıtık, karo önbelleği tek havuz &mdash; aynı bölge iki kez üretilmez.</td></tr>
-<tr><td>Ayrı süreçler (ör. texture-host + test eklentisi)</td><td>ayrı</td><td>ortak (<code>setCacheDirectory</code>)</td><td>Önbellek paylaşımı güvenlidir: dosyalar deterministik içerikli, okuma tarafı anahtar doğrulaması yapar; yazımlar geçici dosya + yeniden adlandırma ile atomiktir (0.26.2), yarım dosya kalmaz (yanlış dosya okunmaz, karo yeniden üretilir).</td></tr>
+<tr><td>Ayrı süreçler (ör. texture-host + test eklentisi)</td><td>ayrı</td><td>ortak (<code>setCacheDirectory</code>)</td><td>Önbellek paylaşımı güvenlidir: dosyalar deterministik içerikli, okuma tarafı anahtar doğrulaması yapar; yazımlar benzersiz adlı geçici dosya (<code>&lt;yol&gt;.&lt;pid&gt;.&lt;iş&gt;.&lt;sayaç&gt;.tmp</code>) + yeniden adlandırma ile atomiktir (1.0.0), yarım dosya kalmaz (yanlış dosya okunmaz, karo yeniden üretilir); çökerten kalan 1 saatten eski geçici dosyaları CacheTrim siler.</td></tr>
 </table>
 <p><b>Notlar:</b> (1) Ayarlar initialize sırasında bir kez okunur; iki harita arasında canlı eşitleme kütüphane işi değildir &mdash; host, değişikliği her iki haritaya da <code>set...</code> ile bildirir. (2) Aynı ada iki harita aynı veri klasörünü paylaşırsa <code>maps/&lt;ad&gt;/</code> dosyaları çakışır; harita adları aynı veri klasöründe eşsiz olmalıdır. (3) Önbellek klasöründe kilit dosyası yoktur; paylaşım "kural olarak" güvenlidir, kod düzeyinde koruma içerik doğrulamasıdır (bölüm 9.2).</p>
 
@@ -826,7 +827,7 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <tr><td><code>XMapView.*</code></td><td>Web Mercator kamera, lat/lon &harr; boxel, imleç etrafında zoom</td></tr>
 <tr><td><code>XMapImageCache.*</code></td><td>Harita resmi önbelleği (FBO, hız sınırı; LEGACY pencere yolu)</td></tr>
 <tr><td><code>ScreenMath.*</code></td><td>Dikdörtgen / afin dönüşüm; <code>rectFromTopLeft</code> (API Geometry &rarr; RectI)</td></tr>
-<tr><td><code>Layer.h</code>, <code>LayerManager.*</code></td><td>Katman arayüzü, alt katmanlar, <code>drawContext</code>; liste, aç/kapa, mod başına kayıt, zoom aralıkları</td></tr>
+<tr><td><code>Layer.h</code>, <code>LayerManager.*</code></td><td>Katman arayüzü, alt katmanlar, <code>drawContext</code>; liste, aç/kapa, mod başına kayıt; zoom modeli: yerleşik eşik + host aralığı + sert alt sınır &rarr; <code>minZoomEff/maxZoomEff</code> (çizim kapıları ve <code>visibilitySignature</code> etkin değerle çalışır; host aralıkları <code>layer_zoom</code>'da kalıcıdır)</td></tr>
 <tr><td><code>XMapTheme.*</code></td><td>Harita modları, renkleri, katman varsayılanları; <code>themeLayerColor</code> (renk verilebilen katmanlar)</td></tr>
 <tr><td><code>LabelPlacer.*</code></td><td>Etiket / sembol çakışma önleme</td></tr>
 <tr><td><code>XMapFormat.*</code></td><td>Koordinat / mesafe yazı biçimleri, ızgara ve ölçek aralığı</td></tr>
@@ -881,7 +882,7 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <tr><td>Yazı toplu çizimi</td><td><code>AtlasTextRenderer</code>, <code>Canvas::QueueText</code></td><td>Yüzlerce etiket tek çizim çağrısında; X-Plane'in durum değişikliği etiket başına değil.</td></tr>
 <tr><td>Doku yükleme sınırı</td><td><code>TerrainLayer</code></td><td>Karede en çok 3 doku yüklenir (takılma olmasın); ince seviye gelene kadar elde olan kaba seviye gösterilir.</td></tr>
 <tr><td>Merkezden dışa öncelik</td><td><code>AirportVisibility</code></td><td>Ekranın ortasındaki havalimanının ayrıntısı önce istenir.</td></tr>
-<tr><td>Zoom eşikleri</td><td>Her katmanın <code>.cpp</code> başındaki <code>k...MinZoom</code> sabitleri</td><td>Uzakta anlamsız ayrıntı (fix, ışık, tabela, boya çizgisi) hiç işlenmez.</td></tr>
+<tr><td>Zoom eşikleri</td><td><code>engine/LayerTable.cpp</code> <code>kZoomTable</code> (yerleşik eşik + ölçülmüş sert alt sınır; <code>applyBuiltInZoomRanges</code> kurulumda uygular)</td><td>Uzakta anlamsız ayrıntı (fix, ışık, tabela, boya çizgisi) hiç işlenmez; host eşikleri sert sınıra kadar değiştirebilir (1.0.0).</td></tr>
 <tr><td>Hücreli çakışma testi</td><td><code>LabelPlacer</code> (32 boxel hücreler)</td><td>Yeni etiket kutusu sadece değdiği hücrelerdeki kutularla karşılaştırılır.</td></tr>
 <tr><td>Üçgenleme hızı</td><td><code>third_party/earcut</code> (tek yama)</td><td>Earcut'ın <code>isValidDiagonal</code>'ında ucuz yerel testler pahalı halka taramasından önce yapılır; sonuç aynı, çok delikli apronlarda çok daha hızlı. Ayrıntı <code>third_party/earcut/README.txt</code>.</td></tr>
 <tr><td>Tek çizim kapısı, toplu çizim</td><td><code>Canvas</code>, <code>Mesh</code></td><td>Bir katmanın bütün sembolleri tek Mesh'te toplanıp tek çağrıda çizilir.</td></tr>
@@ -892,7 +893,7 @@ tekerlek -&gt; imlecin altindaki nokta sabit kalarak zoom (takipteyken ucagin et
 <tr><td>Hedefli yenileme (0.16)</td><td><code>mMissingNeighbors</code></td><td>Sadece komşusu eksik üretilmiş ve o komşusu artık hazır olan doku yeniden üretilir; eski doku yenisi gelene kadar çizilir. Bir kez hazır olup artık bulunamayan komşu beklenmez (sonsuz yenileme olmaz).</td></tr>
 </table>
 
-<p class="foot">Prime XMap &mdash; Mimari, sürüm 0.26 (2026-11-18).</p>
+<p class="foot">Prime XMap &mdash; Mimari, sürüm 1.0.0 (2026-11-18).</p>
 </body>
 </html>
 

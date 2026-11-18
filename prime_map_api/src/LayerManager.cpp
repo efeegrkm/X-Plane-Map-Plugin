@@ -88,13 +88,14 @@ uint64_t LayerManager::visibilitySignature() const
     {
         tMix(tLayer->isVisible() ? 1 : 0);
         tMix(tLayer->isOverlay() ? 1 : 0);
-        tMix(static_cast<uint64_t>(tLayer->minZoom() * 100.0));  // zoom araligi degisti: yeniden ciz
-        tMix(static_cast<uint64_t>(tLayer->maxZoom() * 100.0));
+        // Etkin zoom araligi degistiyse harita resmi yenilenir (yerlesik esik tabloda sabit)
+        tMix(static_cast<uint64_t>(tLayer->minZoomEff() * 100.0));
+        tMix(static_cast<uint64_t>(tLayer->maxZoomEff() * 100.0));
         for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
         {
             tMix(tLayer->isSubLayerVisible(tSub) ? 1 : 0);
-            tMix(static_cast<uint64_t>(tLayer->subLayerAt(tSub).mMinZoom * 100.0));
-            tMix(static_cast<uint64_t>(tLayer->subLayerAt(tSub).mMaxZoom * 100.0));
+            tMix(static_cast<uint64_t>(tLayer->subMinZoomEff(tSub) * 100.0));
+            tMix(static_cast<uint64_t>(tLayer->subMaxZoomEff(tSub) * 100.0));
         }
     }
     return tHash;
@@ -146,10 +147,10 @@ void LayerManager::resetZoomRanges()
 {
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        tLayer->setZoomRange(Layer::kNoMinZoom, Layer::kNoMaxZoom);
+        tLayer->clearZoomRange();
         for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
         {
-            tLayer->setSubLayerZoomRange(tSub, Layer::kNoMinZoom, Layer::kNoMaxZoom);
+            tLayer->clearSubLayerZoomRange(tSub);
         }
     }
 }
@@ -177,25 +178,22 @@ void LayerManager::loadZoomRanges(const Settings& pSettings)
 
 void LayerManager::saveZoomRanges(Settings& pSettings) const
 {
-    // Bolum her seferinde bastan yazilir: siniri kaldirilan katmanin satiri dosyada kalmasin
+    // Bolum her seferinde bastan yazilir: yalnizca host'un verdigi (yerlesikten farkli)
+    // degerler yazilir; yerlesik esikler dosyaya girmeZ (1.0.0, ZOOM-02)
     pSettings.clearSection(kZoomSection);
-    auto tLimited = [](double pMin, double pMax)
-    {
-        return pMin > Layer::kNoMinZoom || pMax < Layer::kNoMaxZoom;
-    };
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
-        if (tLimited(tLayer->minZoom(), tLayer->maxZoom()))
+        if (tLayer->hasHostZoomRange())
         {
-            pSettings.setString(kZoomSection, tLayer->id(), formatZoomRange(tLayer->minZoom(), tLayer->maxZoom()));
+            pSettings.setString(kZoomSection, tLayer->id(),
+                                formatZoomRange(tLayer->minZoomEff(), tLayer->maxZoomEff()));
         }
         for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
         {
-            const Layer::SubLayer& tPart = tLayer->subLayerAt(tSub);
-            if (tLimited(tPart.mMinZoom, tPart.mMaxZoom))
+            if (tLayer->subHasHostRange(tSub))
             {
                 pSettings.setString(kZoomSection, subLayerKey(*tLayer, tSub),
-                                    formatZoomRange(tPart.mMinZoom, tPart.mMaxZoom));
+                                    formatZoomRange(tLayer->subMinZoomEff(tSub), tLayer->subMaxZoomEff(tSub)));
             }
         }
     }

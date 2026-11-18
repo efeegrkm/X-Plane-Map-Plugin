@@ -1,6 +1,6 @@
 # prime_map_plugin
 
-X-Plane 11 için resmî Prime XMap eklentisi (**ince kabuk**, 0.26). Haritanın motoru ve arayüzü
+X-Plane 11 için resmî Prime XMap eklentisi (**ince kabuk**, 1.0.0). Haritanın motoru ve arayüzü
 [prime_map_api](../prime_map_api) kütüphanesindedir (`prime_map.dll`); bu proje yalnızca X-Plane giriş noktalarını, menüyü,
 komutları ve kurulumu içerir. Haritaya **sadece** API ile erişir (`#include <prime_map_api/PrimeMap.h>`).
 
@@ -58,7 +58,7 @@ ninja -C build_cmd
 
 `MAP_DEPLOY=ON` (varsayılan) derleme sonrası `win.xpl` + `prime_map.dll`'yi birlikte
 `<X-Plane>/Resources/plugins/prime-map-plugin/64/` altına kopyalar (X-Plane açıkken dosyalar kilitli). Log.txt'de
-`[prime-map-plugin] Prime Map API 0.26.0 ready` ve `loaded (version 0.26, API 0.26.0)` görünmelidir. Hedef makinede
+`[prime-map-plugin] Prime Map API 1.0.0 ready (... dll: ...)` ve `loaded (version 1.0.0, API 1.0.0)` görünmelidir. Hedef makinede
 `VC_redist.x64` (MSVC 2022) gerekir.
 
 | Belirti | Neden / çözüm |

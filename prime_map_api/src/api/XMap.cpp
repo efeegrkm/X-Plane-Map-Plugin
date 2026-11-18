@@ -239,6 +239,7 @@ void XMap::createLayers()
     mLayers->add(std::move(tTrack));
     mLayers->add(std::make_unique<AircraftLayer>(*mAircraft));
     mLayers->add(std::make_unique<DrawingLayer>(*mDrawings));
+    LayerRules::applyBuiltInZoomRanges(*mLayers);  // yerlesik zoom esikleri tablodan (ZOOM-02)
 }
 
 int XMap::getId() const
@@ -895,7 +896,7 @@ XMapMode XMap::getMode() const
 {
     if (!alive("getMode"))
     {
-        return XMapMode::Scenery;
+        return XMapMode::Dark;
     }
     return static_cast<XMapMode>(mWindow->getMapMode());
 }
@@ -993,14 +994,37 @@ bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
         log("WARNING: setLayerZoomRange: min {} is greater than max {}", pMinZoom, pMaxZoom);
         return false;
     }
+    // kNo / kNo cifti: host siniri kaldiriyor -> yerlesik esige don
+    const bool tClear = pMinZoom == Layer::kNoMinZoom && pMaxZoom == Layer::kNoMaxZoom;
     bool tApplied = false;
+    auto tApply = [this, tClear, &pMinZoom, &pMaxZoom](Layer& tLayer, int tSub)
+    {
+        if (!tClear)
+        {
+            // Olculmus sert alt sinirin altindaki istek kirpilir (ZOOM-02)
+            const double tHard = tSub >= 0 ? tLayer.subHardMinZoom(tSub) : tLayer.hardMinZoom();
+            if (pMinZoom < tHard)
+            {
+                log("WARNING: setLayerZoomRange: min {} clamped to {}", pMinZoom, tHard);
+                pMinZoom = tHard;
+            }
+        }
+        if (tSub >= 0)
+        {
+            tClear ? tLayer.clearSubLayerZoomRange(tSub) : tLayer.setSubLayerZoomRange(tSub, pMinZoom, pMaxZoom);
+        }
+        else
+        {
+            tClear ? tLayer.clearZoomRange() : tLayer.setZoomRange(pMinZoom, pMaxZoom);
+        }
+    };
     if (LayerRules::kindOf(pLayer) == LayerKind::Group)
     {
         for (XMapLayer tChild : LayerRules::childrenOf(pLayer))
         {
             if (Layer* tLayer = LayerRules::findLayer(*mLayers, tChild))
             {
-                tLayer->setZoomRange(pMinZoom, pMaxZoom);
+                tApply(*tLayer, -1);
                 tApplied = true;
             }
         }
@@ -1008,14 +1032,7 @@ bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
     else if (Layer* tLayer = LayerRules::findLayer(*mLayers, pLayer))
     {
         const int tSub = LayerRules::subLayerIndex(*mLayers, pLayer);
-        if (tSub >= 0)
-        {
-            tLayer->setSubLayerZoomRange(tSub, pMinZoom, pMaxZoom);
-        }
-        else
-        {
-            tLayer->setZoomRange(pMinZoom, pMaxZoom);
-        }
+        tApply(*tLayer, tSub);
         tApplied = true;
     }
     if (tApplied)
@@ -1027,6 +1044,7 @@ bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
 
 void XMap::getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const
 {
+    // Etkin deger doner: host araligi (kirpilmis) ya da yerlesik esik
     if (!alive("getLayerZoomRange"))
     {
         if (pMinZoom)
@@ -1050,8 +1068,16 @@ void XMap::getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoo
     if (const Layer* tLayer = LayerRules::findLayer(*mLayers, tItem))
     {
         const int tSub = LayerRules::subLayerIndex(*mLayers, tItem);
-        tMin = tSub >= 0 ? tLayer->subLayerAt(tSub).mMinZoom : tLayer->minZoom();
-        tMax = tSub >= 0 ? tLayer->subLayerAt(tSub).mMaxZoom : tLayer->maxZoom();
+        if (tSub >= 0)
+        {
+            tMin = tLayer->subMinZoomEff(tSub);
+            tMax = tLayer->subMaxZoomEff(tSub);
+        }
+        else
+        {
+            tMin = tLayer->minZoomEff();
+            tMax = tLayer->maxZoomEff();
+        }
     }
     if (pMinZoom)
     {
@@ -1061,6 +1087,25 @@ void XMap::getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoo
     {
         *pMaxZoom = tMax;
     }
+}
+
+void XMap::getDefaultLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const
+{
+    // Yerlesik esik (host araligindan bagimsiz); tabloda olmayan: 0 / 99
+    const LayerRules::LayerZoomDefaults tDefaults = LayerRules::zoomDefaultsOf(pLayer);
+    if (pMinZoom)
+    {
+        *pMinZoom = tDefaults.mMinZoom;
+    }
+    if (pMaxZoom)
+    {
+        *pMaxZoom = tDefaults.mMaxZoom;
+    }
+}
+
+double XMap::getLayerHardMinZoom(XMapLayer pLayer) const
+{
+    return LayerRules::zoomDefaultsOf(pLayer).mHardMinZoom;
 }
 
 void XMap::clearLayerZoomRange(XMapLayer pLayer)

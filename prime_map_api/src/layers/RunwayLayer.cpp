@@ -12,8 +12,6 @@
 namespace
 {
 
-const double kMinZoom = 11.0;  // pavement esigi (AirportSurfaceLayer kSurfaceMinZoom) ile ayni:
-                               // kaplamalar gorunmezken pistler de cizilmez
 const double kLabelMinZoom = 11.5;
 const double kOverrunMinZoom = 12.0;
 const double kMarkingMinZoom = 13.0;
@@ -84,7 +82,7 @@ void RunwayLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
     const XMapView& tView = *pContext.mView;
-    if (!mStore.isReady() || tView.zoom() < kMinZoom)
+    if (!mStore.isReady() || !isInZoomRange())  // yerlesik esik 11.0 (LayerTable tablosu)
     {
         return;
     }

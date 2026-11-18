@@ -4,9 +4,9 @@
 |---|---|
 | Belge | SRS-PXM-001 |
 | Ürün | Prime XMap API (kütüphane `prime_map.dll`, CMake hedefi `prime-map-api`) |
-| Belgenin anlattığı sürüm | 0.26.2 |
+| Belgenin anlattığı sürüm | 1.0.0 |
 | Tarih | 2026-11-18 |
-| Durum | Taslak (gözden geçirilecek) |
+| Durum | Yayın adayı (1.0.0-rc): kod tamam, X-Plane kabul testleri bekleniyor |
 | Yapı | ISO/IEC/IEEE 29148:2018 "Software Requirements Specification" içerik yapısı (IEEE 830'un yerini alan standart) |
 
 ## Değişiklik geçmişi
@@ -15,6 +15,7 @@
 |---|---|---|
 | 0.1 | 2026-11-17 | İlk taslak: 0.26.0 kodundan çıkarılan gereksinimler ve durumları |
 | 0.2 | 2026-11-18 | 0.26.2: LIF-08 / NF-REL-01 (shutdown sonrası güvenli no-op), STY-06 (TerrainBuiltUp rengi zemine bağlandı), NF-REL-05 (koşul bazlı test beklemeleri), MUL-05 (ortak önbellek, izole ayarlar) eklendi; MUL-04'e canlı senkron notu |
+| 0.3 | 2026-11-18 | 1.0.0: MODE-03 (varsayılan mod Dark), ZOOM-01 tam / ZOOM-02 karşılanır (yerleşik eşik tablosu + host aralığı + sert alt sınır), TER-05 (açık harita yokken ön yükleme), LIF-09 (sürüm denetimi), NF-PRF-06 (eşik maliyeti), NF-REL-06 (atomik yazım dayanıklılığı); kabul testleri 1&ndash;11 |
 
 ---
 
@@ -22,7 +23,7 @@
 
 ### 1.1 Amaç
 
-Bu belge Prime XMap API'nin gereksinimlerini tanımlar ve her gereksinim için **bugünkü durumu** (0.26.2) kaydeder. Belgenin
+Bu belge Prime XMap API'nin gereksinimlerini tanımlar ve her gereksinim için **bugünkü durumu** (1.0.0) kaydeder. Belgenin
 hedefi şudur:
 
 > **Bir X-Plane eklentisi, API ile haritanın her öğesi üzerinde tam kontrole sahip olmalıdır:** haritayı istediği yere ve
@@ -58,7 +59,7 @@ Belge hem hedefi (ne olmalı) hem durumu (ne var, ne eksik) gösterir; eksikler 
 
 - Her gereksinim tek bir doğrulanabilir ifadedir; "-meli / -malı" zorunluluk bildirir.
 - **Öncelik:** Z (Zorunlu), Ö (Önemli), İ (İsteğe bağlı).
-- **Durum (0.26.2):**
+- **Durum (1.0.0):**
 
 | Kod | Anlamı |
 |---|---|
@@ -75,7 +76,7 @@ Belge hem hedefi (ne olmalı) hem durumu (ne var, ne eksik) gösterir; eksikler 
 
 | Belge | Ne |
 |---|---|
-| `docs/PrimeMap_API.pdf` | Kullanım kılavuzu ve API referansı (0.26.2) |
+| `docs/PrimeMap_API.pdf` | Kullanım kılavuzu ve API referansı (1.0.0) |
 | `docs/MIMARI.pdf` | Mimari |
 | `README.md` | Derleme, testler, araçlar |
 | `examples/texture_host/` | En küçük tam host |
@@ -167,6 +168,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | LIF-06 | Harita kapatılıp aynı durumla yeniden açılabilmeli; bırakılınca ayarları yazılmalı. | Z | K | S | |
 | LIF-07 | Yol sorguları (veri / harita / ayar / önbellek klasörü) `initialize` öncesi de doğru dönmeli. | Ö | U | İ | 0.26 |
 | LIF-08 | `shutdown` açık haritaları güvenle kapatmalı; sonrasında harita metotları çökmemeli (no-op). | Z | K | S | 0.26.2: tüm genel metotlar tek koruma mekanizmasında (`XMap::alive`): tek seferlik Log uyarısı + false / boş / varsayılan dönüş. `removeXMap` / `destroyXMapManager` sonrası işaretçi geçersizdir (nesne silinir); bu durum kod tarafında korunamaz, host işaretçiyi kullanmamalı |
+| LIF-09 | Host'un derlendiği sürümle yüklü DLL'in sürümü uyuşmuyorsa fabrika tek satır WARNING yazmalı ve host sürümü kendisi denetleyebilmeli (`isLibraryVersionMatching()`); ready satırı yüklü DLL'in yolunu yazmalı. | Z | K | İ, S | 1.0.0: inline eşleştirme host tarafında derlenir; `libraryPath()`; öz-test `isLibraryVersionMatching` kontrolü |
 
 #### 3.2.2 Yerleştirme ve çizim (EMB) — Texture hedef yolu
 
@@ -208,6 +210,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | Kimlik | Gereksinim | Ö | Durum | Doğ. | Not / kanıt |
 |---|---|---|---|---|---|
 | MODE-01 | En az 5 hazır mod sunulmalı (Scenery, VFR, IFR Low, IFR High, Dark); her modun katman durumu ayrı saklanmalı. | Z | K | T, X | |
+| MODE-03 | Yeni haritanın varsayılan modu Dark olmalı; host kendi modunu `XMapConfig::mMode` ile verebilmeli. | Z | K | T, S | 1.0.0: `XMapConfig::mMode` (Dark); öz-test "default mode is Dark"; `map_tests` Dark varsayılan testleri |
 | MODE-02 | Host kendi temasını tanımlayabilmeli (bütün renkler, kalınlıklar, katman varsayılanları) ve adlandırıp seçebilmeli. | Ö | Y | — | Temalar `XMapTheme.cpp`'de sabit |
 
 #### 3.2.6 Katman görünürlüğü (LAY)
@@ -223,9 +226,9 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 
 | Kimlik | Gereksinim | Ö | Durum | Doğ. | Not / kanıt |
 |---|---|---|---|---|---|
-| ZOOM-01 | Her katman / alt katman için en küçük ve en büyük görünme zoom'u verilebilmeli, okunabilmeli, kaldırılabilmeli. | Z | KS | T, S | `setLayerZoomRange` yalnızca yerleşik eşiği **daraltır** |
-| ZOOM-02 | Yerleşik görünme eşiği (örn. pistler 11, fix 9) API ile daha uzağa da alınabilmeli. | Z | Y | — | Eşikler katman kodunda sabit |
-| ZOOM-03 | Katman içi ayrıntı eşikleri (etiketler, oklar, işaretler, küçük / büyük havalimanı) ayrı ayarlanabilmeli. | Ö | Y | — | |
+| ZOOM-01 | Her katman / alt katman için en küçük ve en büyük görünme zoom'u verilebilmeli, okunabilmeli, kaldırılabilmeli. | Z | K | T, S | 1.0.0: host aralığı yerleşik eşiğin **yerine geçer**; `getLayerZoomRange` etkili değeri verir; `clearLayerZoomRange` yerleşik eşiğe döner; `(0, 99)` host aralığını kaldırır; `min > max` reddedilir |
+| ZOOM-02 | Yerleşik görünme eşiği API ile değiştirilebilmeli (aşağı çekme ölçülmüş sert alt sınıra kadar). | Z | K | T, S, A | 1.0.0: eşikler tek tabloda (`engine/LayerTable.cpp` `kZoomTable`: yerleşik eşik + ölçülmüş sert alt sınır; `applyBuiltInZoomRanges` kurulumda uygular); `setLayerZoomRange` sert sınırın altını kırpıp uyarır (örn. pistler 3.0 isteği → 10.0); hava yolları host 5.0 verince zoom 5'ten çizilir; `getDefaultLayerZoomRange` / `getLayerHardMinZoom`; sert sınırlar `map_preview` ile KSEA/HNL'de ölçüldü: yerleşik eşiklerle 0.26.2 taban çizgisine göre tek kare katman çizim süresi farkı ölçüm gürültüsü içinde (NF-PRF-06) |
+| ZOOM-03 | Katman içi ayrıntı eşikleri (etiketler, oklar, işaretler, küçük / büyük havalimanı) ayrı ayarlanabilmeli. | Ö | Y | — | 1.0.0'da bilinçli kapsam dışı: ayrıntı eşikleri (etiket, ok, gösterge, lamba boyu) kodda kalır |
 
 #### 3.2.8 Görsel stil (STY)
 
@@ -247,6 +250,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | TER-02 | 15 arazi sınıfının rengi verilebilmeli ya da X-Plane'in kendi dokularından türetilmeli. | Z | K | T | `TerrainSettings::mClassColors`, `mUseXPlaneColors` |
 | TER-03 | Kabartma, kıyı çizgisi, su şeridi, derinlik tonu, sınıf geçişi, sınır kıvrılması, VFR yükseklik bantları ve konturlar harita başına ayarlanabilmeli ve hemen uygulanmalı. | Z | K | T, X | |
 | TER-04 | Zemin önbelleği önceden hazırlanabilmeli (görünen alan / verilen alan) ve iptal edilebilmeli. | Ö | K | X | Aynı anda tek alan |
+| TER-05 | Açık harita yokken de uçak konumu çevresindeki karolar arka planda yüklenmeli; kapatılabilmeli. | Ö | U | X | 1.0.0: haritasız ön yükleme (uçak konumu + 15..120 NM ileri, `setPrefetchTiles` sınırı); tek satır Log yazar; `setPrefetchTiles(0)` kapatır; ilk harita açılışı sıcak önbellekle başlar |
 
 #### 3.2.10 Veri kaynakları (SRC)
 
@@ -313,6 +317,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | NF-PRF-03 | Havalimanı indeksi ilk açılışta ≤ 30 s, önbellekten ≤ 1 s içinde hazır olmalı. | Ö | K | X | Log'da önbellekten 0.05 s |
 | NF-PRF-04 | Zoom 8–13 arası gezinmede, önbelleği hazır bölgede zemin ≤ 1 s içinde ince kalitede görünmeli. | Ö | KS | X | `docs/ZEMIN_HIZ_RAPORU.md` (yerel) iyileştirme sırası |
 | NF-PRF-05 | Disk önbelleği ve doku belleği `prime_map.json` sınırlarını aşmamalı. | Z | K | T, X | |
+| NF-PRF-06 | Yerleşik zoom eşikleri tek harita karesinin katman çizim süresini belirgin artırmamalı; host eşik değişiklikleri maliyetsiz olmalı. | Ö | K | A | 1.0.0: eşikler tek tabloda (`LayerTable::kZoomTable`), çizim kapıları etkin aralıkla çalışır; `map_preview` ile KSEA/HNL ölçümü: yerleşik eşikler 0.26.2 taban çizgisiyle aynı tek kare süresi (fark gürültü içinde) |
 
 ### 3.4 Güvenilirlik
 
@@ -322,7 +327,8 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | NF-REL-02 | Bozuk / eksik veri dosyası (DSF, apt.dat, ayar dosyası) atlanmalı, harita çalışmaya devam etmeli. | Z | K | T | |
 | NF-REL-03 | Önbellek silinince hiçbir şey bozulmamalı; yeniden üretilmeli. | Z | K | X | |
 | NF-REL-04 | Aynı süreçte birden çok host'un Log satırları kendi önekiyle ayırt edilebilmeli. | İ | Y | İ | Önek süreç genelinde tek |
-| NF-REL-05 | X-Plane'siz testler (`map_tests`) zamanlamaya bağlı olmadan tekrarlanabilir geçmeli. | Ö | K | T | 0.26.2: 30690 kontrol; arka plan bekleyen testler koşul + 30 sn üst sınırıyla bekler (sabit 1 sn sınırı kalktı); 20 kez art arda ve CPU yükü altında 3 kez geçti |
+| NF-REL-05 | X-Plane'siz testler (`map_tests`) zamanlamaya bağlı olmadan tekrarlanabilir geçmeli. | Ö | K | T | 1.0.0: 34706 kontrol, 0 hata; arka plan bekleyen testler koşul + 30 sn üst sınırıyla bekler (sabit 1 sn sınırı kalktı); 20 kez art arda ve CPU yükü altında 3 kez geçti |
+| NF-REL-06 | Önbellek yazımları çökme anında dahi yarım dosya bırakmamalı; çökerten kalan geçici dosyalar temizlenmeli. | Z | K | T | 1.0.0: benzersiz adlı geçici dosya (`<yol>.<pid>.<iş>.<sayaç>.tmp`) + yeniden adlandırma (10 denemeli geri çekilmeli, Windows okuyucu kilidi ACCESS_DENIED verirken bile yazım tamamlanır); CacheTrim 1 saatten eski .tmp'leri siler; `map_tests` `testAtomicFile`: 2 iş parçacığı × 1000 yazım, retry'li okuyucu ile 3 kez temiz |
 
 ### 3.5 Sürdürülebilirlik ve taşınabilirlik
 
@@ -340,55 +346,61 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 
 | Düzey | Araç | Kapsam |
 |---|---|---|
-| Birim / bileşen | `map_tests` (`-DMAP_TESTS=ON`, X-Plane'siz) | Görünüm, katman kuralları, ayarlar (JSON), çizimler, apt.dat, DSF, zemin raster / rakım / renk, temalar, `rectFromTopLeft` ... (0.26.2: 30690 kontrol, 0 hata) |
-| Görsel | `map_preview` | Katman kodu gerçek X-Plane verisiyle resme çizilir |
-| X-Plane içi otomatik | `plugin-api-test` + `selftest.flag` → `MultiXMapSelfTest` | Fabrika, bağımsız harita, ayar dosyaları, sınırlar; Log'da `SELFTEST DONE` |
+| Birim / bileşen | `map_tests` (`-DMAP_TESTS=ON`, X-Plane'siz) | Görünüm, katman kuralları, ayarlar (JSON), çizimler, apt.dat, DSF, zemin raster / rakım / renk, temalar, `rectFromTopLeft`, zoom eşik tablosu, `Layer` etkin aralık modeli, atomik yazım ... (1.0.0: 34706 kontrol, 0 hata) |
+| Görsel | `map_preview` | Katman kodu gerçek X-Plane verisiyle resme çizilir; `--layer-zoom` ile host eşiği düşürme + `draw: X ms` tek kare ölçümü |
+| X-Plane içi otomatik | `plugin-api-test` + `selftest.flag` → `MultiXMapSelfTest` | Fabrika, bağımsız harita, ayar dosyaları, sınırlar; Dark varsayılanı, zoom kırpma / ezme / temizleme, sürüm denetimi; Log'da `SELFTEST DONE` |
 | X-Plane içi elle | `plugin-api-test` (Texture penceresi), `examples/texture_host`, `prime_map_plugin` | Yerleştirme, takip, girdi, arayüz, kalıcılık |
 
-**0.26 için X-Plane'de yapılacak kabul testleri** (U durumundaki gereksinimler bu testlerle K'ya geçer):
+**1.0.0 için X-Plane'de yapılacak kabul testleri** (U durumundaki gereksinimler bu testlerle K'ya geçer):
 
 | # | Test | Gereksinimler |
 |---|---|---|
 | 1 | Test eklentisi penceresini taşı / boyutlandır: harita aynı karede gelir, kenarlara taşmaz, keskin | EMB-01..03, ARY-05 |
 | 2 | Haritayı sürükle, tekerlekle zoom, sağ tık ile rota bitir, imleçle tooltip | INP-01..03 |
 | 3 | Go to airport: kutuya yaz, Enter / Esc, X-Plane'e tıklayınca klavye geri döner | INP-04 |
-| 4 | Katman paneli, mod değişimi, `setColor` ile renk, `setLayerZoomRange` | LAY-01, STY-01, ZOOM-01 |
-| 5 | `texture_host` ve test eklentisi aynı anda: iki doku, ayrı veri klasörleri, ortak karo önbelleği (`setCacheDirectory`); Log'da yönetici başına tek bilgi satırı; aynı veri klasörü verilirse tek satır WARNING | EMB-05, MUL-04, MUL-05 |
-| 6 | Teşhis kipinde `draw ... ms` ve `renderTexture` süresi | NF-PRF-01, NF-PRF-02 |
-| 7 | `selftest.flag` ile öz-test: `SELFTEST DONE: N passed, 0 failed` | LIF-05/06, MUL-01/03, PER-01 |
+| 4 | Katman paneli, mod değişimi, `setColor` ile renk | LAY-01, STY-01 |
+| 5 | Zoom aralıkları: host hava yollarına 5.0 versin → zoom 5'ten çizilsin; 3.0 versin → Log'da `clamped to 5.0`; `clearLayerZoomRange` sonrası 6.5'e dönsün | ZOOM-01, ZOOM-02 |
+| 6 | `texture_host` ve test eklentisi aynı anda: iki doku, ayrı veri klasörleri, ortak karo önbelleği (`setCacheDirectory`); Log'da yönetici başına tek bilgi satırı; aynı veri klasörü verilirse tek satır WARNING | EMB-05, MUL-04, MUL-05 |
+| 7 | Teşhis kipinde `draw ... ms` ve `renderTexture` süresi | NF-PRF-01, NF-PRF-02 |
+| 8 | `selftest.flag` ile öz-test: `SELFTEST DONE: N passed, 0 failed` | LIF-05/06, MUL-01/03, PER-01, MODE-03, ZOOM-01/02, LIF-09 |
+| 9 | Harita açıkken Dark varsayılanı: yeni harita Dark açılır, host `mMode = Vfr` verirse VFR açılır; iki haritanın modu bağımsız değişir | MODE-01, MODE-03 |
+| 10 | Harita kapalıyken uçuş (haritasız ön yükleme): Log'da tek satır `prefetch without open maps`; sonrasında harita ilk açılışı hızlı | TER-05 |
+| 11 | Ready satırı `dll: ...` yolu yazsın; eski DLL'li kurulumda fabrika tek satır `host built with X, loaded DLL is Y` uyarısı versin | LIF-09, NF-MNT-03 |
 
 ---
 
 ## 5. Durum özeti ve yol haritası
 
-### 5.1 Özet (0.26.2)
+### 5.1 Özet (1.0.0)
 
 | Alan | K | U | KS | Y | H |
 |---|---|---|---|---|---|
 | Arayüz (ARY) | 4 | 1 | 1 | 1 | — |
-| Yaşam döngüsü (LIF) | 7 | 1 | — | — | — |
+| Yaşam döngüsü (LIF) | 8 | 1 | — | — | — |
 | Yerleştirme (EMB) | 1 | 5 | — | 2 | — |
 | Girdi (INP) | 1 | 4 | — | 1 | — |
-| Görünüm, mod (VIEW, MODE) | 6 | — | — | 2 | — |
-| Katman, zoom (LAY, ZOOM) | 3 | — | 1 | 3 | — |
+| Görünüm, mod (VIEW, MODE) | 7 | — | — | 2 | — |
+| Katman, zoom (LAY, ZOOM) | 5 | — | — | 2 | — |
 | Stil (STY) | 1 | — | 2 | 4 | — |
-| Zemin, kaynak, çizim, sorgu (TER, SRC, DRW, QRY) | 10 | — | — | 3 | — |
+| Zemin, kaynak, çizim, sorgu (TER, SRC, DRW, QRY) | 10 | 1 | — | 3 | — |
 | Kalıcılık, çoklu harita, arayüz, teşhis (PER, MUL, UI, DIAG) | 9 | — | 1 | 2 | — |
-| İşlev dışı (NF-PRF, NF-REL, NF-MNT, NF-POR) | 9 | 2 | 1 | 3 | — |
-| **Toplam (91)** | **51** | **13** | **6** | **21** | **0** |
+| İşlev dışı (NF-PRF, NF-REL, NF-MNT, NF-POR) | 11 | 2 | 1 | 3 | — |
+| **Toplam (96)** | **57** | **14** | **5** | **20** | **0** |
 
-**Değerlendirme:** Yerleştirme (Texture), görünüm, katman görünürlüğü, zemin, veri kaynakları, kalıcılık ve çoklu harita
-hedefe büyük ölçüde ulaştı; Texture yolu X-Plane'de kapsamlı doğrulanmayı bekliyor. "Her yerde tam kontrol" hedefinden en
-uzak alanlar **görsel stil** (STY), **host katmanları** (LAY-04), **yerleşik zoom eşikleri** (ZOOM-02/03), **tema tanımı**
+**Değerlendirme:** 1.0.0 ile "her yerde tam kontrol" hedefinin zoom ayağı tamamlandı: yerleşik eşikler tek tabloda,
+host aralığı yerleşik eşiğin yerine geçiyor ve ölçülmüş sert alt sınıra kadar aşağı çekilebiliyor (ZOOM-01/02, NF-PRF-06).
+Yerleştirme (Texture), görünüm, katman görünürlüğü, zemin, veri kaynakları, kalıcılık ve çoklu harita hedefe büyük ölçüde
+ulaştı; Texture yolu X-Plane'de kapsamlı doğrulanmayı bekliyor. "Her yerde tam kontrol" hedefinden en uzak kalan alanlar
+**görsel stil** (STY), **host katmanları** (LAY-04), **katman içi ayrıntı eşikleri** (ZOOM-03), **tema tanımı**
 (MODE-02) ve **olay bildirimi** (INP-06).
 
 ### 5.2 Yol haritası (öneri sırası)
 
 | Adım | İş | Gereksinimler |
 |---|---|---|
-| 1 | Texture kabul testleri (bölüm 4); bulunan hataların düzeltilmesi | EMB-01..05, INP-01..04, ARY-05 |
+| 1 | Texture kabul testleri (bölüm 4, test 1..11); bulunan hataların düzeltilmesi | EMB-01..05, INP-01..04, ARY-05 |
 | 2 | Stil modeli: katman başına renk / kalınlık / boy / yazı tablosu (`XMapStyle`), mod başına; tema = stil kümesi; `TerrainBuiltUp` hatası | STY-01..07, MODE-02 |
-| 3 | Zoom modeli: yerleşik eşiklerin katman tablosuna taşınması, API ile her iki yöne değiştirilebilmesi, ayrıntı eşikleri | ZOOM-01..03 |
+| 3 | ~~Zoom modeli~~ — **1.0.0'da tamamlandı** (yerleşik eşik tablosu + host aralığı + sert alt sınır); katman içi ayrıntı eşikleri kapsam dışı bırakıldı | ZOOM-01..02 (+ ZOOM-03 kısmen) |
 | 4 | Host katmanları: host'un sembol / çizgi / alan / etiket eklediği katman API'si (çizim sırası, etiket çakışması, sorgu) | LAY-04, DRW-03 |
 | 5 | Olaylar: tıklama, görünüm değişimi, veri hazır callback'leri; yapısal sorgu sonucu | INP-06, QRY-02 |
 | 6 | Texture pop-out desteği ve Texture üstüne hazır pencere yardımcısı; resmî eklentinin Texture'a geçişi; LEGACY stillerin kaldırılması | EMB-06..08 |
@@ -407,7 +419,10 @@ uzak alanlar **görsel stil** (STY), **host katmanları** (LAY-04), **yerleşik 
 | INP-01..04 | `injectMouse`, `injectMouseMove`, `injectWheel`, `injectKey`, `wantsKeyboard` | `XMapWindow::inject*`, `onClick`, `onWheel`, `onKey` | aynı |
 | VIEW-01..05 | `setCenter`, `setZoom`, `setZoomLimits`, `fitBounds`, `goToAirport`, `screenToGeo`, `geoToScreen` | `XMapView`, `data/AirportSearch` | `map_tests` |
 | LAY-01..03 | `setIsLayerVisible`, `getLayerState`, `showOnlyLayers`, `XMapManager::childrenOf ...` | `engine/LayerTable`, `LayerManager` | `map_tests` |
-| ZOOM-01 | `setLayerZoomRange` | `Layer::setZoomRange`, `LayerManager` | `map_tests`, öz-test |
+| ZOOM-01, ZOOM-02 | `setLayerZoomRange`, `getLayerZoomRange`, `clearLayerZoomRange`, `getDefaultLayerZoomRange`, `getLayerHardMinZoom` | `engine/LayerTable.cpp` (`kZoomTable`, `applyBuiltInZoomRanges`), `Layer::minZoomEff/maxZoomEff`, `XMap::setLayerZoomRange` (kırpma uyarısı) | `map_tests` (tablo + etkin model), öz-test (Terrain kırpma / ezme / temizleme), `map_preview --layer-zoom`, kabul testi 5 |
+| MODE-03 | `XMapConfig::mMode`, `setMode` | `XMapConfig`, `XMapWindow::mMapMode/mTheme` | `map_tests` (Dark varsayılan), öz-test, kabul testi 9 |
+| TER-05 | `setPrefetchTiles` (0 = kapalı) | `XMapData::mAircraft` haritasız ön yükleme | kabul testi 10 |
+| LIF-09 | `isLibraryVersionMatching()`, `libraryPath()` | `XMapTypes.h` (inline), `XMapManagerFactory` (inline sarmalayıcı + WARNING) | öz-test, kabul testi 11 |
 | STY-01, STY-06 | `setColor`, `getColor` | `XMapTheme::themeLayerColor`, `XMapWindow::applyLayerColors`, `TerrainPalette::setBuiltUpColor` | `map_tests` (yerleşim ezmesi), X-Plane kabul testi 4 |
 | TER-01..04 | `getTerrainSettings`, `setTerrainSettings`, `precache*` | `data/Terrain*`, `layers/TerrainHub` | `map_tests` |
 | SRC-01..03 | `setAircraftSource`, `setAircraft`, `setRouteSource`, `setRoute`, `clearTrack` | `data/AircraftData`, `layers/FmsLayer`, `layers/TrackLayer` | X |
@@ -422,4 +437,4 @@ uzak alanlar **görsel stil** (STY), **host katmanları** (LAY-04), **yerleşik 
 | H-03 | Log öneki süreç genelinde tek (NF-REL-04). |
 | AK-01 | LEGACY `Standalone` / `Embedded` ne zaman kaldırılacak: Texture kabul testleri + pop-out (EMB-06) + resmî eklentinin geçişi sonrası. |
 | AK-02 | Stil modelinin biçimi (kod API'si ve `map_settings.json` şeması) tasarlanacak. |
-| AK-03 | Performans hedeflerinin (NF-PRF) ölçüm yöntemi ve referans donanımı belirlenecek. |
+| AK-03 | Performans hedeflerinin (NF-PRF) ölçüm yöntemi ve referans donanımı belirlenecek. 1.0.0 notu: eşik maliyeti (NF-PRF-06) `map_preview` KSEA/HNL ile ölçüldü — taban çizgisiyle fark gürültü içinde; headless önizleme ortamının tek kare tabanı ~9&ndash;12 ms'dir (X-Plane içi ölçüm kabul testi 6'da). |

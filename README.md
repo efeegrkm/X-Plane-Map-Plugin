@@ -1,4 +1,4 @@
-# X-Plane Map Plugin — Prime XMap 0.26
+# X-Plane Map Plugin — Prime XMap 1.0.0
 
 Üç proje (kardeş klasörler):
 
@@ -11,7 +11,7 @@ plugin-api-test/   API'yi deneyen test eklentisi: pencere içinde doku harita + 
 API: `prime::XMapManagerFactory::createXMapManager()` → `XMapManager::initialize()` → `addXMap()` → ayarla →
 `XMap::initialize()`. Hedef ve önerilen yol **`WindowStyle::Texture`**: harita bir openGL dokusuna (framebuffer) çizilir,
 host onu istediği yere basar, girdiyi `inject*` ile iletir. `Standalone` / `Embedded` LEGACY. Ayarlar yalnızca JSON
-(`prime_map.json`, `maps/<ad>/map_settings.json`, `terrain_colors.json`); geliştirme aşamasında geriye uyumluluk yok.
+(`prime_map.json`, `maps/<ad>/map_settings.json`, `terrain_colors.json`); MVP yayını (1.0.0): sürümler arasında geriye uyumluluk yok.
 
 | Belge | Ne |
 |---|---|

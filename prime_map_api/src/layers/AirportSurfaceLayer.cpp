@@ -12,9 +12,8 @@
 namespace
 {
 
-const double kBoundaryMinZoom = 10.5;
-const double kSurfaceMinZoom = 11.0;
-const double kLineMinZoom = 13.5;  // pist / taksi yolu orta cizgileri: 1 tik erken
+// Ayrinti esikleri; yerlesik gorunme esikleri LayerTable tablosundadir:
+// katman 10.5 (sinir), pavement / pavement_edges 11.0, markings 13.5
 const size_t kMaxGpuAirports = 64;    // GPU'da tutulan en fazla havalimani
 const float kCriticalLinePixels = 2.0f;  // sinir ve kaplama kenari: 2 piksel (boya cizgileri 1)
 
@@ -229,8 +228,7 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
     ++mFrame;
     mDrawn.clear();  // Describe eski karenin (silinmis olabilecek) ayrintilarina bakmasin
     const XMapView& tView = *pContext.mView;
-    const double tZoom = tView.zoom();
-    if (!mSummaries.isReady() || tZoom < kBoundaryMinZoom)
+    if (!mSummaries.isReady() || !isInZoomRange())  // yerlesik esik 10.5 (LayerTable tablosu)
     {
         return;
     }
@@ -284,11 +282,11 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
         for (GpuAirport* tGpu : tReady)
         {
             const PointF tOffset = tView.mercatorToScreen(tGpu->mOriginX, tGpu->mOriginY);
-            if (tPass == 0 && tZoom >= kSurfaceMinZoom && isSubLayerDrawn(kPartPavement))
+            if (tPass == 0 && isSubLayerDrawn(kPartPavement))
             {
                 tCanvas.drawStatic(tGpu->mFills, tOffset, tScale);
             }
-            else if (tPass == 1 && tZoom >= kSurfaceMinZoom && isSubLayerDrawn(kPartPavementEdges))
+            else if (tPass == 1 && isSubLayerDrawn(kPartPavementEdges))
             {
                 tCanvas.drawStatic(tGpu->mEdges, tOffset, tScale, tCriticalWidth);
             }
@@ -296,7 +294,7 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
             {
                 tCanvas.drawStatic(tGpu->mBoundaries, tOffset, tScale, tCriticalWidth);
             }
-            else if (tPass == 3 && tZoom >= kLineMinZoom && isSubLayerDrawn(kPartMarkings))
+            else if (tPass == 3 && isSubLayerDrawn(kPartMarkings))
             {
                 tCanvas.drawStatic(tGpu->mLines, tOffset, tScale);
             }
@@ -309,7 +307,7 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
 std::string AirportSurfaceLayer::describe(const drawContext& pContext, double pX, double pY) const
 {
     const XMapView& tView = *pContext.mView;
-    if (tView.zoom() < kSurfaceMinZoom || !isSubLayerDrawn(kPartPavement))
+    if (!isSubLayerDrawn(kPartPavement))  // yerlesik esik 11.0 (LayerTable tablosu)
     {
         return "";
     }

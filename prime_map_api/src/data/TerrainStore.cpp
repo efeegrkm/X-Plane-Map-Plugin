@@ -202,6 +202,11 @@ void TerrainStore::trimCache()
                            tResult.mTotalBytes / 1048576.0, tLimit / 1048576.0, tResult.mRemovedTiles,
                            tResult.mRemovedBytes / 1048576.0));
     }
+    if (tResult.mRemovedTempFiles > 0)
+    {
+        addLog(std::format("terrain cache: removed {} stale temporary file(s) from an earlier crash",
+                           tResult.mRemovedTempFiles));
+    }
 }
 
 void TerrainStore::setFocus(double pLat, double pLon)

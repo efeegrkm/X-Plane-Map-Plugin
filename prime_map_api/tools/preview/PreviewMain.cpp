@@ -22,6 +22,7 @@
 #include "gfx/GlInclude.h"
 #include "LabelPlacer.h"
 #include "LayerManager.h"
+#include "engine/LayerTable.h"
 #include "XMapTheme.h"
 #include "XMapView.h"
 #include "Settings.h"
@@ -89,6 +90,8 @@ struct Options
     std::string mCache = "terrain_cache/";
     std::string mTerrainColors;  // --terrain-colors <dosya>: terrain_colors.json (bossa varsayilan)
     std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
+    // --layer-zoom <katman anahtari>:<min>[-<max>]: host gibi zoom araligi ver (birden fazla)
+    std::vector<std::string> mLayerZooms;
     XMapMode mMode = XMapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
     std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
     bool mPaletteCollapsed = false;          // --palette-collapsed: cizim paleti katlanmis
@@ -166,6 +169,10 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--hide" && tHasValue)
         {
             pOut->mHidden.push_back(pArgv[++tIndex]);
+        }
+        else if (tArg == "--layer-zoom" && tHasValue)
+        {
+            pOut->mLayerZooms.push_back(pArgv[++tIndex]);
         }
         else if (tArg == "--show" && tHasValue)
         {
@@ -426,6 +433,7 @@ int main(int pArgc, char** pArgv)
     tFixLayer->setVisible(tOptions.mFixes);
     tLayers.add(std::make_unique<AircraftLayer>(tAircraft));
     tLayers.add(std::make_unique<DrawingLayer>(tDrawings));
+    LayerRules::applyBuiltInZoomRanges(tLayers);  // yerlesik zoom esikleri tablodan (ZOOM-02)
     const XMapTheme& tTheme = themeFor(tOptions.mMode);
     if (tOptions.mMode != XMapMode::Scenery)
     {
@@ -441,6 +449,41 @@ int main(int pArgc, char** pArgv)
         if (std::find(tOptions.mShown.begin(), tOptions.mShown.end(), tLayer->id()) != tOptions.mShown.end())
         {
             tLayer->setVisible(true);
+        }
+    }
+    // --layer-zoom <anahtar>:<min>[-<max>]: host gibi zoom araligi ver (yerlesik esigi asagi ceker)
+    for (const std::string& tSpec : tOptions.mLayerZooms)
+    {
+        const size_t tColon = tSpec.find(':');
+        if (tColon == std::string::npos)
+        {
+            std::fprintf(stderr, "cannot parse --layer-zoom: %s (expected <key>:<min>[-<max>])\n", tSpec.c_str());
+            continue;
+        }
+        const std::string tKey = tSpec.substr(0, tColon);
+        const std::string tRange = tSpec.substr(tColon + 1);
+        const size_t tDash = tRange.find('-');
+        const double tMin = std::atof(tRange.substr(0, tDash).c_str());
+        const double tMax = tDash == std::string::npos ? 99.0 : std::atof(tRange.substr(tDash + 1).c_str());
+        const std::optional<prime::XMapLayer> tLayer = LayerRules::layerFromKey(tKey);
+        if (!tLayer)
+        {
+            std::fprintf(stderr, "unknown layer key: %s\n", tKey.c_str());
+            continue;
+        }
+        Layer* tHost = LayerRules::findLayer(tLayers, *tLayer);
+        const int tSub = LayerRules::subLayerIndex(tLayers, *tLayer);
+        if (!tHost)
+        {
+            continue;  // grup ya da haritada yok
+        }
+        if (tSub >= 0)
+        {
+            tHost->setSubLayerZoomRange(tSub, tMin, tMax);
+        }
+        else
+        {
+            tHost->setZoomRange(tMin, tMax);
         }
     }
 
@@ -563,7 +606,12 @@ int main(int pArgc, char** pArgv)
     }
     if (!tCachedDraw)
     {
+        const std::chrono::steady_clock::time_point tDrawStart = std::chrono::steady_clock::now();
         tLayers.drawAll(tContext);
+        // Tek kare katman cizim suresi (yerlesik zoom esiklerinin olcumu icin)
+        const double tDrawMs =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tDrawStart).count();
+        std::printf("draw: %.2f ms\n", tDrawMs);
     }
     for (const auto& tPoint : tOptions.mDescribe)
     {

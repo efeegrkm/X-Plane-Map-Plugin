@@ -9,13 +9,22 @@
 > AGENTS.md yalnizca BU aktarim reposunda yasar; Bitbucket'e giden depolarda AGENTS.md,
 > yapay zeka araci izleri, AI kelimesi OLMAZ (taramalar sifir olmali).
 
-## 1. Anlik durum (18.11.2026, v0.26.2)
+## 1. Anlik durum (18.11.2026, v1.0.0)
 
 - Dort agac (a22=test, e22=texture-host, api22=api-test/preview) /W4 ile temiz derleniyor
   (a22 plugin + map_tests'i de uretir; ev makinesinde a22/e22/api22 + plugin-api-test t22).
-- map_tests: 30.690 kontrol / 0 hata (v0.26.2).
-- X-Plane 11'e deploy edildi ve hash dogrulandi: prime-map-plugin\64 ve plugin-api-test\64
-  (prime_map.dll + win.xpl, build ciktilariyla birebir ayni).
+- map_tests: 34.706 kontrol / 0 hata (v1.0.0; 5 kez kosuldu).
+- Surum 1.0.0 (MVP yayini): XMapTypes.h kVersionMajor/Minor/Patch = 1/0/0; api ve eklenti
+  CMakeLists project VERSION 1.0.0; eklenti kVersion CMake'ten (PRIME_MAP_VERSION).
+  Yeni: varsayilan mod Dark; katman zoom esik tablosu (kZoomTable) + host araligi + sert alt
+  sinir (getDefaultLayerZoomRange / getLayerHardMinZoom); haritasiz on yukleme (setPrefetchTiles(0)
+  kapatir); benzersiz gecici dosyali atomik yazim + CacheTrim eski .tmp temizligi;
+  isLibraryVersionMatching / libraryPath / inline createXMapManager (sürüm uyarisi).
+  Belgeler (PrimeMap_API, MIMARI, SRS, CHANGELOG) 1.0.0 icerigiyle yenilendi, PDF'ler yeniden uretildi.
+  X-Plane kabul testleri (SRS bolum 4, test 1-11) bekleniyor; onay gelince SRS durumu
+  "Yayin adayi (1.0.0-rc)" -> "Yayin 1.0.0" yapilir.
+- X-Plane 11'e deploy edildi: prime-map-plugin\64 ve plugin-api-test\64 (prime_map.dll +
+  win.xpl, 18.11 aksam derlemeleriyle ayni; MAP_DEPLOY X-Plane kapaliyken kopyaladi).
 - #pragma temizligi TAMAM: 90 adet #pragma once -> include guard; C4251 yerine /wd4251 tum
   hedeflerde; stb_truetype implementasyonu src/gfx/StbTruetypeImpl.cpp'de /W0 ile izole.
   Kodda 0 #pragma kaldi (TerrainVectors.inl dahil).

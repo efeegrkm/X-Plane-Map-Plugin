@@ -31,6 +31,30 @@ std::string versionString()
     return std::format("{}.{}.{}", kVersionMajor, kVersionMinor, kVersionPatch);
 }
 
+std::string libraryPath()
+{
+    // Bu fonksiyonun adresi yuklu DLL'in icindendir; modulu ordan bulur (refcount degistirmez)
+    HMODULE tModule = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            reinterpret_cast<LPCWSTR>(&libraryPath), &tModule))
+    {
+        return {};
+    }
+    wchar_t tWide[1024] = {};
+    if (GetModuleFileNameW(tModule, tWide, MAX_PATH * 2) == 0)
+    {
+        return {};
+    }
+    const int tBytes = WideCharToMultiByte(CP_UTF8, 0, tWide, -1, nullptr, 0, nullptr, nullptr);
+    if (tBytes <= 1)
+    {
+        return {};
+    }
+    std::string tPath(static_cast<size_t>(tBytes - 1), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, tWide, -1, tPath.data(), tBytes, nullptr, nullptr);
+    return tPath;
+}
+
 namespace
 {
 
@@ -163,8 +187,8 @@ bool XMapManager::initialize()
 
     mData = std::make_unique<XMapData>(tConfig);
     mData->start();
-    log("Prime Map API {} ready (data: {}, cache: {})", versionString(), tConfig.mDataDirectory,
-        tConfig.mCacheDirectory);
+    log("Prime Map API {} ready (data: {}, cache: {}, dll: {})", versionString(), tConfig.mDataDirectory,
+        tConfig.mCacheDirectory, libraryPath());
     return true;
 }
 

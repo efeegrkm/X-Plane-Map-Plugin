@@ -11,7 +11,7 @@
 namespace
 {
 
-const double kMinZoom = 6.5;
+// Ayrinti esikleri (yerlesik gorunme esigi LayerTable tablosundadir)
 const double kLabelMinZoom = 8.0;
 const double kArrowMinZoom = 9.0;
 const double kDensifyNm = 20.0;        // uzun segmentler buyuk daire boyunca bolunur
@@ -31,7 +31,7 @@ void AirwayLayer::draw(const drawContext& pContext)
 {
     mVisible.clear();
     const XMapView& tView = *pContext.mView;
-    if (!mAirways.isReady() || tView.zoom() < kMinZoom)
+    if (!mAirways.isReady() || !isInZoomRange())
     {
         return;
     }

@@ -25,6 +25,7 @@
 #include "Settings.h"
 #include "data/AirportGeometryStore.h"
 #include "data/AirwayDatabase.h"
+#include "data/AtomicFile.h"
 #include "data/AirportShapes.h"
 #include "data/AptDatIndexer.h"
 #include "data/AptDatParser.h"
@@ -3601,6 +3602,65 @@ void testDdsColor()
     Fs::remove(tPath, tIgnore);
 }
 
+// Atomik dosya yazimi: ayni hedefe 2 is x 1000 yazim. Hedef her zaman tam icerik gosterir
+// (yarim yazim gorunmez), hic gecici dosya kalmaz (1.0.0, NF-REL).
+void testAtomicFile()
+{
+    namespace Fs = std::filesystem;
+    const Fs::path tDir = Fs::temp_directory_path() / "prime_map_atomic_test";
+    Fs::create_directories(tDir);
+    const std::string tTarget = (tDir / "target.bin").string();
+    const std::string tPayloadA(64, 'A');
+    const std::string tPayloadB(64, 'B');
+
+    auto tWriter = [&](const std::string& pPayload)
+    {
+        for (int tRound = 0; tRound < 1000; ++tRound)
+        {
+            const bool tOk = writeFileAtomic(tTarget,
+                                             [&pPayload](std::ofstream& pFile)
+                                             {
+                                                 pFile.write(pPayload.data(),
+                                                             static_cast<std::streamsize>(pPayload.size()));
+                                             });
+            CHECK(tOk, "atomik yazim basarili");
+            // Okuyucu: replace'in ucundan (kisa bir an acilamayan ad) birkac denemeyle gecer
+            std::string tContent;
+            for (int tTry = 0; tTry < 10 && tContent.size() < pPayload.size(); ++tTry)
+            {
+                std::ifstream tReader(tTarget, std::ios::binary);
+                if (tReader)
+                {
+                    tContent.assign((std::istreambuf_iterator<char>(tReader)), std::istreambuf_iterator<char>());
+                }
+                if (tContent.size() < pPayload.size())
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+                }
+            }
+            // Yarim yazim asla gorunmez: hedefte ya A ya B'nin tamami var
+            CHECK(tContent == tPayloadA || tContent == tPayloadB, "okuyan ya eski ya tam yenisini gorur (%zu '%c')",
+                  tContent.size(), tContent.empty() ? '?' : tContent[0]);
+        }
+    };
+    std::thread tFirst(tWriter, std::cref(tPayloadA));
+    std::thread tSecond(tWriter, std::cref(tPayloadB));
+    tFirst.join();
+    tSecond.join();
+
+    int tTempFiles = 0;
+    for (const Fs::path& tEntry : Fs::directory_iterator(tDir))
+    {
+        if (tEntry.filename().string().find(".tmp") != std::string::npos)
+        {
+            ++tTempFiles;
+        }
+    }
+    CHECK(tTempFiles == 0, "hic gecici dosya kalmaz");
+    std::error_code tIgnore;
+    Fs::remove_all(tDir, tIgnore);
+}
+
 // Prime XMap API (katman tablosu, panel kurallari, ayar metni)
 
 // Gercek katmanlarin kimlik ve alt katmanlarini taklit eden sahte katman
@@ -3654,6 +3714,11 @@ void testApiLayers()
     CHECK(LayerRules::isLayerDefaultVisible(XMapLayer::Terrain, prime::XMapMode::Scenery), "terrain on");
     CHECK(!LayerRules::isLayerDefaultVisible(XMapLayer::Fixes, prime::XMapMode::Scenery), "fixes off (scenery)");
     CHECK(LayerRules::isLayerDefaultVisible(XMapLayer::Fixes, prime::XMapMode::IfrHigh), "fixes on (ifr high)");
+
+    // 0.26.2 -> 1.0.0: varsayilan harita modu Dark; Dark zemin LandWater, Terrain acik
+    CHECK(prime::XMapConfig{}.mMode == prime::XMapMode::Dark, "default map mode is dark");
+    CHECK(themeFor(XMapMode::Dark).mTerrainStyle == TerrainStyle::LandWater, "dark ground is land/water");
+    CHECK(LayerRules::isLayerDefaultVisible(XMapLayer::Terrain, prime::XMapMode::Dark), "terrain on (dark)");
 
     // 2) kurallar(katman paneliyle ayni)
     LayerManager tLayers;
@@ -3790,20 +3855,74 @@ void testMultiMapCore()
           "sadece sinirli katmanlar yazilir");
     tLayers.resetZoomRanges();
     CHECK(tLayers.visibilitySignature() != tSignature, "aralik degisince imza degisir (resim yeniden cizilir)");
-    CHECK(tLayers.at(0)->minZoom() == Layer::kNoMinZoom && tLayers.at(0)->maxZoom() == Layer::kNoMaxZoom,
-          "sifirlama");
+    CHECK(!tLayers.at(0)->hasHostZoomRange() && std::abs(tLayers.at(0)->minZoomEff() - Layer::kNoMinZoom) < 1e-9 &&
+              std::abs(tLayers.at(0)->maxZoomEff() - Layer::kNoMaxZoom) < 1e-9,
+          "sifirlama: host araligi kalkar, yerlesik esige doner");
     tLayers.loadZoomRanges(tSettings);
-    CHECK(std::abs(tLayers.at(0)->minZoom() - 8.0) < 1e-9 && std::abs(tLayers.at(0)->maxZoom() - 12.0) < 1e-9 &&
+    CHECK(std::abs(tLayers.at(0)->minZoomEff() - 8.0) < 1e-9 && std::abs(tLayers.at(0)->maxZoomEff() - 12.0) < 1e-9 &&
               std::abs(tParted.subLayerAt(0).mMinZoom - 11.0) < 1e-9,
           "araliklar geri okunur");
     CHECK(tLayers.visibilitySignature() == tSignature, "geri okununca imza ayni");
-    tLayers.at(0)->setZoomRange(Layer::kNoMinZoom, Layer::kNoMaxZoom);
+    tLayers.at(0)->clearZoomRange();
     tLayers.saveZoomRanges(tSettings);
     CHECK(!tSettings.has("layer_zoom", "a") && tSettings.has("layer_zoom", "parted.one"),
           "siniri kaldirilan katmanin satiri silinir");
     tSettings.setString("layer_zoom", "b", "12 9");  // ters aralik: yok sayilir
     tLayers.loadZoomRanges(tSettings);
-    CHECK(tLayers.at(1)->minZoom() == Layer::kNoMinZoom, "gecersiz aralik yok sayilir");
+    CHECK(!tLayers.at(1)->hasHostZoomRange(), "gecersiz aralik yok sayilir");
+
+    // 4b) Yerlesik esikler (1.0.0, ZOOM-02): tablo + kirpma + "host araligi yerlesikin yerine gecer"
+    const LayerRules::LayerZoomDefaults tTerrain = LayerRules::zoomDefaultsOf(prime::XMapLayer::Terrain);
+    CHECK(std::abs(tTerrain.mMinZoom - 5.0) < 1e-9 && std::abs(tTerrain.mMaxZoom - 99.0) < 1e-9 &&
+              std::abs(tTerrain.mHardMinZoom - 4.0) < 1e-9,
+          "tablo: terrain 5.0 / 99 / sert 4.0");
+    CHECK(std::abs(LayerRules::zoomDefaultsOf(prime::XMapLayer::AirwaysLow).mMinZoom - 6.5) < 1e-9,
+          "tablo: airways_low 6.5");
+    CHECK(std::abs(LayerRules::zoomDefaultsOf(prime::XMapLayer::RoadsMotorways).mMinZoom - 7.5) < 1e-9,
+          "tablo: roads.motorways 7.5");
+    const LayerRules::LayerZoomDefaults tNone = LayerRules::zoomDefaultsOf(prime::XMapLayer::Grid);
+    CHECK(tNone.mMinZoom == 0.0 && tNone.mMaxZoom == 99.0 && tNone.mHardMinZoom == 0.0, "tabloda olmayan: sinirsiz");
+    // Yerlesik esik davranisi: tablodaki degerler dogrudan katmana uygulanarak denenir
+    class BuiltInLayer : public Layer
+    {
+    public:
+        BuiltInLayer()
+            : Layer("a", "A", true)
+        {
+            mMotorways = addSubLayer("motorways", "Motorways");
+            mLocal = addSubLayer("local", "Local roads");
+        }
+        void draw(const drawContext&) override
+        {
+        }
+        int mMotorways = 0;
+        int mLocal = 0;
+    };
+    BuiltInLayer tBuiltIn;
+    tBuiltIn.setBuiltInZoomRange(5.0, 99.0, 4.0);
+    tBuiltIn.setCurrentZoom(4.5);
+    CHECK(!tBuiltIn.isInZoomRange(), "yerlesik esik 5.0: zoom 4.5'te cizilmez");
+    tBuiltIn.setZoomRange(4.0, 99.0);  // host yerlesik esigi asagi ceker (iki yon)
+    CHECK(tBuiltIn.isInZoomRange(), "host 4.0 verdi: yerlesik esigin yerine gecer");
+    tBuiltIn.setZoomRange(3.0, 99.0);  // sert sinirin alti: kirpilir
+    CHECK(std::abs(tBuiltIn.minZoomEff() - 4.0) < 1e-9, "3.0 istegi sert sinira kirpilir (etkin 4.0)");
+    tBuiltIn.clearZoomRange();
+    CHECK(!tBuiltIn.hasHostZoomRange() && std::abs(tBuiltIn.minZoomEff() - 5.0) < 1e-9,
+          "clear: yerlesik esige doner");
+    // Alt katman: tablodaki yerlesik esik + host ezmesi
+    const int tMotorways = tBuiltIn.mMotorways;
+    const int tLocal = tBuiltIn.mLocal;
+    tBuiltIn.setSubLayerBuiltInZoomRange(tMotorways, 7.5, 99.0, 6.5);
+    tBuiltIn.setSubLayerBuiltInZoomRange(tLocal, 12.0, 99.0, 11.0);
+    tBuiltIn.setCurrentZoom(8.0);
+    CHECK(tBuiltIn.isSubLayerDrawn(tMotorways) && !tBuiltIn.isSubLayerDrawn(tLocal),
+          "zoom 8: motorways yerlesik esigi 7.5'te cizilir, local 12'de cizilmez");
+    tBuiltIn.setSubLayerZoomRange(tMotorways, 5.0, 99.0);
+    CHECK(std::abs(tBuiltIn.subMinZoomEff(tMotorways) - 6.5) < 1e-9,
+          "alt katmanda 5.0 istegi sert sinira kirpilir (etkin 6.5)");
+    tBuiltIn.clearSubLayerZoomRange(tMotorways);
+    CHECK(std::abs(tBuiltIn.subMinZoomEff(tMotorways) - 7.5) < 1e-9, "alt katman clear: yerlesik 7.5'e doner");
+    CHECK(std::abs(tBuiltIn.subHardMinZoom(tMotorways) - 6.5) < 1e-9, "alt katman sert siniri tablodan");
 
     // 5) Settings::clearSection
     Settings tClear;
@@ -3876,6 +3995,7 @@ int main()
     testElevationCache();
     testDsfVectors();
     testDdsColor();
+    testAtomicFile();
     std::printf("%d checks passed, %d failed\n", gPassCount, gFailCount);
     return gFailCount == 0 ? 0 : 1;
 }

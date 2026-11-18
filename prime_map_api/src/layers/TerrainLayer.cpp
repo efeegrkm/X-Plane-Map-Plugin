@@ -11,7 +11,6 @@
 namespace
 {
 
-const double kMinZoom = 5.0;                   // daha uzakta zemin cizilmez (karo sayisi patlar)
 const int kMaxVisibleTiles = 1500;
 const int kFullTileStrips = 16;
 const int kChunkStrips = 4;
@@ -194,7 +193,7 @@ void TerrainLayer::draw(const drawContext& pContext)
     mHub.beginDraw(mUser);  // bu haritanin doku isaretleri bu cizimde yeniden konur
 
     const XMapView& tView = *pContext.mView;
-    if (!mStore.isIndexReady() || tView.zoom() < kMinZoom)
+    if (!mStore.isIndexReady() || !isInZoomRange())  // yerlesik esik 5.0 (LayerTable tablosu)
     {
         return;
     }

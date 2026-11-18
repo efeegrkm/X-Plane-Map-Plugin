@@ -508,4 +508,85 @@ std::optional<XMapLayer> groupFromPanelName(std::string_view pName)
     return std::nullopt;
 }
 
+// --- Katman zoom esikleri (1.0.0) ---
+// Gorunme esikleri kod icine gomulu degil, burada toplu. Ayrinti esikleri (etiket, ok, VOR
+// gulu, tabela ...) katman kodunda kalir ve burada belgelenir: zoom tablosundaki gorunme
+// esiginden erken cikmazlar.
+struct ZoomEntry
+{
+    XMapLayer mLayer;
+    double mMinZoom;
+    double mMaxZoom;
+    double mHardMinZoom;  // olculmus sert alt sinir (drawAll tek harita karesi < 8 ms hedefi)
+};
+
+const auto kZoomTable = std::to_array<ZoomEntry>({
+    // Agir katmanlar: yerlesik esik + olculmus sert sinir
+    {XMapLayer::Terrain, 5.0, 99.0, 4.0},        // karo sayisi kontrol disinda
+    {XMapLayer::AirwaysLow, 6.5, 99.0, 5.0},     // butun havayollari + etiketler (host 5.0'a kadar asagi cekebilir)
+    {XMapLayer::AirwaysHigh, 6.5, 99.0, 5.0},
+    {XMapLayer::Runways, 11.0, 99.0, 10.0},      // pavement
+    {XMapLayer::Surfaces, 10.5, 99.0, 9.5},      // havalimani sinirlari
+    {XMapLayer::TaxiRoutes, 13.5, 99.0, 12.5},   // taksi agi
+    {XMapLayer::Objects, 12.5, 99.0, 11.5},      // nesne detaylari
+    // Yol / yuzey / nesne alt katmanlarinin yerlesik esikleri
+    {XMapLayer::RoadsMotorways, 7.5, 99.0, 6.5},
+    {XMapLayer::RoadsPrimary, 9.0, 99.0, 8.0},
+    {XMapLayer::RoadsSecondary, 10.5, 99.0, 9.5},
+    {XMapLayer::RoadsLocal, 12.0, 99.0, 11.0},
+    {XMapLayer::RoadsRailways, 9.5, 99.0, 8.5},
+    {XMapLayer::RoadsPowerLines, 11.0, 99.0, 10.0},
+    {XMapLayer::SurfacesPavement, 11.0, 99.0, 10.5},
+    {XMapLayer::SurfacesPavementEdges, 11.0, 99.0, 10.5},
+    {XMapLayer::SurfacesBoundary, 10.5, 99.0, 9.5},
+    {XMapLayer::SurfacesMarkings, 13.5, 99.0, 12.5},
+    {XMapLayer::ObjectsLighting, 14.5, 99.0, 13.5},
+    {XMapLayer::ObjectsHelipads, 12.5, 99.0, 11.5},
+    {XMapLayer::ObjectsBeacons, 12.5, 99.0, 11.5},
+    {XMapLayer::ObjectsWindsocks, 13.5, 99.0, 12.5},
+    {XMapLayer::ObjectsGates, 14.0, 99.0, 13.0},
+    {XMapLayer::ObjectsTieDowns, 14.0, 99.0, 13.0},
+    {XMapLayer::ObjectsHangars, 14.0, 99.0, 13.0},
+    {XMapLayer::ObjectsOtherStarts, 14.0, 99.0, 13.0},
+    {XMapLayer::ObjectsStartNames, 15.5, 99.0, 14.5},
+    {XMapLayer::ObjectsApproachLights, 14.5, 99.0, 13.5},
+    {XMapLayer::ObjectsSigns, 15.5, 99.0, 14.5},
+});
+
+LayerZoomDefaults zoomDefaultsOf(XMapLayer pLayer)
+{
+    for (const ZoomEntry& tEntry : kZoomTable)
+    {
+        if (tEntry.mLayer == pLayer)
+        {
+            return {tEntry.mMinZoom, tEntry.mMaxZoom, tEntry.mHardMinZoom};
+        }
+    }
+    return {0.0, 99.0, 0.0};
+}
+
+void applyBuiltInZoomRanges(LayerManager& pLayers)
+{
+    for (int tIndex = 0; tIndex < pLayers.count(); ++tIndex)
+    {
+        Layer& tLayer = *pLayers.at(tIndex);
+        const std::optional<XMapLayer> tItem = layerFromKey(tLayer.id());
+        if (tItem)
+        {
+            const LayerZoomDefaults tDefaults = zoomDefaultsOf(*tItem);
+            tLayer.setBuiltInZoomRange(tDefaults.mMinZoom, tDefaults.mMaxZoom, tDefaults.mHardMinZoom);
+        }
+        for (int tSub = 0; tSub < tLayer.subLayerCount(); ++tSub)
+        {
+            const std::optional<XMapLayer> tSubItem = layerFromKey(LayerManager::subLayerKey(tLayer, tSub));
+            if (tSubItem)
+            {
+                const LayerZoomDefaults tDefaults = zoomDefaultsOf(*tSubItem);
+                tLayer.setSubLayerBuiltInZoomRange(tSub, tDefaults.mMinZoom, tDefaults.mMaxZoom,
+                                                   tDefaults.mHardMinZoom);
+            }
+        }
+    }
+}
+
 }  // namespace LayerRules

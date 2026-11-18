@@ -13,18 +13,13 @@ namespace
 {
 
 // VectorLineKind sirasi: otoyol, ana, tali, yerel, demiryolu, enerji hatti
-const double kMinZoom[kVectorLineKindCount] = {7.5, 9.0, 10.5, 12.0, 9.5, 11.0};
+// Gorunme esikleri LayerTable tablosundadir (roads.motorways 7.5 ... power_lines 11.0)
 const float kWidthPixels[kVectorLineKindCount] = {2.5f, 2.0f, 1.5f, 1.0f, 1.5f, 1.0f};
 // Cizim sirasi: kucuk yollar altta, otoyol ve demiryolu ustte
 const int kDrawOrder[kVectorLineKindCount] = {5, 3, 2, 1, 0, 4};
 const int kMaxVisibleTiles = 16;   // daha uzakta yol cizilmez (zaten esiklerin altinda)
 const size_t kMaxGpuTiles = 12;    // GPU'da tutulan karo (yerel yollarla karo basina ~10-20 MB)
 const uint64_t kKeepFrames = 300;  // bu kadar karedir cizilmeyen karo atilabilir
-
-double minVisibleZoom()
-{
-    return *std::min_element(std::begin(kMinZoom), std::end(kMinZoom));
-}
 
 }
 
@@ -120,7 +115,7 @@ void RoadLayer::draw(const drawContext& pContext)
     mHub.takeReadyVectors();
     mSeenGeneration = mHub.vectorGeneration();
     const XMapView& tView = *pContext.mView;
-    if (tView.zoom() < minVisibleZoom())
+    if (!isInZoomRange() && !isAnySubLayerInZoomRange())  // butun alt esiklerin alti: yukleme de gereksiz
     {
         return;
     }
@@ -167,7 +162,7 @@ void RoadLayer::draw(const drawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     for (const int tKind : kDrawOrder)
     {
-        if (!isSubLayerDrawn(mParts[tKind]) || tView.zoom() < kMinZoom[tKind])
+        if (!isSubLayerDrawn(mParts[tKind]))  // yerlesik esik tabloda (LayerTable)
         {
             continue;
         }

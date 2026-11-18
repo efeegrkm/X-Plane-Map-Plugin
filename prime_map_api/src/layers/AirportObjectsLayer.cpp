@@ -18,14 +18,8 @@ namespace
 
 const double kPi = 3.14159265358979323846;
 
-const double kHelipadMinZoom = 12.5;
-const double kBeaconMinZoom = 12.5;
-const double kWindsockMinZoom = 13.5;
-const double kStartMinZoom = 14.0;    // 15'ten 2 tik erken: kapilar uzaktan gorunsun
-const double kStartLabelMinZoom = 15.5;
-const double kLightMinZoom = 14.5;    // PAPI / VASI: 1 tik erken
-const double kSignMinZoom = 15.5;
-const double kLampMinZoom = 14.5;     // cizgi boyunca isiklar (101-108): 1 tik erken
+// Yerlesik gorunme esikleri LayerTable tablosundadir (alt katman basina; bu dosyada
+// yalnizca olmayan ayrinti esikleri kalmistir)
 const float kHitSlop = 3.0f;  // fare isabeti icin semboller biraz buyuk sayilir
 
 enum ObjectPart
@@ -300,7 +294,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
     mMarkers.clear();
     const XMapView& tView = *pContext.mView;
     const double tZoom = tView.zoom();
-    if (tZoom < kHelipadMinZoom)
+    if (!isInZoomRange())  // yerlesik esik 12.5 (LayerTable tablosu)
     {
         return;
     }
@@ -327,7 +321,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
         const AirportDetail& tDetail = tLoaded->mDetail;
 
         // Isik dizileri: lambalar GPU'daki sekillerle ayni donusumle (kaydirma + olcek)
-        if (tZoom >= kLampMinZoom && isSubLayerDrawn(kPartLighting))
+        if (isSubLayerDrawn(kPartLighting))
         {
             const AirportShapes& tShapes = tLoaded->mShapes;
             const PointF tOffset = tView.mercatorToScreen(tShapes.mOriginX, tShapes.mOriginY);
@@ -407,7 +401,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
         }
 
         // Ruzgar tulumu
-        if (tZoom >= kWindsockMinZoom && isSubLayerDrawn(kPartWindsocks))
+        if (isSubLayerDrawn(kPartWindsocks))
         {
             for (const AptWindsock& tSock : tDetail.mWindsocks)
             {
@@ -434,7 +428,8 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
         }
 
         // Kalkis / park noktalari
-        if (tZoom >= kStartMinZoom)
+        if (isSubLayerDrawn(kPartGates) || isSubLayerDrawn(kPartTieDowns) || isSubLayerDrawn(kPartHangars) ||
+            isSubLayerDrawn(kPartOtherStarts))
         {
             for (const AptStartLocation& tStart : tDetail.mStartLocations)
             {
@@ -482,7 +477,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
         }
 
         // PAPI / VASI / wig-wag
-        if (tZoom >= kLightMinZoom && isSubLayerDrawn(kPartApproachLights))
+        if (isSubLayerDrawn(kPartApproachLights))
         {
             for (const AptLightObject& tLight : tDetail.mLightObjects)
             {
@@ -511,7 +506,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
             }
         }
 
-        if (tZoom >= kSignMinZoom && isSubLayerDrawn(kPartSigns))
+        if (isSubLayerDrawn(kPartSigns))
         {
             for (const AptSign& tSign : tDetail.mSigns)
             {
@@ -544,7 +539,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
 
 void AirportObjectsLayer::drawLabels(const drawContext& pContext)
 {
-    if (!pContext.mLabels || pContext.mView->zoom() < kStartLabelMinZoom)
+    if (!pContext.mLabels || !isSubLayerDrawn(kPartStartNames))  // park adlari: yerlesik esik 15.5
     {
         return;
     }

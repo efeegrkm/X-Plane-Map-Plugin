@@ -133,6 +133,8 @@ private:
     std::array<int, kTerrainClassCount> mDerivedCounts = {};
     std::map<std::string, int> mPaletteIds;  // palet metni -> TerrainStore numarasi
     std::vector<prime::XMap*> mInstances;  // yasayan harita nesneleri (acik ya da degil)
+    AircraftData mAircraft;                // acik harita yokken prefetch ucagi (dataref kaynagi)
+    bool mMaplessPrefetchLogged = false;   // haritasiz prefetch tek satir log (bir kez)
     float mLastPrefetch = -100.0f;
     bool mPrecacheRunning = false;
     std::string mNotice;

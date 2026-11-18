@@ -116,7 +116,8 @@ bool TextureHost::enable()
     prime::XMapConfig tConfig;
     tConfig.mName = "main";                        // ayarlar <veri>/maps/main/
     tConfig.mStyle = prime::WindowStyle::Texture;
-    tConfig.mMode = prime::XMapMode::Vfr;
+    // mMode verilmedi: 1.0.0'dan itibaren varsayilan Dark. Var olan map_settings.json'da
+    // mod kayitliysa dosyadan gelir; bu yalnizca ilk acilisi etkiler.
     tConfig.mUiVisible = true;                     // haritanin kendi seritleri ve panelleri (dokunun icinde)
     tConfig.mMouseInput = true;                    // fare / tekerlek bizden inject* ile gelir
     mXMap = mManager->addXMap(tConfig);

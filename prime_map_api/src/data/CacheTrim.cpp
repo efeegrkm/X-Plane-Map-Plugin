@@ -1,6 +1,7 @@
 #include "data/CacheTrim.h"
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <system_error>
 #include <unordered_map>
@@ -13,6 +14,8 @@ namespace fs = std::filesystem;
 
 // Silme durunca toplam bu orana iner (sinirin hemen altinda her karoda yeniden silinmesin)
 const double kTrimTarget = 0.9;
+// Bundan eski .tmp dosyalari cokerkenden kalmis sayilir ve silinir (canli yazimlar: saniyeler)
+const auto kStaleTempAge = std::chrono::hours(1);
 
 struct TileFiles
 {
@@ -53,11 +56,33 @@ CacheTrimResult trimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
     CacheTrimResult tResult;
     std::error_code tError;
     std::unordered_map<std::string, TileFiles> tTiles;
+    const auto tNow = fs::file_time_type::clock::now();
     for (fs::directory_iterator tIterator(pDirectory, tError), tEnd; !tError && tIterator != tEnd;
          tIterator.increment(tError))
     {
         if (!tIterator->is_regular_file(tError))
         {
+            continue;
+        }
+        // Cokerkenden kalan gecici dosya: 1 saatten eski .tmp'ler silinir (canli yazimlar dokunulmaz)
+        const std::string tFilename = tIterator->path().filename().string();
+        if (tFilename.size() > 4 && tFilename.compare(tFilename.size() - 4, 4, ".tmp") == 0)
+        {
+            const fs::file_time_type tTime = tIterator->last_write_time(tError);
+            if (tError)
+            {
+                tError.clear();
+                continue;
+            }
+            if (tNow - tTime > kStaleTempAge)
+            {
+                fs::remove(tIterator->path(), tError);
+                if (!tError)
+                {
+                    ++tResult.mRemovedTempFiles;
+                }
+                tError.clear();
+            }
             continue;
         }
         // Sadece karo adli dosyalar ("+47-123.<uzanti>")

@@ -239,8 +239,8 @@ private:
     const AirportGeometryStore& mAirports;
     AirportSearchPanel mSearchPanel;
     ToolPalette mToolPalette;
-    XMapMode mMapMode = XMapMode::Scenery;
-    XMapTheme mTheme = themeFor(XMapMode::Scenery);  // etkin tema (renk yazmalari uygulanmis)
+    XMapMode mMapMode = XMapMode::Dark;
+    XMapTheme mTheme = themeFor(XMapMode::Dark);  // etkin tema (renk yazmalari uygulanmis)
     std::map<prime::XMapLayer, Rgba> mLayerColors;   // API setColor yazmalari
     StatusBar mStatusBar;
     LabelPlacer mLabelPlacer;  // tum katmanlarin ortak etiket seyreltmesi

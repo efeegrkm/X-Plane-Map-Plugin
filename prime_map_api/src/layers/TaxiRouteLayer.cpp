@@ -13,7 +13,6 @@
 namespace
 {
 
-const double kMinZoom = 13.5;  // taksi agi: 1 tik erken
 const float kMinLabelLength = 40.0f;  // bundan kisa kenara ad yazilmaz (boxel)
 const Rgba kTaxiway = {0.85f, 0.45f, 1.00f, 0.75f};
 const Rgba kRunwayCrossing = {1.00f, 0.35f, 0.35f, 0.75f};
@@ -43,7 +42,7 @@ void TaxiRouteLayer::draw(const drawContext& pContext)
 {
     mEdges.clear();
     const XMapView& tView = *pContext.mView;
-    if (tView.zoom() < kMinZoom)
+    if (!isInZoomRange())  // yerlesik esik 13.5 (LayerTable tablosu)
     {
         return;
     }

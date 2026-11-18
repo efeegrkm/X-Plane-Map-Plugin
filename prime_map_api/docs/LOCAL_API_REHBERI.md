@@ -1,7 +1,7 @@
 # Prime XMap API — Sıfırdan Host Eklentisi Rehberi (yerel çalışma notu)
 
 > Bu dosya kişisel çalışma notudur, repoya pushlanmaz (.gitignore'da).
-> Amaç: prime-map-api kütüphanesini 0.26.2 sürümüyle sıfırdan bir X-Plane eklentisine
+> Amaç: prime-map-api kütüphanesini 1.0.0 sürümüyle sıfırdan bir X-Plane eklentisine
 > harita olarak gömmenin tüm adımlarını tek yerde toplamak. Referans örnek:
 > `examples/texture_host/`.
 

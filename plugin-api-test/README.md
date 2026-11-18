@@ -1,6 +1,6 @@
 # plugin_api_test
 
-Prime XMap API'yi (0.26) denemek için ayrı bir X-Plane 11 eklentisi: kendi UI penceresi (X-Plane çerçevesi:
+Prime XMap API'yi (1.0.0) denemek için ayrı bir X-Plane 11 eklentisi: kendi UI penceresi (X-Plane çerçevesi:
 **başlıktan taşınır, kenarlardan boyutlanır**) + içine gömülü harita. Bütün API çağrıları
 `src/XMapApiCalls.cpp` içindedir; liste: `docs/API_LISTESI.md`.
 
