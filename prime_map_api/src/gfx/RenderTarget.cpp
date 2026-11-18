@@ -4,7 +4,6 @@
 
 namespace Gfx
 {
-
 renderTarget::~renderTarget()
 {
     releaseFramebuffer();
@@ -19,7 +18,7 @@ unsigned int renderTarget::prepare(int pWidth, int pHeight)
     const bool tResized = !mTexture.isValid() || pWidth != mWidth || pHeight != mHeight;
     if (tResized)
     {
-        releaseFramebuffer();  // eski dokuya bagli FBO artik gecersiz
+        releaseFramebuffer();
         mTexture = Texture::createEmpty(pWidth, pHeight);
         mWidth = pWidth;
         mHeight = pHeight;
@@ -29,7 +28,6 @@ unsigned int renderTarget::prepare(int pWidth, int pHeight)
     {
         return mFramebuffer;
     }
-    // Ilk kez ya da baska bir baglam (pop-out / pop-in): bu baglam icin yeni FBO
     releaseFramebuffer();
     GLint tPreviousDraw = 0;
     GLint tPreviousRead = 0;
@@ -71,8 +69,6 @@ int renderTarget::height() const
 
 void renderTarget::releaseFramebuffer()
 {
-    // Sadece olusturuldugu baglam hala etkinse silinir (ContextVertexArray ile ayni kural);
-    // aksi halde ayni ad baska baglamda X-Plane'in kendi nesnesi olabilir: sadece unutulur.
     if (mFramebuffer != 0 && Gl::isLoaded() && mContext == Gl::currentContext() &&
         mGeneration == Gl::contextGeneration())
     {
@@ -81,5 +77,4 @@ void renderTarget::releaseFramebuffer()
     mFramebuffer = 0;
     mContext = nullptr;
 }
-
 }

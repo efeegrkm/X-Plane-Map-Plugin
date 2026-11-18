@@ -28,7 +28,6 @@ void AirportGeometryStore::startLoading(const std::string& pXPlaneDirectory, con
     mThread = std::thread(
         [this, pXPlaneDirectory]()
         {
-            // ARKA PLAN THREAD'i: burada XPLM fonksiyonu cagrilmaz
             mPendingSucceeded = mSource->loadAll(pXPlaneDirectory, mCancel, mPending, mPendingReport);
             mFinished.store(true);
         });
@@ -40,7 +39,7 @@ bool AirportGeometryStore::poll()
     {
         return false;
     }
-    mThread.join();  // thread bitti; join ayrica yazdiklarinin gorunur olmasini garanti eder
+    mThread.join();
     mLoading = false;
     takeResult();
     return true;
@@ -63,7 +62,6 @@ void AirportGeometryStore::takeResult()
         AirportGeometry& tAirport = mAirports[tIndex];
         if (tAirport.mReference.mLat == 0.0 && tAirport.mReference.mLon == 0.0 && !tAirport.mRunways.empty())
         {
-            // Kaynak referans vermediyse: pist uclarinin ortalamasi
             LatLon tSum = {0.0, 0.0};
             for (const Runway& tRunway : tAirport.mRunways)
             {

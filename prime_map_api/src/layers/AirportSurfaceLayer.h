@@ -1,7 +1,4 @@
-// Havalimani yuzeyleri: apron / taksi yolu, havalimani siniri, boya cizgileri.
-// Sekiller ilk gorundugunde BIR KEZ GPU'ya yuklenir (Gfx::StaticMesh,
-// Mercator); sonraki karelerde sadece olcek + kaydirma degisir.
-// Ayrintisi henuz okunmamis havalimaninda kesikli kutu gorunur.
+// Havalimani yuzeyleri, sinirlari ve boya cizgileri.
 #ifndef PRIME_MAP_SRC_LAYERS_AIRPORTSURFACELAYER_H
 #define PRIME_MAP_SRC_LAYERS_AIRPORTSURFACELAYER_H
 
@@ -27,13 +24,13 @@ public:
 private:
     struct GpuAirport
     {
-        const LoadedAirport* mSource = nullptr;  // hangi ayrintidan uretildi
-        double mOriginX = 0.0;                   // Mercator
+        const LoadedAirport* mSource = nullptr;
+        double mOriginX = 0.0;
         double mOriginY = 0.0;
-        Gfx::StaticMesh mFills;                  // yuzey dolgulari (ucgen)
-        Gfx::StaticMesh mEdges;                  // yuzey kenarlari (cizgi)
-        Gfx::StaticMesh mBoundaries;             // havalimani siniri (cizgi)
-        Gfx::StaticMesh mLines;                  // boya cizgileri (cizgi)
+        Gfx::StaticMesh mFills;
+        Gfx::StaticMesh mEdges;
+        Gfx::StaticMesh mBoundaries;
+        Gfx::StaticMesh mLines;
         uint64_t mLastFrame = 0;
     };
 
@@ -45,7 +42,7 @@ private:
     std::vector<int> mQuery;
     std::vector<int> mVisible;
     std::unordered_map<int, GpuAirport> mGpu;
-    std::vector<const LoadedAirport*> mDrawn;  // son karede cizilenler (merkeze yakin once)
+    std::vector<const LoadedAirport*> mDrawn;
     uint64_t mFrame = 0;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_AIRPORTSURFACELAYER_H
+#endif

@@ -4,7 +4,6 @@
 
 namespace Gfx
 {
-
 ContextVertexArray::~ContextVertexArray()
 {
     release();
@@ -39,9 +38,8 @@ unsigned int ContextVertexArray::get(const std::function<void()>& pSetup)
     if (mArray != 0 && mContext == tContext && mGeneration == Gl::contextGeneration())
     {
         Gl::bindVertexArray(mArray);
-        return mArray;  // ayni baglam, arada baska baglama gecilmedi: gecerli
+        return mArray;
     }
-    // Baglam degisti (pop-out / pop-in) ya da hic olusturulmadi
     release();
     Gl::genVertexArrays(1, &mArray);
     Gl::bindVertexArray(mArray);
@@ -53,10 +51,6 @@ unsigned int ContextVertexArray::get(const std::function<void()>& pSetup)
 
 void ContextVertexArray::release()
 {
-    // Sadece olusturuldugu baglam hala etkinse ve arada baglam degismediyse
-    // silinir. Nesil degistiyse ayni kimlik yeni (baska) bir baglama ait
-    // olabilir; o adi silmek X-Plane'in kendi VAO'sunu silebilir. O durumda
-    // sadece unutulur (pop-out basina birkac kucuk ad bosta kalir, zararsiz).
     if (mArray != 0 && Gl::isLoaded() && mContext == Gl::currentContext() &&
         mGeneration == Gl::contextGeneration())
     {
@@ -65,5 +59,4 @@ void ContextVertexArray::release()
     mArray = 0;
     mContext = nullptr;
 }
-
 }

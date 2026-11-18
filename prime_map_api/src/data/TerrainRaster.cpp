@@ -18,23 +18,17 @@
 
 namespace
 {
-
 const char kMagic[4] = {'M', 'P', 'T', 'R'};
-// 2: rakim raster'i eklendi (VFR). 3: golge ve rakim raster'lari cikti (rakim
-// ayri dosyada, TerrainElevation). 4: vektor alan katmani (orman, yerlesim) eklendi.
-// Eski surum yeniden uretilir.
 const uint32_t kFileVersion = 4;
-const double kBuiltUpMix = 0.55;  // VFR / IFR: yerlesim alaninda kara rengi bu oranda yerlesim rengine karisir
+const double kBuiltUpMix = 0.55;
 
 const double kPi = 3.14159265358979323846;
 const double kMetersPerDegreeLat = 110574.0;
-const double kMetersPerDegree = 111320.0;  // metre / boylam derecesi (yaklasik; burada yeterli)
+const double kMetersPerDegree = 111320.0;
 const double kFeetPerMeter = 3.28084;
-const double kCoastlineShade = 0.45;  // kiyi cizgisi rengi: su renginin bu orani (koyu su tonu)
-// Derinlik koyulasmasinin kanal agirliklari (R, G, B): esit koyulasma suyu griye ceviriyordu
-// (onizlemede kirli leke); mavi az koyulasinca derin su doygun koyu mavi kalir
+const double kCoastlineShade = 0.45;
 const double kDepthChannelWeight[3] = {1.0, 0.8, 0.5};
-const int kMaxSamplesPerAxis = 4;     // kucultmede piksel basina en fazla 4x4 ornek
+const int kMaxSamplesPerAxis = 4;
 
 int clampInt(int pValue, int pLow, int pHigh)
 {
@@ -43,7 +37,7 @@ int clampInt(int pValue, int pLow, int pHigh)
 
 void writeU32(std::ofstream& pFile, uint32_t pValue)
 {
-    pFile.write(reinterpret_cast<const char*>(&pValue), sizeof(pValue));  // Windows/x86: kucuk-endian
+    pFile.write(reinterpret_cast<const char*>(&pValue), sizeof(pValue));
 }
 
 bool readU32(std::ifstream& pFile, uint32_t* pValue)
@@ -51,11 +45,8 @@ bool readU32(std::ifstream& pFile, uint32_t* pValue)
     return static_cast<bool>(pFile.read(reinterpret_cast<char*>(pValue), sizeof(*pValue)));
 }
 
-// Piksel koordinatli ucgeni pCells'e (pSize x pSize) boyar.
-// Sinif raster'i ve yakin zoom parcalari ayni doldurma kuralini kullanir.
 void fillCells(std::vector<uint8_t>& pCells, int pSize, const double pX[3], const double pY[3], uint8_t pValue)
 {
-    // Yon fark etmeksizin ayni testle doldurmak icin isaretli alan
     const double tArea = (pX[1] - pX[0]) * (pY[2] - pY[0]) - (pX[2] - pX[0]) * (pY[1] - pY[0]);
     if (std::fabs(tArea) < 1e-12)
     {
@@ -84,15 +75,13 @@ void fillCells(std::vector<uint8_t>& pCells, int pSize, const double pX[3], cons
         }
     }
 }
+}
 
-}  // namespace
-
-// Sayisal kisim TerrainPlanWarp'ta (testli); burada stil kontrolu
 struct WarpPlan
 {
     bool mActive = false;
-    int mPad = 0;   // cikti pikseli: en buyuk kayma + 1
-    int mStep = 1;  // kayma alaninin hesaplandigi izgara adimi (piksel), arasi cift dogrusal
+    int mPad = 0;
+    int mStep = 1;
 };
 
 WarpPlan planWarp(const TerrainPalette& pPalette, const TerrainImageStyle& pStyle, double pMetersPerPixelX,
@@ -110,13 +99,9 @@ WarpPlan planWarp(const TerrainPalette& pPalette, const TerrainImageStyle& pStyl
     return tPlan;
 }
 
-// Payli dokunun piksel basina kaymasi (piksel; +x dogu, +y GUNEY = satir artar).
-// Izgara pStep adimla hesaplanir, arasi cift dogrusal okunur; gurultu sadece izgara
-// noktalarinda hesaplanir (tam piksel basina cagrilmaz).
 class WarpField
 {
 public:
-    // pLonOf / pLatOf: payli dokunun (sutun, satir) piksel MERKEZININ boylam / enlemi
     template <typename TLonOf, typename TLatOf>
     void build(int pPadded, int pStep, const TerrainWarpParams& pParams, double pMetersPerPixelX,
                double pMetersPerPixelY, TLonOf pLonOf, TLatOf pLatOf)
@@ -140,7 +125,6 @@ public:
         }
     }
 
-    // kayma (piksel); izgara disinda kenar degeri
     void offsetAt(int pColumn, int pRow, double* pDx, double* pDy) const
     {
         const double tGX = static_cast<double>(pColumn) / mStep;
@@ -165,13 +149,12 @@ private:
     std::vector<float> mDy;
 };
 
-// Dokunun bir pikselinin yerdeki boyu. pDegreesPerPixelX/Y: derece; pLatitude: dokunun orta enlemi
 LandBlendPlan planForImage(const TerrainPalette& pPalette, const TerrainImageStyle& pStyle,
                            double pDegreesPerPixelX, double pDegreesPerPixelY, double pLatitude)
 {
     if (pStyle.mStyle != TerrainStyle::Classes)
     {
-        return LandBlendPlan();  // VFR / IFR: sinif rengi yok, yumusatma yok
+        return LandBlendPlan();
     }
     const double tCos = std::max(0.05, std::cos(pLatitude * kPi / 180.0));
     return planLandBlend(pPalette.blendMeters(), pDegreesPerPixelX * kMetersPerDegree * tCos,
@@ -211,7 +194,6 @@ void TerrainRaster::fillTriangle(const double pLon[3], const double pLat[3], Ter
 TerrainClass TerrainRaster::warpedClassAt(int pX, int pY, double pOffsetCellsX, double pOffsetCellsY) const
 {
     const TerrainClass tOwn = classAt(pX, pY);
-    // Kara-kara kurali: su ve veri yok kayma ile yer degistirmez, kiyi aynen kalir
     if (tOwn == TerrainClass::None || tOwn == TerrainClass::Water)
     {
         return tOwn;
@@ -286,18 +268,15 @@ TerrainClass TerrainRaster::areaClassAt(int pX, int pY, TerrainClass pOwn, int p
 
 namespace
 {
-
-// Goruntu uretiminin ara sonuclari. Payli alan pPadded x pPadded;
-// cikti pikseli (c, r) = payli (c + mPad, r + mPad).
 struct ImageBuffers
 {
     int mOutSize = 0;
     int mPad = 0;
     int mPadded = 0;
-    std::vector<float> mLandFraction;  // payli: kara orani 0..1, -1 = veri yok (None)
-    std::vector<float> mCoverage;      // payli: kaplama orani 0..1 (alfa)
-    std::vector<float> mLandRgb;       // cikti: Classes stilinde kara rengi (3 kanal, 0..255)
-    std::vector<float> mBuiltUp;       // cikti: kara orneklerinin yerlesim alani orani 0..1 (VFR / IFR sarisi)
+    std::vector<float> mLandFraction;
+    std::vector<float> mCoverage;
+    std::vector<float> mLandRgb;
+    std::vector<float> mBuiltUp;
     double mMetersPerPixelX = 1.0;
     double mMetersPerPixelY = 1.0;
     double mLatitude = 0.0;
@@ -323,7 +302,6 @@ struct ImageBuffers
     }
 };
 
-// Kiyi seridinin genisligi (doku pikseli); metre, piksel tavaniyla sinirli. LandWater ve kapaliysa 0.
 double coastBandPixels(const TerrainPalette& pPalette, const TerrainImageStyle& pStyle, double pMetersPerPixel)
 {
     const TerrainWaterParams& tWater = pPalette.water();
@@ -335,7 +313,6 @@ double coastBandPixels(const TerrainPalette& pPalette, const TerrainImageStyle& 
     return tPixels >= 0.5 ? tPixels : 0.0;
 }
 
-// Su islemlerinin istedigi pay (piksel): kiyi cizgisi 3x3'e bakar (1), serit kendi genisligi kadar
 int coastPad(const TerrainPalette& pPalette, const TerrainImageStyle& pStyle, double pMetersPerPixel)
 {
     int tPad = pPalette.water().mCoastline ? 1 : 0;
@@ -354,16 +331,15 @@ TerrainColor scaled(const TerrainColor& pColor, double pFactor)
             static_cast<uint8_t>(std::clamp(pColor.mB * pFactor, 0.0, 255.0))};
 }
 
-// Ara sonuclardan RGBA
 void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, const TerrainImageStyle& pStyle,
                   const ElevationTiles* pElevation, std::vector<uint8_t>* pRgba)
 {
     const int tSize = pBuffers.mOutSize;
     pRgba->assign(static_cast<size_t>(tSize) * tSize * 4, 0);
     const TerrainWaterParams& tWater = pPalette.water();
-    const bool tWaterTone = pStyle.mStyle != TerrainStyle::LandWater;  // IFR: duz su, sadece kiyi cizgisi
+    const bool tWaterTone = pStyle.mStyle != TerrainStyle::LandWater;
 
-    std::optional<TerrainProfile::ScopedStage> tProfileStage;  // olcum (TerrainProfile)
+    std::optional<TerrainProfile::ScopedStage> tProfileStage;
     tProfileStage.emplace(TerrainProfile::Stage::ImageCoast);
     std::vector<float> tLine;
     if (tWater.mCoastline && tWater.mCoastlineStrength > 0.0)
@@ -383,7 +359,6 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
     }
 
     tProfileStage.emplace(TerrainProfile::Stage::ImageCompose);
-    // Rakim: piksel boyuna uygun piramit seviyesi (uzakta kaba seviye: ortusme / parazit yok)
     std::optional<ElevationSampler> tSampler;
     double tExaggeration = 0.0;
     const ElevationGrid* tCenter = pElevation ? pElevation->mTiles[1][1] : nullptr;
@@ -409,7 +384,7 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
             const double tLandFraction = pBuffers.mLandFraction[tPadded];
             if (tLandFraction < 0.0)
             {
-                continue;  // veri yok: saydam (alttaki kaba seviye gorunur)
+                continue;
             }
             const double tU = pBuffers.mU0 + (tColumn + 0.5) * pBuffers.mDu;
             const double tV = pBuffers.mV0 + (tRow + 0.5) * pBuffers.mDv;
@@ -422,10 +397,9 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
                 double tDhDv = 0.0;
                 tSampler->sample(tU, tV, &tHeight, &tDhDu, &tDhDv);
                 tSlopeEast = tDhDu / tMetersPerU;
-                tSlopeNorth = -tDhDv / tMetersPerV;  // v guneye artar
+                tSlopeNorth = -tDhDv / tMetersPerV;
             }
 
-            // Kara rengi ve kabartma
             double tLand[3] = {0.0, 0.0, 0.0};
             if (tLandFraction > 0.0)
             {
@@ -452,7 +426,6 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
                 const float tBuiltUp = pBuffers.mBuiltUp[static_cast<size_t>(tRow) * tSize + tColumn];
                 if (pStyle.mStyle != TerrainStyle::Classes && pStyle.mHasBuiltUp && tBuiltUp > 0.0f)
                 {
-                    // H-01: harita setColor(TerrainBuiltUp) ezmesi varsa onu kullan, yoksa tema rengi
                     const TerrainColor tBuiltUpColor =
                         pPalette.hasBuiltUpColor() ? pPalette.builtUpColor() : pStyle.mBuiltUp;
                     const double tMix = kBuiltUpMix * tBuiltUp;
@@ -471,7 +444,6 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
                 }
             }
 
-            // Su rengi: derinlik tonu ve kiyi seridi (sadece Scenery / VFR)
             double tWaterRgb[3] = {static_cast<double>(tWaterBase.mR), static_cast<double>(tWaterBase.mG),
                                    static_cast<double>(tWaterBase.mB)};
             if (tLandFraction < 1.0 && tWaterTone)
@@ -483,7 +455,6 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
                     tDistance.empty() ? 0.0 : coastBandLightening(tDistance[tPadded], tBandPixels, tWater);
                 for (int tChannel = 0; tChannel < 3; ++tChannel)
                 {
-                    // Derin su griye degil koyu maviye gitsin: kirmizi en cok, mavi en az koyulasir
                     tWaterRgb[tChannel] *= 1.0 - tDarken * kDepthChannelWeight[tChannel];
                     tWaterRgb[tChannel] += (255.0 - tWaterRgb[tChannel]) * tLighten;
                 }
@@ -510,8 +481,7 @@ void composeImage(const ImageBuffers& pBuffers, const TerrainPalette& pPalette, 
         }
     }
 }
-
-}  // namespace
+}
 
 void TerrainRaster::buildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize, const TerrainPalette& pPalette,
                                const TerrainImageStyle& pStyle, std::vector<uint8_t>* pRgba,
@@ -522,9 +492,9 @@ void TerrainRaster::buildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
     const int tSamplesX = std::max(1, std::min(kMaxSamplesPerAxis, static_cast<int>(tBlockX)));
     const int tSamplesY = std::max(1, std::min(kMaxSamplesPerAxis, static_cast<int>(tBlockY)));
 
-    const double tCenterLat = mSouth + 1.0 - (pY0 + pY1) * 0.5 / kSize;  // satir 0 = kuzey
+    const double tCenterLat = mSouth + 1.0 - (pY0 + pY1) * 0.5 / kSize;
     const double tCos = std::max(0.05, std::cos(tCenterLat * kPi / 180.0));
-    const double tMppX = tBlockX / kSize * kMetersPerDegree * tCos;  // pikselin yerdeki boyu (metre)
+    const double tMppX = tBlockX / kSize * kMetersPerDegree * tCos;
     const double tMppY = tBlockY / kSize * kMetersPerDegree;
     const LandBlendPlan tPlan = planForImage(pPalette, pStyle, tBlockX / kSize, tBlockY / kSize, tCenterLat);
     const WarpPlan tWarpPlan = planWarp(pPalette, pStyle, tMppX, tMppY);
@@ -536,7 +506,6 @@ void TerrainRaster::buildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
     {
         tField.reset(tPadded, tPlan.mFactor);
     }
-    // Kayma alani: cikti piksel izgarasinda, izgara adimli (gurultu cagrisi maliyeti icin)
     WarpField tWarpField;
     if (tWarpPlan.mActive)
     {
@@ -571,9 +540,8 @@ void TerrainRaster::buildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
     tBuffers.mDu = tBlockX / kSize;
     tBuffers.mDv = tBlockY / kSize;
 
-    std::optional<TerrainProfile::ScopedStage> tProfileStage;  // olcum (TerrainProfile)
+    std::optional<TerrainProfile::ScopedStage> tProfileStage;
     tProfileStage.emplace(TerrainProfile::Stage::ImageClasses);
-    // Kara ornekleri yumusatma alanina da eklenir (su ve None eklenmez)
     std::vector<int> tLandCounts(static_cast<size_t>(pOutSize) * pOutSize, 0);
     std::vector<int> tBuiltUpCounts(static_cast<size_t>(pOutSize) * pOutSize, 0);
     for (int tRow = -tPad; tRow < pOutSize + tPad; ++tRow)
@@ -612,7 +580,7 @@ void TerrainRaster::buildImage(int pX0, int pY0, int pX1, int pY1, int pOutSize,
                     }
                     ++tLand;
                     bool tIsBuiltUp = false;
-                    tClass = areaClassAt(tX, tY, tClass, pAreaMask, &tIsBuiltUp);  // vektor alani (orman, yerlesim)
+                    tClass = areaClassAt(tX, tY, tClass, pAreaMask, &tIsBuiltUp);
                     tBuiltUp += tIsBuiltUp ? 1 : 0;
                     const TerrainColor& tColor = tColors[static_cast<int>(tClass)];
                     if (tPlan.mPad > 0)
@@ -691,10 +659,8 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
     const int tPad = tPlan.mPad + tWarpPlan.mPad + coastPad(pPalette, pStyle, tMppY);
     const int tPadded = pOutSize + 2 * tPad;
 
-    std::optional<TerrainProfile::ScopedStage> tProfileStage;  // olcum (TerrainProfile)
+    std::optional<TerrainProfile::ScopedStage> tProfileStage;
     tProfileStage.emplace(TerrainProfile::Stage::ImageDetail);
-    // Ucgenler komsu 1/32 derece parcalara tasindigi icin payli dikdortgenin kapsadigi
-    // tum ebeveyn parcalar toplanir (ayni ucgen birden cok parcade olabilir: tekrarlar atilir)
     const double tPadDegrees = tPad * tDegreesPerPixel;
     const double tLeft = static_cast<double>(tChunkColumn) / tChunks - tPadDegrees;
     const double tRight = static_cast<double>(tChunkColumn + 1) / tChunks + tPadDegrees;
@@ -717,13 +683,12 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
     std::sort(tTriangleList.begin(), tTriangleList.end());
     tTriangleList.erase(std::unique(tTriangleList.begin(), tTriangleList.end()), tTriangleList.end());
 
-    // Payli sinif hucresi: piksel basina 1 sinif; karonun disi None = veri yok
     std::vector<uint8_t> tCells(static_cast<size_t>(tPadded) * tPadded, static_cast<uint8_t>(TerrainClass::None));
     for (const uint32_t tIndex : tTriangleList)
     {
         double tLon[3];
         double tLat[3];
-        pTriangles.corners(tIndex, tLon, tLat);  // karonun kosesine gore derece
+        pTriangles.corners(tIndex, tLon, tLat);
         double tX[3];
         double tY[3];
         for (int tCorner = 0; tCorner < 3; ++tCorner)
@@ -734,9 +699,6 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
         fillCells(tCells, tPadded, tX, tY, static_cast<uint8_t>(pTriangles.classOf(tIndex)));
     }
 
-    // Vektor alanlari: ucgenlerden cok daha ayrintili sinirlar.
-    // Sadece karaya, dislama alanlari disinda, maskenin izin verdigi siniflar.
-    // Piksel merkezinin karo birimi: x = x0 + (c + 0.5) / ppu
     std::vector<uint8_t> tBuiltUpCells;
     if (pVectors && pAreaMask != 0)
     {
@@ -772,9 +734,6 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
         }
     }
 
-    // Bukulmus sinif tamponu: kara-kara kurali (su ve None kayma ile yer degistirmez).
-    // Pay bolgesinin en dis tWarpPlan.mPad pikselinde kayma tamponun disina dusebilir (sinirlanir);
-    // bu pikseller sadece blur kaynagidir, ic piksellerin sonucunu etkilemez.
     std::vector<uint8_t> tWarped;
     WarpField tWarpField;
     if (tWarpPlan.mActive)
@@ -816,7 +775,7 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
     }
     else
     {
-        tWarped = tCells;  // bukme kapali: ayni tampon
+        tWarped = tCells;
     }
 
     tProfileStage.emplace(TerrainProfile::Stage::ImageBlur);
@@ -840,8 +799,6 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
         tField.blur(tPlan.mHalfX, tPlan.mHalfY);
     }
 
-    // Ara sonuclar: kara orani / kaplama payli alanda (piksel basina tek sinif: 0 veya 1).
-    // Bukme kara-suyu degistirmedigi icin tCells ile ayni.
     ImageBuffers tBuffers;
     tBuffers.reset(pOutSize, tPad);
     tBuffers.mMetersPerPixelX = tMppX;
@@ -879,7 +836,7 @@ void TerrainRaster::buildDetailImage(const TerrainTriangles& pTriangles, int pCh
                               static_cast<double>(tOwnColor.mB)};
             if (tPlan.mPad > 0)
             {
-                tField.colorAt(tColumn, tRow, tRgb);  // false ise kendi rengi kalir
+                tField.colorAt(tColumn, tRow, tRgb);
             }
             float* tOut = &tBuffers.mLandRgb[(static_cast<size_t>(tOutRow) * pOutSize + tOutColumn) * 3];
             tOut[0] = static_cast<float>(tRgb[0]);
@@ -904,7 +861,6 @@ void TerrainRaster::bleedTransparent(int pSize, std::vector<uint8_t>* pRgba)
     {
         return tData + (pRow * tSize + pColumn) * 4;
     };
-    // Satir icinde: kaynak hep ORIJINAL opak piksel (soldaki opaklarin yeri once isaretlenir)
     std::vector<uint8_t> tRowHasOpaque(tSize, 0);
     std::vector<int> tNearest(tSize, -1);
     for (size_t tRow = 0; tRow < tSize; ++tRow)
@@ -920,7 +876,7 @@ void TerrainRaster::bleedTransparent(int pSize, std::vector<uint8_t>* pRgba)
         }
         if (tLast < 0)
         {
-            continue;  // tamamen saydam satir: 2. adimda
+            continue;
         }
         tRowHasOpaque[tRow] = 1;
         int tNext = -1;
@@ -944,7 +900,6 @@ void TerrainRaster::bleedTransparent(int pSize, std::vector<uint8_t>* pRgba)
             tTarget[2] = tFrom[2];
         }
     }
-    // Tamamen saydam satirlar: en yakin dolu satirdan renk alinir
     std::vector<int> tAbove(tSize, -1);
     int tLastFilled = -1;
     for (size_t tRow = 0; tRow < tSize; ++tRow)
@@ -971,7 +926,7 @@ void TerrainRaster::bleedTransparent(int pSize, std::vector<uint8_t>* pRgba)
         }
         if (tSource < 0)
         {
-            return;  // tamamen saydam goruntu
+            return;
         }
         for (size_t tColumn = 0; tColumn < tSize; ++tColumn)
         {
@@ -983,7 +938,6 @@ void TerrainRaster::bleedTransparent(int pSize, std::vector<uint8_t>* pRgba)
 
 bool TerrainRaster::save(const std::string& pPath, const std::string& pKey) const
 {
-    // Atomik yazi: iki isci ayni karoyu yazsa bile yarim dosya gorunmez (onbellek paylasimi)
     return writeFileAtomic(pPath,
                            [this, &pKey](std::ofstream& tFile)
                            {
@@ -991,10 +945,9 @@ bool TerrainRaster::save(const std::string& pPath, const std::string& pKey) cons
                                writeU32(tFile, kFileVersion);
                                writeU32(tFile, static_cast<uint32_t>(pKey.size()));
                                tFile.write(pKey.data(), static_cast<std::streamsize>(pKey.size()));
-                               writeU32(tFile, static_cast<uint32_t>(mWest + 1000));  // eksi sayi olmasin
+                               writeU32(tFile, static_cast<uint32_t>(mWest + 1000));
                                writeU32(tFile, static_cast<uint32_t>(mSouth + 1000));
 
-                               // Sinif raster'i: (tekrar sayisi uint16, deger uint8) ciftleri (RLE)
                                std::vector<uint8_t> tRuns;
                                size_t tIndex = 0;
                                while (tIndex < mClasses.size())
@@ -1015,7 +968,6 @@ bool TerrainRaster::save(const std::string& pPath, const std::string& pKey) cons
                                tFile.write(reinterpret_cast<const char*>(tRuns.data()),
                                            static_cast<std::streamsize>(tRuns.size()));
 
-                               // Alan katmani (bossa 0 bayt): ayni RLE
                                tRuns.clear();
                                tIndex = 0;
                                while (tIndex < mAreas.size())
@@ -1052,7 +1004,7 @@ bool TerrainRaster::load(const std::string& pPath, const std::string& pKey)
     std::string tKey(tKeySize, '\0');
     if (!tFile.read(&tKey[0], tKeySize) || tKey != pKey)
     {
-        return false;  // kaynak DSF'ler degismis: yeniden uretilmeli
+        return false;
     }
     uint32_t tWest = 0;
     uint32_t tSouth = 0;

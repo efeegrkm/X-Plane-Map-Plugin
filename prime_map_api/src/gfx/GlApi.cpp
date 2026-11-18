@@ -5,7 +5,6 @@
 
 namespace
 {
-
 using GenBuffersFn = void(APIENTRY*)(GLsizei, GLuint*);
 using DeleteBuffersFn = void(APIENTRY*)(GLsizei, const GLuint*);
 using BindBufferFn = void(APIENTRY*)(GLenum, GLuint);
@@ -42,8 +41,6 @@ using BindFramebufferFn = void(APIENTRY*)(GLenum, GLuint);
 using FramebufferTexture2DFn = void(APIENTRY*)(GLenum, GLenum, GLenum, GLuint, GLint);
 using checkFramebufferStatusFn = GLenum(APIENTRY*)(GLenum);
 
-// Yuklenen adresler. Surec boyunca tek bir openGL surucusu oldugu icin
-// global tutulmalari dogal (X-Plane'in butun baglamlari ayni surucuden).
 struct Functions
 {
     GenBuffersFn mGenBuffers = nullptr;
@@ -88,8 +85,6 @@ bool gLoaded = false;
 void* gLastContext = nullptr;
 unsigned int gContextGeneration = 0;
 
-// Bir fonksiyonun adresini surucuden al. wglGetProcAddress hata durumunda
-// nullptr disinda 1, 2, 3 veya -1 de donebilir; hepsi "yok" demek.
 template <typename TFunction>
 bool loadOne(const char* pName, TFunction& pOut, std::string& pMissing)
 {
@@ -115,12 +110,10 @@ std::string glString(GLenum pName)
     const GLubyte* tText = glGetString(pName);
     return tText ? reinterpret_cast<const char*>(tText) : "?";
 }
-
 }
 
 namespace Gl
 {
-
 bool load(std::string& pOutError)
 {
     if (gLoaded)
@@ -128,7 +121,6 @@ bool load(std::string& pOutError)
         return true;
     }
 
-    // Surum: openGL 3.3 ve ustu gerekli (shader dili 3.30, vertex array)
     GLint tMajor = 0;
     GLint tMinor = 0;
     glGetIntegerv(kMajorVersion, &tMajor);
@@ -210,7 +202,7 @@ void noteContext()
     if (tContext != gLastContext)
     {
         gLastContext = tContext;
-        ++gContextGeneration;  // pop-out / pop-in: eski VAO'lar bu baglamda gecersiz
+        ++gContextGeneration;
     }
 }
 
@@ -302,7 +294,6 @@ void enableVertexAttribArray(GLuint pIndex)
 void vertexAttribPointer(GLuint pIndex, GLint pSize, GLenum pType, GLboolean pNormalized, GLsizei pStride,
                          std::size_t pOffset)
 {
-    // openGL bu parametreyi isaretci olarak ister ama anlami "buffer icindeki bayt konumu"
     gFunctions.mVertexAttribPointer(pIndex, pSize, pType, pNormalized, pStride,
                                     reinterpret_cast<const void*>(pOffset));
 }
@@ -404,5 +395,4 @@ void uniform4(GLint pLocation, float pX, float pY, float pZ, float pW)
 {
     gFunctions.mUniform4f(pLocation, pX, pY, pZ, pW);
 }
-
 }

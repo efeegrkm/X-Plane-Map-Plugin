@@ -1,7 +1,4 @@
-// Ayar dosyasi (JSON bicimi): { "bolum": { "anahtar": "deger" } }. Degerler tirnak icinde
-// saklanir; JSON olmayan metin yok sayilir.
-// X-Plane'e bagimli DEGIL. Sayilar her zaman nokta ile yazilir/okunur
-// ("C" yerel ayari; Turkce Windows'ta da 41.5).
+// Bolumlu anahtar-deger ayar deposu; JSON olarak okunur ve yazilir.
 #ifndef PRIME_MAP_SRC_SETTINGS_H
 #define PRIME_MAP_SRC_SETTINGS_H
 
@@ -12,17 +9,12 @@
 class Settings
 {
 public:
-    // Dosyayi okur. Dosya yoksa false doner ve ayarlar bos kalir
-    // (bu bir hata degil: ilk acilista dosya henuz yoktur).
     bool load(const std::string& pPath);
 
-    // Metinden okuma (dosyasiz; API ice aktarma). loadText onceki her seyi siler, mergeText ustune yazar.
     void loadText(const std::string& pText);
     void mergeText(const std::string& pText);
-    // Metin olarak (JSON). pSections bos: butun bolumler; "layers*" on ekle eslesir.
     std::string toText(const std::vector<std::string>& pSections) const;
 
-    // Son Load edilen (veya setPath ile verilen) dosyaya yazar
     bool save() const;
 
     void setPath(const std::string& pPath);
@@ -40,15 +32,12 @@ public:
     void setDouble(const std::string& pSection, const std::string& pKey, double pValue);
     void setInt(const std::string& pSection, const std::string& pKey, int pValue);
     void setBool(const std::string& pSection, const std::string& pKey, bool pValue);
-    // Bolumu butun anahtarlariyla siler (bastan yazilacak bolumler icin: [layer_zoom])
     void clearSection(const std::string& pSection);
 
-    // Bolumun anahtar/deger ciftleri (yoksa nullptr); API [layer_colors] okumasi icin
     const std::map<std::string, std::string>* findSection(const std::string& pSection) const;
 
 private:
     std::string mPath;
-    // bolum -> (anahtar -> deger); std::map oldugu icin dosyada alfabetik sirada yazilir
     std::map<std::string, std::map<std::string, std::string>> mValues;
 };
-#endif  // PRIME_MAP_SRC_SETTINGS_H
+#endif

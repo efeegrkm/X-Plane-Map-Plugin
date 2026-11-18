@@ -8,15 +8,10 @@
 
 namespace
 {
-
-// DME'nin eslestigi istasyona en fazla bu kadar uzak olabilir.
-// ILS'in DME'si genelde suzulus yolu anteninin yaninda, localizer ise pistin
-// obur ucunda: pist boyu kadar (birkac km) fark olur.
 const double kVorDmeMaxNm = 1.0;
 const double kIlsDmeMaxNm = 3.0;
-const int kLowestVhfNavFrequency = 10800;  // 108.00 mHz(nav.dat: MHz * 100)
-
-}  // namespace
+const int kLowestVhfNavFrequency = 10800;
+}
 
 void decodeLocalizerCourse(double pRaw, float* pOutTrue, short* pOutMagnetic)
 {
@@ -67,7 +62,7 @@ AirportKind airportKindFromName(const std::string& pName, std::string* pOutClean
                 break;
             default:
                 *pOutCleanName = pName;
-                return AirportKind::Land;  // taninmayan onek: adi oldugu gibi birak
+                return AirportKind::Land;
         }
         const size_t tStart = pName.find_first_not_of(' ', 3);
         *pOutCleanName = (tStart == std::string::npos) ? std::string() : pName.substr(tStart);
@@ -79,7 +74,7 @@ AirportKind airportKindFromName(const std::string& pName, std::string* pOutClean
 
 bool isPlaceholderId(const std::string& pId)
 {
-    return pId.find_first_not_of('-') == std::string::npos;  // bos dizgi de buraya duser
+    return pId.find_first_not_of('-') == std::string::npos;
 }
 
 bool isTacanChannel(int pFrequency)
@@ -141,7 +136,6 @@ void NavDatabase::query(NavKind pKind, const GeoBounds& pBounds, std::vector<int
 
 void NavDatabase::pairDmes()
 {
-    // Kimlik -> o kimlikteki VOR/ILS/LOC kayitlari
     std::unordered_multimap<std::string, int> tStations;
     for (int tIndex = 0; tIndex < count(); ++tIndex)
     {
@@ -176,7 +170,6 @@ void NavDatabase::pairDmes()
 
 void NavDatabase::buildIndex()
 {
-    // Kayitlari turlerine gore ayir (gizli DME'ler izgaraya girmez)
     std::vector<GridItem> tItems[kNavKindCount];
     for (int tRecordIndex = 0; tRecordIndex < count(); ++tRecordIndex)
     {

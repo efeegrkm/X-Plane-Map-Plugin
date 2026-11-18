@@ -10,12 +10,10 @@
 
 namespace
 {
-
 const int kPadding = 8;
 const double kMetersPerNm = 1852.0;
 const double kScaleBarMaxBoxels = 120.0;
-
-}  // namespace
+}
 
 void StatusBar::draw(Gfx::Canvas& pCanvas, const RectI& pArea, const XMapView& pView,
                      const std::optional<LatLon>& pCursor, std::string_view pMessage)
@@ -31,7 +29,6 @@ void StatusBar::draw(Gfx::Canvas& pCanvas, const RectI& pArea, const XMapView& p
 
     const int tBaseY = (mStrip.mTop + mStrip.mBottom) / 2 - Ui::fontHeight() / 2 + 1;
 
-    // Sol: imlecin altindaki nokta
     if (pCursor)
     {
         Ui::text(mStrip.mLeft + kPadding, tBaseY, formatLatLon(*pCursor), Ui::kTextWhite);
@@ -41,19 +38,16 @@ void StatusBar::draw(Gfx::Canvas& pCanvas, const RectI& pArea, const XMapView& p
         Ui::text(mStrip.mLeft + kPadding, tBaseY, "-", Ui::kTextDim);
     }
 
-    // Orta: zoom seviyesi
     const std::string tZoom = std::format("Zoom {:.1f}", pView.zoom());
     const int tZoomWidth = Ui::textWidth(tZoom);
     const int tZoomX = (mStrip.mLeft + mStrip.mRight) / 2 - tZoomWidth / 2;
     Ui::text(tZoomX, tBaseY, tZoom, Ui::kTextGrey);
 
-    // Zoom'un sagi: durum yazisi (yukleme, teshis)
     if (!pMessage.empty())
     {
         Ui::text(tZoomX + tZoomWidth + 24, tBaseY, pMessage, Ui::kTextYellow);
     }
 
-    // Sag: olcek cubugu
     drawScaleBar(pCanvas, pView, mStrip.mRight - kPadding, tBaseY);
 }
 
@@ -79,7 +73,6 @@ void StatusBar::drawScaleBar(Gfx::Canvas& pCanvas, const XMapView& pView, int pR
     const float tBarLeft = tBarRight - tLengthBoxels;
     const float tBarY = pBaseY + 2.0f;
 
-    // |-------|  seklinde: yatay cizgi + iki uc cizgisi
     Gfx::Mesh tBar;
     tBar.addLine({tBarLeft, tBarY}, {tBarRight, tBarY}, 2.0f, Ui::kTextWhite);
     tBar.addLine({tBarLeft, tBarY - 3.0f}, {tBarLeft, tBarY + 5.0f}, 2.0f, Ui::kTextWhite);

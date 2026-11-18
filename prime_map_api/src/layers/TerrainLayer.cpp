@@ -10,14 +10,11 @@
 
 namespace
 {
-
 const int kMaxVisibleTiles = 1500;
 const int kFullTileStrips = 16;
 const int kChunkStrips = 4;
 const int kDetailStrips = 1;
-const double kDetailPixelsPerDegree = 8000.0;  // bundan yakinda zemin DSF ucgenlerinden boyanir
-// Seviye 4 dokusu derece basina 32768 piksel; ekran bunu gecince (pikseller
-// bloklasmaya baslar) 4 kat ince seviye 5 parcalari cizilir.
+const double kDetailPixelsPerDegree = 8000.0;
 const double kFinePixelsPerDegree = 40000.0;
 
 int wrapLon(int pLon)
@@ -30,9 +27,6 @@ int wrapLon(int pLon)
     return tLon - 180;
 }
 
-// Enlem/boylam dikdortgenine oturan doku: pStrips yatay seride bolunur. Doku
-// lat/lon izgarasinda, harita Mercator: her serit kendi enleminde cizilince
-// Mercator'un kuzeye dogru uzamasi izlenir. Satir 0 (v = 0) = kuzey.
 void addLatLonStrips(std::vector<Gfx::TexturedVertex>& pOut, const XMapView& pView, double pWest, double pSouth,
                      double pEast, double pNorth, int pStrips)
 {
@@ -56,7 +50,6 @@ void addLatLonStrips(std::vector<Gfx::TexturedVertex>& pOut, const XMapView& pVi
         pOut.push_back({tTopRight.mX, tTopRight.mY, 1.0f, tV0});
     }
 }
-
 }
 
 TerrainLayer::TerrainLayer(TerrainHub& pHub, const TerrainPalette& pPalette, int pPaletteId)
@@ -73,7 +66,7 @@ TerrainLayer::TerrainLayer(TerrainHub& pHub, const TerrainPalette& pPalette, int
 
 TerrainLayer::~TerrainLayer()
 {
-    mHub.removeUser(mUser);  // bu haritanin doku isaretleri kalkar
+    mHub.removeUser(mUser);
 }
 
 void TerrainLayer::setPalette(const TerrainPalette& pPalette, int pPaletteId)
@@ -137,7 +130,6 @@ int TerrainLayer::desiredLevel(double pPixelsPerDegree)
 
 bool TerrainLayer::prepareFrame()
 {
-    // Dokular ortak: baska bir haritanin cizimi sirasinda yuklenmis olanlar da "yeni veri"dir
     mHub.uploadReady();
     const bool tChanged = mHub.textureGeneration() != mSeenGeneration;
     mSeenGeneration = mHub.textureGeneration();
@@ -156,7 +148,6 @@ void TerrainLayer::drawDetailChunks(Gfx::Canvas& pCanvas, const XMapView& pView,
     const int tCount = TerrainStore::chunksPerSide(pLevel);
     const double tStep = 1.0 / tCount;
     const double tTileNorth = pLat + 1.0;
-    // Ekrandaki sutun / satir araligi (satir 0 = kuzey); karonun disi kirpilir
     const int tFirstColumn = std::max(0, static_cast<int>(std::floor((pBounds.mWest - pTileWest) * tCount)));
     const int tLastColumn = std::min(tCount - 1, static_cast<int>(std::floor((pBounds.mEast - pTileWest) * tCount)));
     const int tFirstRow = std::max(0, static_cast<int>(std::floor((tTileNorth - pBounds.mNorth) * tCount)));
@@ -170,7 +161,7 @@ void TerrainLayer::drawDetailChunks(Gfx::Canvas& pCanvas, const XMapView& pView,
             const Gfx::Texture* tTexture = useTexture(tKey);
             if (!tTexture)
             {
-                mStore.Request(tKey);
+                mStore.request(tKey);
                 ++mPendingThisFrame;
                 continue;
             }
@@ -190,14 +181,14 @@ void TerrainLayer::draw(const drawContext& pContext)
     mStore.beginFrame();
     mHub.uploadReady();
     mSeenGeneration = mHub.textureGeneration();
-    mHub.beginDraw(mUser);  // bu haritanin doku isaretleri bu cizimde yeniden konur
+    mHub.beginDraw(mUser);
 
     const XMapView& tView = *pContext.mView;
-    if (!mStore.isIndexReady() || !isInZoomRange())  // yerlesik esik 5.0 (LayerTable tablosu)
+    if (!mStore.isIndexReady() || !isInZoomRange())
     {
         return;
     }
-    mStore.setFocus(tView.center().mLat, tView.center().mLon);  // merkezden kenara oncelik
+    mStore.setFocus(tView.center().mLat, tView.center().mLon);
     const GeoBounds tBounds = tView.visibleBounds();
     const int tSouth = std::max(-90, static_cast<int>(std::floor(tBounds.mSouth)));
     const int tNorth = std::min(89, static_cast<int>(std::floor(tBounds.mNorth)));
@@ -211,7 +202,6 @@ void TerrainLayer::draw(const drawContext& pContext)
     const int tLevel = desiredLevel(tPixelsPerDegree);
     const XMapTheme& tTheme = *pContext.mTheme;
     const int tStyle = static_cast<int>(tTheme.mMode);
-    // Asama 2: DSF vektor alanlari zemine islenir (orman sadece sinif renklerinde anlamli)
     int tAreas = 0;
     if (isSubLayerDrawn(mForestPart) && tTheme.mTerrainStyle == TerrainStyle::Classes)
     {
@@ -229,7 +219,6 @@ void TerrainLayer::draw(const drawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     Gfx::Mesh tOcean;
     Gfx::Mesh tNoData;
-    // Yer tutucu: sahnesi kurulu ama hic dokusu gelmemis karo siyah kalmasin
     const bool tPlaceholder = tTheme.mTerrainStyle == TerrainStyle::Classes;
     const TerrainColor tLandColor = mPalette.referenceLandColor();
     const Rgba tLand = {tLandColor.mR / 255.0f, tLandColor.mG / 255.0f, tLandColor.mB / 255.0f, 1.0f};
@@ -243,7 +232,6 @@ void TerrainLayer::draw(const drawContext& pContext)
             const int tLon = wrapLon(tColumn);
             const TileCoverage tCoverage = mStore.coverageOf(tLon, tLat);
             const TerrainTileState tState = mStore.stateOf(tLon, tLat);
-            // Ekrandaki konumu, boylam sarilmasina gore (tColumn) hesapla
             const double tTileWest = tColumn;
             const double tTileEast = tColumn + 1.0;
             const PointF tSouthWest = tView.toScreen({static_cast<double>(tLat), tTileWest});
@@ -251,7 +239,6 @@ void TerrainLayer::draw(const drawContext& pContext)
             if (tCoverage == TileCoverage::NoData || tState == TerrainTileState::NoData ||
                 tState == TerrainTileState::Failed)
             {
-                // Kara ama sahnesi kurulu degil (ya da okunamadi): notr "veri yok" rengi, deniz degil
                 tNoData.addQuad(tSouthWest, {tNorthEast.mX, tSouthWest.mY}, tNorthEast,
                                 {tSouthWest.mX, tNorthEast.mY}, tTheme.mNoData);
                 continue;
@@ -263,7 +250,6 @@ void TerrainLayer::draw(const drawContext& pContext)
                 continue;
             }
 
-            // Tum karoyu kaplayan en iyi doku (istenen seviyeye kadar; yoksa daha kabasi)
             const int tFullLevel = std::min(tLevel, 2);
             const Gfx::Texture* tTexture = nullptr;
             for (int tTry = tFullLevel; tTry >= 0 && !tTexture; --tTry)
@@ -272,12 +258,12 @@ void TerrainLayer::draw(const drawContext& pContext)
             }
             if (!useTexture(keyOf(tLon, tLat, tFullLevel, 0, tStyle, tAreas)))
             {
-                mStore.Request(keyOf(tLon, tLat, tFullLevel, 0, tStyle, tAreas));
+                mStore.request(keyOf(tLon, tLat, tFullLevel, 0, tStyle, tAreas));
                 ++mPendingThisFrame;
             }
             if (!useTexture(keyOf(tLon, tLat, 0, 0, tStyle, tAreas)))
             {
-                mStore.Request(keyOf(tLon, tLat, 0, 0, tStyle, tAreas));  // en kaba seviye hep olsun: hizli yedek
+                mStore.request(keyOf(tLon, tLat, 0, 0, tStyle, tAreas));
             }
             if (tTexture)
             {
@@ -292,7 +278,6 @@ void TerrainLayer::draw(const drawContext& pContext)
                 tHasLoading = true;
             }
 
-            // En ince seviye: sadece ekrana giren 0.25 derecelik parcalar
             if (tLevel >= 3)
             {
                 for (int tChunk = 0; tChunk < 16; ++tChunk)
@@ -307,7 +292,7 @@ void TerrainLayer::draw(const drawContext& pContext)
                     const Gfx::Texture* tChunkTexture = useTexture(keyOf(tLon, tLat, 3, tChunk, tStyle, tAreas));
                     if (!tChunkTexture)
                     {
-                        mStore.Request(keyOf(tLon, tLat, 3, tChunk, tStyle, tAreas));
+                        mStore.request(keyOf(tLon, tLat, 3, tChunk, tStyle, tAreas));
                         ++mPendingThisFrame;
                         continue;
                     }
@@ -318,14 +303,11 @@ void TerrainLayer::draw(const drawContext& pContext)
                 }
             }
 
-            // Yakin zoom: ekrana giren 1/32 derecelik parcalar (DSF ucgenlerinden);
-            // seviye 5'te de altta yedek olarak cizilir
             if (tLevel >= TerrainStore::kDetailLevel)
             {
                 drawDetailChunks(tCanvas, tView, tBounds, TerrainStore::kDetailLevel, tLon, tLat, tTileWest, tStyle,
                                  tAreas, tStrips);
             }
-            // Cok yakin zoom: 1/128 derecelik parcalar
             if (tLevel == TerrainStore::kFineLevel)
             {
                 drawDetailChunks(tCanvas, tView, tBounds, TerrainStore::kFineLevel, tLon, tLat, tTileWest, tStyle,

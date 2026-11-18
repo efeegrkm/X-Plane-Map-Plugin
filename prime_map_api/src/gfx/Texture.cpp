@@ -6,7 +6,6 @@
 
 namespace Gfx
 {
-
 Texture::Texture(int pId)
     : mId(pId)
 {
@@ -49,10 +48,10 @@ Texture Texture::fromRgba(int pSize, const uint8_t* pRgba, bool pMipmaps)
     else
     {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, Gl::kTextureMaxLevel, 0);  // mipmap yok: tek seviye tam sayilsin
+        glTexParameteri(GL_TEXTURE_2D, Gl::kTextureMaxLevel, 0);
     }
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Gl::kClampToEdge);  // komsu karoyla dikis olmasin
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, Gl::kClampToEdge);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, Gl::kClampToEdge);
     return Texture(tId);
 }
@@ -90,5 +89,4 @@ void Texture::release()
         mId = 0;
     }
 }
-
 }

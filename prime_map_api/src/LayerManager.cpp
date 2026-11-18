@@ -1,4 +1,3 @@
-
 #include "LayerManager.h"
 
 #include <algorithm>
@@ -11,14 +10,12 @@
 
 namespace
 {
+const char* kZoomSection = "layer_zoom";
 
-const char* kZoomSection = "layer_zoom";  // 0.23: katman / alt katman zoom araliklari
-
-// "<en az> <en cok>" -> iki sayi; okunamazsa false
 bool parseZoomRange(const std::string& pText, double* pMin, double* pMax)
 {
     std::istringstream tStream(pText);
-    tStream.imbue(std::locale::classic());  // nokta ile (Turkce Windows'ta da)
+    tStream.imbue(std::locale::classic());
     return static_cast<bool>(tStream >> *pMin >> *pMax) && *pMin <= *pMax;
 }
 
@@ -26,8 +23,7 @@ std::string formatZoomRange(double pMin, double pMax)
 {
     return std::format("{:.2f} {:.2f}", pMin, pMax);
 }
-
-}  // namespace
+}
 
 Layer* LayerManager::add(std::unique_ptr<Layer> pLayer)
 {
@@ -59,7 +55,7 @@ void LayerManager::updateAll(float pNow)
 
 void LayerManager::resetToDefaults(const XMapTheme& pTheme)
 {
-    const Settings tEmpty;  // bos ayar: her katman ve alt katman tema / katman varsayilanini alir
+    const Settings tEmpty;
     loadVisibility(tEmpty, pTheme);
 }
 
@@ -78,7 +74,6 @@ bool LayerManager::prepareAll()
 
 uint64_t LayerManager::visibilitySignature() const
 {
-    // FNV-1a benzeri karisim: her katman icin gorunur, overlay ve alt katman bitleri
     uint64_t tHash = 1469598103934665603ull;
     auto tMix = [&tHash](uint64_t pValue)
     {
@@ -88,7 +83,6 @@ uint64_t LayerManager::visibilitySignature() const
     {
         tMix(tLayer->isVisible() ? 1 : 0);
         tMix(tLayer->isOverlay() ? 1 : 0);
-        // Etkin zoom araligi degistiyse harita resmi yenilenir (yerlesik esik tabloda sabit)
         tMix(static_cast<uint64_t>(tLayer->minZoomEff() * 100.0));
         tMix(static_cast<uint64_t>(tLayer->maxZoomEff() * 100.0));
         for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
@@ -178,8 +172,6 @@ void LayerManager::loadZoomRanges(const Settings& pSettings)
 
 void LayerManager::saveZoomRanges(Settings& pSettings) const
 {
-    // Bolum her seferinde bastan yazilir: yalnizca host'un verdigi (yerlesikten farkli)
-    // degerler yazilir; yerlesik esikler dosyaya girmeZ (1.0.0, ZOOM-02)
     pSettings.clearSection(kZoomSection);
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
@@ -203,7 +195,7 @@ void LayerManager::drawAll(const drawContext& pContext, LayerPass pPass)
 {
     if (pContext.mView)
     {
-        setCurrentZoom(pContext.mView->zoom());  // katman / alt katman zoom araliklari (0.23)
+        setCurrentZoom(pContext.mView->zoom());
     }
     auto tInPass = [pPass](const Layer& pLayer)
     {
@@ -224,7 +216,6 @@ void LayerManager::drawAll(const drawContext& pContext, LayerPass pPass)
             tLayer->draw(pContext);
         }
     }
-    // Yazilar etiket onceligi sirasiyla (esit oncelikte liste sirasi korunur)
     std::vector<Layer*> tByPriority;
     for (const std::unique_ptr<Layer>& tLayer : mLayers)
     {
@@ -242,7 +233,6 @@ void LayerManager::drawAll(const drawContext& pContext, LayerPass pPass)
     {
         tLayer->drawLabels(pContext);
     }
-    // Kenara yapisik parcalar: resimde olmayan her gecis (dogrudan cizim ya da ust gecis) cizer
     if (pPass != LayerPass::Cached)
     {
         for (const std::unique_ptr<Layer>& tLayer : mLayers)
@@ -263,7 +253,6 @@ void LayerManager::loadVisibility(const Settings& pSettings, const XMapTheme& pT
         const bool tDefault = themeDefault(*tLayer, pTheme);
         tLayer->setVisible(pSettings.getBool(tSection, tLayer->id(), tDefault));
 
-        // Alt katmanlar: "<katman>.<alt>" anahtari; tema varsayilani ayni tam anahtarla verilebilir
         for (int tSub = 0; tSub < tLayer->subLayerCount(); ++tSub)
         {
             const std::string tKey = subLayerKey(*tLayer, tSub);

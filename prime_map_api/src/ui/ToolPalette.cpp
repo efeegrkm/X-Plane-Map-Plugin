@@ -8,13 +8,12 @@
 
 namespace
 {
-
-const int kPadding = 6;        // panel kenari ile icerik arasi
-const int kHeaderHeight = 22;  // baslik (tutamak) cubugu
-const int kToolHeight = 26;    // arac satiri
-const int kButtonHeight = 20;  // islem dugmeleri
+const int kPadding = 6;
+const int kHeaderHeight = 22;
+const int kToolHeight = 26;
+const int kButtonHeight = 20;
 const int kGap = 4;
-const int kIconBox = 22;       // ikonun kapladigi kare
+const int kIconBox = 22;
 const int kChevronWidth = 18;
 const int kMinWidth = 150;
 const char* const kTitle = "DRAW";
@@ -27,8 +26,7 @@ const auto kActions = std::to_array<ToolbarAction>(
 const Rgba kHeaderBg = {0.12f, 0.13f, 0.16f, 0.95f};
 const Rgba kToolActiveBg = {0.00f, 0.48f, 0.70f, 0.55f};
 const Rgba kHoverBg = {1.0f, 1.0f, 1.0f, 0.07f};
-
-}  // namespace
+}
 
 bool ToolPalette::isVisible() const
 {
@@ -68,7 +66,6 @@ void ToolPalette::setOffset(int pRight, int pTop)
 
 void ToolPalette::moveBy(int pDeltaX, int pDeltaY)
 {
-    // Saga kayinca sag kenara uzaklik azalir; yukari kayinca (y artar) ust kenara uzaklik azalir
     setOffset(mOffsetRight - pDeltaX, mOffsetTop - pDeltaY);
 }
 
@@ -91,7 +88,6 @@ ToolbarAction ToolPalette::activeTool(const ToolbarState& pState)
 void ToolPalette::layout(const RectI& pBounds, const ToolbarState& pState)
 {
     mItems.clear();
-    // Genislik: islem dugmeleri yan yana sigsin
     int tActionsWidth = 0;
     for (ToolbarAction tAction : kActions)
     {
@@ -105,7 +101,6 @@ void ToolPalette::layout(const RectI& pBounds, const ToolbarState& pState)
         tHeight += kPadding + kButtonHeight + kPadding;
     }
 
-    // Yer: sag ust koseye gore; alanin disina tasmasin (tasarsa uzaklik da duzeltilir)
     const int tMaxRight = std::max(pBounds.width() - tWidth, 0);
     const int tMaxTop = std::max(pBounds.height() - tHeight, 0);
     mOffsetRight = std::clamp(mOffsetRight, 0, tMaxRight);
@@ -156,7 +151,6 @@ void ToolPalette::layout(const RectI& pBounds, const ToolbarState& pState)
         mItems.push_back(tItem);
         tX = tItem.mRect.mRight + kGap;
     }
-    // Dugmeleri panel genisligine yay: son dugme sag kenara dayansin
     const int tSpare = (mRect.mRight - kPadding) - (tX - kGap);
     if (tSpare > 0)
     {
@@ -197,7 +191,6 @@ void ToolPalette::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Too
     }
     Ui::fillRect(pCanvas, mRect, Ui::kPanelBg);
 
-    // Baslik: tutamak noktalari, ad, katla/ac oku
     Ui::fillRect(pCanvas, mHeader, kHeaderBg);
     const bool tHeaderHover = mHeader.contains(pMouseX, pMouseY);
     Gfx::Mesh tGrip;
@@ -225,12 +218,12 @@ void ToolPalette::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Too
         Gfx::Mesh tArrow;
         if (mCollapsed)
         {
-            tArrow.addLine({tX - 4.0f, tY + 2.0f}, {tX, tY - 2.0f}, 1.5f, tColor);  // v: ac
+            tArrow.addLine({tX - 4.0f, tY + 2.0f}, {tX, tY - 2.0f}, 1.5f, tColor);
             tArrow.addLine({tX, tY - 2.0f}, {tX + 4.0f, tY + 2.0f}, 1.5f, tColor);
         }
         else
         {
-            tArrow.addLine({tX - 4.0f, tY - 2.0f}, {tX, tY + 2.0f}, 1.5f, tColor);  // ^: katla
+            tArrow.addLine({tX - 4.0f, tY - 2.0f}, {tX, tY + 2.0f}, 1.5f, tColor);
             tArrow.addLine({tX, tY + 2.0f}, {tX + 4.0f, tY - 2.0f}, 1.5f, tColor);
         }
         pCanvas.draw(tArrow);
@@ -248,7 +241,6 @@ void ToolPalette::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Too
             Ui::Button(pCanvas, tItem.mRect, labelFor(tItem.mAction), false, tEnabled, tHover);
             continue;
         }
-        // Arac satiri: secili ise mavi zemin + solda vurgu cubugu
         if (tActive)
         {
             Ui::fillRect(pCanvas, tItem.mRect, kToolActiveBg);
@@ -279,7 +271,6 @@ void ToolPalette::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Too
 
 void ToolPalette::drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const PointF& pCenter, const Rgba& pColor)
 {
-    // Sade, tek renkli vektor ikonlar (~14 boxel)
     const float tX = pCenter.mX;
     const float tY = pCenter.mY;
     Gfx::Mesh tMesh;
@@ -287,7 +278,6 @@ void ToolPalette::drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
     {
         case ToolbarAction::ModePan:
         {
-            // Dort yonlu ok
             tMesh.addLine({tX - 5.0f, tY}, {tX + 5.0f, tY}, 1.5f, pColor);
             tMesh.addLine({tX, tY - 5.0f}, {tX, tY + 5.0f}, 1.5f, pColor);
             tMesh.addTriangle({tX + 7.0f, tY}, {tX + 4.0f, tY + 3.0f}, {tX + 4.0f, tY - 3.0f}, pColor);
@@ -298,7 +288,6 @@ void ToolPalette::drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
         }
         case ToolbarAction::ModePoint:
         {
-            // Harita ignesi: halka + asagi sivri uc + ortada nokta
             tMesh.addRing({tX, tY + 2.0f}, 4.5f, 1.6f, pColor);
             tMesh.addTriangle({tX - 3.6f, tY - 0.6f}, {tX + 3.6f, tY - 0.6f}, {tX, tY - 7.0f}, pColor);
             tMesh.addDisc({tX, tY + 2.0f}, 1.5f, pColor);
@@ -306,7 +295,6 @@ void ToolPalette::drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
         }
         case ToolbarAction::ModeRoute:
         {
-            // Kirik cizgi + dugumler
             const std::vector<Gfx::Point> tPoints = {
                 {tX - 6.5f, tY - 4.5f}, {tX - 2.0f, tY + 3.5f}, {tX + 2.0f, tY - 2.0f}, {tX + 6.5f, tY + 5.0f}};
             tMesh.addPolyline(tPoints, false, 1.5f, pColor);
@@ -318,7 +306,6 @@ void ToolPalette::drawIcon(Gfx::Canvas& pCanvas, ToolbarAction pAction, const Po
         }
         case ToolbarAction::ModeRegion:
         {
-            // Yari saydam dolgulu besgen
             tMesh.addRegularPolygon({tX, tY}, 6.5f, 5, 90.0f, 1.5f, pColor);
             break;
         }
@@ -362,7 +349,7 @@ ToolPalette::Hit ToolPalette::hitTest(int pX, int pY, const ToolbarState& pState
         }
         if (mCollapsed && tItem.mIsTool)
         {
-            tHit.mToggleCollapse = true;  // katliyken secili araca tiklamak paneli acar
+            tHit.mToggleCollapse = true;
         }
         else
         {

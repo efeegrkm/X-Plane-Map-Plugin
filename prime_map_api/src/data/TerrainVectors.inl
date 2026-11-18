@@ -1,4 +1,3 @@
-// fillVectorArea: sablon (std::function maliyeti yok); TerrainVectors.h icinden bir kez eklenir.
 #ifndef PRIME_MAP_SRC_DATA_TERRAINVECTORS_INL
 #define PRIME_MAP_SRC_DATA_TERRAINVECTORS_INL
 
@@ -10,7 +9,6 @@ template <typename TSet>
 void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pPixelsPerUnitX,
                     double pPixelsPerUnitY, int pWidth, int pHeight, TSet pSet)
 {
-    // Alanin satir araligi (izgaraya kirpilmis)
     const int tFirstRow = std::max(0, static_cast<int>(std::floor((pYTop - pArea.mBounds[3]) * pPixelsPerUnitY)));
     const int tLastRow =
         std::min(pHeight - 1, static_cast<int>(std::ceil((pYTop - pArea.mBounds[1]) * pPixelsPerUnitY)));
@@ -22,7 +20,6 @@ void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pP
     std::vector<double> tCrossings;
     for (int tRow = tFirstRow; tRow <= tLastRow; ++tRow)
     {
-        // Satir merkezinin y'si; her halka kenarinin bu yatayi kestigi x'ler (cift-tek kurali)
         const double tY = pYTop - (tRow + 0.5) / pPixelsPerUnitY;
         tCrossings.clear();
         for (size_t tRing = 0; tRing < tRingCount; ++tRing)
@@ -49,7 +46,6 @@ void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pP
         std::sort(tCrossings.begin(), tCrossings.end());
         for (size_t tPair = 0; tPair + 1 < tCrossings.size(); tPair += 2)
         {
-            // Merkezi [giris, cikis) araliginda kalan pikseller
             const int tFirst =
                 std::max(0, static_cast<int>(std::ceil((tCrossings[tPair] - pX0) * pPixelsPerUnitX - 0.5)));
             const int tLast = std::min(
@@ -61,4 +57,4 @@ void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pP
         }
     }
 }
-#endif  // PRIME_MAP_SRC_DATA_TERRAINVECTORS_INL
+#endif

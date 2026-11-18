@@ -4,16 +4,14 @@
 
 namespace
 {
-
-const double kCellSize = 32.0;  // boxel
+const double kCellSize = 32.0;
 
 bool overlaps(const RectD& pFirst, const RectD& pSecond)
 {
     return pFirst.mLeft < pSecond.mRight && pSecond.mLeft < pFirst.mRight && pFirst.mBottom < pSecond.mTop &&
            pSecond.mBottom < pFirst.mTop;
 }
-
-}  // namespace
+}
 
 void LabelPlacer::reset(const RectD& pArea)
 {
@@ -35,7 +33,7 @@ void LabelPlacer::reset(const RectD& pArea)
     }
     for (std::vector<int>& tCell : mCells)
     {
-        tCell.clear();  // kapasite korunur: her karede yeniden bellek ayrilmaz
+        tCell.clear();
     }
     mBoxes.clear();
 }

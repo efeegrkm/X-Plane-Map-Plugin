@@ -1,9 +1,3 @@
-// Prime XMap API'nin en kucuk tam ornegi: eklenti, haritayi WindowStyle::Texture ile kendi penceresine
-// yerlestirir; girdileri inject* ile iletir, haritayi API ile ozellestirir.
-// Akis:  XPluginEnable -> pencere + XMapManager + XMap (addXMap -> ayarlar -> initialize)
-//        cizim callback -> setTextureSize + renderTexture + dokuyu dortgene bas
-//        girdi callback -> doku koordinatina cevir -> inject*
-//        XPluginDisable -> removeXMap -> shutdown -> destroyXMapManager -> pencere
 #include <array>
 #include <cstring>
 #include <memory>
@@ -21,16 +15,14 @@
 
 namespace
 {
+constexpr int kMargin = 8;
 
-constexpr int kMargin = 8;  // pencere kenari ile harita arasi (boxel)
-
-// Bu eklentinin klasoru: .../Resources/plugins/texture-host/ (sonunda ayirici ile)
 std::string findPluginDirectory()
 {
-    std::array<char, 2048> tXplPath = {};  // SDK: en az 256 bayt
+    std::array<char, 2048> tXplPath = {};
     XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath.data(), nullptr, nullptr);
     std::string tPath = tXplPath.data();
-    for (int tLevel = 0; tLevel < 2; ++tLevel)  // dosya adini ve "64" klasorunu at
+    for (int tLevel = 0; tLevel < 2; ++tLevel)
     {
         const size_t tCut = tPath.find_last_of("/\\");
         if (tCut != std::string::npos)
@@ -56,26 +48,25 @@ private:
     static XPLMCursorStatus cursorCallback(XPLMWindowID pWindow, int pX, int pY, void* pRefcon);
     static int wheelCallback(XPLMWindowID pWindow, int pX, int pY, int pWheel, int pClicks, void* pRefcon);
 
-    void customizeMap();                     // ozellestirme ornekleri
-    void updateMapRect();                    // pencereden harita dikdortgeni
+    void customizeMap();
+    void updateMapRect();
     void draw();
     int forwardClick(int pX, int pY, XPLMMouseStatus pStatus, prime::MouseButton pButton, bool* pPressed);
     void syncKeyboardFocus(bool pTake);
 
     XPLMWindowID mWindow = nullptr;
-    prime::XMapManager* mManager = nullptr;  // sahibi biz: destroyXMapManager ile birakilir
-    prime::XMap* mXMap = nullptr;            // sahibi mManager: removeXMap ile birakilir
-    int mMapLeft = 0;                        // haritanin pencere icindeki yeri (global boxel)
+    prime::XMapManager* mManager = nullptr;
+    prime::XMap* mXMap = nullptr;
+    int mMapLeft = 0;
     int mMapBottom = 0;
     int mMapWidth = 0;
     int mMapHeight = 0;
-    bool mLeftPressed = false;               // basma haritada basladi: surukleme / birakma da haritaya
+    bool mLeftPressed = false;
     bool mRightPressed = false;
 };
 
 bool TextureHost::enable()
 {
-    // 1) Host'un kendi penceresi: X-Plane cercevesi (tasinir, boyutlanir)
     XPLMCreateWindow_t tParams;
     std::memset(&tParams, 0, sizeof(tParams));
     tParams.structSize = sizeof(tParams);
@@ -84,7 +75,7 @@ bool TextureHost::enable()
     tParams.right = 900;
     tParams.bottom = 250;
     tParams.visible = 1;
-    tParams.drawWindowFunc = drawCallback;  // SDK: butun callback'ler verilmeli
+    tParams.drawWindowFunc = drawCallback;
     tParams.handleMouseClickFunc = clickCallback;
     tParams.handleRightClickFunc = rightClickCallback;
     tParams.handleKeyFunc = keyCallback;
@@ -102,8 +93,6 @@ bool TextureHost::enable()
     XPLMSetWindowResizingLimits(mWindow, 300, 200, 4000, 4000);
     XPLMSetWindowTitle(mWindow, const_cast<char*>("Texture Host"));
 
-    // 2) Yonetici: ortak veri (nav, havalimanlari, zemin) ve onbellek. Veri klasoru bu eklentinin
-    //    klasoru: baska bir host (ornegin resmi Prime XMap eklentisi) ile dosya / onbellek paylasilmaz.
     mManager = prime::XMapManagerFactory::createXMapManager();
     mManager->setLogPrefix("[texture-host]");
     mManager->setDataDirectory(findPluginDirectory());
@@ -112,46 +101,39 @@ bool TextureHost::enable()
         return false;
     }
 
-    // 3) Harita: once nesne ve ayarlar, en son initialize. Texture: pencere acilmaz, dokuya cizilir.
     prime::XMapConfig tConfig;
-    tConfig.mName = "main";                        // ayarlar <veri>/maps/main/
+    tConfig.mName = "main";
     tConfig.mStyle = prime::WindowStyle::Texture;
-    // mMode verilmedi: 1.0.0'dan itibaren varsayilan Dark. Var olan map_settings.json'da
-    // mod kayitliysa dosyadan gelir; bu yalnizca ilk acilisi etkiler.
-    tConfig.mUiVisible = true;                     // haritanin kendi seritleri ve panelleri (dokunun icinde)
-    tConfig.mMouseInput = true;                    // fare / tekerlek bizden inject* ile gelir
+    tConfig.mUiVisible = true;
+    tConfig.mMouseInput = true;
     mXMap = mManager->addXMap(tConfig);
     if (!mXMap)
     {
         return false;
     }
     updateMapRect();
-    mXMap->setTextureSize(mMapWidth, mMapHeight);  // boxel; doku pikseli UI olcegine gore otomatik
-    mXMap->initialize();                           // ayar dosyasi varsa burada okunur (LoadAndSave)
-    customizeMap();                                // initialize'dan SONRA: her acilista koddaki deger gecerli
+    mXMap->setTextureSize(mMapWidth, mMapHeight);
+    mXMap->initialize();
+    customizeMap();
     return true;
 }
 
 void TextureHost::customizeMap()
 {
     mXMap->setFollowAircraft(false);
-    mXMap->setCenter(47.45, -122.30);              // KSEA
+    mXMap->setCenter(47.45, -122.30);
     mXMap->setZoom(10.0);
-    mXMap->setZoomLimits(6.0, 15.0);               // bu harita 6'dan uzaga, 15'ten yakina gitmez
+    mXMap->setZoomLimits(6.0, 15.0);
 
-    // Katman gorunurlugu (bu mod icin; her modun durumu ayri saklanir)
     mXMap->setIsLayerVisible(prime::XMapLayer::Roads, false);
     mXMap->setIsLayerVisible(prime::XMapLayer::Fixes, true);
 
-    // Zoom araligi: fix'ler ancak 10.5'ten yakinda; hava yollari 8'den yakinda
     mXMap->setLayerZoomRange(prime::XMapLayer::Fixes, 10.5, 99.0);
     mXMap->setLayerZoomRange(prime::XMapLayer::AirwaysGroup, 8.0, 99.0);
 
-    // Renk: alcak hava yollari turuncu, VOR'lar kirmizi (renk verilebilen katmanlar: API belgesi bolum 9)
     mXMap->setColor(prime::XMapLayer::AirwaysLow, prime::Rgb{255, 140, 0});
     mXMap->setColor(prime::XMapLayer::Vor, prime::Rgb{220, 40, 40});
 
-    // Zemin: daha guclu kabartma, VFR bant sinirlarinda kontur
     prime::TerrainSettings tTerrain = mXMap->getTerrainSettings();
     tTerrain.mShadingStrength = 0.8;
     tTerrain.mVfrContourLines = true;
@@ -160,7 +142,6 @@ void TextureHost::customizeMap()
 
 void TextureHost::disable()
 {
-    // Siralama: once haritalar (ayarlari yazilir), sonra yonetici, en son pencere
     if (mWindow && XPLMHasKeyboardFocus(mWindow))
     {
         XPLMTakeKeyboardFocus(nullptr);
@@ -202,20 +183,18 @@ void TextureHost::draw()
     {
         return;
     }
-    // Pencere tasindi / boyutlandi: ayni kare icinde haritaya yeni boyut (ayni boyutta is yapilmaz)
     updateMapRect();
     mXMap->setTextureSize(mMapWidth, mMapHeight);
     syncKeyboardFocus(false);
 
-    // Doku gerekiyorsa yeniden cizilir (degisiklik, girdi ya da max_fps); false: basacak doku yok
     if (!mXMap->renderTexture() || mXMap->getTextureId() == 0)
     {
         return;
     }
-    XPLMSetGraphicsState(0, 1, 0, 0, 0, 0, 0);  // 1 doku birimi, saydamlik yok (harita opak)
+    XPLMSetGraphicsState(0, 1, 0, 0, 0, 0, 0);
     XPLMBindTexture2d(static_cast<int>(mXMap->getTextureId()), 0);
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-    glBegin(GL_QUADS);  // doku: (0,0) sol-alt, (1,1) sag-ust
+    glBegin(GL_QUADS);
     glTexCoord2f(0.0f, 0.0f);
     glVertex2i(mMapLeft, mMapBottom);
     glTexCoord2f(1.0f, 0.0f);
@@ -229,8 +208,7 @@ void TextureHost::draw()
 
 int TextureHost::forwardClick(int pX, int pY, XPLMMouseStatus pStatus, prime::MouseButton pButton, bool* pPressed)
 {
-    // Basma haritanin icinde baslamissa surukleme ve birakma (disari tassa da) haritaya gider
-    const int tX = pX - mMapLeft;  // doku koordinati: orijin sol-alt, birim boxel
+    const int tX = pX - mMapLeft;
     const int tY = pY - mMapBottom;
     if (pStatus == xplm_MouseDown)
     {
@@ -251,13 +229,12 @@ int TextureHost::forwardClick(int pX, int pY, XPLMMouseStatus pStatus, prime::Mo
         *pPressed = false;
     }
     mXMap->injectMouse(tX, tY, tAction, pButton);
-    syncKeyboardFocus(tAction == prime::MouseAction::Down);  // "Go to airport" kutusuna tiklandiysa yaz
+    syncKeyboardFocus(tAction == prime::MouseAction::Down);
     return 1;
 }
 
 void TextureHost::syncKeyboardFocus(bool pTake)
 {
-    // Klavye odagini sadece harita istediginde (arama kutusu) ve haritaya tiklaninca al; istemeyince birak
     const bool tWants = mXMap && mXMap->wantsKeyboard();
     const bool tHas = XPLMHasKeyboardFocus(mWindow) != 0;
     if (pTake && tWants && !tHas)
@@ -270,40 +247,37 @@ void TextureHost::syncKeyboardFocus(bool pTake)
     }
 }
 
-// --- XPLM callback'leri: refcon = this -------------------------------------------
-
-void TextureHost::drawCallback(XPLMWindowID /*pWindow*/, void* pRefcon)
+void TextureHost::drawCallback(XPLMWindowID , void* pRefcon)
 {
     static_cast<TextureHost*>(pRefcon)->draw();
 }
 
-int TextureHost::clickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon)
+int TextureHost::clickCallback(XPLMWindowID , int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon)
 {
     TextureHost* tHost = static_cast<TextureHost*>(pRefcon);
     return tHost->forwardClick(pX, pY, pStatus, prime::MouseButton::Left, &tHost->mLeftPressed);
 }
 
-int TextureHost::rightClickCallback(XPLMWindowID /*pWindow*/, int pX, int pY, XPLMMouseStatus pStatus,
+int TextureHost::rightClickCallback(XPLMWindowID , int pX, int pY, XPLMMouseStatus pStatus,
                                     void* pRefcon)
 {
     TextureHost* tHost = static_cast<TextureHost*>(pRefcon);
     return tHost->forwardClick(pX, pY, pStatus, prime::MouseButton::Right, &tHost->mRightPressed);
 }
 
-void TextureHost::keyCallback(XPLMWindowID /*pWindow*/, char pKey, XPLMKeyFlags pFlags, char pVirtualKey,
+void TextureHost::keyCallback(XPLMWindowID , char pKey, XPLMKeyFlags pFlags, char pVirtualKey,
                               void* pRefcon, int pLosingFocus)
 {
     TextureHost* tHost = static_cast<TextureHost*>(pRefcon);
     if (pLosingFocus == 0 && tHost->mXMap)
     {
         tHost->mXMap->injectKey(pKey, static_cast<int>(pFlags), pVirtualKey);
-        tHost->syncKeyboardFocus(false);  // Esc / Enter kutuyu kapattiysa klavye X-Plane'e doner
+        tHost->syncKeyboardFocus(false);
     }
 }
 
-XPLMCursorStatus TextureHost::cursorCallback(XPLMWindowID /*pWindow*/, int pX, int pY, void* pRefcon)
+XPLMCursorStatus TextureHost::cursorCallback(XPLMWindowID , int pX, int pY, void* pRefcon)
 {
-    // Imlec haritanin ustundeyken her karede: tooltip ve vurgu
     TextureHost* tHost = static_cast<TextureHost*>(pRefcon);
     if (tHost->mXMap)
     {
@@ -312,20 +286,19 @@ XPLMCursorStatus TextureHost::cursorCallback(XPLMWindowID /*pWindow*/, int pX, i
     return xplm_CursorDefault;
 }
 
-int TextureHost::wheelCallback(XPLMWindowID /*pWindow*/, int pX, int pY, int pWheel, int pClicks, void* pRefcon)
+int TextureHost::wheelCallback(XPLMWindowID , int pX, int pY, int pWheel, int pClicks, void* pRefcon)
 {
     TextureHost* tHost = static_cast<TextureHost*>(pRefcon);
     if (pWheel != 0 || !tHost->mXMap)
     {
         return 0;
     }
-    tHost->mXMap->injectWheel(pX - tHost->mMapLeft, pY - tHost->mMapBottom, pClicks);  // imlec altinda zoom
+    tHost->mXMap->injectWheel(pX - tHost->mMapLeft, pY - tHost->mMapBottom, pClicks);
     return 1;
 }
 
 std::unique_ptr<TextureHost> gHost;
-
-}  // namespace
+}
 
 PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescription)
 {
@@ -360,6 +333,6 @@ PLUGIN_API void XPluginStop()
 {
 }
 
-PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*pFrom*/, int /*pMessage*/, void* /*pParam*/)
+PLUGIN_API void XPluginReceiveMessage(XPLMPluginID , int , void* )
 {
 }

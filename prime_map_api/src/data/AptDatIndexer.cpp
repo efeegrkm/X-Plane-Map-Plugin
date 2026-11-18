@@ -14,10 +14,9 @@
 
 namespace
 {
-
-const size_t kReadChunk = 4u << 20;  // dosya 4 MB'lik parcalarla okunur
+const size_t kReadChunk = 4u << 20;
 const char kCacheMagic[4] = {'M', 'P', 'A', 'I'};
-const uint32_t kCacheVersion = 1;  // AirportGeometry'nin kayitli alanlari degisirse artir
+const uint32_t kCacheVersion = 1;
 const char* kCacheFileName = "airport_index.bin";
 
 class BinaryWriter
@@ -113,8 +112,7 @@ bool isHeaderCode(int pCode)
 {
     return pCode == 1 || pCode == 16 || pCode == 17;
 }
-
-}  // namespace
+}
 
 AptDatScanner::AptDatScanner(int pFileIndex, std::unordered_set<std::string>& pSeen,
                              std::vector<AirportGeometry>& pOut)
@@ -169,7 +167,7 @@ void AptDatScanner::addLine(std::string_view pLine, uint64_t pOffset)
     int tCode = 0;
     if (!tLine.readInt(tCode))
     {
-        return;  // bos satir, yorum, dosya basligi ("I", "1130 Version")
+        return;
     }
     if (isHeaderCode(tCode))
     {
@@ -358,7 +356,7 @@ bool AptDatIndexer::loadCache(const std::string& pPath, const std::string& pKey,
     if (!tFile.read(tMagic, 4) || std::memcmp(tMagic, kCacheMagic, 4) != 0 || !tIn.value(tVersion) ||
         tVersion != kCacheVersion || !tIn.text(tKey) || tKey != pKey)
     {
-        return false;  // eski bicim ya da dosyalar degismis: yeniden taranacak
+        return false;
     }
     AirportIndex tIndex;
     uint32_t tCount = 0;
@@ -418,9 +416,9 @@ bool AptDatIndexer::scanFile(const std::string& pPath, AptDatScanner& pScanner, 
 {
     std::ifstream tFile(pPath, std::ios::binary);
     std::vector<char> tChunk(kReadChunk);
-    std::string tCarry;     // onceki parcadan kalan yarim satir
-    uint64_t tCarryOffset = 0;  // yarim satirin dosyadaki baslangici
-    uint64_t tChunkOffset = 0;  // bu parcanin dosyadaki baslangici
+    std::string tCarry;
+    uint64_t tCarryOffset = 0;
+    uint64_t tChunkOffset = 0;
     while (tFile)
     {
         if (pCancel.load())
@@ -444,7 +442,6 @@ bool AptDatIndexer::scanFile(const std::string& pPath, AptDatScanner& pScanner, 
             }
             if (!tCarry.empty())
             {
-                // Parca sinirinda bolunmus satir: onceki parcadaki basiyla birlestir
                 tCarry.append(tData.substr(0, tNewline));
                 pScanner.addLine(tCarry, tCarryOffset);
                 tCarry.clear();
@@ -483,7 +480,7 @@ bool AptDatIndexer::loadAll(const std::string& pXPlaneDirectory, const std::atom
         std::error_code tError;
         if (std::filesystem::is_regular_file(tPath, tError))
         {
-            tFiles.push_back(tPath);  // paketin apt.dat'i yoksa atlanir (cogu manzara paketinde olmaz)
+            tFiles.push_back(tPath);
         }
     }
 

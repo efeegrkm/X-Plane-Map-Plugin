@@ -13,8 +13,7 @@
 
 namespace
 {
-
-const float kReadInterval = 1.0f;     // saniye
+const float kReadInterval = 1.0f;
 const double kDensifyNm = 5.0;
 const double kLabelMinZoom = 5.0;
 const float kWaypointRadius = 5.0f;
@@ -28,7 +27,6 @@ Gfx::Point project(const XMapView& pView, const LatLon& pPoint)
 {
     return pView.toScreen(pPoint);
 }
-
 }
 
 FmsLayer::FmsLayer()
@@ -41,7 +39,7 @@ void FmsLayer::setFromHost(bool pFromHost)
     mFromHost = pFromHost;
     mWaypoints.clear();
     mDestination = -1;
-    mLastReadTime = -10.0f;  // X-Plane'e donuste hemen oku
+    mLastReadTime = -10.0f;
 }
 
 bool FmsLayer::isFromHost() const
@@ -81,19 +79,18 @@ void FmsLayer::readFms()
     {
         XPLMNavType tType = xplm_Nav_Unknown;
         std::array<char, 256> tId = {};
-        XPLMNavRef tRef = XPLM_NAV_NOT_FOUND;  // SDK uyarisi: once NOT_FOUND ile baslat
+        XPLMNavRef tRef = XPLM_NAV_NOT_FOUND;
         int tAltitude = 0;
         float tLat = 0.0f;
         float tLon = 0.0f;
         XPLMGetFMSEntryInfo(tIndex, &tType, tId.data(), &tRef, &tAltitude, &tLat, &tLon);
         if (tLat == 0.0f && tLon == 0.0f && tRef != XPLM_NAV_NOT_FOUND)
         {
-            // Konum gelmediyse nav kaydindan al
             XPLMGetNavAidInfo(tRef, nullptr, &tLat, &tLon, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
         }
         if (tLat == 0.0f && tLon == 0.0f)
         {
-            continue;  // bos veya henuz cozulmemis satir
+            continue;
         }
         mWaypoints.push_back({{tLat, tLon}, tId.data(), tAltitude});
     }
@@ -145,7 +142,6 @@ void FmsLayer::draw(const drawContext& pContext)
     tCanvas.draw(tLegs);
     tCanvas.draw(tActive);
 
-    // Noktalar: elmas (45 derece donuk kare)
     Gfx::OutlinedLines tDiamonds;
     const bool tWithLabels = tView.zoom() >= kLabelMinZoom;
     for (size_t tIndex = 0; tIndex < mWaypoints.size(); ++tIndex)
@@ -171,14 +167,14 @@ void FmsLayer::draw(const drawContext& pContext)
             tBox.mRight = tLabel.mX + Ui::textWidth(tLabel.mText) + 2;
             tBox.mBottom = tLabel.mY - 3;
             tBox.mTop = tLabel.mY + Ui::fontHeight() + 1;
-            pContext.mLabels->reserve(tBox);  // navaid etiketleri bunun ustune yazmasin
+            pContext.mLabels->reserve(tBox);
         }
         mLabels.push_back(tLabel);
     }
     tCanvas.draw(tDiamonds);
 }
 
-void FmsLayer::drawLabels(const drawContext& /*pContext*/)
+void FmsLayer::drawLabels(const drawContext& )
 {
     for (const PendingLabel& tLabel : mLabels)
     {

@@ -1,6 +1,4 @@
-// Pistler: iki ucu ve genisligi ile gercek olcekli dikdortgen. Veri
-// AirportGeometryStore'dan gelir; katman kaynagi bilmez. Zoom esikleri
-// RunwayLayer.cpp'de.
+// Gercek olcekli pistler, uzantilari, isaretleri ve numaralari.
 #ifndef PRIME_MAP_SRC_LAYERS_RUNWAYLAYER_H
 #define PRIME_MAP_SRC_LAYERS_RUNWAYLAYER_H
 
@@ -32,21 +30,19 @@ public:
     }
 
 private:
-    // Bir pistin bu karedeki ekran geometrisi (boxel)
     struct ScreenRunway
     {
         const Runway* mRunway;
         float mEndX[2];
         float mEndY[2];
-        float mDirX;       // uc 0 -> uc 1 birim yon
+        float mDirX;
         float mDirY;
-        float mHalfWidth;  // yari genislik
+        float mHalfWidth;
         float mLength;
         float mBoxelsPerMeter;
     };
 
     void collectVisible(const drawContext& pContext);
-    // Pist ekseni boyunca pFrom..pTo (boxel, uc 0'dan), pHalfWidth genisliginde dikdortgen
     static void addRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
                              float pHalfWidth, const Rgba& pColor);
     static void addMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway);
@@ -55,4 +51,4 @@ private:
     std::vector<int> mQuery;
     std::vector<ScreenRunway> mVisible;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_RUNWAYLAYER_H
+#endif

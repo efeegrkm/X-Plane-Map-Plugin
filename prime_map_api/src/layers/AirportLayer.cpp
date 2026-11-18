@@ -1,5 +1,6 @@
 #include "layers/AirportLayer.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
@@ -12,34 +13,30 @@
 
 namespace
 {
-
 struct CategoryStyle
 {
-    double mMinZoom;       // bunun altinda cizilmez
-    double mLabelMinZoom;  // kimlik etiketi
-    double mNameMinZoom;   // kimlik + ad
-    float mRadius;         // sembol yaricapi (boxel)
+    double mMinZoom;
+    double mLabelMinZoom;
+    double mNameMinZoom;
+    float mRadius;
 };
 
-// Sira AirportLayer::Category ile ayni olmali. Liste ayni zamanda oncelik
-// sirasidir: seyreltmede once buyukler yer alir.
 const auto kCategoryStyles = std::to_array<CategoryStyle>({
-    {4.0, 6.0, 11.0, 6.0f},    // buyuk      (renkler XMapTheme::mAirport)
-    {8.0, 9.0, 12.0, 4.0f},    // kucuk
-    {9.0, 10.5, 13.0, 4.0f},   // deniz ussu
-    {11.0, 12.5, 14.0, 4.5f},  // heliport
-    {11.0, 13.0, 99.0, 3.5f},  // kapali
+    {4.0, 6.0, 11.0, 6.0f},
+    {8.0, 9.0, 12.0, 4.0f},
+    {9.0, 10.5, 13.0, 4.0f},
+    {11.0, 12.5, 14.0, 4.5f},
+    {11.0, 13.0, 99.0, 3.5f},
 });
 
-const double kHelipadDetailZoom = 12.5;  // AirportObjectsLayer kHelipadMinZoom ile ayni
-const size_t kMaxSymbols = 3000;  // FPS korumasi: bir karede en fazla bu kadar sembol
-const double kEdgeMargin = 20.0;  // kenardan tasan semboller de cizilsin (boxel)
+const double kHelipadDetailZoom = 12.5;
+const size_t kMaxSymbols = 3000;
+const double kEdgeMargin = 20.0;
 
 const CategoryStyle& styleOf(AirportLayer::Category pCategory)
 {
     return kCategoryStyles[static_cast<int>(pCategory)];
 }
-
 }
 
 AirportLayer::AirportLayer(const NavDatabase& pDatabase, const AirportGeometryStore* pGeometry)
@@ -68,7 +65,7 @@ void AirportLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
     const XMapView& tView = *pContext.mView;
-    if (!mDatabase.isReady() || tView.zoom() < styleOf(Category::Major).mMinZoom)
+    if (!mDatabase.isReady() || !isInZoomRange())
     {
         return;
     }
@@ -83,14 +80,14 @@ void AirportLayer::collectVisible(const drawContext& pContext)
     mDatabase.query(NavKind::Airport, tView.boundsOf(tArea), mQuery);
     mSymbolPlacer.reset(tArea);
 
-    // Kategori kategori, onemliden onemsize: yer kalirsa sonrakiler eklenir
     const XMapTheme& tTheme = *pContext.mTheme;
     const bool tByTower = tTheme.mAirportByTower && mGeometry && mGeometry->isReady();
+    const double tShift = (std::min)(0.0, minZoomEff() - styleOf(Category::Major).mMinZoom);
     for (int tCategoryIndex = 0; tCategoryIndex < static_cast<int>(kCategoryStyles.size()); ++tCategoryIndex)
     {
         const Category tCategory = static_cast<Category>(tCategoryIndex);
         const CategoryStyle& tStyle = styleOf(tCategory);
-        if (tView.zoom() < tStyle.mMinZoom || (tTheme.mMajorAirportsOnly && tCategory != Category::Major))
+        if (tView.zoom() < tStyle.mMinZoom + tShift || (tTheme.mMajorAirportsOnly && tCategory != Category::Major))
         {
             continue;
         }
@@ -116,17 +113,16 @@ void AirportLayer::collectVisible(const drawContext& pContext)
             tBox.mTop = tY + tRadius;
             if (!mSymbolPlacer.tryPlace(tBox))
             {
-                continue;  // baska bir havalimaninin sembolunun ustune biniyor
+                continue;
             }
             if (pContext.mLabels)
             {
-                pContext.mLabels->reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
+                pContext.mLabels->reserve(tBox);
             }
             Rgba tColor = tTheme.mAirport[tCategoryIndex];
             Rgba tLabelColor = tTheme.mAirportLabel[tCategoryIndex];
             if (tByTower && (tCategory == Category::Major || tCategory == Category::Minor))
             {
-                // Sectional kurali: kuleli mavi, kulesiz macenta. Kule = apt.dat 54/1054 satiri.
                 const AirportGeometry* tSummary = mGeometry->find(tRecord.mId);
                 const bool tTowered = tSummary && tSummary->mHasTower;
                 tColor = tTowered ? tTheme.mAirportTowered : tTheme.mAirportUntowered;
@@ -150,7 +146,6 @@ void AirportLayer::draw(const drawContext& pContext)
         return;
     }
 
-    // Semboller: halka (kapalilarda carpi), heliportta "H"; koyu konturlu
     Gfx::OutlinedLines tSymbols(XMapSymbols::kOutlineExtra);
     tSymbols.setOutlineColor(pContext.mTheme->mHalo);
     Gfx::Mesh tDots;
@@ -171,7 +166,7 @@ void AirportLayer::draw(const drawContext& pContext)
             {
                 if (pContext.mView->zoom() >= kHelipadDetailZoom)
                 {
-                    break;  // nesne katmani gercek helipadi (yone donuk H) ciziyor; ustune binmesin
+                    break;
                 }
                 tSymbols.addRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
                 const float tH = tRadius * 0.55f;
@@ -182,7 +177,7 @@ void AirportLayer::draw(const drawContext& pContext)
             }
             case Category::Major:
                 tSymbols.addRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
-                tDots.addDisc({tX, tY}, 2.0f, tAirport.mColor);  // buyuklerin ortasinda dolu nokta
+                tDots.addDisc({tX, tY}, 2.0f, tAirport.mColor);
                 break;
             default:
                 tSymbols.addRing({tX, tY}, tRadius, tWidth, tAirport.mColor);
@@ -218,7 +213,7 @@ void AirportLayer::drawLabels(const drawContext& pContext)
     }
 }
 
-std::string AirportLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
+std::string AirportLayer::describe(const drawContext& , double pX, double pY) const
 {
     for (const VisibleAirport& tAirport : mVisible)
     {

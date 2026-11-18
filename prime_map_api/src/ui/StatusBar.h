@@ -1,5 +1,4 @@
-// Haritanin alt kenarindaki ince durum seridi:
-// koordinat | zoom | mesaj | olcek cubugu
+// Alt kenardaki durum seridi: koordinat, zoom, mesaj ve olcek cubugu.
 #ifndef PRIME_MAP_SRC_UI_STATUSBAR_H
 #define PRIME_MAP_SRC_UI_STATUSBAR_H
 
@@ -19,10 +18,8 @@ class Canvas;
 class StatusBar
 {
 public:
-    static const int kHeight = 22;  // serit yuksekligi (boxel)
+    static const int kHeight = 22;
 
-    // pCursor bos ise (imlec harita disinda) koordinat yerine "-" yazilir.
-    // pMessage: zoom'un sagina sari yazilan kisa durum yazisi (bos olabilir).
     void draw(Gfx::Canvas& pCanvas, const RectI& pArea, const XMapView& pView, const std::optional<LatLon>& pCursor,
               std::string_view pMessage);
 
@@ -33,4 +30,4 @@ private:
 
     RectI mStrip;
 };
-#endif  // PRIME_MAP_SRC_UI_STATUSBAR_H
+#endif

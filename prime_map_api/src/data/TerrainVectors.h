@@ -1,6 +1,4 @@
-// Bir 1x1 derece karonun DSF vektor ayrintisi: orman/yerlesim poligonlari, yollar,
-// havalimani dislama alanlari. Koordinatlar karo birimi: x = boylam - bati, y = enlem - guney.
-// Onbellek <karo>.vectors (noktalar 16 bit ~1,7 m, LZMA); anahtar zeminle ayni.
+// Bir karonun DSF vektor ayrintisi: orman ve yerlesim alanlari, yollar, dislama alanlari.
 #ifndef PRIME_MAP_SRC_DATA_TERRAINVECTORS_H
 #define PRIME_MAP_SRC_DATA_TERRAINVECTORS_H
 
@@ -29,7 +27,7 @@ const int kVectorLineKindCount = 6;
 struct VectorArea
 {
     TerrainClass mClass = TerrainClass::None;
-    std::array<float, 4> mBounds = {1.0f, 1.0f, 0.0f, 0.0f};  // bati, guney, dogu, kuzey (karo birimi)
+    std::array<float, 4> mBounds = {1.0f, 1.0f, 0.0f, 0.0f};
     std::vector<uint32_t> mRingStarts;
     std::vector<float> mX;
     std::vector<float> mY;
@@ -45,24 +43,24 @@ struct VectorLine
 struct VectorExclusion
 {
     std::array<float, 4> mBounds = {0.0f, 0.0f, 0.0f, 0.0f};
-    uint8_t mKinds = 0;  // kExclude... bitleri
+    uint8_t mKinds = 0;
 };
 
 class TerrainVectors
 {
 public:
-    static const uint8_t kExcludeForest = 1;   // sim/exclude_for
-    static const uint8_t kExcludeAutogen = 2;  // sim/exclude_obj, exclude_fac
-    static const uint8_t kExcludeNetwork = 4;  // sim/exclude_net
+    static const uint8_t kExcludeForest = 1;
+    static const uint8_t kExcludeAutogen = 2;
+    static const uint8_t kExcludeNetwork = 4;
 
     void reset(int pWest, int pSouth);
     int west() const;
     int south() const;
 
     bool addFromDsf(const DsfReader& pReader, std::string* pError);
-    void addArea(const VectorArea& pArea);  // hazir alan ekleme (addFromDsf disi kaynaklar ve testler)
+    void addArea(const VectorArea& pArea);
     void addExclusions(const DsfInfo& pOverlayInfo);
-    void applyNetworkExclusions();  // yollari dislama alanlarina gore keser
+    void applyNetworkExclusions();
 
     const std::vector<VectorArea>& areas() const;
     const std::vector<VectorLine>& lines() const;
@@ -84,10 +82,9 @@ private:
     std::vector<VectorExclusion> mExclusions;
 };
 
-// Alani cift-tek kuraliyle piksel izgarasina tarar (delikler bos kalir).
 template <typename TSet>
 void fillVectorArea(const VectorArea& pArea, double pX0, double pYTop, double pPixelsPerUnitX,
                     double pPixelsPerUnitY, int pWidth, int pHeight, TSet pSet);
 
 #include "data/TerrainVectors.inl"
-#endif  // PRIME_MAP_SRC_DATA_TERRAINVECTORS_H
+#endif

@@ -1,14 +1,9 @@
-
 #include "XMapTheme.h"
 
 namespace
 {
-
-// Ortak acik tema parcalari (VFR / IFR): beyaz kontur, koyu yazi
 const Rgba kWhiteHalo = {1.0f, 1.0f, 1.0f, 0.85f};
 
-// Varsayilan katman gorunurlugu, mod basina (ayar dosyasinda deger yoksa).
-// Listede olmayan katman Layer'in kendi varsayilanini alir.
 const LayerDefault kSceneryLayers[] = {
     {"aircraft", true}, {"airport_objects", false}, {"airport_objects.approach_lights", false},
     {"airport_objects.beacons", false}, {"airport_objects.gates", false}, {"airport_objects.hangars", false},
@@ -98,10 +93,10 @@ const XMapTheme kScenery = {
     XMapMode::Scenery,
     "scenery",
     "Scenery",
-    {0.13f, 0.15f, 0.18f, 1.0f},  // arka plan
-    {0.0f, 0.0f, 0.0f, 0.0f},     // su: arazi paleti kullanilir
+    {0.13f, 0.15f, 0.18f, 1.0f},
+    {0.0f, 0.0f, 0.0f, 0.0f},
     TerrainStyle::Classes,
-    {0.0f, 0.0f, 0.0f, 0.70f},  // koyu kontur
+    {0.0f, 0.0f, 0.0f, 0.70f},
     false,
     {0.78f, 0.84f, 0.92f, 0.22f},
     {0.70f, 0.76f, 0.84f, 1.0f},
@@ -131,17 +126,16 @@ const XMapTheme kScenery = {
     {0.90f, 0.92f, 0.95f, 0.90f},
     {0.92f, 0.94f, 0.97f, 1.0f},
     kSceneryLayers,
-    {0.24f, 0.25f, 0.27f, 1.0f},  // veri yok: notr koyu gri (arka plandan ve sudan farkli)
-    {{{0.95f, 0.72f, 0.38f, 0.90f},  // otoyol
-      {0.92f, 0.88f, 0.74f, 0.85f},  // ana yol
-      {0.86f, 0.86f, 0.80f, 0.70f},  // tali
-      {0.80f, 0.80f, 0.78f, 0.45f},  // yerel
-      {0.62f, 0.56f, 0.66f, 0.90f},  // demiryolu
-      {0.70f, 0.72f, 0.78f, 0.55f}}},  // enerji hatti
-    {0.0f, 0.0f, 0.0f, 0.0f},  // yerlesim: Scenery'de sinif rengi
+    {0.24f, 0.25f, 0.27f, 1.0f},
+    {{{0.95f, 0.72f, 0.38f, 0.90f},
+      {0.92f, 0.88f, 0.74f, 0.85f},
+      {0.86f, 0.86f, 0.80f, 0.70f},
+      {0.80f, 0.80f, 0.78f, 0.45f},
+      {0.62f, 0.56f, 0.66f, 0.90f},
+      {0.70f, 0.72f, 0.78f, 0.55f}}},
+    {0.0f, 0.0f, 0.0f, 0.0f},
 };
 
-// VFR: sectional benzeri. Kuleli mavi, kulesiz macenta; Victor yollari kalin acik mavi.
 const XMapTheme kVfr = {
     XMapMode::Vfr,
     "vfr",
@@ -179,17 +173,16 @@ const XMapTheme kVfr = {
     {0.95f, 0.96f, 0.98f, 0.90f},
     {0.10f, 0.15f, 0.30f, 1.0f},
     kVfrLayers,
-    {0.86f, 0.86f, 0.84f, 1.0f},  // veri yok: notr acik gri (su ve karadan farkli)
-    {{{0.20f, 0.20f, 0.24f, 0.90f},  // sectional: yollar koyu gri, demiryolu siyah
+    {0.86f, 0.86f, 0.84f, 1.0f},
+    {{{0.20f, 0.20f, 0.24f, 0.90f},
       {0.28f, 0.28f, 0.32f, 0.85f},
       {0.36f, 0.36f, 0.40f, 0.70f},
       {0.45f, 0.45f, 0.48f, 0.50f},
       {0.10f, 0.10f, 0.12f, 0.90f},
       {0.45f, 0.35f, 0.55f, 0.70f}}},
-    {0.98f, 0.86f, 0.42f, 1.0f},  // yerlesim: sectional sarisi
+    {0.98f, 0.86f, 0.42f, 1.0f},
 };
 
-// IFR Low: enroute low benzeri. IAP'li sayilan buyukler yesil, digerleri kahverengi.
 const XMapTheme kIfrLow = {
     XMapMode::IfrLow,
     "ifr_low",
@@ -227,17 +220,16 @@ const XMapTheme kIfrLow = {
     {0.25f, 0.27f, 0.30f, 0.90f},
     {0.15f, 0.18f, 0.22f, 1.0f},
     kIfrLowLayers,
-    {0.86f, 0.86f, 0.86f, 1.0f},  // veri yok: notr gri
-    {{{0.55f, 0.55f, 0.58f, 0.80f},  // IFR: soluk gri (varsayilan kapali)
+    {0.86f, 0.86f, 0.86f, 1.0f},
+    {{{0.55f, 0.55f, 0.58f, 0.80f},
       {0.62f, 0.62f, 0.65f, 0.70f},
       {0.68f, 0.68f, 0.70f, 0.60f},
       {0.74f, 0.74f, 0.76f, 0.45f},
       {0.45f, 0.45f, 0.48f, 0.80f},
       {0.60f, 0.55f, 0.70f, 0.60f}}},
-    {0.93f, 0.88f, 0.74f, 1.0f},  // yerlesim: soluk bej
+    {0.93f, 0.88f, 0.74f, 1.0f},
 };
 
-// IFR High: yuksek hava yollari, sadece buyuk havalimanlari, NDB yok
 const XMapTheme kIfrHigh = {
     XMapMode::IfrHigh,
     "ifr_high",
@@ -266,34 +258,32 @@ const XMapTheme kIfrHigh = {
     {0.25f, 0.27f, 0.30f, 0.90f},
     {0.15f, 0.18f, 0.22f, 1.0f},
     kIfrHighLayers,
-    {0.86f, 0.86f, 0.86f, 1.0f},  // veri yok: notr gri
-    {{{0.55f, 0.55f, 0.58f, 0.80f},  // IFR: soluk gri (varsayilan kapali)
+    {0.86f, 0.86f, 0.86f, 1.0f},
+    {{{0.55f, 0.55f, 0.58f, 0.80f},
       {0.62f, 0.62f, 0.65f, 0.70f},
       {0.68f, 0.68f, 0.70f, 0.60f},
       {0.74f, 0.74f, 0.76f, 0.45f},
       {0.45f, 0.45f, 0.48f, 0.80f},
       {0.60f, 0.55f, 0.70f, 0.60f}}},
-    {0.93f, 0.88f, 0.74f, 1.0f},  // yerlesim: soluk bej
+    {0.93f, 0.88f, 0.74f, 1.0f},
 };
 
-// dark: ucus kontrol / radar ekrani tarzi tam siyah minimal harita. Parlak ama
-// doygun olmayan renkler: karanlik IOS odasinda goz yormasin.
 const XMapTheme kDark = {
     XMapMode::Dark,
     "dark",
     "Dark",
-    {0.0f, 0.0f, 0.0f, 1.0f},     // kara: siyah
-    {0.03f, 0.07f, 0.14f, 1.0f},  // su: koyu lacivert (kara ile ton farki yeterli)
+    {0.0f, 0.0f, 0.0f, 1.0f},
+    {0.03f, 0.07f, 0.14f, 1.0f},
     TerrainStyle::LandWater,
-    {0.0f, 0.0f, 0.0f, 0.85f},  // siyah kontur
+    {0.0f, 0.0f, 0.0f, 0.85f},
     false,
     {0.55f, 0.60f, 0.70f, 0.14f},
     {0.50f, 0.55f, 0.62f, 1.0f},
-    {{{0.35f, 0.85f, 1.00f, 1.0f},  // buyuk
-      {0.55f, 0.72f, 0.82f, 1.0f},  // kucuk
-      {0.35f, 0.62f, 0.95f, 1.0f},  // deniz
-      {0.72f, 0.62f, 0.92f, 1.0f},  // heliport
-      {0.45f, 0.46f, 0.50f, 1.0f}}},  // kapali
+    {{{0.35f, 0.85f, 1.00f, 1.0f},
+      {0.55f, 0.72f, 0.82f, 1.0f},
+      {0.35f, 0.62f, 0.95f, 1.0f},
+      {0.72f, 0.62f, 0.92f, 1.0f},
+      {0.45f, 0.46f, 0.50f, 1.0f}}},
     {{{0.80f, 0.94f, 1.00f, 1.0f},
       {0.66f, 0.78f, 0.86f, 1.0f},
       {0.60f, 0.75f, 0.95f, 1.0f},
@@ -303,10 +293,10 @@ const XMapTheme kDark = {
     {},
     {},
     false,
-    {{{0.35f, 0.90f, 0.55f, 1.0f},   // VOR: yesil
-      {0.95f, 0.65f, 0.30f, 1.0f},   // NDB: turuncu
-      {0.95f, 0.85f, 0.35f, 1.0f},   // ILS: sari
-      {0.70f, 0.74f, 0.80f, 1.0f}}},  // fix: gri
+    {{{0.35f, 0.90f, 0.55f, 1.0f},
+      {0.95f, 0.65f, 0.30f, 1.0f},
+      {0.95f, 0.85f, 0.35f, 1.0f},
+      {0.70f, 0.74f, 0.80f, 1.0f}}},
     false,
     {0.40f, 0.52f, 0.62f, 0.55f},
     {0.52f, 0.48f, 0.72f, 0.55f},
@@ -317,17 +307,16 @@ const XMapTheme kDark = {
     {0.92f, 0.94f, 0.97f, 0.95f},
     {0.94f, 0.96f, 0.98f, 1.0f},
     kDarkLayers,
-    {0.08f, 0.08f, 0.09f, 1.0f},  // veri yok: siyaha yakin gri
-    {{{0.40f, 0.40f, 0.44f, 0.80f},  // yollar (varsayilan kapali): koyu gri
+    {0.08f, 0.08f, 0.09f, 1.0f},
+    {{{0.40f, 0.40f, 0.44f, 0.80f},
       {0.34f, 0.34f, 0.38f, 0.70f},
       {0.30f, 0.30f, 0.33f, 0.60f},
       {0.26f, 0.26f, 0.28f, 0.45f},
       {0.36f, 0.32f, 0.42f, 0.80f},
       {0.36f, 0.34f, 0.44f, 0.55f}}},
-    {0.0f, 0.0f, 0.0f, 0.0f},  // yerlesim: yok
+    {0.0f, 0.0f, 0.0f, 0.0f},
 };
-
-}  // namespace
+}
 
 const XMapTheme& themeFor(XMapMode pMode)
 {

@@ -7,12 +7,10 @@
 
 namespace
 {
-
-const int kPasses = 3;              // 3 kutu gecisi ~ Gaussian
-const double kMaxReachCells = 8.0;  // izgarada erim bundan buyukse hucre buyutulur (hiz / bellek)
-const double kMinReachPixels = 1.5; // erim bundan kucukse yumusatma yok
-
-}  // namespace
+const int kPasses = 3;
+const double kMaxReachCells = 8.0;
+const double kMinReachPixels = 1.5;
+}
 
 LandBlendPlan planLandBlend(double pMeters, double pMetersPerPixelX, double pMetersPerPixelY,
                             double pMaxReachPixels)
@@ -22,10 +20,8 @@ LandBlendPlan planLandBlend(double pMeters, double pMetersPerPixelX, double pMet
     {
         return tPlan;
     }
-    // pMaxReachPixels: erimin doku pikseli cinsinden tavani (0 = tavan yok). Yakin seviyelerde blur'u
-    // kenar yumusatma duzeyinde tutar; uzak seviyelerde metre degeri zaten bu tavanin altindadir.
     const double tCap = pMaxReachPixels > 0.0 ? pMaxReachPixels : 1e9;
-    const double tReachX = std::min(pMeters / pMetersPerPixelX, tCap);  // piksel
+    const double tReachX = std::min(pMeters / pMetersPerPixelX, tCap);
     const double tReachY = std::min(pMeters / pMetersPerPixelY, tCap);
     const double tReach = std::max(tReachX, tReachY);
     if (tReach < kMinReachPixels)
@@ -33,10 +29,8 @@ LandBlendPlan planLandBlend(double pMeters, double pMetersPerPixelX, double pMet
         return tPlan;
     }
     tPlan.mFactor = std::max(1, static_cast<int>(std::ceil(tReach / kMaxReachCells)));
-    // 3 gecis x yari genislik h -> toplam erim ~3h hucre
     tPlan.mHalfX = std::max(1, static_cast<int>(std::lround(tReachX / tPlan.mFactor / kPasses)));
     tPlan.mHalfY = std::max(1, static_cast<int>(std::lround(tReachY / tPlan.mFactor / kPasses)));
-    // Pay: erim + cift dogrusal okuma icin bir hucre
     tPlan.mPad = static_cast<int>(std::ceil(tReach)) + tPlan.mFactor;
     return tPlan;
 }
@@ -65,8 +59,6 @@ void LandColorField::add(int pPixelX, int pPixelY, const TerrainColor& pColor, f
 
 void LandColorField::boxPass(std::vector<float>& pData, int pCells, int pHalf, bool pHorizontal)
 {
-    // Kayan toplam: her hucre [i - h, i + h] penceresinin ortalamasi. Pencere disi 0 (veri yok);
-    // renk ve agirlik ayni sekilde etkilendigi icin bolumde dogru ortalama cikar.
     const double tScale = 1.0 / (2 * pHalf + 1);
     std::vector<double> tLine(static_cast<size_t>(pCells) * 4);
     for (int tLineIndex = 0; tLineIndex < pCells; ++tLineIndex)
@@ -134,7 +126,6 @@ void LandColorField::blur(int pHalfX, int pHalfY)
 
 bool LandColorField::colorAt(int pPixelX, int pPixelY, double pRgb[3]) const
 {
-    // Piksel merkezinin hucre koordinati (hucre merkezleri x.5'te)
     const double tX = (pPixelX + 0.5) / mFactor - 0.5;
     const double tY = (pPixelY + 0.5) / mFactor - 0.5;
     const int tX0 = std::clamp(static_cast<int>(std::floor(tX)), 0, mCells - 1);

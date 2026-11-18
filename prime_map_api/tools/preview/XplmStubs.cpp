@@ -1,6 +1,3 @@
-// Onizleme araci icin X-Plane SDK fonksiyonlarinin basit karsiliklari: eklentinin
-// cizim kodu bunlari cagirir, X-Plane yokken ayni kod bir OpenGL penceresinde calisir.
-// Yazi, Windows yazi tipiyle (wglUseFontBitmaps) cizilir.
 #include <cstdio>
 #include <cstring>
 
@@ -14,12 +11,10 @@
 
 namespace
 {
-
 HDC gFontDc = nullptr;
 GLuint gFontListBase = 0;
-const int kFontHeight = 10;  // X-Plane'in xplmFont_Proportional'ina yakin
-
-}  // namespace
+const int kFontHeight = 10;
+}
 
 void PreviewInitFont(HDC pDc)
 {
@@ -33,8 +28,6 @@ void PreviewInitFont(HDC pDc)
 
 namespace
 {
-
-// Bir OpenGL ozelligini ac/kapat
 void SetCapability(GLenum pCapability, bool pOn)
 {
     if (pOn)
@@ -46,8 +39,7 @@ void SetCapability(GLenum pCapability, bool pOn)
         glDisable(pCapability);
     }
 }
-
-}  // namespace
+}
 
 XPLM_API void XPLMSetGraphicsState(int inEnableFog, int inNumberTexUnits, int inEnableLighting,
                                    int inEnableAlphaTesting, int inEnableAlphaBlending, int inEnableDepthTesting,
@@ -63,7 +55,7 @@ XPLM_API void XPLMSetGraphicsState(int inEnableFog, int inNumberTexUnits, int in
     glDepthMask(inEnableDepthWriting ? GL_TRUE : GL_FALSE);
 }
 
-XPLM_API void XPLMBindTexture2d(int inTextureNum, int /*inTextureUnit*/)
+XPLM_API void XPLMBindTexture2d(int inTextureNum, int )
 {
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(inTextureNum));
 }
@@ -79,7 +71,7 @@ XPLM_API void XPLMGenerateTextureNumbers(int* outTextureIDs, int inCount)
 }
 
 XPLM_API void XPLMDrawString(float* inColorRGB, int inXOffset, int inYOffset, const char* inChar,
-                             int* /*inWordWrapWidth*/, XPLMFontID /*inFontID*/)
+                             int* , XPLMFontID )
 {
     glDisable(GL_TEXTURE_2D);
     glColor3f(inColorRGB[0], inColorRGB[1], inColorRGB[2]);
@@ -88,14 +80,14 @@ XPLM_API void XPLMDrawString(float* inColorRGB, int inXOffset, int inYOffset, co
     glCallLists(static_cast<GLsizei>(std::strlen(inChar)), GL_UNSIGNED_BYTE, inChar);
 }
 
-XPLM_API float XPLMMeasureString(XPLMFontID /*inFontID*/, const char* inChar, int inNumChars)
+XPLM_API float XPLMMeasureString(XPLMFontID , const char* inChar, int inNumChars)
 {
     SIZE tSize = {0, 0};
     GetTextExtentPoint32A(gFontDc, inChar, inNumChars, &tSize);
     return static_cast<float>(tSize.cx);
 }
 
-XPLM_API void XPLMGetFontDimensions(XPLMFontID /*inFontID*/, int* outCharWidth, int* outCharHeight,
+XPLM_API void XPLMGetFontDimensions(XPLMFontID , int* outCharWidth, int* outCharHeight,
                                     int* outDigitsOnly)
 {
     if (outCharWidth)
@@ -117,19 +109,17 @@ XPLM_API void XPLMDebugString(const char* inString)
     std::fputs(inString, stdout);
 }
 
-// --- Ucak ve FMS: onizlemede yok ---
-
-XPLM_API XPLMDataRef XPLMFindDataRef(const char* /*inDataRefName*/)
+XPLM_API XPLMDataRef XPLMFindDataRef(const char* )
 {
     return nullptr;
 }
 
-XPLM_API double XPLMGetDatad(XPLMDataRef /*inDataRef*/)
+XPLM_API double XPLMGetDatad(XPLMDataRef )
 {
     return 0.0;
 }
 
-XPLM_API float XPLMGetDataf(XPLMDataRef /*inDataRef*/)
+XPLM_API float XPLMGetDataf(XPLMDataRef )
 {
     return 0.0f;
 }
@@ -144,13 +134,13 @@ XPLM_API int XPLMGetDestinationFMSEntry(void)
     return -1;
 }
 
-XPLM_API void XPLMGetFMSEntryInfo(int /*inIndex*/, XPLMNavType* /*outType*/, char* /*outID*/, XPLMNavRef* /*outRef*/,
-                                  int* /*outAltitude*/, float* /*outLat*/, float* /*outLon*/)
+XPLM_API void XPLMGetFMSEntryInfo(int , XPLMNavType* , char* , XPLMNavRef* ,
+                                  int* , float* , float* )
 {
 }
 
-XPLM_API void XPLMGetNavAidInfo(XPLMNavRef /*inRef*/, XPLMNavType* /*outType*/, float* /*outLatitude*/,
-                                float* /*outLongitude*/, float* /*outHeight*/, int* /*outFrequency*/,
-                                float* /*outHeading*/, char* /*outID*/, char* /*outName*/, char* /*outReg*/)
+XPLM_API void XPLMGetNavAidInfo(XPLMNavRef , XPLMNavType* , float* ,
+                                float* , float* , int* ,
+                                float* , char* , char* , char* )
 {
 }

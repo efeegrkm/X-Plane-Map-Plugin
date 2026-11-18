@@ -10,10 +10,8 @@
 
 namespace
 {
-
-const double kSlowLoadMs = 100.0;  // bundan uzun suren yuklemeler log'a yazilir
-
-}  // namespace
+const double kSlowLoadMs = 100.0;
+}
 
 AirportDetailStore::AirportDetailStore(const AirportGeometryStore& pSummaries)
     : mSummaries(pSummaries)
@@ -105,8 +103,6 @@ const LoadedAirport* AirportDetailStore::use(int pAirport)
 void AirportDetailStore::submitWanted()
 {
     std::lock_guard<std::mutex> tLock(mMutex);
-    // Kuyrugu bu karenin isteklerine gore yeniden kur: ekrandan cikanlar
-    // beklemeye devam etmesin, yeni gorunenler one gecsin
     std::deque<Request> tQueue;
     for (int tAirport : mWanted)
     {
@@ -121,7 +117,7 @@ void AirportDetailStore::submitWanted()
         }
         if (mInFlight.count(tAirport) > 0)
         {
-            continue;  // isci su an bunu okuyor
+            continue;
         }
         const AirportGeometry& tSummary = mSummaries.at(tAirport);
         Request tRequest;
@@ -133,7 +129,6 @@ void AirportDetailStore::submitWanted()
         tRequest.mId = tSummary.mId;
         tQueue.push_back(std::move(tRequest));
     }
-    // Kuyruktan cikarilanlar artik "yolda" degil
     for (const Request& tOld : mQueue)
     {
         if (!mWantedSet.count(tOld.mAirport))
@@ -191,7 +186,7 @@ void AirportDetailStore::evictUnused()
         }
         if (tOldest == mLoaded.end())
         {
-            return;  // hepsi su an ekranda
+            return;
         }
         mLoaded.erase(tOldest);
     }
@@ -206,7 +201,6 @@ std::unique_ptr<LoadedAirport> AirportDetailStore::load(const Request& pRequest,
         pLog += std::format("airport {}: cannot open {}\n", pRequest.mId, pRequest.mPath);
         return nullptr;
     }
-    // Dosyanin icinde havalimaninin baslangicina dogrudan atla
     std::string tText(pRequest.mLength, '\0');
     tFile.seekg(static_cast<std::streamoff>(pRequest.mOffset));
     tFile.read(tText.data(), static_cast<std::streamsize>(tText.size()));
@@ -216,7 +210,6 @@ std::unique_ptr<LoadedAirport> AirportDetailStore::load(const Request& pRequest,
     tLoaded->mDetail = AptDatParser::parseAirport(tText);
     if (tLoaded->mDetail.mId != pRequest.mId)
     {
-        // Dosya acilistan sonra degismis olabilir: yanlis havalimanini cizme
         pLog += std::format("airport {}: file changed since indexing ({} found at offset {})\n", pRequest.mId,
                             tLoaded->mDetail.mId, pRequest.mOffset);
         return nullptr;
@@ -240,7 +233,6 @@ std::unique_ptr<LoadedAirport> AirportDetailStore::load(const Request& pRequest,
 
 void AirportDetailStore::workerLoop()
 {
-    // ARKA PLAN THREAD'i: burada XPLM fonksiyonu cagrilmaz
     while (true)
     {
         Request tRequest;

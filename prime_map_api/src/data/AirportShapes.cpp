@@ -1,19 +1,17 @@
 #include "data/AirportShapes.h"
 
 #include "XMapView.h"
-#include "mapbox/earcut.hpp"  // third_party/earcut (dis kutuphane)
+#include "mapbox/earcut.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <unordered_map>
 
-// earcut noktanin x'ini nth<0>, y'sini nth<1> ile okur: LocalPoint'i tanit
 namespace mapbox
 {
 namespace util
 {
-
 template <>
 struct nth<0, LocalPoint>
 {
@@ -31,18 +29,16 @@ struct nth<1, LocalPoint>
         return pPoint.mY;
     }
 };
-
-}  // namespace util
-}  // namespace mapbox
+}
+}
 
 namespace
 {
-
 const double kPi = 3.14159265358979323846;
-const double kMaxStepM = 2.0;          // egri uzerinde en fazla ~2 m'de bir nokta
-const int kMaxSegmentPieces = 32;      // bir egri en fazla bu kadar parcaya bolunur
-const double kSamePointM = 0.01;       // 1 cm'den yakin ardisik noktalar tek nokta sayilir
-const double kLightSpacingM = 15.0;    // isik dizisinde lambalar arasi (orta hat isiklari 15 m civari)
+const double kMaxStepM = 2.0;
+const int kMaxSegmentPieces = 32;
+const double kSamePointM = 0.01;
+const double kLightSpacingM = 15.0;
 
 double distance(const LocalPoint& pA, const LocalPoint& pB)
 {
@@ -71,7 +67,6 @@ LocalPoint cubic(const LocalPoint& pP0, const LocalPoint& pP1, const LocalPoint&
             tA * pP0.mY + tB * pP1.mY + tC * pP2.mY + tD * pP3.mY};
 }
 
-// Ardisik ayni noktalari ve kapali halkada ilk noktayi tekrarlayan sonu atar
 std::vector<LocalPoint> cleaned(const std::vector<LocalPoint>& pRing)
 {
     std::vector<LocalPoint> tResult;
@@ -90,7 +85,6 @@ std::vector<LocalPoint> cleaned(const std::vector<LocalPoint>& pRing)
     return tResult;
 }
 
-// Yerel duzlemdeki noktalari referansa gore Mercator farkina cevirir
 class MercatorWriter
 {
 public:
@@ -133,13 +127,11 @@ private:
     double mOriginY;
 };
 
-// Isik tipli parcalar boyunca kLightSpacingM araliklarla lamba koyar (aralik
-// parcadan parcaya tasinir: kavisli dizilerde de lambalar esit aralikli kalir)
 void addLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vector<LightPoint>& pOut)
 {
     const size_t tCount = pChain.mPoints.size();
     const size_t tSegments = pChain.mClosed ? tCount : (tCount > 0 ? tCount - 1 : 0);
-    double tCarry = 0.0;  // bir sonraki lambaya kalan mesafe
+    double tCarry = 0.0;
     for (size_t tSegment = 0; tSegment < tSegments && tSegment < pChain.mLightTypes.size(); ++tSegment)
     {
         const int tType = pChain.mLightTypes[tSegment];
@@ -153,7 +145,7 @@ void addLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vect
         const double tLength = distance(tFrom, tTo);
         if (tCarry >= tLength)
         {
-            tCarry -= tLength;  // bu parcaya lamba dusmuyor
+            tCarry -= tLength;
             continue;
         }
         double tAt = tCarry;
@@ -164,7 +156,7 @@ void addLights(const FlatChain& pChain, const MercatorWriter& pWriter, std::vect
                                                        tFrom.mY + (tTo.mY - tFrom.mY) * tT}),
                             tType});
         }
-        tCarry = tAt - tLength;  // son lambadan sonraki lambaya kalan mesafe
+        tCarry = tAt - tLength;
     }
 }
 
@@ -189,8 +181,7 @@ void addStyledLine(const FlatChain& pChain, const MercatorWriter& pWriter, std::
     tLine.mClosed = pChain.mClosed;
     pOut.push_back(std::move(tLine));
 }
-
-}  // namespace
+}
 
 LocalFrame::LocalFrame(const LatLon& pOrigin)
     : mOrigin(pOrigin)
@@ -211,7 +202,6 @@ LatLon LocalFrame::toLatLon(const LocalPoint& pPoint) const
 
 namespace Shapes
 {
-
 void addSegment(const AptNode& pFrom, const AptNode& pTo, const LocalFrame& pFrame, double pMaxStepM,
                 std::vector<LocalPoint>& pOut)
 {
@@ -220,11 +210,10 @@ void addSegment(const AptNode& pFrom, const AptNode& pTo, const LocalFrame& pFra
     pOut.push_back(tP0);
     if (!pFrom.mHasControl && !pTo.mHasControl)
     {
-        return;  // duz parca
+        return;
     }
     const LocalPoint tP1 = pFrom.mHasControl ? pFrame.toLocal(pFrom.mControl) : tP0;
     const LocalPoint tP2 = pTo.mHasControl ? mirror(pFrame.toLocal(pTo.mControl), tP3) : tP3;
-    // Kontrol cokgeninin boyu egrinin boyundan biraz uzundur: guvenli ust sinir
     const double tLength = distance(tP0, tP1) + distance(tP1, tP2) + distance(tP2, tP3);
     const int tPieces = std::clamp(static_cast<int>(std::ceil(tLength / pMaxStepM)), 1, kMaxSegmentPieces);
     for (int tPiece = 1; tPiece < tPieces; ++tPiece)
@@ -248,7 +237,6 @@ FlatChain flatten(const AptChain& pChain, const LocalFrame& pFrame, double pMaxS
         const AptNode& tFrom = pChain.mNodes[tIndex];
         const size_t tBefore = tResult.mPoints.size();
         addSegment(tFrom, pChain.mNodes[(tIndex + 1) % tCount], pFrame, pMaxStepM, tResult.mPoints);
-        // Bu dugumden baslayan butun alt parcalar dugumun stilini alir
         for (size_t tPiece = tBefore; tPiece < tResult.mPoints.size(); ++tPiece)
         {
             tResult.mLineTypes.push_back(tFrom.mLineTypes[0]);
@@ -280,8 +268,6 @@ bool triangulate(const std::vector<LocalPoint>& pOuter, const std::vector<std::v
     pOutVertices.clear();
     pOutTriangles.clear();
 
-    // earcut'in girdisi: halka listesi, [0] dis sinir, digerleri delik.
-    // Cikti indeksleri halkalarin arka arkaya dizilmis noktalarina gore.
     std::vector<std::vector<LocalPoint>> tRings;
     tRings.push_back(cleaned(pOuter));
     if (tRings[0].size() < 3)
@@ -315,7 +301,6 @@ AirportShapes build(const AirportDetail& pDetail, const LatLon& pReference)
     tShapes.mOriginY = Mercator::latToY(pReference.mLat);
     const MercatorWriter tWriter(tFrame, tShapes.mOriginX, tShapes.mOriginY);
 
-    // Yuzeyler: dosyada ilk gelen en ustte cizilir; biz alttan uste cizecegiz
     for (auto tIterator = pDetail.mPavements.rbegin(); tIterator != pDetail.mPavements.rend(); ++tIterator)
     {
         const AptPavement& tPavement = *tIterator;
@@ -350,7 +335,7 @@ AirportShapes build(const AirportDetail& pDetail, const LatLon& pReference)
         for (const FlatChain& tRing : tRings)
         {
             tShapes.mPavementEdges.push_back(tWriter.convert(tRing.mPoints));
-            addStyledLine(tRing, tWriter, tShapes.mLines);  // yuzey kenarindaki cizgi ve isiklar
+            addStyledLine(tRing, tWriter, tShapes.mLines);
             addLights(tRing, tWriter, tShapes.mLights);
         }
     }
@@ -397,5 +382,4 @@ AirportShapes build(const AirportDetail& pDetail, const LatLon& pReference)
     tShapes.mVertexCount += tShapes.mLights.size() + 2 * tShapes.mTaxiEdges.size();
     return tShapes;
 }
-
-}  // namespace Shapes
+}

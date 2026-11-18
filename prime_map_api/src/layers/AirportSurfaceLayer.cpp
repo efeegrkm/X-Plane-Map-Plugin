@@ -11,11 +11,8 @@
 
 namespace
 {
-
-// Ayrinti esikleri; yerlesik gorunme esikleri LayerTable tablosundadir:
-// katman 10.5 (sinir), pavement / pavement_edges 11.0, markings 13.5
-const size_t kMaxGpuAirports = 64;    // GPU'da tutulan en fazla havalimani
-const float kCriticalLinePixels = 2.0f;  // sinir ve kaplama kenari: 2 piksel (boya cizgileri 1)
+const size_t kMaxGpuAirports = 64;
+const float kCriticalLinePixels = 2.0f;
 
 enum SurfacePart
 {
@@ -25,7 +22,6 @@ enum SurfacePart
     kPartMarkings,
 };
 
-// Yuzey renkleri (koyu tema). pistler(RunwayLayer) bunlardan biraz daha koyu.
 const Rgba kAsphalt = {0.30f, 0.31f, 0.34f, 1.0f};
 const Rgba kConcrete = {0.38f, 0.39f, 0.41f, 1.0f};
 const Rgba kGrass = {0.30f, 0.40f, 0.24f, 1.0f};
@@ -37,7 +33,6 @@ const Rgba kPavementEdge = {0.55f, 0.57f, 0.62f, 0.55f};
 const Rgba kBoundary = {0.75f, 0.80f, 0.90f, 0.45f};
 const Rgba kLoading = {0.85f, 0.90f, 1.00f, 1.0f};
 
-// Boya cizgisi renkleri (spesifikasyon "Line Type Code")
 const Rgba kLineYellow = {0.96f, 0.80f, 0.20f, 1.0f};
 const Rgba kLineWhite = {0.95f, 0.95f, 0.95f, 1.0f};
 const Rgba kLineRed = {0.90f, 0.22f, 0.20f, 1.0f};
@@ -45,7 +40,6 @@ const Rgba kLineOrange = {1.00f, 0.55f, 0.10f, 1.0f};
 const Rgba kLineBlue = {0.30f, 0.50f, 1.00f, 1.0f};
 const Rgba kLineGreen = {0.25f, 0.85f, 0.35f, 1.0f};
 
-// Yuzey kodu -> renk. nullptr: cizilmez (su, saydam)
 const Rgba* surfaceColor(int pCode)
 {
     switch (pCode)
@@ -70,12 +64,11 @@ const Rgba* surfaceColor(int pCode)
     }
     if (pCode >= 50 && pCode <= 57)
     {
-        return &kConcrete;  // X-Plane 12 beton turleri
+        return &kConcrete;
     }
-    return &kAsphalt;  // 1 ve X-Plane 12 asfalt turleri (20-38)
+    return &kAsphalt;
 }
 
-// Boya cizgisi kodu -> renk. 51-64 / 70-92: ayni cizginin siyah kenarli hali.
 const Rgba* lineColor(int pType)
 {
     int tBase = pType;
@@ -112,7 +105,6 @@ const Rgba* lineColor(int pType)
     }
 }
 
-// Mercator'daki bir halkayi GL_LINES ciftlerine ekler
 void addRingLines(const std::vector<PointF>& pRing, bool pClosed, const Rgba& pColor,
                   std::vector<Gfx::ColorVertex>& pOut)
 {
@@ -129,7 +121,6 @@ void addRingLines(const std::vector<PointF>& pRing, bool pClosed, const Rgba& pC
         pOut.push_back({tTo.mX, tTo.mY, pColor});
     }
 }
-
 }
 
 AirportSurfaceLayer::AirportSurfaceLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails)
@@ -203,7 +194,6 @@ void AirportSurfaceLayer::upload(GpuAirport& pGpu, const LoadedAirport& pLoaded)
 
 void AirportSurfaceLayer::evictUnused()
 {
-    // Ekrandan cikan havalimanlari: en uzun suredir kullanilmayani GPU'dan sil
     while (mGpu.size() > kMaxGpuAirports)
     {
         auto tOldest = mGpu.end();
@@ -226,9 +216,9 @@ void AirportSurfaceLayer::evictUnused()
 void AirportSurfaceLayer::draw(const drawContext& pContext)
 {
     ++mFrame;
-    mDrawn.clear();  // Describe eski karenin (silinmis olabilecek) ayrintilarina bakmasin
+    mDrawn.clear();
     const XMapView& tView = *pContext.mView;
-    if (!mSummaries.isReady() || !isInZoomRange())  // yerlesik esik 10.5 (LayerTable tablosu)
+    if (!mSummaries.isReady() || !isInZoomRange())
     {
         return;
     }
@@ -236,10 +226,8 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
     findVisibleAirports(tView, mSummaries, mQuery, mVisible);
 
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
-    const double tScale = tView.worldSize();  // Mercator birimi -> boxel
+    const double tScale = tView.worldSize();
     Gfx::Mesh tLoading;
-    // Yukleniyor isareti: sabit yari saydam (yanip sonme: her karede yeniden
-    // cizim gerekirdi, harita resmi onbellekte)
     const float tPulse = 0.55f;
     std::vector<GpuAirport*> tReady;
     mDrawn.clear();
@@ -249,7 +237,7 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
         const LoadedAirport* tLoaded = mDetails.use(tIndex);
         if (!tLoaded)
         {
-            mGpu.erase(tIndex);  // ayrinti bellekten dustu: GPU kopyasi da gitsin
+            mGpu.erase(tIndex);
             const GeoBounds& tBox = mSummaries.at(tIndex).mBounds;
             const PointF tSouthWest = tView.toScreen({tBox.mSouth, tBox.mWest});
             const PointF tNorthEast = tView.toScreen({tBox.mNorth, tBox.mEast});
@@ -267,16 +255,14 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
         GpuAirport& tGpu = mGpu[tIndex];
         if (tGpu.mSource != tLoaded)
         {
-            upload(tGpu, *tLoaded);  // ilk kez (veya yeniden okundu): GPU'ya yukle
+            upload(tGpu, *tLoaded);
         }
         tGpu.mLastFrame = mFrame;
         tReady.push_back(&tGpu);
         mDrawn.push_back(tLoaded);
     }
 
-    // Kritik cizgiler gercek piksel olarak 2 (UI olcegi %150 ise 3)
     const float tCriticalWidth = std::round(kCriticalLinePixels * static_cast<float>(pContext.mPixelsPerBoxel));
-    // Once tum dolgular, sonra kenarlar ve cizgiler (komsu havalimanlari birbirini ortmesin)
     for (int tPass = 0; tPass < 4; ++tPass)
     {
         for (GpuAirport* tGpu : tReady)
@@ -307,11 +293,10 @@ void AirportSurfaceLayer::draw(const drawContext& pContext)
 std::string AirportSurfaceLayer::describe(const drawContext& pContext, double pX, double pY) const
 {
     const XMapView& tView = *pContext.mView;
-    if (!isSubLayerDrawn(kPartPavement))  // yerlesik esik 11.0 (LayerTable tablosu)
+    if (!isSubLayerDrawn(kPartPavement))
     {
         return "";
     }
-    // Imlecin Mercator koordinati; her havalimaninin sekilleri ona gore fark
     const LatLon tCursor = tView.boxelToLatLon(pX, pY);
     const double tCursorX = Mercator::lonToX(tCursor.mLon);
     const double tCursorY = Mercator::latToY(tCursor.mLat);
@@ -320,12 +305,11 @@ std::string AirportSurfaceLayer::describe(const drawContext& pContext, double pX
         const AirportShapes& tShapes = tLoaded->mShapes;
         const PointF tPoint = {static_cast<float>(tCursorX - tShapes.mOriginX),
                                static_cast<float>(tCursorY - tShapes.mOriginY)};
-        // Cizim sirasi alttan uste: en ustteki yuzey once sorulur
         for (auto tSurface = tShapes.mPavements.rbegin(); tSurface != tShapes.mPavements.rend(); ++tSurface)
         {
             if (!surfaceColor(tSurface->mSurfaceCode))
             {
-                continue;  // cizilmeyen (su / saydam) yuzey
+                continue;
             }
             const std::vector<int>& tTriangles = tSurface->mTriangles;
             for (size_t tIndex = 0; tIndex + 2 < tTriangles.size(); tIndex += 3)

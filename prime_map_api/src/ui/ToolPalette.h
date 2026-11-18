@@ -1,5 +1,4 @@
-// Cizim araclari paleti: haritanin ustunde yuzen, tasinabilir ve katlanabilir
-// kucuk bir panel (Pan/Point/Route/Region + Finish/Undo/Clear).
+// Tasinabilir cizim araclari paleti.
 #ifndef PRIME_MAP_SRC_UI_TOOLPALETTE_H
 #define PRIME_MAP_SRC_UI_TOOLPALETTE_H
 
@@ -19,10 +18,10 @@ class ToolPalette
 public:
     struct Hit
     {
-        bool mInside = false;          // panelin ustunde mi
+        bool mInside = false;
         ToolbarAction mAction = ToolbarAction::None;
-        bool mStartDrag = false;       // baslik cubuguna basildi: surukleme basliyor
-        bool mToggleCollapse = false;  // ok: katla / ac
+        bool mStartDrag = false;
+        bool mToggleCollapse = false;
     };
 
     bool isVisible() const;
@@ -30,19 +29,16 @@ public:
     bool isCollapsed() const;
     void setCollapsed(bool pCollapsed);
 
-    // Haritanin sag ust kosesine gore yer (boxel, >= 0); ayar dosyasi icin
     int offsetRight() const;
     int offsetTop() const;
     void setOffset(int pRight, int pTop);
 
-    // pBounds: panelin kalabilecegi alan (ust ve alt seritlerin arasi). Her cizimden once.
     void layout(const RectI& pBounds, const ToolbarState& pState);
 
     void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const ToolbarState& pState) const;
     Hit hitTest(int pX, int pY, const ToolbarState& pState) const;
     bool contains(int pX, int pY) const;
 
-    // Surukleme: fare bu kadar kaydi (Layout bir sonraki karede alana sigdirir)
     void moveBy(int pDeltaX, int pDeltaY);
 
 private:
@@ -50,7 +46,7 @@ private:
     {
         ToolbarAction mAction;
         RectI mRect;
-        bool mIsTool;  // true: ikonlu arac satiri, false: islem dugmesi
+        bool mIsTool;
     };
 
     static const char* labelFor(ToolbarAction pAction);
@@ -66,7 +62,7 @@ private:
     int mOffsetTop = 8;
     RectI mRect;
     RectI mHeader;
-    int mSeparatorY = 0;  // arac satirlari ile islem dugmeleri arasi cizgi (0: yok)
+    int mSeparatorY = 0;
     std::vector<Item> mItems;
 };
-#endif  // PRIME_MAP_SRC_UI_TOOLPALETTE_H
+#endif

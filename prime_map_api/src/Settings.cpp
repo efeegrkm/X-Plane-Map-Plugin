@@ -8,8 +8,6 @@
 
 namespace
 {
-
-// JSON dizgi kacisleri: "\\" ve '"' zorunlu, kontrol karakterleri \n \t \r biciminde
 std::string jsonEscape(const std::string& pText)
 {
     std::string tOut;
@@ -50,7 +48,6 @@ std::string jsonEscape(const std::string& pText)
     return tOut;
 }
 
-// JSON string sabitini okur; pIndex tirnagi astiktan sonra cikar. Okuyamazsa false.
 bool readJsonString(const std::string& pText, size_t& pPos, std::string* pOut)
 {
     if (pPos >= pText.size() || pText[pPos] != '"')
@@ -101,7 +98,6 @@ bool readJsonString(const std::string& pText, size_t& pPos, std::string* pOut)
             break;
         case 'u':
         {
-            // \uXXXX -> UTF-8 (temel cokdilli duzlem yeterli; surrogat desteklenmez)
             if (pPos + 4 > pText.size())
             {
                 return false;
@@ -132,8 +128,6 @@ bool readJsonString(const std::string& pText, size_t& pPos, std::string* pOut)
     return false;
 }
 
-// JSON'u iki seviyede okur: { "bolum": { "anahtar": deger } }. Deger metin/sayi/true/false olabilir;
-// sayi ve true/false ham metinleri saklanir (getInt/getBool aynen cozer). Bilinmeyen yapi atlanir.
 void parseJson(const std::string& pText,
                std::map<std::string, std::map<std::string, std::string>>* pOut)
 {
@@ -164,7 +158,7 @@ void parseJson(const std::string& pText,
         tPos = pText.find_first_not_of(" \t\r\n", tPos);
         if (tPos == std::string::npos || pText[tPos] != '{')
         {
-            return;  // bolum olmayan deger: yok say
+            return;
         }
         ++tPos;
         while (tPos < pText.size())
@@ -198,7 +192,7 @@ void parseJson(const std::string& pText,
                     (*pOut)[tSection][tKey] = tValue;
                 }
             }
-            else  // sayi / true / false / null: kapayiciya kadar ham metin
+            else
             {
                 const size_t tEnd = pText.find_first_of(",} \t\r\n", tPos);
                 const size_t tStop = tEnd == std::string::npos ? pText.size() : tEnd;
@@ -217,8 +211,7 @@ void parseJson(const std::string& pText,
         ++tPos;
     }
 }
-
-}  // namespace
+}
 
 bool Settings::load(const std::string& pPath)
 {
@@ -242,7 +235,6 @@ void Settings::loadText(const std::string& pText)
     mergeText(pText);
 }
 
-// Sadece JSON: { "bolum": { "anahtar": "deger" } }. JSON olmayan metin yok sayilir.
 void Settings::mergeText(const std::string& pText)
 {
     const size_t tFirst = pText.find_first_not_of(" \t\r\n");
@@ -255,7 +247,6 @@ void Settings::mergeText(const std::string& pText)
 
 std::string Settings::toText(const std::vector<std::string>& pSections) const
 {
-    // pSections bos: hepsi. "layers*" gibi sonu '*' olan oge on ek olarak eslesir.
     auto tWanted = [&pSections](const std::string& pName)
     {
         if (pSections.empty())
@@ -278,7 +269,6 @@ std::string Settings::toText(const std::vector<std::string>& pSections) const
         }
         return false;
     };
-    // JSON: { "bolum": { "anahtar": "deger" } }; std::map sayesinde alfabetik sirada
     std::ostringstream tOut;
     tOut << "{\n";
     bool tFirstSection = true;
@@ -316,7 +306,6 @@ bool Settings::save() const
     {
         return false;
     }
-    // Once gecici dosyaya, sonra yeniden adlandir: yarim yazilmis dosya kalmasin
     const std::string tTemporary = mPath + ".tmp";
     {
         std::ofstream tFile(tTemporary, std::ios::trunc);
@@ -373,7 +362,6 @@ double Settings::getDouble(const std::string& pSection, const std::string& pKey,
     {
         return pDefault;
     }
-    // "C" yerel ayariyla oku: ondalik ayirici her zaman nokta
     std::istringstream tStream(getString(pSection, pKey, ""));
     tStream.imbue(std::locale::classic());
     double tValue = pDefault;

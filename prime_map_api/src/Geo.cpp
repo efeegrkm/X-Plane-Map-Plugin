@@ -4,9 +4,8 @@
 
 namespace
 {
-
 const double kPi = 3.14159265358979323846;
-const double kEarthRadiusNm = 3440.065;  // dunya yaricapi, deniz mili
+const double kEarthRadiusNm = 3440.065;
 
 double rad(double pDegrees)
 {
@@ -17,8 +16,7 @@ double deg(double pRadians)
 {
     return pRadians * 180.0 / kPi;
 }
-
-}  // namespace
+}
 
 double distanceNm(const LatLon& pFrom, const LatLon& pTo)
 {
@@ -76,7 +74,7 @@ LatLon destinationPoint(const LatLon& pFrom, double pBearingDeg, double pDistanc
     const double tLat1 = rad(pFrom.mLat);
     const double tLon1 = rad(pFrom.mLon);
     const double tBearing = rad(pBearingDeg);
-    const double tAngle = pDistanceNm / kEarthRadiusNm;  // kat edilen yay (radyan)
+    const double tAngle = pDistanceNm / kEarthRadiusNm;
 
     const double tLat2 = std::asin(std::sin(tLat1) * std::cos(tAngle) +
                                    std::cos(tLat1) * std::sin(tAngle) * std::cos(tBearing));
@@ -120,7 +118,7 @@ void densifySegment(const LatLon& pFrom, const LatLon& pTo, double pMaxStepNm, s
     int tSteps = static_cast<int>(std::ceil(tDistance / pMaxStepNm));
     if (tSteps > 500)
     {
-        tSteps = 500;  // asiri uzun segmentte sinir
+        tSteps = 500;
     }
     for (int tStep = 1; tStep < tSteps; ++tStep)
     {
@@ -128,11 +126,8 @@ void densifySegment(const LatLon& pFrom, const LatLon& pTo, double pMaxStepNm, s
     }
 }
 
-// Ucgenleme: kulak kesme (ear clipping). Lat/lon kucuk alanda duz kabul:
-// boylam cos(enlem) ile olceklenir.
 namespace
 {
-
 struct Point2
 {
     double mX;
@@ -163,8 +158,7 @@ bool segmentsIntersect(const Point2& pA, const Point2& pB, const Point2& pC, con
     return ((tD1 > 0) != (tD2 > 0)) && ((tD3 > 0) != (tD4 > 0)) && tD1 != 0 && tD2 != 0 && tD3 != 0 &&
            tD4 != 0;
 }
-
-}  // namespace
+}
 
 double polygonAreaNm2(const std::vector<LatLon>& pPolygon)
 {
@@ -181,7 +175,6 @@ double polygonAreaNm2(const std::vector<LatLon>& pPolygon)
     tMeanLat /= static_cast<double>(tCount);
     const double tLonScale = std::cos(rad(tMeanLat));
 
-    // Shoelace formulu; 1 derece enlem = 60 NM
     double tSum = 0.0;
     for (size_t tIndex = 0; tIndex < tCount; ++tIndex)
     {
@@ -221,7 +214,7 @@ bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& p
         {
             if (tJ == tI + 1 || (tI == 0 && tJ == tCount - 1))
             {
-                continue;  // komsu kenarlar
+                continue;
             }
             if (segmentsIntersect(tPoints[tI], tPoints[(tI + 1) % tCount], tPoints[tJ],
                                   tPoints[(tJ + 1) % tCount]))
@@ -231,7 +224,6 @@ bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& p
         }
     }
 
-    // Yonu saat yonunun tersine (CCW) cevir
     double tArea2 = 0;
     for (int tIndex = 0; tIndex < tCount; ++tIndex)
     {
@@ -241,7 +233,7 @@ bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& p
     }
     if (std::fabs(tArea2) < 1e-14)
     {
-        return false;  // alani yok (hepsi ayni dogru uzerinde)
+        return false;
     }
 
     std::vector<int> tOrder(tCount);
@@ -266,7 +258,7 @@ bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& p
             const Point2& tC = tPoints[tIc];
             if (cross(tA, tB, tC) <= 0)
             {
-                continue;  // icbukey kose, kulak degil
+                continue;
             }
             bool tContains = false;
             for (int tJ = 0; tJ < tRemaining && !tContains; ++tJ)
@@ -291,8 +283,6 @@ bool triangulatePolygon(const std::vector<LatLon>& pPolygon, std::vector<int>& p
         }
         if (!tClipped)
         {
-            // Kulak bulunamadi: ayni dogru uzerindeki (alansiz) bir kose varsa
-            // onu atip devam et, yoksa basarisiz.
             bool tRemoved = false;
             for (int tI = 0; tI < tRemaining && !tRemoved; ++tI)
             {

@@ -1,6 +1,3 @@
-// XMapApiCalls.cpp
-// SDK_BOUND: her metot tek bir Prime XMap API cagrisidir. Harita acik degilse (mXMap bos) bir sey
-// yapmaz / varsayilan doner; API'nin kendisi de ayni kurali uygular.
 #include "XMapApiCalls.h"
 
 bool XMapApiCalls::initLibrary(const std::string& pLogPrefix, const std::string& pDataDirectory)
@@ -31,7 +28,7 @@ bool XMapApiCalls::openXMap(const prime::Geometry& pGeometry, prime::WindowStyle
     tConfig.mStyle = pStyle;
     tConfig.mUiVisible = pUi;
     tConfig.mMouseInput = pMouse;
-    mXMap = mManager->addXMap(tConfig);  // ayarlar uygulanir, acilmaz
+    mXMap = mManager->addXMap(tConfig);
     if (mXMap)
     {
         mXMap->initialize();
@@ -45,12 +42,11 @@ bool XMapApiCalls::openSecondXMap()
     {
         if (mManager)
         {
-            mManager->removeXMap(mSecondXMap);  // ayarlari maps/second/ altina yazilir, pencere kapanir
+            mManager->removeXMap(mSecondXMap);
         }
         mSecondXMap = nullptr;
         return false;
     }
-    // Fabrika: once nesne, sonra ayarlar, en son open(PrimeMap.h basindaki akis)
     if (!mManager)
     {
         return false;
@@ -79,7 +75,7 @@ void XMapApiCalls::closeXMap()
     mSecondXMap = nullptr;
     if (mXMap && mManager)
     {
-        mManager->removeXMap(mXMap);  // ayarlari yazar, pencereyi kapatir
+        mManager->removeXMap(mXMap);
     }
     mXMap = nullptr;
 }

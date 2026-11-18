@@ -1,14 +1,4 @@
-// Ekrandaki havalimanlarinin AYRINTISINI (yuzeyler, cizgiler, tabelalar...)
-// arka planda okuyup cizime hazirlayan depo. X-Plane'e bagimli DEGIL.
-//
-// akis (ana thread):
-//   cizimde, herhangi bir katman:  use(i) -> hazirsa verir, degilse istek listesine yazar
-//   her karede bir kez (flight loop): update() -> istekleri isciye gonderir,
-//       biten isleri alir. Boylece birden fazla katman ayni depoyu kullanabilir.
-//
-// Isci thread'i: havalimaninin dosyadaki bayt araligina atlar (AptFileLocation),
-// satirlari okur, AptDatParser ile ayristirir, AirportShapes ile ucgenler.
-// Bellekte en fazla kMaxLoaded havalimani; en uzun suredir kullanilmayan silinir.
+// Ekrandaki havalimanlarinin ayrintisini arka planda okuyup cizime hazirlayan depo.
 #ifndef PRIME_MAP_SRC_DATA_AIRPORTDETAILSTORE_H
 #define PRIME_MAP_SRC_DATA_AIRPORTDETAILSTORE_H
 
@@ -46,23 +36,18 @@ public:
     AirportDetailStore(const AirportDetailStore&) = delete;
     AirportDetailStore& operator=(const AirportDetailStore&) = delete;
 
-    // Bellekte tutulan en fazla havalimani (varsayilan kMaxLoaded). Acik harita
-    // sayisina gore buyutulur (iki harita birbirinin havalimanlarini atmasin).
     void setMaxLoaded(size_t pCount);
 
-    void start();  // isci thread'ini baslatir (bir kez)
-    void stop();   // o anki isi bitirip durur
+    void start();
+    void stop();
 
-    // Her karede bir kez: istekleri isciye gonder, biten isleri al, eskileri sil
     void update();
-    // Ayrinti hazirsa verir (ve bu karede kullanildi diye isaretler); degilse
-    // istek listesine ekler ve nullptr doner. Siralama onemli: once istenen once okunur.
     const LoadedAirport* use(int pAirport);
 
-    bool isWaiting(int pAirport) const;  // istendi ama henuz hazir degil
-    int pendingCount() const;            // bu karede istenip bekleyen
+    bool isWaiting(int pAirport) const;
+    int pendingCount() const;
     int loadedCount() const;
-    std::string takeLogLines();          // isci raporlari (ana thread loglar)
+    std::string takeLogLines();
 
 private:
     struct Request
@@ -87,30 +72,28 @@ private:
         uint64_t mLastFrame = 0;
     };
 
-    void submitWanted();  // istek listesini isci kuyruguna yazar
+    void submitWanted();
     void workerLoop();
     std::unique_ptr<LoadedAirport> load(const Request& pRequest, std::string& pLog) const;
     void evictUnused();
 
     const AirportGeometryStore& mSummaries;
 
-    // Ana thread
     std::unordered_map<int, Entry> mLoaded;
-    std::unordered_set<int> mFailed;     // okunamayanlar: tekrar istenmez
-    std::vector<int> mWanted;            // bu karede istenen (sirali)
+    std::unordered_set<int> mFailed;
+    std::vector<int> mWanted;
     std::unordered_set<int> mWantedSet;
     uint64_t mFrame = 0;
     int mPendingCount = 0;
     size_t mMaxLoaded = kMaxLoaded;
 
-    // Ana thread <-> isci (mMutex ile)
     mutable std::mutex mMutex;
     std::condition_variable mWake;
     std::deque<Request> mQueue;
-    std::unordered_set<int> mInFlight;   // kuyrukta veya isleniyor
+    std::unordered_set<int> mInFlight;
     std::vector<Result> mResults;
     std::string mLog;
     bool mStopping = false;
     std::thread mThread;
 };
-#endif  // PRIME_MAP_SRC_DATA_AIRPORTDETAILSTORE_H
+#endif

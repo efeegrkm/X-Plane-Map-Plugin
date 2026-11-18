@@ -11,7 +11,6 @@
 
 namespace
 {
-
 namespace Fs = std::filesystem;
 
 int floorTo10(int pValue)
@@ -23,8 +22,7 @@ int folderKey(int pWest, int pSouth)
 {
     return SceneryIndex::tileKey(floorTo10(pWest), floorTo10(pSouth));
 }
-
-}  // namespace
+}
 
 int SceneryIndex::tileKey(int pWest, int pSouth)
 {
@@ -33,7 +31,7 @@ int SceneryIndex::tileKey(int pWest, int pSouth)
 
 std::string SceneryIndex::tileName(int pWest, int pSouth)
 {
-    return std::format("{:+03d}{:+04d}", pSouth, pWest);  // "+47-123"
+    return std::format("{:+03d}{:+04d}", pSouth, pWest);
 }
 
 std::string SceneryIndex::folderName(int pWest, int pSouth)
@@ -43,7 +41,6 @@ std::string SceneryIndex::folderName(int pWest, int pSouth)
 
 bool SceneryIndex::parseTileName(const std::string& pFileName, int* pOutWest, int* pOutSouth)
 {
-    // Bicim: isaret + 2 hane enlem, isaret + 3 hane boylam, ".dsf" (buyuk/kucuk harf)
     if (pFileName.size() != 11)
     {
         return false;
@@ -93,7 +90,6 @@ void SceneryIndex::build(const std::string& pXPlaneDirectory)
     std::sort(tGlobalPacks.begin(), tGlobalPacks.end());
     buildFromPacks(readSceneryPacks(pXPlaneDirectory), tGlobalPacks);
 
-    // Dunya tablosu: deniz / veri yok ayrimi (yoksa yedek kural)
     WorldTileMap tXMap;
     const std::string tMapPath = (Fs::path(pXPlaneDirectory) / "Resources" / "dsf_files").string();
     if (tXMap.load(tMapPath))
@@ -130,7 +126,6 @@ void SceneryIndex::buildFromPacks(const std::vector<std::string>& pCustomPacks,
 
 void SceneryIndex::scanPack(const std::string& pPackDirectory, bool pGlobal)
 {
-    // <paket>/Earth nav data/<10x10 klasor>/<karo>.dsf
     std::error_code tError;
     const Fs::path tNavData = Fs::path(pPackDirectory) / "Earth nav data";
     bool tAny = false;
@@ -192,7 +187,6 @@ TileCoverage SceneryIndex::noBaseCoverage(int pWest, int pSouth) const
 {
     if (mWorldMap.isLoaded())
     {
-        // Global sahnede DSF'i olan karo kara / kiyidir: burada kurulu degilse veri yok
         return mWorldMap.hasDsf(pWest, pSouth) ? TileCoverage::NoData : TileCoverage::Ocean;
     }
     return isRegionInstalled(pWest, pSouth) ? TileCoverage::Ocean : TileCoverage::NoData;
@@ -206,7 +200,6 @@ void SceneryIndex::setWorldMap(const WorldTileMap& pXMap)
         mWorldMapReport = "world tile map not used";
         return;
     }
-    // Dogrulama: Global Scenery'de DSF'i olan her karo tabloda "var" olmali (indeks yonu dogru mu)
     int tMismatches = 0;
     for (const int tKey : mGlobalTiles)
     {
@@ -215,7 +208,7 @@ void SceneryIndex::setWorldMap(const WorldTileMap& pXMap)
         tMismatches += pXMap.hasDsf(tWest, tSouth) ? 0 : 1;
     }
     const int tChecked = static_cast<int>(mGlobalTiles.size());
-    const int tAllowed = std::max(1, tChecked / 50);  // %2 (ozel bolge paketleri icin pay)
+    const int tAllowed = std::max(1, tChecked / 50);
     if (tChecked > 0 && tMismatches > tAllowed)
     {
         mWorldMapReport = std::format("world tile map REJECTED: {} of {} installed global tiles are not in it; "

@@ -7,14 +7,11 @@
 
 namespace
 {
-
-const GLenum kStaticDraw = 0x88E4;  // GL_STATIC_DRAW: bir kez yazilir, cok kez cizilir
-
+const GLenum kStaticDraw = 0x88E4;
 }
 
 namespace Gfx
 {
-
 StaticMesh::~StaticMesh()
 {
     release();
@@ -55,8 +52,6 @@ void StaticMesh::upload(const std::vector<ColorVertex>& pVertices, Primitive pPr
         mCount = 0;
         return;
     }
-    // X-Plane'in bagli tuttugu buffer'i bozmamak icin kaydet. VAO burada
-    // OLUSTURULMAZ: cizim hangi baglamda olacaksa orada olusur.
     GLint tOldBuffer = 0;
     glGetIntegerv(Gl::kArrayBufferBinding, &tOldBuffer);
     Gl::genBuffers(1, &mBuffer);
@@ -106,5 +101,4 @@ void StaticMesh::release()
     mBuffer = 0;
     mCount = 0;
 }
-
 }

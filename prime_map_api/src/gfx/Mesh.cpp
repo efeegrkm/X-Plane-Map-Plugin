@@ -5,16 +5,14 @@
 
 namespace
 {
-
 const float kPi = 3.14159265f;
-const float kThinLine = 1.5f;  // bu kalinliga kadar kose birlestirme yapilmaz
+const float kThinLine = 1.5f;
 
 float length(float pX, float pY)
 {
     return std::sqrt(pX * pX + pY * pY);
 }
 
-// pFrom -> pTo yonune dik, pHalfWidth uzunlukta vektor
 Gfx::Point normal(const Gfx::Point& pFrom, const Gfx::Point& pTo, float pHalfWidth)
 {
     const float tDeltaX = pTo.mX - pFrom.mX;
@@ -32,13 +30,11 @@ Gfx::Point offset(const Gfx::Point& pPoint, const Gfx::Point& pDelta, float pSig
     return {pPoint.mX + pDelta.mX * pSign, pPoint.mY + pDelta.mY * pSign};
 }
 
-// Merkezden pRadius uzakta, pAngle (radyan) acisindaki nokta
 Gfx::Point onCircle(const Gfx::Point& pCenter, float pRadius, float pAngle)
 {
     return {pCenter.mX + pRadius * std::cos(pAngle), pCenter.mY + pRadius * std::sin(pAngle)};
 }
 
-// RectD'nin alan sirasi farkli; bu yardimci sol-alt-sag-ust alir
 RectD makeRect(double pLeft, double pBottom, double pRight, double pTop)
 {
     RectD tRect;
@@ -60,12 +56,10 @@ std::vector<Gfx::Point> polygonCorners(const Gfx::Point& pCenter, float pRadius,
     }
     return tCorners;
 }
-
 }
 
 namespace Gfx
 {
-
 void Mesh::clear()
 {
     mVertices.clear();
@@ -137,7 +131,7 @@ void Mesh::addLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgb
     const Point tNormal = normal(pFrom, pTo, pWidth * 0.5f);
     if (tNormal.mX == 0.0f && tNormal.mY == 0.0f)
     {
-        return;  // sifir uzunluklu cizgi
+        return;
     }
     addQuad(offset(pFrom, tNormal, 1.0f), offset(pFrom, tNormal, -1.0f), offset(pTo, tNormal, -1.0f),
             offset(pTo, tNormal, 1.0f), pColor);
@@ -156,9 +150,6 @@ void Mesh::addPolyline(const std::vector<Point>& pPoints, bool pClosed, float pW
         addLine(pPoints[tSegment], pPoints[(tSegment + 1) % tCount], pWidth, pColor);
     }
 
-    // Kose birlestirme: seritler arasindaki kamayi doldur. Ince cizgide (<=
-    // kThinLine) kama gorunmez; apron kenarlarinda kose sayisini ucte birine
-    // indirir.
     if (pWidth <= kThinLine)
     {
         return;
@@ -290,5 +281,4 @@ const Mesh& OutlinedLines::fill() const
 {
     return mFill;
 }
-
 }

@@ -12,13 +12,11 @@
 
 namespace
 {
-
-const float kMinLabelLength = 40.0f;  // bundan kisa kenara ad yazilmaz (boxel)
+const float kMinLabelLength = 40.0f;
 const Rgba kTaxiway = {0.85f, 0.45f, 1.00f, 0.75f};
 const Rgba kRunwayCrossing = {1.00f, 0.35f, 0.35f, 0.75f};
 const Rgba kLabel = {0.95f, 0.80f, 1.00f, 1.0f};
 
-// Nokta - dogru parcasi uzakligi
 double segmentDistance(const PointF& pFrom, const PointF& pTo, double pX, double pY)
 {
     const double tDx = pTo.mX - pFrom.mX;
@@ -28,7 +26,6 @@ double segmentDistance(const PointF& pFrom, const PointF& pTo, double pX, double
     tT = std::fmax(0.0, std::fmin(1.0, tT));
     return std::hypot(pFrom.mX + tT * tDx - pX, pFrom.mY + tT * tDy - pY);
 }
-
 }
 
 TaxiRouteLayer::TaxiRouteLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails)
@@ -42,7 +39,7 @@ void TaxiRouteLayer::draw(const drawContext& pContext)
 {
     mEdges.clear();
     const XMapView& tView = *pContext.mView;
-    if (!isInZoomRange())  // yerlesik esik 13.5 (LayerTable tablosu)
+    if (!isInZoomRange())
     {
         return;
     }
@@ -86,14 +83,13 @@ void TaxiRouteLayer::drawLabels(const drawContext& pContext)
         {
             continue;
         }
-        // Ayni adli komsu kenarlar ust uste binmesin: etiket yerlestirici eler
         XMapSymbols::drawLabelCentered(*pContext.mLabels, (tEdge.mFrom.mX + tEdge.mTo.mX) * 0.5f,
                                       (tEdge.mFrom.mY + tEdge.mTo.mY) * 0.5f, *tEdge.mName, kLabel,
                                       pContext.labelShadow());
     }
 }
 
-std::string TaxiRouteLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
+std::string TaxiRouteLayer::describe(const drawContext& , double pX, double pY) const
 {
     for (const ScreenEdge& tEdge : mEdges)
     {

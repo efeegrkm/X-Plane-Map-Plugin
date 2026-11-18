@@ -14,14 +14,13 @@
 
 namespace
 {
-
 const char kMagic[4] = {'M', 'P', 'V', 'C'};
 const uint32_t kFileVersion = 1;
 const double kMetersPerDegree = 111320.0;
 const double kPi = 3.14159265358979323846;
-const double kLineToleranceMeters = 2.5;  // yol / demiryolu sadelestirme (z16.5'te ~1 piksel)
-const double kAreaToleranceMeters = 4.0;  // orman / yerlesim halkalari
-const float kQuantum = 65535.0f;          // noktalar karo icinde 16 bit (~1,7 m)
+const double kLineToleranceMeters = 2.5;
+const double kAreaToleranceMeters = 4.0;
+const float kQuantum = 65535.0f;
 
 std::string fileNameLower(const std::string& pPath)
 {
@@ -45,7 +44,6 @@ bool startsWith(const std::string& pText, const char* pPrefix)
     return pText.rfind(pPrefix, 0) == 0;
 }
 
-// Douglas-Peucker: pKeep[i] = noktayi tut. x olcegi pScaleX (boylam -> enlemle ayni metre), tolerans karo birimi.
 void simplify(const std::vector<double>& pX, const std::vector<double>& pY, double pScaleX, double pTolerance,
               std::vector<uint8_t>* pKeep)
 {
@@ -105,7 +103,6 @@ uint16_t quantize(float pValue)
     return static_cast<uint16_t>(std::lround(std::clamp(pValue, 0.0f, 1.0f) * kQuantum));
 }
 
-// Bayt yazici / okuyucu (kucuk-endian; sadece bu dosya bicimi icin)
 struct Writer
 {
     std::vector<uint8_t> mBytes;
@@ -183,8 +180,7 @@ struct Reader
         }
     }
 };
-
-}  // namespace
+}
 
 void TerrainVectors::reset(int pWest, int pSouth)
 {
@@ -215,7 +211,6 @@ TerrainClass TerrainVectors::areaClassFor(const std::string& pDefinitionName)
     const std::string tName = fileNameLower(pDefinitionName);
     if (endsWith(tName, ".for"))
     {
-        // Orman ailesi: arazi turu on ek kurallari (coni, broad, shrb, wetl, orch ...); digerleri genis yaprakli
         const TerrainClass tClass = classifyTerrain(tName);
         const bool tVegetation = tClass == TerrainClass::ForestConifer || tClass == TerrainClass::ForestBroadleaf ||
                                  tClass == TerrainClass::Shrub || tClass == TerrainClass::Wetland ||
@@ -233,7 +228,7 @@ TerrainClass TerrainVectors::areaClassFor(const std::string& pDefinitionName)
             return TerrainClass::Grass;
         }
     }
-    return TerrainClass::None;  // natural.ags, .fac, .bch, .pol, .lin ...
+    return TerrainClass::None;
 }
 
 int TerrainVectors::lineKindFor(int pSubtype)
@@ -284,7 +279,6 @@ bool TerrainVectors::addFromDsf(const DsfReader& pReader, std::string* pError)
     {
         tIsRoadNetwork.push_back(endsWith(fileNameLower(tName), ".net"));
     }
-    // Sadelestirme toleransi karo biriminde; x, enlem kosinusuyla olceklenir (metre esit)
     const double tScaleX = std::max(0.05, std::cos((mSouth + 0.5) * kPi / 180.0));
     const double tLineTolerance = kLineToleranceMeters / kMetersPerDegree;
     const double tAreaTolerance = kAreaToleranceMeters / kMetersPerDegree;
@@ -383,14 +377,13 @@ void TerrainVectors::addExclusions(const DsfInfo& pOverlayInfo)
         {
             continue;
         }
-        // GERCEK VERI: "bati/guney/dogu/kuzey" (derece; nokta ondalik, yerel ayardan bagimsiz okunur)
         double tBounds[4] = {0.0, 0.0, 0.0, 0.0};
         const char* tCursor = tValue.c_str();
         bool tOk = true;
         for (int tPart = 0; tPart < 4 && tOk; ++tPart)
         {
             char* tEnd = nullptr;
-            tBounds[tPart] = std::strtod(tCursor, &tEnd);  // "C" yerel ayari: eklenti ayari degistirmez
+            tBounds[tPart] = std::strtod(tCursor, &tEnd);
             tOk = tEnd != tCursor;
             tCursor = (*tEnd == '/') ? tEnd + 1 : tEnd;
         }
@@ -429,7 +422,6 @@ void TerrainVectors::applyNetworkExclusions()
     {
         return;
     }
-    // Ortasi dislama alaninda kalan parcalar atilir; cizgi orada bolunur
     std::vector<VectorLine> tResult;
     for (const VectorLine& tLine : mLines)
     {

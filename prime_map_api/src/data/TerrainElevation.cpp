@@ -11,11 +11,10 @@
 
 namespace
 {
-
 const char kMagic[4] = {'M', 'P', 'E', 'L'};
 const uint32_t kFileVersion = 1;
 const double kMetersPerDegreeLat = 110574.0;
-const int kMinSize = 5;  // bundan kucuk DEM: kabartma yok sayilir
+const int kMinSize = 5;
 
 int16_t toInt16(double pMeters)
 {
@@ -24,7 +23,7 @@ int16_t toInt16(double pMeters)
 
 void writeU32(std::ofstream& pFile, uint32_t pValue)
 {
-    pFile.write(reinterpret_cast<const char*>(&pValue), sizeof(pValue));  // Windows/x86: kucuk-endian
+    pFile.write(reinterpret_cast<const char*>(&pValue), sizeof(pValue));
 }
 
 bool readU32(std::ifstream& pFile, uint32_t* pValue)
@@ -56,7 +55,7 @@ bool readGrid(std::ifstream& pFile, std::vector<int16_t>* pValues, int* pSize)
     pValues->clear();
     if (tSize == 0)
     {
-        return true;  // bu izgara yok
+        return true;
     }
     uint32_t tPackedBytes = 0;
     if (!readU32(pFile, &tPackedBytes) || tPackedBytes > (64u << 20))
@@ -71,7 +70,6 @@ bool readGrid(std::ifstream& pFile, std::vector<int16_t>* pValues, int* pSize)
     return ElevationCodec::decompress(tPacked.data(), tPacked.size(), *pSize, *pSize, pValues);
 }
 
-// Catmull-Rom agirliklari (deger ve turev) parametre pT (0..1) icin
 void cubicWeights(double pT, double pValue[4], double pSlope[4])
 {
     const double tT2 = pT * pT;
@@ -85,8 +83,7 @@ void cubicWeights(double pT, double pValue[4], double pSlope[4])
     pSlope[2] = 0.5 * (1.0 + 8.0 * pT - 9.0 * tT2);
     pSlope[3] = 0.5 * (-2.0 * pT + 3.0 * tT2);
 }
-
-}  // namespace
+}
 
 bool ElevationGrid::build(const DsfRaster& pElevation, const DsfRaster* pSeaLevel)
 {
@@ -108,7 +105,6 @@ bool ElevationGrid::build(const DsfRaster& pElevation, const DsfRaster* pSeaLeve
         return static_cast<double>(pElevation.mValues[static_cast<size_t>(pRowFromSouth) * tWidth + pColumn]);
     };
 
-    // Seviye 0: kare post izgarasi, satir 0 = kuzey
     mBaseSize = tWidth;
     mBase.resize(static_cast<size_t>(mBaseSize) * mBaseSize);
     for (int tRow = 0; tRow < mBaseSize; ++tRow)
@@ -118,12 +114,12 @@ bool ElevationGrid::build(const DsfRaster& pElevation, const DsfRaster* pSeaLeve
             double tMeters = 0.0;
             if (pElevation.mPostCentric && tWidth == tHeight)
             {
-                tMeters = tSource(tColumn, mBaseSize - 1 - tRow);  // DSF satir 0 = guney
+                tMeters = tSource(tColumn, mBaseSize - 1 - tRow);
             }
             else
             {
                 const double tU = static_cast<double>(tColumn) / (mBaseSize - 1);
-                const double tV = 1.0 - static_cast<double>(tRow) / (mBaseSize - 1);  // guneyden
+                const double tV = 1.0 - static_cast<double>(tRow) / (mBaseSize - 1);
                 const double tX = std::clamp(tU * tWidth - 0.5, 0.0, tWidth - 1.0);
                 const double tY = std::clamp(tV * tHeight - 0.5, 0.0, tHeight - 1.0);
                 const int tX0 = std::min(static_cast<int>(tX), tWidth - 2);
@@ -138,7 +134,6 @@ bool ElevationGrid::build(const DsfRaster& pElevation, const DsfRaster* pSeaLeve
         }
     }
 
-    // sea_level: hucre merkezli kare raster, satir 0 = kuzey (sadece kare ise)
     if (pSeaLevel && pSeaLevel->mWidth == pSeaLevel->mHeight && pSeaLevel->mWidth >= 2 &&
         pSeaLevel->mValues.size() == static_cast<size_t>(pSeaLevel->mWidth) * pSeaLevel->mHeight)
     {
@@ -165,13 +160,12 @@ void ElevationGrid::buildPyramid()
     {
         if ((tSize - 1) % 2 != 0 || tSize < 2 * kMinSize)
         {
-            break;  // yariya bolunemiyor: daha kaba seviye yok
+            break;
         }
         const int tNextSize = (tSize - 1) / 2 + 1;
         std::vector<float> tNext(static_cast<size_t>(tNextSize) * tNextSize);
         for (int tRow = 0; tRow < tNextSize; ++tRow)
         {
-            // Kenar satiri: sadece kenar boyunca suz (karonun disina bakma)
             const bool tRowEdge = (tRow == 0 || tRow == tNextSize - 1);
             for (int tColumn = 0; tColumn < tNextSize; ++tColumn)
             {
@@ -251,7 +245,7 @@ int ElevationGrid::levelFor(double pMetersPerPixel) const
 int ElevationGrid::nominalLevelFor(double pMetersPerPixel)
 {
     int tLevel = 0;
-    double tCell = kMetersPerDegreeLat / 1200.0;  // seviye 0: 1201 nokta
+    double tCell = kMetersPerDegreeLat / 1200.0;
     while (tLevel + 1 < kLevelCount && tCell * 2.0 <= pMetersPerPixel)
     {
         tCell *= 2.0;
@@ -305,7 +299,7 @@ bool ElevationGrid::save(const std::string& pPath, const std::string& pKey) cons
 {
     if (mFinestLevel > 0)
     {
-        return false;  // ince seviyeleri birakilmis izgara yazilamaz (tam cozunurluk yok)
+        return false;
     }
     return writeFileAtomic(pPath,
                            [this, &pKey](std::ofstream& tFile)
@@ -333,13 +327,12 @@ bool ElevationGrid::load(const std::string& pPath, const std::string& pKey)
     std::string tKey(tKeySize, '\0');
     if (!tFile.read(&tKey[0], tKeySize) || tKey != pKey)
     {
-        return false;  // kaynak DSF'ler degismis
+        return false;
     }
     int tBaseSize = 0;
     int tSeaSize = 0;
     std::vector<int16_t> tBase;
     std::vector<int16_t> tSea;
-    // tBaseSize 0: DSF'te DEM yoktu; bos izgara gecerli bir sonuctur (her acilista DSF yeniden acilmasin)
     if (!readGrid(tFile, &tBase, &tBaseSize) || !readGrid(tFile, &tSea, &tSeaSize) ||
         (tBaseSize != 0 && tBaseSize < kMinSize))
     {
@@ -376,7 +369,6 @@ ElevationSampler::ElevationSampler(const ElevationGrid* const pTiles[3][3], int 
     }
     mLevel = pLevel;
     mSize = mTiles[1][1] ? mTiles[1][1]->size(pLevel) : 0;
-    // Komsunun bu seviyedeki boyutu farkliysa (baska cozunurlukte ozel mesh) komsu yok sayilir
     for (int tRow = 0; tRow < 3; ++tRow)
     {
         for (int tColumn = 0; tColumn < 3; ++tColumn)
@@ -402,8 +394,6 @@ double ElevationSampler::cellMeters() const
 
 double ElevationSampler::postFromTiles(int pColumn, int pRow, bool* pFound) const
 {
-    // Nokta, (tx, ty) karosunda yerel (pColumn - tx * (N - 1), pRow - ty * (N - 1)) indeksindedir.
-    // Ortak kenar / kosede birden cok karo icerir: var olanlarin ortalamasi.
     const int tSpan = mSize - 1;
     double tSum = 0.0;
     int tCount = 0;
@@ -443,7 +433,6 @@ double ElevationSampler::postAt(int pColumn, int pRow) const
     {
         return tValue;
     }
-    // Noktanin karosu yuklu degil: merkezden aynali dogrusal uzatma, once x sonra y
     if (pColumn < 0)
     {
         return 2.0 * postAt(0, pRow) - postAt(-pColumn, pRow);
@@ -498,7 +487,7 @@ void ElevationSampler::sample(double pU, double pV, double* pHeight, double* pDh
         tSlopeY += tDy[tRow] * tRowValue;
     }
     *pHeight = tHeight;
-    *pDhDu = tSlopeX * tSpan;  // nokta araligindan karo birimine
+    *pDhDu = tSlopeX * tSpan;
     *pDhDv = tSlopeY * tSpan;
 }
 
@@ -513,7 +502,6 @@ double ElevationSampler::seaCellAt(int pColumn, int pRow) const
     {
         return tTile->seaLevelCell(pColumn - tTileX * tSize, pRow - tTileY * tSize);
     }
-    // Komsu yok: merkezin kenar hucresi (hucre merkezli; yarim hucre tasma)
     return tCenter->seaLevelCell(std::clamp(pColumn, 0, tSize - 1), std::clamp(pRow, 0, tSize - 1));
 }
 
@@ -524,7 +512,6 @@ bool ElevationSampler::seaLevelAt(double pU, double pV, double* pValue) const
     {
         return false;
     }
-    // bikubik(Catmull-Rom): hucre ~430 m; cift dogrusal okuma yakinda su tonunda bloklar gosteriyordu
     const int tSize = tCenter->seaLevelSize();
     const double tX = pU * tSize - 0.5;
     const double tY = pV * tSize - 0.5;

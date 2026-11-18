@@ -8,11 +8,9 @@
 
 namespace
 {
-
-const int kUploadsPerFrame = 3;       // karede en fazla bu kadar doku yuklenir (FPS korumasi)
-const int kMaxUsers = 32;             // isaretler 32 bitlik
-const size_t kMaxIdleVectorTiles = 4; // kimsenin tutmadigi vektor karolari bundan cok olunca atilir
-
+const int kUploadsPerFrame = 3;
+const int kMaxUsers = 32;
+const size_t kMaxIdleVectorTiles = 4;
 }
 
 TerrainHub::TerrainHub(TerrainStore& pStore)
@@ -41,8 +39,6 @@ int TerrainHub::addUser()
             return tUser;
         }
     }
-    // 32'den fazla harita: son numara paylasilir (o haritalar birbirinin isaretini siler; sonuc
-    // sadece gereksiz yeniden istek olur, yanlis cizim degil)
     return kMaxUsers - 1;
 }
 
@@ -79,16 +75,15 @@ bool TerrainHub::uploadReady()
         {
             if (tExisting->second.mMissingNeighbors.empty())
             {
-                continue;  // ayni goruntu iki kez istenmis olabilir
+                continue;
             }
-            // Komsusu eksik uretilmis eski doku: yenisi yerine gecer (isaretleri korunur)
             tUsers = tExisting->second.mUsers;
             mTextureBytes -= tExisting->second.mBytes;
             mTextures.erase(tExisting);
         }
         CachedTexture tCached;
         tCached.mTexture = Gfx::Texture::fromRgba(tImage.mSize, tImage.mRgba.data(), true);
-        tCached.mBytes = tImage.mRgba.size() * 4 / 3;  // mipmap seviyeleri dahil
+        tCached.mBytes = tImage.mRgba.size() * 4 / 3;
         tCached.mLastUse = ++mUseClock;
         tCached.mUsers = tUsers;
         tCached.mMissingNeighbors = std::move(tImage.mMissingNeighbors);
@@ -128,10 +123,9 @@ const Gfx::Texture* TerrainHub::useTexture(const TerrainImageKey& pKey, int pUse
     tFound->second.mLastUse = ++mUseClock;
     for (const int tNeighbor : tFound->second.mMissingNeighbors)
     {
-        // TileKey -> karo (SceneryIndex::TileKey'in tersi)
         if (mStore.hasElevation(tNeighbor % 360 - 180, tNeighbor / 360 - 90))
         {
-            mStore.Request(pKey);  // ayni anahtar uretilirken / kuyruktayken tekrar alinmaz
+            mStore.request(pKey);
             break;
         }
     }
@@ -140,7 +134,6 @@ const Gfx::Texture* TerrainHub::useTexture(const TerrainImageKey& pKey, int pUse
 
 void TerrainHub::evictUnusedTextures()
 {
-    // Butce asildiysa hicbir haritanin son ciziminde kullanmadigi dokulardan en eskiler silinir
     while (mTextureBytes > mTextureBudget)
     {
         auto tOldest = mTextures.end();
@@ -154,10 +147,10 @@ void TerrainHub::evictUnusedTextures()
         }
         if (tOldest == mTextures.end())
         {
-            return;  // hepsi su an bir haritada ekranda
+            return;
         }
         mTextureBytes -= tOldest->second.mBytes;
-        mTextures.erase(tOldest);  // Gfx::Texture yikicisi dokuyu siler
+        mTextures.erase(tOldest);
     }
 }
 
@@ -208,7 +201,7 @@ std::shared_ptr<const TerrainVectors> TerrainHub::useVectors(int pWest, int pSou
     const auto tFound = mVectors.find(SceneryIndex::tileKey(pWest, pSouth));
     if (tFound == mVectors.end())
     {
-        mStore.requestVectors(pWest, pSouth);  // deniz / veri yok karoda sonuc hic gelmez (zararsiz)
+        mStore.requestVectors(pWest, pSouth);
         return nullptr;
     }
     tFound->second.mUsers |= bitOf(pUser);
@@ -227,8 +220,6 @@ void TerrainHub::releaseVectors(int pWest, int pSouth, int pUser)
 
 void TerrainHub::dropUnusedVectors()
 {
-    // Kimsenin tutmadigi karolar: birkaci bekletilir (az once birakan harita / yeni acilan harita
-    // hemen isteyebilir), fazlasi atilir ve isciye "tekrar istenebilir" denir
     size_t tIdle = 0;
     for (const auto& tEntry : mVectors)
     {

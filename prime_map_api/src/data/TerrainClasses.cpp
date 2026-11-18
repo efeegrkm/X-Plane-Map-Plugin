@@ -9,14 +9,12 @@
 
 namespace
 {
-
 struct PrefixRule
 {
     const char* mPrefix;
     TerrainClass mClass;
 };
 
-// Sira onemli degil (on ekler birbirinin basi degil); "sq_" once atilir
 const auto kPrefixRules = std::to_array<PrefixRule>({
     {"urban", TerrainClass::Urban},         {"coni", TerrainClass::ForestConifer},
     {"broad", TerrainClass::ForestBroadleaf}, {"rainforest", TerrainClass::ForestBroadleaf},
@@ -38,9 +36,6 @@ const char* kClassKeys[kTerrainClassCount] = {
     "wetland", "rock", "snow_ice", "tundra", "sand", "airport", "land",
 };
 
-// Varsayilan renkler: koyu arayuzle uyumlu, sembollerin okunabildigi soluk tonlar.
-// v2: bitki ortusu ailesinin parlaklik araligi daraltildi (ucgen mozayigi daha az
-// sert gorunsun); su ve kar/buz ayni. X-Plane'de bakildiktan sonra ini ile ince ay.
 const TerrainColor kDefaultColors[kTerrainClassCount] = {
     {0, 0, 0},       {40, 74, 112},   {104, 104, 98},  {52, 86, 58},    {62, 96, 60},
     {80, 98, 66},    {86, 106, 70},   {98, 108, 72},   {66, 94, 80},    {108, 106, 96},
@@ -48,26 +43,24 @@ const TerrainColor kDefaultColors[kTerrainClassCount] = {
 };
 
 const double kDefaultShading = 0.45;
-const double kDefaultBlendMeters = 150.0;  // Scenery: siniflar arasi yumusak gecis (yari genislik, metre)
+const double kDefaultBlendMeters = 150.0;
 const double kMaxBlendMeters = 1000.0;
-const double kDefaultBlendMaxPixels = 5.0;  // yakin zoomda erim tavani (doku pikseli); 0 = tavan yok
+const double kDefaultBlendMaxPixels = 5.0;
 const double kMaxBlendMaxPixels = 64.0;
-const double kDefaultWarpMeters = 65.0;      // sinir bukmesi: en buyuk kayma (0 = duz kenarlar)
+const double kDefaultWarpMeters = 65.0;
 const double kMaxWarpMeters = 300.0;
-const double kDefaultWarpWavelength = 250.0;  // en kaba oktavin dalga boyu (metre)
+const double kDefaultWarpWavelength = 250.0;
 const double kMinWarpWavelength = 50.0;
 const double kMaxWarpWavelength = 2000.0;
-const double kDefaultCloseupClassMix = 0.30;  // yakin zoomda sinif renklerinin kara tona karismasi
+const double kDefaultCloseupClassMix = 0.30;
 const double kMaxCloseupClassMix = 0.8;
 
-// VFR bantlarinin varsayilanlari: sectional sinirlari, renkler ElevationColor duraklarindan
 const double kDefaultBandFeet[kVfrBandCount] = {0.0, 1000.0, 2000.0, 3000.0, 5000.0, 7000.0, 9000.0, 12000.0};
 const TerrainColor kDefaultBandColors[kVfrBandCount] = {
     {190, 216, 166}, {210, 226, 172}, {230, 232, 180}, {238, 226, 170},
     {230, 206, 150}, {214, 184, 134}, {196, 162, 118}, {176, 142, 106},
 };
 
-// "<feet> R G B" -> bant; bicim yanlissa false (varsayilan kalir)
 bool parseBand(const std::string& pText, double* pFeet, TerrainColor* pColor)
 {
     double tFeet = 0.0;
@@ -83,8 +76,7 @@ bool parseBand(const std::string& pText, double* pFeet, TerrainColor* pColor)
                static_cast<uint8_t>(std::clamp(tB, 0, 255))};
     return true;
 }
-
-}  // namespace
+}
 
 TerrainVfrParams defaultVfrParams()
 {
@@ -111,7 +103,7 @@ TerrainClass classifyTerrain(const std::string& pTerrainName)
     }
     if (tName.find("crptwn") != std::string::npos)
     {
-        return TerrainClass::Crop;  // "tarla arasi kasaba": haritada tarla gibi
+        return TerrainClass::Crop;
     }
     const size_t tUnderscore = tName.find('_');
     const std::string tPrefix = tName.substr(0, tUnderscore == std::string::npos ? tName.find('.') : tUnderscore);
@@ -145,7 +137,6 @@ TerrainPalette::TerrainPalette()
 
 void TerrainPalette::load(const Settings& pSettings)
 {
-    // Eski surum dosyadaki renkler eski varsayilanlardir: yenilerini ezmesin
     mLoadedCurrentVersion = pSettings.getInt("palette", "version", 1) >= kPaletteVersion;
     mUseXPlaneColors = !mLoadedCurrentVersion || pSettings.getString("palette", "source", "xplane") != "colors";
     if (mLoadedCurrentVersion && !mUseXPlaneColors)
@@ -173,7 +164,6 @@ void TerrainPalette::load(const Settings& pSettings)
         mShadingStrength = 1.0;
     }
     mBlendMeters = std::clamp(pSettings.getDouble("blend", "meters", kDefaultBlendMeters), 0.0, kMaxBlendMeters);
-    // max_pixels / warp / closeup renk surumune bagli degil: her zaman okunur
     mBlendMaxPixels = std::clamp(pSettings.getDouble("blend", "max_pixels", kDefaultBlendMaxPixels), 0.0,
                                  kMaxBlendMaxPixels);
     mWarp.mAmplitudeMeters = std::clamp(pSettings.getDouble("warp", "meters", kDefaultWarpMeters), 0.0,
@@ -184,7 +174,6 @@ void TerrainPalette::load(const Settings& pSettings)
     mCloseupClassMix = std::clamp(pSettings.getDouble("closeup", "class_mix", kDefaultCloseupClassMix), 0.0,
                                   kMaxCloseupClassMix);
 
-    // [built_up]: yerlesim karisim rengi ezmesi; bolum yoksa tema rengi kullanilir (H-01)
     mBuiltUpOverride = false;
     mBuiltUp = {0, 0, 0};
     const std::string tBuiltUp = pSettings.getString("built_up", "color", "");
@@ -198,7 +187,6 @@ void TerrainPalette::load(const Settings& pSettings)
                     static_cast<uint8_t>(tBuiltUpB & 255)};
     }
 
-    // [relief], [water], [vfr]: yoksa varsayilan; araliklar sinirlanir
     const TerrainReliefParams tRelief;
     mRelief.mMultiDirectional = pSettings.getBool("relief", "multi_directional", tRelief.mMultiDirectional);
     mRelief.mExaggeration = std::clamp(pSettings.getDouble("relief", "exaggeration", tRelief.mExaggeration), 0.0, 20.0);
@@ -222,7 +210,6 @@ void TerrainPalette::load(const Settings& pSettings)
     mVfr.mBands = pSettings.getBool("vfr", "bands", mVfr.mBands);
     mVfr.mContourLines = pSettings.getBool("vfr", "contour_lines", mVfr.mContourLines);
     mVfr.mContourStrength = std::clamp(pSettings.getDouble("vfr", "contour_strength", mVfr.mContourStrength), 0.0, 1.0);
-    // band_1 .. band_8 = "<alt sinir feet> R G B"; sinirlar artan olmali, degilse hepsi varsayilana doner
     TerrainVfrParams tRead = mVfr;
     bool tIncreasing = true;
     for (int tBand = 0; tBand < kVfrBandCount; ++tBand)
@@ -281,7 +268,6 @@ void TerrainPalette::save(Settings& pSettings) const
                             std::format("{:.0f} {} {} {}", mVfr.mBandFeet[tBand], tColor.mR, tColor.mG, tColor.mB));
     }
 
-    // H-01: ezme yokken bolum yazilmaz (palet anahtari ve terrain_colors.json degismesin)
     if (mBuiltUpOverride)
     {
         pSettings.setString("built_up", "color", std::format("{} {} {}", mBuiltUp.mR, mBuiltUp.mG, mBuiltUp.mB));
@@ -365,7 +351,6 @@ void TerrainPalette::setCloseupClassMix(double pMix)
 
 TerrainColor TerrainPalette::referenceLandColor() const
 {
-    // Bitki ortusu siniflarinin aritmetik ortalamasi (karisimin referans kara tonu)
     const TerrainClass tClasses[] = {TerrainClass::ForestConifer, TerrainClass::ForestBroadleaf, TerrainClass::Shrub,
                                      TerrainClass::Grass, TerrainClass::Crop, TerrainClass::Land};
     int tR = 0;
@@ -384,7 +369,6 @@ TerrainColor TerrainPalette::referenceLandColor() const
 
 double TerrainPalette::closeupMixAt(double pMetersPerPixel) const
 {
-    // Piksel boyu 50 m ve ustu -> 0, 5 m ve alti -> tam oran; arasi logaritmik
     if (mCloseupClassMix <= 0.0 || pMetersPerPixel <= 0.0)
     {
         return 0.0;
@@ -408,7 +392,6 @@ std::array<TerrainColor, kTerrainClassCount> TerrainPalette::mixedColors(double 
     for (int tIndex = 0; tIndex < kTerrainClassCount; ++tIndex)
     {
         const TerrainClass tClass = static_cast<TerrainClass>(tIndex);
-        // Su kiyiyi, kar/buz kimligi, None bosluk: karismaz
         if (tClass == TerrainClass::None || tClass == TerrainClass::Water || tClass == TerrainClass::SnowIce)
         {
             continue;
@@ -475,7 +458,6 @@ void TerrainPalette::setVfr(const TerrainVfrParams& pParams)
 
 TerrainColor elevationColor(double pMeters)
 {
-    // (feet, R, G, B): sectional'daki rakim tonlarina benzer; aralar dogrusal karisir
     struct Stop
     {
         double mFeet;

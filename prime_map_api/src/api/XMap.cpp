@@ -1,6 +1,3 @@
-// prime::XMap uygulamasi: API yuzeyi ve motor (pencere, katmanlar, dosyalar) ayni sinifta.
-// Nesneyi yalnizca XMapManager olusturur/yok eder; shutdown motor parcalarini birakir,
-// nesne "bos" olarak yasar (metotlar no-op).
 #include "api/XMap.h"
 
 #include <algorithm>
@@ -41,18 +38,16 @@
 
 namespace
 {
-
 const char* kSettingsFileName = "map_settings.json";
 const char* kDrawingsFileName = "map_drawings.txt";
 const char* kTerrainFileName = "terrain_colors.json";
 const char* kWindowSection = "window";
 const char* kSourcesSection = "sources";
 const char* kLayerColorsSection = "layer_colors";
-const int kMinStandaloneWidth = 400;   // Standalone pencerenin kullanilabilir en kucuk boyutu (boxel)
+const int kMinStandaloneWidth = 400;
 const int kMinStandaloneHeight = 260;
-const int kShapeIdBase = 1000000;      // Shape kimligi: tur * kShapeIdBase + etiket numarasi
+const int kShapeIdBase = 1000000;
 
-// Alt kenar mTop + mHeight degil (y yukari artar); donusum ScreenMath'te (testli)
 RectI toRect(const prime::Geometry& pGeometry)
 {
     return rectFromTopLeft(pGeometry.mLeft, pGeometry.mTop, pGeometry.mWidth, pGeometry.mHeight);
@@ -73,7 +68,6 @@ bool readTextFile(const std::string& pPath, std::string* pText)
 
 bool writeTextFile(const std::string& pPath, const std::string& pText)
 {
-    // Once gecici dosyaya, sonra yeniden adlandir: yarim yazilmis dosya kalmasin
     const std::string tTemporary = pPath + ".tmp";
     {
         std::ofstream tFile(tTemporary, std::ios::trunc);
@@ -97,7 +91,6 @@ void screenBounds(int* pLeft, int* pTop, int* pRight, int* pBottom)
     XPLMGetScreenBoundsGlobal(pLeft, pTop, pRight, pBottom);
 }
 
-// Ana X-Plane penceresinin ortasinda, ekranin %70'i (en fazla 1000x700)
 RectI defaultGeometry()
 {
     int tLeft = 0;
@@ -115,8 +108,6 @@ RectI defaultGeometry()
     return tGeometry;
 }
 
-// Standalone pencere: boyut yeterli ve baslik cubugu ekranda mi (monitor sokulmus /
-// cozunurluk degismis olabilir)
 bool isStandaloneGeometryUsable(const RectI& pGeometry)
 {
     if (pGeometry.width() < kMinStandaloneWidth || pGeometry.height() < kMinStandaloneHeight)
@@ -133,28 +124,25 @@ bool isStandaloneGeometryUsable(const RectI& pGeometry)
     const bool tHorizontalVisible = pGeometry.mRight >= tLeft + 100 && pGeometry.mLeft <= tRight - 100;
     return tTitleVisible && tHorizontalVisible;
 }
-
-}  // namespace
+}
 
 namespace prime
 {
-
 XMap::XMap(XMapData& pData, int pId)
     : mData(pData),
       mId(pId)
 {
     mDataLoadedFlag = &mIsDataLoaded;
-    mMapsDirectory = pData.mapsDirectory();  // shutdown sonrasi yol sorgusu icin (mData gecersiz olur)
+    mMapsDirectory = pData.mapsDirectory();
     mAircraft = std::make_unique<AircraftData>();
     mAircraft->init();
     mDrawings = std::make_unique<Drawings>();
     mPalette = std::make_unique<TerrainPalette>();
-    mPaletteId = mData.registerPalette(mPalette.get());  // varsayilan zemin ayarlari (cogu zaman palet 0)
+    mPaletteId = mData.registerPalette(mPalette.get());
     mLayers = std::make_unique<LayerManager>();
-    // Pencere katmanlara/ucaga/cizimlere baglidir: onlardan SONRA, katmanlardan once kurulur
     mWindow = std::make_unique<XMapWindow>(*mLayers, *mAircraft, *mDrawings, mData.airports());
     createLayers();
-    mLayers->resetToDefaults(themeFor(mWindow->getMapMode()));  // pencere kuruldugunda katmanlar henuz yoktu
+    mLayers->resetToDefaults(themeFor(mWindow->getMapMode()));
     mLayers->resetToDefaults(themeFor(mWindow->getMapMode()));
     mData.addInstance(this);
 }
@@ -163,7 +151,6 @@ XMap::~XMap()
 {
     if (mManager)
     {
-        // yonetici listesinden dus; harita kapanir (motor parcalari ayarlari yazar, pencereyi kapatir)
         auto& tXMaps = mManager->mXMaps;
         tXMaps.erase(std::remove(tXMaps.begin(), tXMaps.end(), this), tXMaps.end());
     }
@@ -174,7 +161,6 @@ XMap::~XMap()
     }
 }
 
-// shutdown: nesne yasar ama motoru bosaltir; sonrasindaki API cagrilari alive() ile guvenli no-op
 void XMap::teardown()
 {
     close();
@@ -189,10 +175,6 @@ void XMap::teardown()
     mPalette.reset();
 }
 
-// LIF-08: shutdown sonrasi genel metot cagrilari icin ortak koruma. Motor (mLayers) bosaltildiysa
-// bir kez Log'a uyari yazar ve false doner; metot islem yapmadan false / bos / varsayilan degerini
-// verir. Tekrarlayan cagrilarda sessizdir. NOT: removeXMap / destroyXMapManager sonrasi isaretci
-// gecersizdir (nesne silinir); o durum kod tarafindan korunamaz.
 bool XMap::alive(const char* pWho) const
 {
     if (mLayers)
@@ -209,22 +191,18 @@ bool XMap::alive(const char* pWho) const
 
 void XMap::createLayers()
 {
-    // Alttan uste cizim sirasi (MIMARI.pdf bolum 7); etiketler de bu sirayla yer bulur.
-    // Veri depolari ortak (XMapData); katman nesneleri ve durumlari bu haritanin.
     AirportGeometryStore& tAirports = mData.airportGeometry();
     AirportDetailStore& tDetails = mData.airportDetails();
     std::unique_ptr<TerrainLayer> tTerrain = std::make_unique<TerrainLayer>(mData.hub(), *mPalette, mPaletteId);
     mTerrainLayer = tTerrain.get();
-    mLayers->add(std::move(tTerrain));  // en altta: zemin
-    mLayers->add(std::make_unique<RoadLayer>(mData.hub()));  // DSF yollari: zeminin ustu, yuzeylerin alti
+    mLayers->add(std::move(tTerrain));
+    mLayers->add(std::make_unique<RoadLayer>(mData.hub()));
     mLayers->add(std::make_unique<AirportSurfaceLayer>(tAirports, tDetails));
     mLayers->add(std::make_unique<GridLayer>());
-    // ILS tuyleri pistlerin ALTINDA: buyuk yari saydam alanlar pistleri ortmesin
     mLayers->add(std::make_unique<NavaidLayer>(NavaidType::Ils, mData.navs(), &tAirports));
     mLayers->add(std::make_unique<RunwayLayer>(tAirports));
-    mLayers->add(std::make_unique<TaxiRouteLayer>(tAirports, tDetails));  // varsayilan kapali
-    mLayers->add(std::make_unique<AirportObjectsLayer>(tAirports, tDetails));  // pistlerin ustunde
-    // Hava yollari navaid sembollerinin altinda (cizgiler sembolleri ortmesin)
+    mLayers->add(std::make_unique<TaxiRouteLayer>(tAirports, tDetails));
+    mLayers->add(std::make_unique<AirportObjectsLayer>(tAirports, tDetails));
     mLayers->add(std::make_unique<AirwayLayer>(mData.airways(), false));
     mLayers->add(std::make_unique<AirwayLayer>(mData.airways(), true));
     mLayers->add(std::make_unique<AirportLayer>(mData.navs(), &tAirports));
@@ -239,7 +217,7 @@ void XMap::createLayers()
     mLayers->add(std::move(tTrack));
     mLayers->add(std::make_unique<AircraftLayer>(*mAircraft));
     mLayers->add(std::make_unique<DrawingLayer>(*mDrawings));
-    LayerRules::applyBuiltInZoomRanges(*mLayers);  // yerlesik zoom esikleri tablodan (ZOOM-02)
+    LayerRules::applyBuiltInZoomRanges(*mLayers);
 }
 
 int XMap::getId() const
@@ -262,7 +240,6 @@ bool XMap::setName(const std::string& pName)
         log("WARNING: setName: map {} is open; close it first (the name selects the settings folder)", mId);
         return false;
     }
-    // Ayni klasoru iki harita kullanmasin (birbirinin dosyasini ezerlerdi)
     const std::string tFolder = safeFolderName(pName);
     for (const XMap* tOther : mManager->mXMaps)
     {
@@ -331,8 +308,6 @@ bool XMap::initialize()
     {
         loadFiles();
     }
-    // LEGACY pencereli stiller: yer verilmemisse (ya da Standalone ekran disinda kalacaksa) varsayilan yer.
-    // Texture: yer yok, alan setTextureSize ile.
     const RectI tGeometry = mWindow->getGeometry();
     const bool tUsable = mWindow->isEmbedded() ? (tGeometry.width() > 0 && tGeometry.height() > 0)
                                                : isStandaloneGeometryUsable(tGeometry);
@@ -346,10 +321,9 @@ bool XMap::initialize()
     {
         return false;
     }
-    mData.openXMapsChanged();  // ortak onbellek sinirlari acik harita sayisina gore buyur
+    mData.openXMapsChanged();
     if (mPersistence != Persistence::Off)
     {
-        // Dosyalar ilk acilista olussun (kullanici acip duzenleyebilsin)
         std::error_code tError;
         std::filesystem::create_directories(getSettingsDirectory(), tError);
         const std::string tTerrainPath = getSettingsDirectory() + kTerrainFileName;
@@ -395,8 +369,7 @@ void XMap::setStyle(WindowStyle pStyle)
     {
         return;
     }
-    // Texture, arayuz davranisinda Embedded gibidir (host yerlestirir, "Controls" dugmesi yok)
-    mWindow->setEmbedded(pStyle != WindowStyle::Standalone);  // acik haritada uyari loglar, degistirmez
+    mWindow->setEmbedded(pStyle != WindowStyle::Standalone);
     mWindow->setTextureMode(pStyle == WindowStyle::Texture);
 }
 
@@ -530,7 +503,7 @@ void XMap::setCenter(double pLat, double pLon)
     {
         return;
     }
-    mWindow->setFollowAircraft(false);  // takip acik kalirsa harita hemen ucaga doner
+    mWindow->setFollowAircraft(false);
     mWindow->view().setCenter({pLat, pLon});
 }
 
@@ -662,7 +635,6 @@ void XMap::panLeft()
     {
         return;
     }
-    // Sola bakmak = harita icerigi saga kayar
     panBy(getGeometry().mWidth * getPanStep(), 0.0);
 }
 
@@ -681,7 +653,6 @@ void XMap::panUp()
     {
         return;
     }
-    // Kuzeye bakmak = icerik asagi kayar (y yukari artar)
     panBy(0.0, -getGeometry().mHeight * getPanStep());
 }
 
@@ -725,7 +696,7 @@ void XMap::panBy(double pDeltaX, double pDeltaY)
     {
         return;
     }
-    mWindow->setFollowAircraft(false);  // elle kaydirma gibi: takip biter
+    mWindow->setFollowAircraft(false);
     mWindow->view().panByBoxels(pDeltaX, pDeltaY);
 }
 
@@ -752,8 +723,6 @@ void XMap::fitBounds(const GeoBounds& pBounds)
     const double tY1 = Mercator::latToY(pBounds.mNorth);
     const double tWidth = std::max(tX1 - tX0, 1e-12);
     const double tHeight = std::max(tY1 - tY0, 1e-12);
-    // Dunya kenari 256 * 2^zoom boxel: alanin iki yonde de sigacagi en buyuk zoom; kenarlarda %5 pay
-    // (alan pencere kenarina yapismasin, yuvarlama ile disarida kalmasin)
     const double kMargin = 1.05;
     const double tScale = std::min(tGeometry.mWidth / (XMapView::kTileSize * tWidth * kMargin),
                                    tGeometry.mHeight / (XMapView::kTileSize * tHeight * kMargin));
@@ -994,14 +963,12 @@ bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
         log("WARNING: setLayerZoomRange: min {} is greater than max {}", pMinZoom, pMaxZoom);
         return false;
     }
-    // kNo / kNo cifti: host siniri kaldiriyor -> yerlesik esige don
     const bool tClear = pMinZoom == Layer::kNoMinZoom && pMaxZoom == Layer::kNoMaxZoom;
     bool tApplied = false;
     auto tApply = [this, tClear, &pMinZoom, &pMaxZoom](Layer& tLayer, int tSub)
     {
         if (!tClear)
         {
-            // Olculmus sert alt sinirin altindaki istek kirpilir (ZOOM-02)
             const double tHard = tSub >= 0 ? tLayer.subHardMinZoom(tSub) : tLayer.hardMinZoom();
             if (pMinZoom < tHard)
             {
@@ -1044,7 +1011,6 @@ bool XMap::setLayerZoomRange(XMapLayer pLayer, double pMinZoom, double pMaxZoom)
 
 void XMap::getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const
 {
-    // Etkin deger doner: host araligi (kirpilmis) ya da yerlesik esik
     if (!alive("getLayerZoomRange"))
     {
         if (pMinZoom)
@@ -1091,7 +1057,6 @@ void XMap::getLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoo
 
 void XMap::getDefaultLayerZoomRange(XMapLayer pLayer, double* pMinZoom, double* pMaxZoom) const
 {
-    // Yerlesik esik (host araligindan bagimsiz); tabloda olmayan: 0 / 99
     const LayerRules::LayerZoomDefaults tDefaults = LayerRules::zoomDefaultsOf(pLayer);
     if (pMinZoom)
     {
@@ -1129,7 +1094,7 @@ void XMap::setDrawTool(DrawTool pTool)
     {
         return;
     }
-    mDrawings->setMode(static_cast<Drawings::Mode>(pTool));  // yarim cizim biter
+    mDrawings->setMode(static_cast<Drawings::Mode>(pTool));
     mWindow->drawingsChanged();
 }
 
@@ -1384,7 +1349,7 @@ std::vector<XMapObject> XMap::queryAtScreen(int pX, int pY) const
     std::vector<XMapObject> tObjects;
     if (!mWindow->isCreated())
     {
-        return tObjects;  // sorgu son cizilen kareye gore: pencere acik olmali
+        return tObjects;
     }
     for (const auto& [tId, tText] : mWindow->describeAt(pX, pY))
     {
@@ -1469,7 +1434,6 @@ bool XMap::importSettings(const std::string& pText)
         return false;
     }
     mWindow->importSettings(pText);
-    // [window] / [sources] sadece metinde varsa uygulanir (importSettings bellekteki ayarlara ekledi)
     Settings tGiven;
     tGiven.loadText(pText);
     if (tGiven.has(kWindowSection, "left") || tGiven.has(kWindowSection, "visible"))
@@ -1534,7 +1498,7 @@ void XMap::setTerrainSettings(const TerrainSettings& pSettings)
         return;
     }
     Settings tStore;
-    mPalette->save(tStore);  // [palette] version ve bilinmeyen anahtarlar korunur
+    mPalette->save(tStore);
     tStore.setString("palette", "source", pSettings.mUseXPlaneColors ? "xplane" : "colors");
     for (const auto& [tKey, tColor] : pSettings.mClassColors)
     {
@@ -1590,7 +1554,6 @@ bool XMap::importTerrainSettings(const std::string& pText)
     Settings tColors;
     tColors.loadText(pText);
     TerrainPalette tPalette;
-    // H-01: yerlesim ezmesi katman rengidir, TerrainSettings'te tasinmaz; aktarimda koru
     const bool tHadBuiltUp = mPalette->hasBuiltUpColor();
     const TerrainColor tBuiltUp = mPalette->builtUpColor();
     tPalette.load(tColors);
@@ -1599,12 +1562,12 @@ bool XMap::importTerrainSettings(const std::string& pText)
         tPalette.setBuiltUpColor(tBuiltUp);
     }
     *mPalette = tPalette;
-    mPaletteId = mData.registerPalette(mPalette.get());  // X-Plane renkleri uygulanir; ayni ayar = ayni numara
+    mPaletteId = mData.registerPalette(mPalette.get());
     if (mTerrainLayer)
     {
-        mTerrainLayer->setPalette(*mPalette, mPaletteId);  // yeni dokular yeni paletle istenir (hemen)
+        mTerrainLayer->setPalette(*mPalette, mPaletteId);
     }
-    mWindow->invalidateImage();  // onbellekteki harita resmi eski renklerle: hemen yeniden ciz
+    mWindow->invalidateImage();
     markChanged();
     if (mWindow->isCreated() && mPersistence != Persistence::Off)
     {
@@ -1842,7 +1805,7 @@ bool XMap::setColor(XMapLayer pLayer, const Rgb& pColor)
     }
     if (pLayer == XMapLayer::TerrainBuiltUp)
     {
-        applyBuiltUpPalette();  // H-01: zemin dokusu da yeni rengi kullansin
+        applyBuiltUpPalette();
     }
     markChanged();
     return true;
@@ -1852,7 +1815,7 @@ Rgb XMap::getColor(XMapLayer pLayer) const
 {
     if (!alive("getColor"))
     {
-        return Rgb{-1, -1, -1};  // override yok (getColor sozlesmesi)
+        return Rgb{-1, -1, -1};
     }
     const Rgba tColor = mWindow->layerColor(pLayer);
     return Rgb{int(tColor.mR * 255.0f + 0.5f), int(tColor.mG * 255.0f + 0.5f), int(tColor.mB * 255.0f + 0.5f)};
@@ -1867,7 +1830,7 @@ void XMap::clearColor(XMapLayer pLayer)
     mWindow->clearLayerColor(pLayer);
     if (pLayer == XMapLayer::TerrainBuiltUp)
     {
-        applyBuiltUpPalette();  // H-01: ezme kalkti, tema rengine don
+        applyBuiltUpPalette();
     }
     markChanged();
 }
@@ -1879,14 +1842,10 @@ void XMap::clearAllColors()
         return;
     }
     mWindow->clearLayerColors();
-    applyBuiltUpPalette();  // H-01: yerlesim ezmesi de kalkti
+    applyBuiltUpPalette();
     markChanged();
 }
 
-// H-01: setColor(TerrainBuiltUp) katman rengini zemin goruntusune baglar: rengi paletle tanitir,
-// yeni palet numarasi zemin anahtarina girdigi icin ilgili dokular yeniden uretilir. Ezme kalkarsa
-// goruntude temanin mBuiltUp rengine donulur. Mod degisimi paleti degistirmediginden ve dosya
-// yuklemesinde [layer_colors] buraya aktarildiginden ezme her yolda gecerli kalir.
 void XMap::applyBuiltUpPalette()
 {
     const Rgba tColor = mWindow->layerColor(XMapLayer::TerrainBuiltUp);
@@ -1904,15 +1863,11 @@ void XMap::applyBuiltUpPalette()
     mTerrainLayer->setPalette(*mPalette, mPaletteId);
 }
 
-// --- Motor: harita basina durum ve dosyalar ---
-
 void XMap::update(float pNow)
 {
     mAircraft->refresh();
     mLayers->updateAll(pNow);
 
-    // Alt serit yazisi: beklenen kalitede olmayan doku oldugu ve isci dolu oldugu surece yaz;
-    // uretilemeyen parca varsa yazma (takili kalmasin).
     std::string tText = mData.sharedStatusText();
     std::string tTerrain = mData.terrainWorkerStatus();
     const int tPending = getTerrainPendingImages();
@@ -1930,7 +1885,6 @@ void XMap::update(float pNow)
     mWindow->setStatusMessage(mStatusText);
     mWindow->setDataBusy(mData.isBusy());
 
-    // isDataLoaded: ortak veri hazir ve bu haritada bekleyen doku yok
     if (mDataLoadedFlag)
     {
         const XMapDataStatus& tData = mData.status();
@@ -1948,7 +1902,6 @@ void XMap::update(float pNow)
         mFloatingGeometry = mWindow->getGeometry();
     }
 
-    // Otomatik kayit: bir sey degistiyse, en erken autosave_seconds arayla
     const XMapManagerSettings& tLibrary = mData.managerSettings();
     if (mPersistence == Persistence::Off || !tLibrary.mAutoSave ||
         pNow - mLastSaveTime < static_cast<float>(tLibrary.mAutoSaveSeconds))
@@ -1989,7 +1942,6 @@ std::string XMap::safeFolderName(const std::string& pName)
                               (tChar >= '0' && tChar <= '9') || tChar == '-' || tChar == '_' || tChar == '.';
         tSafe += tAllowed ? tChar : '_';
     }
-    // "." / ".." ust klasore cikmasin; Windows sondaki noktayi siler
     while (!tSafe.empty() && tSafe.back() == '.')
     {
         tSafe.back() = '_';
@@ -2004,8 +1956,6 @@ RectI XMap::savedGeometry() const
 
 uint64_t XMap::stateSignature() const
 {
-    // Kullanici degisikligi: pencere yeri/boyutu. Gorunum (merkez/zoom) bilerek yok:
-    // ucak takibinde her karede degisir; baska ayar degisince ve kapanirken yazilir.
     uint64_t tHash = 1469598103934665603ull;
     auto tMix = [&tHash](uint64_t pValue)
     {
@@ -2031,7 +1981,6 @@ void XMap::storeExtraSections() const
     tStore.setString(kSourcesSection, "aircraft", mAircraft->isFromHost() ? "host" : "xplane");
     tStore.setString(kSourcesSection, "route", mFmsLayer && mFmsLayer->isFromHost() ? "host" : "xplane");
 
-    // [layer_colors]: API setColor ile degistirilen katman renkleri (tema uzerine yazmalar)
     tStore.clearSection(kLayerColorsSection);
     for (const auto& [tLayer, tColor] : mWindow->layerColors())
     {
@@ -2046,8 +1995,6 @@ void XMap::storeExtraSections() const
 
 void XMap::applyWindowSection()
 {
-    // Sadece Standalone: kullanici pencereyi tasir / kapatir, bir sonraki acilista ayni yerde bulur.
-    // Embedded ve Texture haritanin yerini ve gorunurlugunu host belirler.
     if (mWindow->isEmbedded())
     {
         return;
@@ -2121,7 +2068,7 @@ void XMap::applyLayerColorsSection(const Settings& pStore)
         tColors[*tLayer] = Rgba{tNorm(tR), tNorm(tG), tNorm(tB), 1.0f};
     }
     mWindow->setLayerColors(tColors);
-    applyBuiltUpPalette();  // H-01: dosyadaki yerlesim ezmesi zemine de uygulanir
+    applyBuiltUpPalette();
 }
 
 void XMap::loadFiles()
@@ -2155,7 +2102,7 @@ bool XMap::writeSettingsFile()
     Settings tFile;
     tFile.loadText(exportSettings());
     const bool tOk = writeTextFile(getSettingsDirectory() + kSettingsFileName, tFile.toText({}));
-    mSavedSettings = mWindow->settingsRevision();  // exportSettings sayaci artirir: sonra oku
+    mSavedSettings = mWindow->settingsRevision();
     mSavedState = stateSignature();
     mSavedExtra = mExtraRevision;
     return tOk;
@@ -2198,5 +2145,4 @@ void XMap::markChanged()
 {
     ++mExtraRevision;
 }
-
-}  // namespace prime
+}

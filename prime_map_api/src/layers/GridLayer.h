@@ -1,5 +1,4 @@
-// Enlem/boylam izgarasi; aralik zoom'a gore seyreklestirilir (cizgiler cok
-// yaklasirsa daha seyrek adim). Etiketler sol (enlem) ve alt (boylam) kenarda.
+// Enlem ve boylam izgarasi.
 #ifndef PRIME_MAP_SRC_LAYERS_GRIDLAYER_H
 #define PRIME_MAP_SRC_LAYERS_GRIDLAYER_H
 
@@ -11,9 +10,9 @@ public:
     GridLayer();
 
     void draw(const drawContext& pContext) override;
-    void drawOverlay(const drawContext& pContext) override;  // kenar yazilari: her karede ustte
+    void drawOverlay(const drawContext& pContext) override;
 
 private:
     static double stepFor(const drawContext& pContext);
 };
-#endif  // PRIME_MAP_SRC_LAYERS_GRIDLAYER_H
+#endif

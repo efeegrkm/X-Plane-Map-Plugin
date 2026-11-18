@@ -1,6 +1,4 @@
-// Havalimanindaki nokta nesneleri (kapi/park oku, helipad, beacon, ruzgar
-// tulumu, PAPI/VASI, tabela, isik dizileri), her biri kendi sekil/rengiyle.
-// Veri AirportDetailStore'dan; okunmamis havalimani icin istek gonderir.
+// Havalimani nesneleri: park yerleri, helipad, beacon, ruzgar tulumu, PAPI, tabela ve isiklar.
 #ifndef PRIME_MAP_SRC_LAYERS_AIRPORTOBJECTSLAYER_H
 #define PRIME_MAP_SRC_LAYERS_AIRPORTOBJECTSLAYER_H
 
@@ -22,17 +20,16 @@ public:
     std::string describe(const drawContext& pContext, double pX, double pY) const override;
     int labelPriority() const override
     {
-        return 65;  // kapi adlari: navaid'lerden sonra
+        return 65;
     }
 
 private:
-    // Ekranda cizilen bir nesne: fareyle sorulabilsin diye
     struct Marker
     {
         PointF mPoint;
         float mRadius = 6.0f;
-        std::string mText;   // fare aciklamasi
-        std::string mLabel;  // haritada yazilan kisa ad (bos olabilir)
+        std::string mText;
+        std::string mLabel;
     };
 
     const AirportGeometryStore& mSummaries;
@@ -41,4 +38,4 @@ private:
     std::vector<int> mVisible;
     std::vector<Marker> mMarkers;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_AIRPORTOBJECTSLAYER_H
+#endif

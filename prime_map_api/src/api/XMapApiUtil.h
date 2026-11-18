@@ -1,4 +1,4 @@
-// API impl dosyalarinin paylastigi kucuk yardimcilar.
+// API kaynak dosyalarinin paylastigi kucuk yardimcilar.
 #ifndef PRIME_MAP_SRC_API_XMAPAPIUTIL_H
 #define PRIME_MAP_SRC_API_XMAPAPIUTIL_H
 
@@ -14,10 +14,8 @@
 
 namespace prime::api
 {
-
 inline std::string hostPluginDirectory()
 {
-    // .../Resources/plugins/<host>/64/win.xpl -> .../Resources/plugins/<host>/
     std::array<char, 2048> tXplPath = {};
     XPLMGetPluginInfo(XPLMGetMyID(), nullptr, tXplPath.data(), nullptr, nullptr);
     std::string tPath = tXplPath.data();
@@ -56,7 +54,6 @@ inline Rgb parseRgb(std::istringstream& pStream)
     pStream >> tColor.mR >> tColor.mG >> tColor.mB;
     return tColor;
 }
+}
 
-}  // namespace prime::api
-
-#endif  // PRIME_MAP_SRC_API_XMAPAPIUTIL_H
+#endif

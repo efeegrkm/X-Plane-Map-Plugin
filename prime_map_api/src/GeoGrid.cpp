@@ -4,9 +4,8 @@
 
 namespace
 {
-
-const int kColumns = 360;  // 1 derecelik boylam hucreleri
-const int kRows = 180;     // 1 derecelik enlem hucreleri
+const int kColumns = 360;
+const int kRows = 180;
 const int kCellCount = kColumns * kRows;
 
 int clampInt(int pValue, int pLow, int pHigh)
@@ -27,8 +26,7 @@ int wrapColumn(int pColumn)
     const int tWrapped = pColumn % kColumns;
     return tWrapped < 0 ? tWrapped + kColumns : tWrapped;
 }
-
-}  // namespace
+}
 
 void GeoGrid::clear()
 {
@@ -74,7 +72,7 @@ void GeoGrid::query(const GeoBounds& pBounds, std::vector<int>& pOut) const
     int tColumnLast = static_cast<int>(std::floor(pBounds.mEast + 180.0));
     if (tColumnLast - tColumnFirst >= kColumns)
     {
-        tColumnLast = tColumnFirst + kColumns - 1;  // tum dunya: her sutun bir kez
+        tColumnLast = tColumnFirst + kColumns - 1;
     }
 
     for (int tRow = tRowFirst; tRow <= tRowLast; ++tRow)

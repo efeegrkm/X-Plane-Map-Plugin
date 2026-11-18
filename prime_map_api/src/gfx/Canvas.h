@@ -1,5 +1,4 @@
-// Haritanin ve arayuzun TEK cizim kapisi: Mesh ve dokulu seritleri modern
-// openGL ile cizer; projede openGL cagrisi sadece gfx/ klasorundedir.
+// Harita ve arayuzun tek cizim kapisi: ucgen agi, doku ve yazi cizimi.
 #ifndef PRIME_MAP_SRC_GFX_CANVAS_H
 #define PRIME_MAP_SRC_GFX_CANVAS_H
 
@@ -11,12 +10,10 @@
 
 namespace Gfx
 {
-
 class Texture;
 class StaticMesh;
 class renderTarget;
 
-// Yazi koseleri: konum (boxel), atlas koordinati, renk (alfa = atlasin kaplamasiyla carpilir)
 struct TextVertex
 {
     float mX = 0.0f;
@@ -35,7 +32,6 @@ public:
     Canvas(const Canvas&) = delete;
     Canvas& operator=(const Canvas&) = delete;
 
-    // openGL baglami etkinken (draw callback icinde) cagrilmali; ilk cagride yukler.
     bool init();
     bool isReady() const;
     const std::string& errorText() const;
@@ -43,20 +39,16 @@ public:
 
     void beginFrame();
 
-    // Pop-out baglamini paylasimsiz acarsa false: cokmek yerine bos pencere + log.
     bool isContextUsable() const;
 
     void draw(const Mesh& pMesh);
-    void draw(const OutlinedLines& pLines);  // once kontur, sonra renkli cizgi
+    void draw(const OutlinedLines& pLines);
     void drawTextured(const Texture& pTexture, const std::vector<TexturedVertex>& pVertices, bool pBlend = true);
-    // konum = pOffset + kose * pScale (boxel); pLineWidth piksel kalinligi
     void drawStatic(const StaticMesh& pMesh, const PointF& pOffset, double pScale, float pLineWidth = 1.0f);
 
     void queueText(const Texture& pAtlas, const std::vector<TextVertex>& pVertices);
-    // Her pencere ciziminin SONUNDA cagrilmali (sekil cizimleri once kendisi cagirir)
     void flushText();
 
-    // X-Plane'in framebuffer/viewport/scissor durumu kaydedilir; FBO kurulamazsa false
     bool beginOffscreen(renderTarget& pTarget, const RectD& pBoxels);
     void endOffscreen();
 
@@ -65,7 +57,7 @@ private:
     {
         unsigned int mId = 0;
         int mMvpLocation = -1;
-        int mTransformLocation = -1;  // vec4(olcek x, olcek y, kaydirma x, kaydirma y)
+        int mTransformLocation = -1;
     };
 
     bool buildProgram(const char* pVertexSource, const char* pFragmentSource, Program& pOut);
@@ -85,8 +77,8 @@ private:
     Program mTextureProgram;
     Program mTextProgram;
     bool mContextUsable = false;
-    ContextVertexArray mColorArray;  // baglam basina
-    unsigned int mColorBuffer = 0;   // baglamlar arasi paylasilir
+    ContextVertexArray mColorArray;
+    unsigned int mColorBuffer = 0;
     ContextVertexArray mTextureArray;
     unsigned int mTextureBuffer = 0;
     ContextVertexArray mTextArray;
@@ -103,6 +95,5 @@ private:
     bool mSavedScissor = false;
     float mSavedClearColor[4] = {};
 };
-
 }
-#endif  // PRIME_MAP_SRC_GFX_CANVAS_H
+#endif

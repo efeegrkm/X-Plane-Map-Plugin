@@ -1,0 +1,56 @@
+0	XMap	group.map	0		11111	0.0	99.0	0.0
+1	Terrain (scenery)	terrain	1	XMap	11111	5.0	99.0	4.0
+2	Forests	terrain.forests	2	Terrain (scenery)	01110	0.0	99.0	0.0
+3	Built-up areas	terrain.built_up	2	Terrain (scenery)	11000	0.0	99.0	0.0
+4	Roads and railways	roads	1	XMap	00000	0.0	99.0	0.0
+5	Motorways	roads.motorways	2	Roads and railways	01110	7.5	99.0	6.5
+6	Primary roads	roads.primary	2	Roads and railways	01110	9.0	99.0	8.0
+7	Secondary roads	roads.secondary	2	Roads and railways	01110	10.5	99.0	9.5
+8	Local roads	roads.local	2	Roads and railways	01110	12.0	99.0	11.0
+9	Railways	roads.railways	2	Roads and railways	01110	9.5	99.0	8.5
+10	Power lines	roads.power_lines	2	Roads and railways	01000	11.0	99.0	10.0
+11	Lat / lon grid	grid	1	XMap	11110	0.0	99.0	0.0
+12	Airports	group.airports	0		11111	0.0	99.0	0.0
+13	Airport symbols	airports	1	Airports	11111	4.0	99.0	3.0
+14	Runways	runways	1	Airports	11111	11.0	99.0	4.0
+15	Paved (land)	runways.paved	2	Runways	11111	0.0	99.0	0.0
+16	Unpaved (land)	runways.unpaved	2	Runways	11111	0.0	99.0	0.0
+17	Water runways	runways.water	2	Runways	11111	0.0	99.0	0.0
+18	Blast pads / overruns	runways.overruns	2	Runways	11111	0.0	99.0	0.0
+19	Markings	runways.markings	2	Runways	11111	0.0	99.0	0.0
+20	Runway numbers	runways.numbers	2	Runways	11111	0.0	99.0	0.0
+21	Airport surfaces	airport_surfaces	1	Airports	11111	10.5	99.0	6.0
+22	Pavement	airport_surfaces.pavement	2	Airport surfaces	11111	11.0	99.0	6.0
+23	Pavement edges	airport_surfaces.pavement_edges	2	Airport surfaces	10111	11.0	99.0	6.0
+24	Airport boundary	airport_surfaces.boundary	2	Airport surfaces	11110	10.5	99.0	6.0
+25	Painted lines	airport_surfaces.markings	2	Airport surfaces	00000	13.5	99.0	6.0
+26	Airport objects	airport_objects	1	Airports	01010	12.5	99.0	12.0
+27	Edge / taxi lights	airport_objects.lighting	2	Airport objects	00000	14.5	99.0	12.0
+28	Helipads	airport_objects.helipads	2	Airport objects	01010	12.5	99.0	12.0
+29	Beacons	airport_objects.beacons	2	Airport objects	00000	12.5	99.0	12.0
+30	Windsocks	airport_objects.windsocks	2	Airport objects	00000	13.5	99.0	12.0
+31	Gates	airport_objects.gates	2	Airport objects	00000	14.0	99.0	12.0
+32	Tie-downs	airport_objects.tie_downs	2	Airport objects	00000	14.0	99.0	12.0
+33	Hangars	airport_objects.hangars	2	Airport objects	00000	14.0	99.0	12.0
+34	Other start locations	airport_objects.other_starts	2	Airport objects	00000	14.0	99.0	12.0
+35	Parking names	airport_objects.start_names	2	Airport objects	00000	15.5	99.0	12.0
+36	PAPI / VASI	airport_objects.approach_lights	2	Airport objects	00000	14.5	99.0	12.0
+37	Taxi signs	airport_objects.signs	2	Airport objects	00000	15.5	99.0	12.0
+38	Taxi routes	taxi_routes	1	Airports	00000	13.5	99.0	9.5
+39	Navaids	group.navaids	0		11111	0.0	99.0	0.0
+40	VOR / DME	vor	1	Navaids	11111	5.0	99.0	3.0
+41	NDB	ndb	1	Navaids	11111	7.0	99.0	3.0
+42	ILS / LOC	ils	1	Navaids	00001	8.5	99.0	4.0
+43	Fixes	fix	1	Navaids	00011	9.0	99.0	7.0
+44	Airways	group.airways	0		11111	0.0	99.0	0.0
+45	Airways (low)	airways_low	1	Airways	11101	6.5	99.0	5.0
+46	Airways (high)	airways_high	1	Airways	10011	6.5	99.0	6.0
+47	Flight	group.flight	0		11111	0.0	99.0	0.0
+48	Aircraft	aircraft	1	Flight	11111	0.0	99.0	0.0
+49	FMS route	fms	1	Flight	11111	0.0	99.0	0.0
+50	Flight track	track	1	Flight	11111	0.0	99.0	0.0
+51	User drawings	drawings	1		11111	0.0	99.0	0.0
+52	Points	drawings.points	2	User drawings	11111	0.0	99.0	0.0
+53	Routes	drawings.routes	2	User drawings	11111	0.0	99.0	0.0
+54	Regions	drawings.regions	2	User drawings	11111	0.0	99.0	0.0
+55	Names and distances	drawings.labels	2	User drawings	11111	0.0	99.0	0.0

@@ -9,26 +9,23 @@
 
 namespace
 {
-
-const int kPadding = 8;       // panel kenari ile icerik arasi
-const int kTitleHeight = 24;  // "LAYERS" basligi + ayirici cizgi
-const int kRowHeight = 22;    // her satir
-const int kBoxSize = 14;      // onay kutusu
-const int kArrowWidth = 14;   // acilir satirdaki ok
-const int kIndent = 18;       // her seviyenin iceri kaymasi
+const int kPadding = 8;
+const int kTitleHeight = 24;
+const int kRowHeight = 22;
+const int kBoxSize = 14;
+const int kArrowWidth = 14;
+const int kIndent = 18;
 const int kMinWidth = 190;
-const int kMinRows = 4;       // pencere cok kucukse bile en az bu kadar satir
+const int kMinRows = 4;
 const char* kResetLabel = "Defaults";
-const int kResetHeight = 18;  // baslik satirindaki kucuk dugme
+const int kResetHeight = 18;
 
 struct LayerGroup
 {
     const char* mName;
-    std::array<const char*, 6> mLayerIds;  // katman kimlikleri (panel sirasi), nullptr ile biter
+    std::array<const char*, 6> mLayerIds;
 };
 
-// Panel gruplari. Cizim sirasi Plugin.cpp'deki createLayers'tir; bu tablo
-// sadece paneldeki gorunumu belirler.
 const auto kGroups = std::to_array<LayerGroup>({
     {"XMap", {"terrain", "roads", "grid", nullptr, nullptr, nullptr}},
     {"Airports", {"airports", "runways", "airport_surfaces", "airport_objects", "taxi_routes", nullptr}},
@@ -49,7 +46,6 @@ int findLayer(const LayerManager& pLayers, const char* pId)
     return -1;
 }
 
-// Kucuk ucgen ok: saga (kapali) veya asagi (acik)
 void drawArrow(Gfx::Canvas& pCanvas, const RectI& pRect, bool pExpanded, const Rgba& pColor)
 {
     const float tX = static_cast<float>(pRect.mLeft + pRect.mRight) * 0.5f;
@@ -66,7 +62,6 @@ void drawArrow(Gfx::Canvas& pCanvas, const RectI& pRect, bool pExpanded, const R
     pCanvas.draw(tMesh);
 }
 
-// Uc durumlu kutu: 0 kapali, 1 acik, 2 karisik (ortada yatay cubuk)
 void drawStateBox(Gfx::Canvas& pCanvas, const RectI& pBox, int pState, bool pHover)
 {
     Ui::checkBox(pCanvas, pBox, pState == 1, pHover);
@@ -80,8 +75,7 @@ void drawStateBox(Gfx::Canvas& pCanvas, const RectI& pBox, int pState, bool pHov
         Ui::fillRect(pCanvas, tBar, Ui::kButtonActive);
     }
 }
-
-}  // namespace
+}
 
 bool LayerPanel::isOpen() const
 {
@@ -140,7 +134,6 @@ int LayerPanel::rowState(const Row& pRow, const LayerManager& pLayers)
     {
         return 0;
     }
-    // Acik katmanin alt katmanlarindan bazilari kapaliysa karisik
     return tLayer->visibleSubLayerCount() < tLayer->subLayerCount() ? 2 : 1;
 }
 
@@ -169,7 +162,6 @@ void LayerPanel::addLayerRows(int pLayer, int pIndent, const LayerManager& pLaye
 
 void LayerPanel::layout(const RectI& pAnchor, int pMinBottom, const LayerManager& pLayers)
 {
-    // Satirlar: gruplar (acik olanin katmanlari, acik katmanin alt katmanlari altinda), sonra grupsuzlar
     mRows.clear();
     std::vector<bool> tGrouped(static_cast<size_t>(pLayers.count()), false);
     for (const LayerGroup& tGroup : kGroups)
@@ -211,8 +203,6 @@ void LayerPanel::layout(const RectI& pAnchor, int pMinBottom, const LayerManager
         }
     }
 
-    // Genislik: en uzun satir (kaydirma degisince panel ziplamasin diye tum satirlar)
-    // En dar hali: baslik + kaydirma yazisi + "Defaults" dugmesi sigsin
     int tWidth = std::max(kMinWidth, kPadding + Ui::textWidth("LAYERS") + Ui::textWidth("00-00 / 00") + 24 +
                                          Ui::buttonWidth(kResetLabel) + kPadding);
     for (const Row& tRow : mRows)
@@ -226,7 +216,6 @@ void LayerPanel::layout(const RectI& pAnchor, int pMinBottom, const LayerManager
         tWidth = std::max(tWidth, tRowWidth);
     }
 
-    // Yukseklik: pencereye sigan kadar satir; fazlasi kaydirilir
     const int tTop = pAnchor.mBottom - 4;
     const int tFixed = kPadding + kTitleHeight + kPadding;
     const int tCapacity = std::max((tTop - pMinBottom - tFixed) / kRowHeight, kMinRows);
@@ -277,7 +266,7 @@ bool LayerPanel::scroll(int pX, int pY, int pClicks)
         return false;
     }
     const int tMaxFirst = std::max(static_cast<int>(mRows.size()) - mShownRows, 0);
-    mFirstRow = std::clamp(mFirstRow - pClicks, 0, tMaxFirst);  // tekerlek yukari: listenin basina
+    mFirstRow = std::clamp(mFirstRow - pClicks, 0, tMaxFirst);
     return true;
 }
 
@@ -294,7 +283,6 @@ void LayerPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Laye
     const int tRowCount = static_cast<int>(mRows.size());
     if (mShownRows < tRowCount)
     {
-        // Kaydirma durumu: "5-18 / 31" sag ustte
         const std::string tRange = std::to_string(mFirstRow + 1) + "-" + std::to_string(mFirstRow + mShownRows) +
                                    " / " + std::to_string(tRowCount);
         Ui::text(resetButtonRect().mLeft - 8 - Ui::textWidth(tRange), tTitleBase, tRange, Ui::kTextDim);
@@ -323,7 +311,6 @@ void LayerPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Laye
         int tTextX = tBox.mRight + 6;
         drawStateBox(pCanvas, tBox, tState, tHover);
 
-        // Agac cizgisi: alt katmanlar ust satirin okunun hizasinda ince bir dikey cizgiye baglanir
         if (tRow.mKind == RowKind::SubLayer)
         {
             const float tGuideX = static_cast<float>(tBox.mLeft - kIndent / 2) + 0.5f;
@@ -343,7 +330,7 @@ void LayerPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, const Laye
         }
         if (tRow.mKind != RowKind::SubLayer)
         {
-            tTextX += kArrowWidth + 4;  // oksuz katmanlar da ayni hizada baslasin
+            tTextX += kArrowWidth + 4;
         }
         const std::string& tName = !tLayer ? tRow.mGroup
                                    : (tRow.mKind == RowKind::SubLayer ? tLayer->subLayerAt(tRow.mSubLayer).mName
@@ -392,7 +379,6 @@ LayerPanel::Hit LayerPanel::hitTest(int pX, int pY, const LayerManager& pLayers)
                 }
                 break;
             case RowKind::Group:
-                // Kutuya tiklandiysa hepsini ac/kapat, ok veya ada tiklandiysa grubu ac/kapa
                 if (tOnBox)
                 {
                     tHit.mIsGroupBox = true;

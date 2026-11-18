@@ -1,5 +1,4 @@
-// openGL basliklarini her platformda dogru sekilde dahil eder.
-
+// OpenGL basliklarini platforma uygun sekilde dahil eder.
 #if IBM
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -7,7 +6,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <windows.h>  // Windows'ta gl.h'den once gelmeli
+#include <windows.h>
 #endif
 
 #if APL

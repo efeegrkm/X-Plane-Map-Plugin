@@ -8,10 +8,8 @@
 
 namespace
 {
-
-const double kRebuildTolerance = 0.01;  // UI olcegi bundan az degisirse atlas yeniden basilmaz
-
-}  // namespace
+const double kRebuildTolerance = 0.01;
+}
 
 AtlasTextRenderer::AtlasTextRenderer(Gfx::Canvas& pCanvas, int pBoxelHeight)
     : mCanvas(pCanvas)
@@ -50,7 +48,7 @@ void AtlasTextRenderer::setPixelsPerBoxel(double pPixelsPerBoxel)
     }
     mPixelsPerBoxel = pPixelsPerBoxel;
     std::string tError;
-    buildAtlas(&tError);  // basarisizsa eski atlas kalir (ayni dosya: olmamali)
+    buildAtlas(&tError);
 }
 
 void AtlasTextRenderer::draw(int pX, int pY, std::string_view pText, const Rgba& pColor)
@@ -64,7 +62,6 @@ void AtlasTextRenderer::draw(int pX, int pY, std::string_view pText, const Rgba&
         mTexture = Gfx::Texture::fromRgba(mAtlas.size(), mAtlas.Rgba().data(), false);
         mTextureStale = false;
     }
-    // Kalem piksel cinsinden ilerler; her harf tam piksele oturur, sonra boxel'e cevrilir
     const double tScale = mPixelsPerBoxel;
     double tPenX = std::round(pX * tScale);
     const double tBaseY = std::round(pY * tScale);
@@ -84,7 +81,6 @@ void AtlasTextRenderer::draw(int pX, int pY, std::string_view pText, const Rgba&
             const float tRight = static_cast<float>((tLeftPixel + tGlyph->mWidth) / tScale);
             const float tTop = static_cast<float>((tBaseY + tGlyph->mTop) / tScale);
             const float tBottom = static_cast<float>((tBaseY + tGlyph->mTop - tGlyph->mHeight) / tScale);
-            // Doku satir 0 = atlasin ustu (v0): harfin ust kenari
             const Gfx::TextVertex tTopLeft = {tLeft, tTop, tGlyph->mU0, tGlyph->mV0, pColor};
             const Gfx::TextVertex tTopRight = {tRight, tTop, tGlyph->mU1, tGlyph->mV0, pColor};
             const Gfx::TextVertex tBottomLeft = {tLeft, tBottom, tGlyph->mU0, tGlyph->mV1, pColor};

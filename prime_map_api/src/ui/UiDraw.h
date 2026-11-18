@@ -1,5 +1,4 @@
-// Arayuz cizim yardimcilari: dolu kutu, cerceve, cizgi, yazi, dugme, onay kutusu.
-// Tum koordinatlar global boxel (pencere draw callback'inin koordinatlari).
+// Arayuz cizim yardimcilari ve ortak renk paleti.
 #ifndef PRIME_MAP_SRC_UI_UIDRAW_H
 #define PRIME_MAP_SRC_UI_UIDRAW_H
 
@@ -17,10 +16,8 @@ class TextRenderer;
 
 namespace Ui
 {
-
-// Yari saydam koyu tema renkleri
-const Rgba kStripBg = {0.06f, 0.07f, 0.09f, 0.72f};    // ust/alt serit zemini
-const Rgba kPanelBg = {0.06f, 0.07f, 0.09f, 0.86f};    // acilir panel zemini
+const Rgba kStripBg = {0.06f, 0.07f, 0.09f, 0.72f};
+const Rgba kPanelBg = {0.06f, 0.07f, 0.09f, 0.86f};
 const Rgba kBorder = {0.30f, 0.33f, 0.38f, 0.90f};
 const Rgba kButton = {0.17f, 0.19f, 0.23f, 0.92f};
 const Rgba kButtonHover = {0.27f, 0.30f, 0.36f, 0.95f};
@@ -37,29 +34,22 @@ void fillRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor);
 void frameRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor);
 void line(Gfx::Canvas& pCanvas, const PointF& pFrom, const PointF& pTo, float pWidth, const Rgba& pColor);
 
-// Surec genelinde tek isaretci; nullptr: X-Plane'in XPLMDrawString'i (yedek).
-// Coklu harita: her pencere cizim/tiklama isininin basinda kendisininkini secer.
 void setTextRenderer(TextRenderer* pRenderer);
 TextRenderer* currentTextRenderer();
 
-// pX, pY: yazinin sol alt kosesi (taban cizgisi). Yedek yolda saydamlik desteklenmez.
 void text(int pX, int pY, std::string_view pText, const Rgba& pColor);
 int textWidth(std::string_view pText);
 int fontHeight();
 
 void textCentered(const RectI& pRect, std::string_view pText, const Rgba& pColor);
 
-// Harita uzerindeki yazilar icin: once 1 boxel sag-asagiya golge (varsayilan
-// siyah; acik zeminli modda beyaz), sonra yazi. Her zemin renginde okunur kalir.
 const Rgba kShadowBlack = {0.0f, 0.0f, 0.0f, 1.0f};
 void textShadowed(int pX, int pY, std::string_view pText, const Rgba& pColor, const Rgba& pShadow = kShadowBlack);
 
-// Etiketi sigdiracak dugme genisligi
 int buttonWidth(std::string_view pLabel);
 
 void Button(Gfx::Canvas& pCanvas, const RectI& pRect, std::string_view pLabel, bool pActive, bool pEnabled,
             bool pHover);
 void checkBox(Gfx::Canvas& pCanvas, const RectI& pBox, bool pChecked, bool pHover);
-
-}  // namespace Ui
-#endif  // PRIME_MAP_SRC_UI_UIDRAW_H
+}
+#endif

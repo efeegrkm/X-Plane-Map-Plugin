@@ -162,24 +162,35 @@ Dokuman eksikleri:
   30.682/0 korunacak.
 - X-Plane kurulumu bu makinede C:\X-Plane 11.
 
-## 6. 1.0.0'a kalanlar
+## 6. 1.0.0 durumu (18.11 gece, ev bilgisayarinda yapilan duzeltme turu)
 
-- Yukaridaki 4 kod duzeltmesi + dokuman eksikleri (3-7. maddeler).
-- SRS "Taslak" -> "Yayin" ve 1.0.0 kabul testleri (SRS kabul testi 5: texture_host + test
-  eklentisi ayni anda, ayri veri klasorleri).
-- texture-host'un kurulup kurulmamasi karar beklemede (kullanici karari).
-- Kullanici tum degisiklikleri kendisi inceleyip Bitbucket'a pushlar; ajan push ATMAMALI
-  (istisna: yalnizca bu aktarim reposu).
+- Kod: haritasiz on yukleme hatasi duzeltildi (XMapData::mAircraft.init() hic cagrilmiyordu);
+  VOR / NDB / ILS / fix / havalimani sembolleri kZoomTable'a alindi (kod ici esikler kaldirildi;
+  havalimani kategorileri asagi cekilince ayni miktar kayar); sert alt sinirlar map_preview --bench
+  ile Seattle + New York'ta olculdu (olcut: katman tek basina <= 5 ms; tablo CHANGELOG ve MIMARI'de);
+  AtomicFile gecici ad: surec etiketi (random_device + saat) + thread + sayac, process.h yok;
+  TerrainStore::Request -> request; Layer.h ayni satirda acilan suslu parantez duzeltildi;
+  stb_truetype ayri OBJECT kutuphanesi (D9025 uyarisi bitti); map_preview: --only, --no-hard-zoom, --bench.
+- Yorum temizligi (kullanici karari): .h/.cpp/.inl dosyalarinda yorum YOK; yalnizca .h dosyalarinin
+  basinda h/cpp ciftinin gorevini anlatan 1-2 satirlik Turkce ASCII aciklama. CMake ve .rc.in
+  yorumlari da kaldirildi. Yeni kodda da bu kural gecerli.
+- Belgeler (kullanici karari: depoda yalnizca API kilavuzu, MIMARI, SRS + CHANGELOG): kaynaklar
+  prime_map_api/docs/tools/PrimeMap_API.md ve MIMARI.md; build_docs.py HTML (ve --pdf ile PDF)
+  uretir; katman tablosu docs/tools/layer_table.tsv'den (koddan dokulur). build_api_doc.py silindi.
+  Belgelerde tam kod listeleri, urun / ekip adi, aktarim reposu izi yok.
+  plugin-api-test/docs/API_LISTESI.md silindi (API kilavuzuyla ayni icerik).
+- prime_map_plugin/preview_shots silindi.
+- Windows derlemesi (VS 18 / MSVC 19.50, Qt CMake + Ninja): dort agac /W4 uyarisiz; map_tests 0 hata;
+  X-Plane'e kuruldu: prime-map-plugin, plugin-api-test, texture-host (texture-host yalnizca test icin,
+  teslim paketine girmez).
+- Kalan: SRS bolum 4'teki X-Plane kabul testleri 1-14 kullanici tarafinda; gecince SRS durumu
+  "Yayin 1.0.0" ve CHANGELOG'a sonuclar.
 
-## 7. Acik konular (UYGULAMA YAPILMADI, karar/planlama bekliyor)
+## 7. Acik konular (1.0.0 sonrasi)
 
-- Zemin yukleme hizi: ZEMIN_HIZ_RAPORU.md onerileri HICBIRI uygulanmadi - tek isci thread'i,
-  gorsel karolar icin disk onbellegi yok (sadece raster/rakim/vektor), rakim sikistirmasi
-  karo uretiminin icinde. Rapordaki oneriler (ikinci isci, gorsel onbellek, kodlama
-  ayrimi) tartisilmali; 13c'deki "ikinci isci yok" karariyla celisir, once karar.
-- SRS coklu-surec onbellek gereksinimi (yukarida 5. madde) onay bekliyor.
-- texture-host dagitimi karari kullanici bekleniyor (6. bolum).
-
+- Zemin uretim hizi (ZEMIN_HIZ_RAPORU.md onerileri uygulanmadi).
+- ZOOM-03 (katman ici ayrinti esikleri), stil modeli (STY), host katmanlari (LAY-04), olaylar (INP-06),
+  harita dondurme (VIEW-06), pimpl (ARY-03), Texture pop-out (EMB-06), LEGACY stillerin kaldirilmasi.
 
 ### Ekip standardindan bilincli farklar (0.22 gecis kararlari, GECIS raporu buraya ozetlendi ve dosya silindi 18.11)
 

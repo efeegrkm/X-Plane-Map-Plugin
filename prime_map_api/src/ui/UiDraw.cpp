@@ -9,23 +9,18 @@
 
 namespace
 {
+const int kButtonPadding = 10;
 
-const int kButtonPadding = 10;  // yazinin iki yanindaki bosluk
+TextRenderer* gTextRenderer = nullptr;
 
-TextRenderer* gTextRenderer = nullptr;  // etkin yazi cizici (setTextRenderer); nullptr = XPLMDrawString
-
-// XPLMDrawString / XPLMMeasureString degistirilebilir char* istiyor:
-// her seferinde kendi kopyamizi veriyoruz.
 std::string mutableCopy(std::string_view pText)
 {
     return std::string(pText);
 }
-
-}  // namespace
+}
 
 namespace Ui
 {
-
 void fillRect(Gfx::Canvas& pCanvas, const RectI& pRect, const Rgba& pColor)
 {
     Gfx::Mesh tMesh;
@@ -145,5 +140,4 @@ void checkBox(Gfx::Canvas& pCanvas, const RectI& pBox, bool pChecked, bool pHove
     }
     pCanvas.draw(tMesh);
 }
-
-}  // namespace Ui
+}

@@ -7,8 +7,7 @@
 
 namespace
 {
-
-const int kPadding = 1;  // harfler arasi bos piksel (komsu harf dokuda sizmasin)
+const int kPadding = 1;
 const int kMaxAtlasSize = 2048;
 
 std::vector<uint32_t> codepoints()
@@ -22,18 +21,16 @@ std::vector<uint32_t> codepoints()
     {
         tList.push_back(tCode);
     }
-    for (uint32_t tCode : {0x011Eu, 0x011Fu, 0x0130u, 0x0131u, 0x015Eu, 0x015Fu})  // G g I i S s (Turkce)
+    for (uint32_t tCode : {0x011Eu, 0x011Fu, 0x0130u, 0x0131u, 0x015Eu, 0x015Fu})
     {
         tList.push_back(tCode);
     }
     return tList;
 }
-
 }
 
 namespace Gfx
 {
-
 bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPixels, std::string* pError)
 {
     mGlyphs.clear();
@@ -46,7 +43,6 @@ bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
         *pError = "font file could not be read";
         return false;
     }
-    // Olcek: 'H' harfinin yuksekligi pCapHeightPixels olsun
     int tX0 = 0;
     int tY0 = 0;
     int tX1 = 0;
@@ -58,7 +54,6 @@ bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
     }
     const float tScale = pCapHeightPixels / static_cast<float>(tY1);
 
-    // Once harflerin bitmap'leri, sonra yerlesim (kucuk atlastan baslayip sigmazsa buyutulur)
     struct Bitmap
     {
         uint32_t mCode;
@@ -71,7 +66,7 @@ bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
         const int tGlyph = stbtt_FindGlyphIndex(&tFont, static_cast<int>(tCode));
         if (tGlyph == 0 && tCode != ' ')
         {
-            continue;  // yazi tipinde yok
+            continue;
         }
         Bitmap tBitmap;
         tBitmap.mCode = tCode;
@@ -87,7 +82,7 @@ bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
         tBitmap.mInfo.mWidth = std::max(0, tRight - tLeft);
         tBitmap.mInfo.mHeight = std::max(0, tBottom - tTop);
         tBitmap.mInfo.mLeft = tLeft;
-        tBitmap.mInfo.mTop = -tTop;  // stb: y asagi +; bizde taban cizgisinden yukari +
+        tBitmap.mInfo.mTop = -tTop;
         if (tBitmap.mInfo.mWidth > 0 && tBitmap.mInfo.mHeight > 0)
         {
             tBitmap.mPixels.resize(static_cast<size_t>(tBitmap.mInfo.mWidth) * tBitmap.mInfo.mHeight);
@@ -97,7 +92,6 @@ bool FontAtlas::build(const std::vector<uint8_t>& pFontData, float pCapHeightPix
         tBitmaps.push_back(std::move(tBitmap));
     }
 
-    // Raf yerlesimi
     for (int tSize = 128; tSize <= kMaxAtlasSize; tSize *= 2)
     {
         int tPenX = kPadding;
@@ -222,7 +216,7 @@ uint32_t FontAtlas::nextCodepoint(std::string_view pText, size_t* pIndex)
     else if (tFirst >= 0x80)
     {
         ++*pIndex;
-        return '?';  // devam bayti ile baslayan bozuk dizi
+        return '?';
     }
     if (*pIndex + tLength > pText.size())
     {
@@ -242,5 +236,4 @@ uint32_t FontAtlas::nextCodepoint(std::string_view pText, size_t* pIndex)
     *pIndex += tLength;
     return tCode;
 }
-
 }

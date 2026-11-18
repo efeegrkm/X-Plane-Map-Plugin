@@ -12,13 +12,11 @@ extern "C"
 
 namespace
 {
-
 const size_t kLookBufferSize = 1 << 16;
 
-// LZMA SDK'ya bellekteki veriyi "dosya" gibi okutmak icin akis
 struct MemoryInStream
 {
-    ISeekInStream mInterface;  // ilk uye olmali: SDK bu adresi verir, biz geri ceviririz
+    ISeekInStream mInterface;
     const uint8_t* mData;
     size_t mSize;
     size_t mPosition;
@@ -26,7 +24,6 @@ struct MemoryInStream
 
 MemoryInStream* fromInterface(ISeekInStreamPtr pStream)
 {
-    // SDK arayuzu const isaretci verir; okuma konumunu degistirebilmek icin const'u kaldiriyoruz
     return reinterpret_cast<MemoryInStream*>(const_cast<ISeekInStream*>(pStream));
 }
 
@@ -67,12 +64,10 @@ const ISzAlloc kAllocMain = {SzAlloc, SzFree};
 const ISzAlloc kAllocTemp = {SzAllocTemp, SzFreeTemp};
 
 std::once_flag gCrcTableOnce;
-
-}  // namespace
+}
 
 namespace SevenZip
 {
-
 bool isArchive(const uint8_t* pData, size_t pSize)
 {
     static const uint8_t kSignature[6] = {'7', 'z', 0xBC, 0xAF, 0x27, 0x1C};
@@ -81,7 +76,6 @@ bool isArchive(const uint8_t* pData, size_t pSize)
 
 bool extractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>* pOut, std::string* pError)
 {
-    // SDK: CRC tablosu ilk kullanimdan once bir kez uretilmeli
     std::call_once(gCrcTableOnce,
                    []()
                    {
@@ -146,5 +140,4 @@ bool extractFirstFile(const std::vector<uint8_t>& pArchive, std::vector<uint8_t>
     }
     return tDone;
 }
-
-}  // namespace SevenZip
+}

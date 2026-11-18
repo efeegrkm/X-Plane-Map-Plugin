@@ -49,7 +49,7 @@ set(CORE_SOURCES
     src/Geo.cpp src/Drawings.cpp src/ScreenMath.cpp src/XMapTheme.cpp src/XMapView.cpp src/XMapFormat.cpp
     src/Settings.cpp src/LayerManager.cpp src/LabelPlacer.cpp src/GeoGrid.cpp src/BackgroundJob.cpp
     src/engine/LayerTable.cpp
-    src/gfx/FontAtlas.cpp src/gfx/StbTruetypeImpl.cpp src/gfx/Mesh.cpp
+    src/gfx/FontAtlas.cpp src/gfx/Mesh.cpp
     src/data/NavDatabase.cpp src/data/AirportGeometry.cpp src/data/AirportGeometryStore.cpp
     src/data/AirportSearch.cpp src/data/LocalizerMatch.cpp src/data/AirwayDatabase.cpp
     src/data/SevenZip.cpp src/data/DsfReader.cpp src/data/SceneryPacks.cpp src/data/SceneryIndex.cpp
@@ -94,6 +94,15 @@ else()
     target_compile_options(lzma_sdk PRIVATE -w)
 endif()
 
+add_library(stb_truetype_impl OBJECT src/gfx/StbTruetypeImpl.cpp)
+target_include_directories(stb_truetype_impl SYSTEM PRIVATE ${COTS_DIR})
+set_property(TARGET stb_truetype_impl PROPERTY POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(stb_truetype_impl PRIVATE /W0)
+else()
+    target_compile_options(stb_truetype_impl PRIVATE -w)
+endif()
+
 add_library(${PROJECT_NAME} SHARED ${CORE_SOURCES} ${PLUGIN_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${COTS_DIR}/earcut ${COTS_DIR})
@@ -109,7 +118,7 @@ else()
     target_compile_definitions(${PROJECT_NAME} PRIVATE IBM=0 APL=0 LIN=1)
 endif()
 target_compile_options(${PROJECT_NAME} PRIVATE /W4 /wd4251 /utf-8 /permissive-)
-target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads lzma_sdk opengl32 gdi32 user32)
+target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads lzma_sdk stb_truetype_impl opengl32 gdi32 user32)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${XPSDK}/Libraries/Win/XPLM_64.lib)
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME prime_map)
 
@@ -136,7 +145,7 @@ if(MAP_TESTS)
     else()
         target_compile_options(map_tests PRIVATE -Wall -Wextra)
     endif()
-    target_link_libraries(map_tests PRIVATE Threads::Threads lzma_sdk)
+    target_link_libraries(map_tests PRIVATE Threads::Threads lzma_sdk stb_truetype_impl)
     enable_testing()
     add_test(NAME map_tests COMMAND map_tests)
 endif()
@@ -163,7 +172,7 @@ if(MAP_PREVIEW AND WIN32)
                                XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1
                                _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN)
     target_compile_options(map_preview PRIVATE /W4 /wd4251 /utf-8 /permissive-)
-    target_link_libraries(map_preview PRIVATE Threads::Threads lzma_sdk opengl32 gdi32 user32)
+    target_link_libraries(map_preview PRIVATE Threads::Threads lzma_sdk stb_truetype_impl opengl32 gdi32 user32)
 
     add_executable(dsf_info tools/dsfinfo/DsfInfoMain.cpp)
     target_include_directories(dsf_info PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
@@ -172,11 +181,4 @@ if(MAP_PREVIEW AND WIN32)
     target_compile_options(dsf_info PRIVATE /W4 /wd4251 /utf-8 /permissive-)
     target_link_libraries(dsf_info PRIVATE Threads::Threads lzma_sdk)
     target_sources(dsf_info PRIVATE src/data/SevenZip.cpp src/data/DsfReader.cpp)
-endif()
-
-# stb_truetype implementasyonu: harici kutuphane, tek dosyada uyarilar kapali
-if(MSVC)
-    set_source_files_properties(src/gfx/StbTruetypeImpl.cpp PROPERTIES COMPILE_OPTIONS /W0)
-else()
-    set_source_files_properties(src/gfx/StbTruetypeImpl.cpp PROPERTIES COMPILE_OPTIONS -w)
 endif()

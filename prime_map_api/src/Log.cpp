@@ -1,18 +1,15 @@
-// Log satirlari X-Plane'in Log.txt'sine (XPLMDebugString) ya da host callback'ine gider.
 #include "Log.h"
 
 #include <functional>
 #include <string>
 
-#include "XPLMUtilities.h"  // XPLMDebugString
+#include "XPLMUtilities.h"
 
 namespace
 {
-
 std::string gLogPrefix = "[prime-map]";
 std::function<void(std::string_view)> gLogCallback;
-
-}  // namespace
+}
 
 void setLogPrefix(std::string_view pPrefix)
 {

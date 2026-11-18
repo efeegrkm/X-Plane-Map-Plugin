@@ -1,8 +1,4 @@
-// Onbellek dosyalari icin atomik yazi: once benzersiz gecici dosyaya yaz, sonra yeniden adlandir.
-// Benzersiz ad (surec + is + sayac): ayni dosyaya yazan iki yonetici / iki isci birbirinin gecici
-// dosyasini ezemez. Iki taraf da tamamlarsa hedefte son yazanin icerigi kalir; okuyan taraf ya eski
-// dosyayi ya da tam yazilmis yenisini gorur; yarim yazilmis dosya asla gorunur olmaz (CacheTrim
-// yarismasi dahil). Cokerkenden kalan gecici dosyalari CacheTrim temizler.
+// Onbellek dosyalarini benzersiz gecici dosya ve yeniden adlandirma ile atomik yazar.
 #ifndef PRIME_MAP_SRC_DATA_ATOMICFILE_H
 #define PRIME_MAP_SRC_DATA_ATOMICFILE_H
 
@@ -12,17 +8,18 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <process.h>  // _getpid (Windows)
+#include <random>
 #include <string>
 #include <thread>
 
-// pWriter akisa icerigi yazar; akis hataliysa dosya yayinlanmaz (hedefte eski icerik kalir).
 inline bool writeFileAtomic(const std::string& pPath, const std::function<void(std::ofstream&)>& pWriter)
 {
-    // Benzersiz gecici ad: <yol>.<pid>.<is>.<sayac>.tmp (statik sayac: surec icinde tekrar etmez)
-    static std::atomic<uint64_t> kCounter{0};
-    const std::uint64_t tCounter = kCounter.fetch_add(1);
-    const std::string tTemporary = pPath + "." + std::to_string(_getpid()) + "." +
+    static const std::uint64_t gProcessTag =
+        (static_cast<std::uint64_t>(std::random_device{}()) << 32) ^
+        static_cast<std::uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
+    static std::atomic<std::uint64_t> gCounter{0};
+    const std::uint64_t tCounter = gCounter.fetch_add(1);
+    const std::string tTemporary = pPath + "." + std::to_string(gProcessTag) + "." +
                                    std::to_string(std::hash<std::thread::id>()(std::this_thread::get_id())) +
                                    "." + std::to_string(tCounter) + ".tmp";
     {
@@ -35,13 +32,11 @@ inline bool writeFileAtomic(const std::string& pPath, const std::function<void(s
         if (!tFile)
         {
             std::error_code tCleanup;
-            std::filesystem::remove(tTemporary, tCleanup);  // yarim gecici dosya kalmasin
+            std::filesystem::remove(tTemporary, tCleanup);
             return false;
         }
     }
     std::error_code tError;
-    // Hedef dosyayi baska bir is okurken Windows rename'inin yerine koymasi kisaca reddedilir:
-    // kisa bekleyip yeniden dene (okuyan taraf dosyayi hemen kapatan RAII akislaridir)
     for (int tAttempt = 0; tAttempt < 10; ++tAttempt)
     {
         std::filesystem::rename(tTemporary, pPath, tError);
@@ -52,8 +47,8 @@ inline bool writeFileAtomic(const std::string& pPath, const std::function<void(s
         std::this_thread::sleep_for(std::chrono::milliseconds(2 * (tAttempt + 1)));
     }
     std::error_code tCleanup;
-    std::filesystem::remove(tTemporary, tCleanup);  // yeniden adlandirilamadi: gecici dosyayi sil
+    std::filesystem::remove(tTemporary, tCleanup);
     return false;
 }
 
-#endif  // PRIME_MAP_SRC_DATA_ATOMICFILE_H
+#endif

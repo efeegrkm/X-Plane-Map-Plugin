@@ -1,6 +1,3 @@
-// primemap.rc.in
-// prime_map.dll'nin Windows surum kaynagi (Dosya Ozellikleri -> Ayrintilar).
-// Degerler CMake PROJECT_VERSION'indan configure_file ile doldurulur.
 #include <windows.h>
 
 VS_VERSION_INFO VERSIONINFO

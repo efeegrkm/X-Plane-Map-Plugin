@@ -5,13 +5,11 @@
 
 namespace
 {
-
 int clampChunk(int pValue)
 {
     return std::min(std::max(pValue, 0), TerrainTriangles::kChunksPerSide - 1);
 }
-
-}  // namespace
+}
 
 void TerrainTriangles::reset(int pWest, int pSouth)
 {
@@ -41,14 +39,13 @@ void TerrainTriangles::add(const double pLon[3], const double pLat[3], TerrainCl
     double tMaxRow = -1e9;
     for (int tCorner = 0; tCorner < 3; ++tCorner)
     {
-        // float: karo icinde 1e-7 derece (~1 cm) hassasiyet yeterli
         const double tDLon = pLon[tCorner] - mWest;
         const double tDLat = pLat[tCorner] - mSouth;
         mCoords.push_back(static_cast<float>(tDLon));
         mCoords.push_back(static_cast<float>(tDLat));
         tMinX = std::min(tMinX, tDLon);
         tMaxX = std::max(tMaxX, tDLon);
-        tMinRow = std::min(tMinRow, 1.0 - tDLat);  // satir 0 = kuzey
+        tMinRow = std::min(tMinRow, 1.0 - tDLat);
         tMaxRow = std::max(tMaxRow, 1.0 - tDLat);
     }
     mClasses.push_back(static_cast<uint8_t>(pClass));

@@ -15,12 +15,9 @@
 
 namespace
 {
-
 const double kPi = 3.14159265358979323846;
 
-// Yerlesik gorunme esikleri LayerTable tablosundadir (alt katman basina; bu dosyada
-// yalnizca olmayan ayrinti esikleri kalmistir)
-const float kHitSlop = 3.0f;  // fare isabeti icin semboller biraz buyuk sayilir
+const float kHitSlop = 3.0f;
 
 enum ObjectPart
 {
@@ -71,8 +68,6 @@ const Rgba kSignBlack = {0.08f, 0.08f, 0.08f, 1.0f};
 const Rgba kPole = {0.80f, 0.80f, 0.80f, 1.0f};
 const Rgba kLabel = {0.80f, 0.90f, 1.00f, 1.0f};
 
-// Sembol koordinati: (pRight, pForward) birimi boxel; ileri = pHeadingDeg yonu.
-// Mercator acilari korudugu icin gercek yon dogrudan kullanilir.
 PointF rotated(const PointF& pCenter, double pHeadingDeg, float pRight, float pForward)
 {
     const float tSin = static_cast<float>(std::sin(pHeadingDeg * kPi / 180.0));
@@ -80,25 +75,24 @@ PointF rotated(const PointF& pCenter, double pHeadingDeg, float pRight, float pF
     return {pCenter.mX + pRight * tCos + pForward * tSin, pCenter.mY - pRight * tSin + pForward * tCos};
 }
 
-// Isik turu (101-108) -> renk. Iki renkli dizilerde (105, 108) lambalar sirayla degisir.
 Rgba lampColor(int pType, size_t pIndex)
 {
     const Rgba tGreen = {0.30f, 1.00f, 0.40f, 1.0f};
     const Rgba tBlue = {0.35f, 0.55f, 1.00f, 1.0f};
     switch (pType)
     {
-        case 101:  // taksi orta hatti
-        case 107:  // pistten cikis
+        case 101:
+        case 107:
             return tGreen;
-        case 102:  // taksi kenari
+        case 102:
             return tBlue;
-        case 103:  // bekleme cizgisi
-        case 104:  // pist bekleme (yanip sonen)
+        case 103:
+        case 104:
             return kAmber;
-        case 105:  // pist emniyet bolgesi orta hatti
-        case 108:  // piste giris
+        case 105:
+        case 108:
             return (pIndex % 2 == 0) ? tGreen : kAmber;
-        case 106:  // tehlikeli bolge kenari
+        case 106:
             return kRed;
         default:
             return kWhite;
@@ -136,7 +130,7 @@ std::string startTypeName(const std::string& pType)
     }
     if (pType.empty())
     {
-        return "Start location";  // eski 15 satiri: tur bilgisi yok
+        return "Start location";
     }
     return "Ramp start";
 }
@@ -146,11 +140,11 @@ const Rgba& beaconColor(int pType)
     switch (pType)
     {
         case 2:
-            return kYellow;  // deniz ussu: beyaz-sari
+            return kYellow;
         case 3:
-            return kGreen;   // heliport: yesil-sari-beyaz
+            return kGreen;
         default:
-            return kGreen;   // sivil (beyaz-yesil), askeri (beyaz-beyaz-yesil)
+            return kGreen;
     }
 }
 
@@ -192,7 +186,6 @@ const char* lightObjectName(int pType)
     }
 }
 
-// "jets|turboprops" -> "jets, turboprops"
 std::string readableList(const std::string& pList, bool pUpper)
 {
     std::string tResult;
@@ -210,7 +203,6 @@ std::string readableList(const std::string& pList, bool pUpper)
     return tResult;
 }
 
-// Tabela metni "{@L}A1{@R}31R-13L" -> okunur hal "A1 31R-13L"
 std::string signText(const std::string& pText)
 {
     std::string tResult;
@@ -235,11 +227,11 @@ std::string signText(const std::string& pText)
             }
             else if (tGlyph.find('@') == std::string::npos)
             {
-                tResult += "[" + tGlyph + "]";  // critical, safety, hazard, no-entry, r1..r3
+                tResult += "[" + tGlyph + "]";
             }
             else if (!tResult.empty() && tResult.back() != ' ')
             {
-                tResult += ' ';  // stil degisti: yeni bolum
+                tResult += ' ';
             }
             tAt = tClose + 1;
             continue;
@@ -268,7 +260,6 @@ const Rgba& signColor(const std::string& pText)
             return kYellow;
     }
 }
-
 }
 
 AirportObjectsLayer::AirportObjectsLayer(const AirportGeometryStore& pSummaries, AirportDetailStore& pDetails)
@@ -294,17 +285,17 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
     mMarkers.clear();
     const XMapView& tView = *pContext.mView;
     const double tZoom = tView.zoom();
-    if (!isInZoomRange())  // yerlesik esik 12.5 (LayerTable tablosu)
+    if (!isInZoomRange())
     {
         return;
     }
-    findVisibleAirports(tView, mSummaries, mQuery, mVisible, false);  // dugumsuz heliport'lar da
+    findVisibleAirports(tView, mSummaries, mQuery, mVisible, false);
 
     Gfx::Mesh tFills;
     Gfx::OutlinedLines tLines(XMapSymbols::kOutlineExtra);
     tLines.setOutlineColor(pContext.mTheme->mHalo);
     Gfx::Mesh tThin;
-    Gfx::Mesh tLamps;  // isik noktalari (en altta: semboller ustune binsin)
+    Gfx::Mesh tLamps;
     const RectD& tArea = pContext.mArea;
     auto tOnScreen = [&](const PointF& pPoint)
     {
@@ -316,11 +307,10 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
         const LoadedAirport* tLoaded = mDetails.use(tIndex);
         if (!tLoaded)
         {
-            continue;  // yuzey katmani "yukleniyor" kutusunu zaten ciziyor
+            continue;
         }
         const AirportDetail& tDetail = tLoaded->mDetail;
 
-        // Isik dizileri: lambalar GPU'daki sekillerle ayni donusumle (kaydirma + olcek)
         if (isSubLayerDrawn(kPartLighting))
         {
             const AirportShapes& tShapes = tLoaded->mShapes;
@@ -345,7 +335,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
         }
         const double tMetersToBoxels = 1.0 / tView.metersPerBoxelAt(mSummaries.at(tIndex).mReference.mLat);
 
-        // Helipad: gercek boyunda (en az 11 boxel) cember + yone donuk "H"
         for (const AptHelipad& tPad : tDetail.mHelipads)
         {
             const PointF tCenter = tView.toScreen(tPad.mCenter);
@@ -353,7 +342,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
             {
                 continue;
             }
-            // Kucukken H cemberle birlesmesin: en az 11 boxel, H yaricapin %42'si
             const float tRadius = std::fmax(static_cast<float>(std::fmax(tPad.mLengthM, tPad.mWidthM) * 0.5 *
                                                               tMetersToBoxels),
                                             11.0f);
@@ -367,7 +355,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
                 tBox.mRight = tCenter.mX + tRadius;
                 tBox.mBottom = tCenter.mY - tRadius;
                 tBox.mTop = tCenter.mY + tRadius;
-                pContext.mLabels->reserve(tBox);  // pist numarasi gibi etiketler ustune binmesin
+                pContext.mLabels->reserve(tBox);
             }
             tLines.addLine(rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, -tH),
                            rotated(tCenter, tPad.mHeadingDeg, -tH * 0.6f, tH), 1.6f, kHelipad);
@@ -382,7 +370,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
                                 ""});
         }
 
-        // Beacon: 8 isinli yildiz, ortada beacon renginde nokta
         for (const AptBeacon& tBeacon : tDetail.mBeacons)
         {
             const PointF tCenter = tView.toScreen(tBeacon.mPosition);
@@ -400,7 +387,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
             mMarkers.push_back({tCenter, 8.0f, std::format("Beacon: {}", beaconName(tBeacon.mType)), ""});
         }
 
-        // Ruzgar tulumu
         if (isSubLayerDrawn(kPartWindsocks))
         {
             for (const AptWindsock& tSock : tDetail.mWindsocks)
@@ -412,7 +398,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
                 }
                 const PointF tTop = {tBase.mX, tBase.mY + 12.0f};
                 tLines.addLine(tBase, tTop, 1.2f, kPole);
-                // Koni direkten saga dogru daralir: uc serit (turuncu, beyaz, turuncu)
                 for (int tBand = 0; tBand < 3; ++tBand)
                 {
                     const float tX0 = tTop.mX + tBand * 4.0f;
@@ -427,7 +412,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
             }
         }
 
-        // Kalkis / park noktalari
         if (isSubLayerDrawn(kPartGates) || isSubLayerDrawn(kPartTieDowns) || isSubLayerDrawn(kPartHangars) ||
             isSubLayerDrawn(kPartOtherStarts))
         {
@@ -476,7 +460,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
             }
         }
 
-        // PAPI / VASI / wig-wag
         if (isSubLayerDrawn(kPartApproachLights))
         {
             for (const AptLightObject& tLight : tDetail.mLightObjects)
@@ -493,7 +476,6 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
                 }
                 else
                 {
-                    // 4 lamba: soldan ikisi beyaz, ikisi kirmizi (dogru suzulus aci gorunumu)
                     for (int tLamp = 0; tLamp < 4; ++tLamp)
                     {
                         tFills.addDisc(rotated(tCenter, tLight.mHeadingDeg, -6.0f + tLamp * 4.0f, 0.0f), 1.7f,
@@ -539,7 +521,7 @@ void AirportObjectsLayer::draw(const drawContext& pContext)
 
 void AirportObjectsLayer::drawLabels(const drawContext& pContext)
 {
-    if (!pContext.mLabels || !isSubLayerDrawn(kPartStartNames))  // park adlari: yerlesik esik 15.5
+    if (!pContext.mLabels || !isSubLayerDrawn(kPartStartNames))
     {
         return;
     }
@@ -554,9 +536,8 @@ void AirportObjectsLayer::drawLabels(const drawContext& pContext)
     }
 }
 
-std::string AirportObjectsLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
+std::string AirportObjectsLayer::describe(const drawContext& , double pX, double pY) const
 {
-    // En yakin isabet (uste binen semboller arasinda imlece en yakini)
     const Marker* tBest = nullptr;
     double tBestDistance = 0.0;
     for (const Marker& tMarker : mMarkers)

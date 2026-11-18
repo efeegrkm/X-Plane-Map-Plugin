@@ -1,5 +1,3 @@
-// prime::XMapManager uygulamasi: haritalarin sahibi. Veri klasoru bos birakilirsa
-// %LOCALAPPDATA%/prime/prime-xmap kullanilir.
 #include "api/XMapManager.h"
 
 #include <algorithm>
@@ -17,15 +15,12 @@
 
 namespace
 {
-
-const char* kSettingsFileName = "prime_map.json";  // XMapData::settingsPath ile ayni
-const char* kXMapsFolder = "maps/";                 // XMapData::mapsDirectory ile ayni
-
-}  // namespace
+const char* kSettingsFileName = "prime_map.json";
+const char* kXMapsFolder = "maps/";
+}
 
 namespace prime
 {
-
 std::string versionString()
 {
     return std::format("{}.{}.{}", kVersionMajor, kVersionMinor, kVersionPatch);
@@ -33,7 +28,6 @@ std::string versionString()
 
 std::string libraryPath()
 {
-    // Bu fonksiyonun adresi yuklu DLL'in icindendir; modulu ordan bulur (refcount degistirmez)
     HMODULE tModule = nullptr;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                             reinterpret_cast<LPCWSTR>(&libraryPath), &tModule))
@@ -57,9 +51,6 @@ std::string libraryPath()
 
 namespace
 {
-
-// Surec ici yonetici kaydi: ayni klasore cozulen ikinci yoneticinin tespiti icin. Kilit dosyasi
-// YOK; sadece bu surecteki canli yoneticiler tutulur (butun cagilar X-Plane ana thread'inden).
 struct LiveManager
 {
     const XMapManager* mManager;
@@ -72,21 +63,18 @@ std::vector<LiveManager>& liveManagers()
     static std::vector<LiveManager> tList;
     return tList;
 }
-
-}  // namespace
+}
 
 XMapManager::XMapManager() = default;
 
 XMapManager::~XMapManager()
 {
-    // Kayit temizligi: shutdown cagrilmamis olsa da bu yonetici artik canli degil
     auto& tLive = liveManagers();
     std::erase_if(tLive,
                   [this](const LiveManager& pEntry)
                   {
                       return pEntry.mManager == this;
                   });
-    // Kalan haritalar: ayarlari yazilir, pencereleri kapanir, nesneleri silinir
     while (!mXMaps.empty())
     {
         delete mXMaps.front();
@@ -129,7 +117,7 @@ bool XMapManager::initialize()
 {
     if (mData)
     {
-        return true;  // zaten calisiyor; ayni yoneticiyi iki kez baslatmak anlamsiz
+        return true;
     }
     setLogPrefix(mLogPrefix);
     setLogCallback(mLogCallback);
@@ -138,7 +126,6 @@ bool XMapManager::initialize()
     XMapDataConfig tConfig;
     tConfig.mDataDirectory = resolvedDataDirectory();
     tConfig.mCacheDirectory = resolvedCacheDirectory();
-    // Host vermediyse (-1) XMapManagerSettings varsayilani kalir; 0 gecerli bir degerdir (sinirsiz / kapali)
     if (mTerrainCacheMb >= 0)
     {
         tConfig.mDefaults.mTerrainCacheMb = mTerrainCacheMb;
@@ -151,7 +138,6 @@ bool XMapManager::initialize()
     std::filesystem::create_directories(tConfig.mDataDirectory, tError);
     std::filesystem::create_directories(tConfig.mCacheDirectory, tError);
 
-    // Ayni klasore cozulen ikinci yoneticinin surec ici tespiti (kilit dosyasi yok)
     auto& tLive = liveManagers();
     const bool tSameData = std::any_of(tLive.begin(), tLive.end(),
                                        [&tConfig](const LiveManager& pEntry)
@@ -160,7 +146,6 @@ bool XMapManager::initialize()
                                        });
     if (tSameData)
     {
-        // AYNI VERI KLASORU: gercek cakisma; prime_map.json ve ayni adli maps/<ad> ayarlari ezilir
         log("WARNING: a second manager in this process uses the same data directory ({}): settings and "
             "same-named maps overwrite each other; give each manager its own data directory "
             "(setDataDirectory) or use distinct map names",
@@ -175,9 +160,6 @@ bool XMapManager::initialize()
                                             });
         if (tSameCache)
         {
-            // Sadece ayni ONBELLEK klasoru: bilincli kurulum (ayarlar ayri, karolar ortak). Guvenli:
-            // butun onbellek yazimlari atomik (writeFileAtomic), okumada anahtar dogrulanir, yarim
-            // dosya gorunmez; CacheTrim yarismasi kayip dosyayi eksik olarak gorur ve yeniden uretir.
             log("note: a second manager in this process shares the terrain cache directory ({}); "
                 "settings stay isolated, tiles are shared",
                 tConfig.mCacheDirectory);
@@ -203,7 +185,7 @@ void XMapManager::shutdown()
         if (tXMap->mLayers)
         {
             log("WARNING: shutdown with a live map (id {}); closing it", tXMap->getId());
-            tXMap->teardown();  // ayarlari yazar, pencereyi ve motor parcalarini birakir
+            tXMap->teardown();
         }
     }
     mData->stop();
@@ -292,7 +274,7 @@ void XMapManager::removeXMap(XMap* pXMap)
         log("WARNING: removeXMap: unknown map");
         return;
     }
-    delete pXMap;  // ~XMap listeden dusurur, ayarlari yazar, pencereyi kapatir
+    delete pXMap;
 }
 
 XMap* XMapManager::findXMap(int pId) const
@@ -345,7 +327,6 @@ bool XMapManager::setSettings(const XMapManagerSettings& pSettings)
     return true;
 }
 
-// Yol sorgulari initialize() oncesi de calisir (host dosyalari onceden hazirlayabilsin)
 std::string XMapManager::getDataDirectory() const
 {
     return mData ? mData->dataDirectory() : resolvedDataDirectory();
@@ -421,5 +402,4 @@ bool XMapManager::isLayerDefaultVisible(XMapLayer pLayer, XMapMode pMode) const
 {
     return LayerRules::isLayerDefaultVisible(pLayer, pMode);
 }
-
-}  // namespace prime
+}

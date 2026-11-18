@@ -8,7 +8,6 @@
 
 namespace
 {
-
 using prime::LayerKind;
 using prime::XMapLayer;
 
@@ -16,15 +15,14 @@ struct LayerEntry
 {
     XMapLayer mLayer;
     LayerKind mKind;
-    XMapLayer mParent;   // ust oge yoksa XMapLayer::Count
-    const char* mKey;   // ayar anahtari
-    const char* mName;  // panelde gorunen ad
-    const char* mPanelGroup;  // grup ogesi icin LayerPanel kGroups adi
+    XMapLayer mParent;
+    const char* mKey;
+    const char* mName;
+    const char* mPanelGroup;
 };
 
 const XMapLayer kNone = XMapLayer::Count;
 
-// Sira enum ile AYNI olmali (testte kontrol edilir)
 const auto kTable = std::to_array<LayerEntry>({
     {XMapLayer::XMapGroup, LayerKind::Group, kNone, "group.map", "XMap", "XMap"},
     {XMapLayer::Terrain, LayerKind::Layer, XMapLayer::XMapGroup, "terrain", "Terrain (scenery)", nullptr},
@@ -114,7 +112,6 @@ const LayerEntry* entryOf(XMapLayer pLayer)
     return &kTable[tIndex];
 }
 
-// Temanin ayari yoksa katmanin kendi varsayilani (Layer yapicilari): sadece bunlar kapali
 bool builtInDefault(std::string_view pKey)
 {
     return pKey != "taxi_routes" && pKey != "fix" && pKey != "roads.power_lines";
@@ -131,12 +128,10 @@ bool themeDefaultOf(const XMapTheme& pTheme, std::string_view pKey)
     }
     return builtInDefault(pKey);
 }
-
-}  // namespace
+}
 
 namespace LayerRules
 {
-
 using prime::LayerKind;
 using prime::XMapLayer;
 
@@ -227,12 +222,10 @@ bool isLayerDefaultVisible(XMapLayer pLayer, prime::XMapMode pMode)
     }
     return themeDefaultOf(tTheme, tEntry->mKey);
 }
-
-}  // namespace LayerRules
+}
 
 namespace LayerRules
 {
-
 Layer* findLayer(const LayerManager& pLayers, XMapLayer pLayer)
 {
     const LayerEntry* tEntry = entryOf(pLayer);
@@ -305,7 +298,6 @@ prime::LayerState state(const LayerManager& pLayers, XMapLayer pLayer)
     }
     if (tEntry->mKind == LayerKind::Group)
     {
-        // Panelle ayni: gruptaki katmanlarin kac tanesi acik (alt katmanlara bakilmaz)
         int tOn = 0;
         int tAll = 0;
         for (XMapLayer tChild : LayerRules::childrenOf(pLayer))
@@ -337,12 +329,10 @@ prime::LayerState state(const LayerManager& pLayers, XMapLayer pLayer)
 
 namespace
 {
-
 bool setLayerOnly(Layer& pLayer, bool pVisible)
 {
     bool tChanged = pLayer.isVisible() != pVisible;
     pLayer.setVisible(pVisible);
-    // Butun alt katmanlari kapali bir katman acilirsa hepsini ac (bos katman gostermesin)
     if (pVisible && pLayer.subLayerCount() > 0 && pLayer.visibleSubLayerCount() == 0)
     {
         for (int tSub = 0; tSub < pLayer.subLayerCount(); ++tSub)
@@ -367,7 +357,6 @@ bool setSubLayer(Layer& pLayer, int pSub, bool pVisible)
     }
     if (pVisible && !pLayer.isVisible())
     {
-        // Kapali katmanin bir alt katmani acildi: sadece o acilsin, eski alt katman ayarlari geri gelmesin
         for (int tSub = 0; tSub < pLayer.subLayerCount(); ++tSub)
         {
             pLayer.setSubLayerVisible(tSub, false);
@@ -380,12 +369,11 @@ bool setSubLayer(Layer& pLayer, int pSub, bool pVisible)
     }
     else if (pLayer.visibleSubLayerCount() == 0)
     {
-        pLayer.setVisible(false);  // son alt katman kapandi: kutu "bos" gorunsun
+        pLayer.setVisible(false);
     }
     return true;
 }
 
-// Grubun bu moddaki varsayilan acik katmanlari (hic yoksa hepsi)
 std::vector<Layer*> groupDefaultLayers(const LayerManager& pLayers, const XMapTheme& pTheme, XMapLayer pGroup)
 {
     std::vector<Layer*> tAll;
@@ -405,8 +393,7 @@ std::vector<Layer*> groupDefaultLayers(const LayerManager& pLayers, const XMapTh
     }
     return tDefaultOn.empty() ? tAll : tDefaultOn;
 }
-
-}  // namespace
+}
 
 bool setVisible(LayerManager& pLayers, const XMapTheme& pTheme, XMapLayer pLayer, bool pVisible)
 {
@@ -459,7 +446,6 @@ bool toggle(LayerManager& pLayers, const XMapTheme& pTheme, XMapLayer pLayer)
     }
     if (tEntry->mKind == LayerKind::Group)
     {
-        // Varsayilan acik katmanlardan biri kapaliysa onlari ac; hepsi aciksa gruptaki her seyi kapat
         bool tTurnOn = false;
         for (Layer* tLayer : groupDefaultLayers(pLayers, pTheme, pLayer))
         {
@@ -480,7 +466,6 @@ void showOnly(LayerManager& pLayers, const XMapTheme& pTheme, const XMapLayer* p
     {
         if (LayerRules::kindOf(*tItem) == LayerKind::Layer)
         {
-            // Acikca istenen katman: butun alt katmanlariyla
             Layer* tLayer = findLayer(pLayers, *tItem);
             if (tLayer)
             {
@@ -508,49 +493,48 @@ std::optional<XMapLayer> groupFromPanelName(std::string_view pName)
     return std::nullopt;
 }
 
-// --- Katman zoom esikleri (1.0.0) ---
-// Gorunme esikleri kod icine gomulu degil, burada toplu. Ayrinti esikleri (etiket, ok, VOR
-// gulu, tabela ...) katman kodunda kalir ve burada belgelenir: zoom tablosundaki gorunme
-// esiginden erken cikmazlar.
 struct ZoomEntry
 {
     XMapLayer mLayer;
     double mMinZoom;
     double mMaxZoom;
-    double mHardMinZoom;  // olculmus sert alt sinir (drawAll tek harita karesi < 8 ms hedefi)
+    double mHardMinZoom;
 };
 
 const auto kZoomTable = std::to_array<ZoomEntry>({
-    // Agir katmanlar: yerlesik esik + olculmus sert sinir
-    {XMapLayer::Terrain, 5.0, 99.0, 4.0},        // karo sayisi kontrol disinda
-    {XMapLayer::AirwaysLow, 6.5, 99.0, 5.0},     // butun havayollari + etiketler (host 5.0'a kadar asagi cekebilir)
-    {XMapLayer::AirwaysHigh, 6.5, 99.0, 5.0},
-    {XMapLayer::Runways, 11.0, 99.0, 10.0},      // pavement
-    {XMapLayer::Surfaces, 10.5, 99.0, 9.5},      // havalimani sinirlari
-    {XMapLayer::TaxiRoutes, 13.5, 99.0, 12.5},   // taksi agi
-    {XMapLayer::Objects, 12.5, 99.0, 11.5},      // nesne detaylari
-    // Yol / yuzey / nesne alt katmanlarinin yerlesik esikleri
+    {XMapLayer::AirportSymbols, 4.0, 99.0, 3.0},
+    {XMapLayer::Vor, 5.0, 99.0, 3.0},
+    {XMapLayer::Ndb, 7.0, 99.0, 3.0},
+    {XMapLayer::Ils, 8.5, 99.0, 4.0},
+    {XMapLayer::Fixes, 9.0, 99.0, 7.0},
+    {XMapLayer::Terrain, 5.0, 99.0, 4.0},
+    {XMapLayer::AirwaysLow, 6.5, 99.0, 5.0},
+    {XMapLayer::AirwaysHigh, 6.5, 99.0, 6.0},
+    {XMapLayer::Runways, 11.0, 99.0, 4.0},
+    {XMapLayer::Surfaces, 10.5, 99.0, 6.0},
+    {XMapLayer::TaxiRoutes, 13.5, 99.0, 9.5},
+    {XMapLayer::Objects, 12.5, 99.0, 12.0},
     {XMapLayer::RoadsMotorways, 7.5, 99.0, 6.5},
     {XMapLayer::RoadsPrimary, 9.0, 99.0, 8.0},
     {XMapLayer::RoadsSecondary, 10.5, 99.0, 9.5},
     {XMapLayer::RoadsLocal, 12.0, 99.0, 11.0},
     {XMapLayer::RoadsRailways, 9.5, 99.0, 8.5},
     {XMapLayer::RoadsPowerLines, 11.0, 99.0, 10.0},
-    {XMapLayer::SurfacesPavement, 11.0, 99.0, 10.5},
-    {XMapLayer::SurfacesPavementEdges, 11.0, 99.0, 10.5},
-    {XMapLayer::SurfacesBoundary, 10.5, 99.0, 9.5},
-    {XMapLayer::SurfacesMarkings, 13.5, 99.0, 12.5},
-    {XMapLayer::ObjectsLighting, 14.5, 99.0, 13.5},
-    {XMapLayer::ObjectsHelipads, 12.5, 99.0, 11.5},
-    {XMapLayer::ObjectsBeacons, 12.5, 99.0, 11.5},
-    {XMapLayer::ObjectsWindsocks, 13.5, 99.0, 12.5},
-    {XMapLayer::ObjectsGates, 14.0, 99.0, 13.0},
-    {XMapLayer::ObjectsTieDowns, 14.0, 99.0, 13.0},
-    {XMapLayer::ObjectsHangars, 14.0, 99.0, 13.0},
-    {XMapLayer::ObjectsOtherStarts, 14.0, 99.0, 13.0},
-    {XMapLayer::ObjectsStartNames, 15.5, 99.0, 14.5},
-    {XMapLayer::ObjectsApproachLights, 14.5, 99.0, 13.5},
-    {XMapLayer::ObjectsSigns, 15.5, 99.0, 14.5},
+    {XMapLayer::SurfacesPavement, 11.0, 99.0, 6.0},
+    {XMapLayer::SurfacesPavementEdges, 11.0, 99.0, 6.0},
+    {XMapLayer::SurfacesBoundary, 10.5, 99.0, 6.0},
+    {XMapLayer::SurfacesMarkings, 13.5, 99.0, 6.0},
+    {XMapLayer::ObjectsLighting, 14.5, 99.0, 12.0},
+    {XMapLayer::ObjectsHelipads, 12.5, 99.0, 12.0},
+    {XMapLayer::ObjectsBeacons, 12.5, 99.0, 12.0},
+    {XMapLayer::ObjectsWindsocks, 13.5, 99.0, 12.0},
+    {XMapLayer::ObjectsGates, 14.0, 99.0, 12.0},
+    {XMapLayer::ObjectsTieDowns, 14.0, 99.0, 12.0},
+    {XMapLayer::ObjectsHangars, 14.0, 99.0, 12.0},
+    {XMapLayer::ObjectsOtherStarts, 14.0, 99.0, 12.0},
+    {XMapLayer::ObjectsStartNames, 15.5, 99.0, 12.0},
+    {XMapLayer::ObjectsApproachLights, 14.5, 99.0, 12.0},
+    {XMapLayer::ObjectsSigns, 15.5, 99.0, 12.0},
 });
 
 LayerZoomDefaults zoomDefaultsOf(XMapLayer pLayer)
@@ -588,5 +572,4 @@ void applyBuiltInZoomRanges(LayerManager& pLayers)
         }
     }
 }
-
-}  // namespace LayerRules
+}

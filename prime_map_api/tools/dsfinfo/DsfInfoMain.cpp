@@ -1,5 +1,3 @@
-// dsf_info: bir DSF dosyasinin ozetini yazar (gelistirme ve teshis icin).
-// Kullanim: dsf_info "<.../+47-123.dsf>"
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -15,8 +13,6 @@
 
 namespace
 {
-
-// Bir onceki cagridan bu yana gecen sure (ms)
 double ElapsedMs(std::chrono::steady_clock::time_point* pSince)
 {
     const std::chrono::steady_clock::time_point tNow = std::chrono::steady_clock::now();
@@ -24,8 +20,7 @@ double ElapsedMs(std::chrono::steady_clock::time_point* pSince)
     *pSince = tNow;
     return tMs;
 }
-
-}  // namespace
+}
 
 int main(int pArgc, char** pArgv)
 {
@@ -34,9 +29,6 @@ int main(int pArgc, char** pArgv)
         std::fprintf(stderr, "usage: dsf_info <file.dsf> [--raw out.dsf] [--dump-terrain <index> out.txt]\n");
         return 2;
     }
-    // Secenekler: --raw <dosya>  acilmis DSF'i yazar
-    //             --dump-terrain <indeks> <dosya>  o arazi turunun temel (overlay olmayan)
-    //             ucgenlerini satir basina "lon lat lon lat lon lat" olarak yazar (olcum betikleri icin)
     std::string tRawPath;
     std::string tDumpPath;
     int tDumpTerrain = -1;
@@ -77,13 +69,12 @@ int main(int pArgc, char** pArgv)
     }
     if (!tRawPath.empty())
     {
-        // Acilmis DSF'i diske yaz (bicimi baska araclarla incelemek icin)
         std::ofstream tRaw(tRawPath, std::ios::binary);
         tRaw.write(reinterpret_cast<const char*>(tData.data()), static_cast<std::streamsize>(tData.size()));
         std::printf("raw DSF written: %s\n", tRawPath.c_str());
     }
 
-    ElapsedMs(&tClock);  // --raw yazma suresi olcume girmesin
+    ElapsedMs(&tClock);
     DsfReader tReader;
     if (!tReader.open(tData, &tError))
     {
@@ -101,7 +92,6 @@ int main(int pArgc, char** pArgv)
             std::printf("  prop %s = %s\n", tProperty.first.c_str(), tProperty.second.c_str());
         }
     }
-    // Dislama alanlari (sim/exclude_obj, _fac, _for, _net, _pol, _str, _bch ...): tur basina sayi
     std::map<std::string, int> tExclusions;
     for (const auto& tProperty : tInfo.mProperties)
     {
@@ -175,7 +165,6 @@ int main(int pArgc, char** pArgv)
                     tOverlay.count(tKey) ? tOverlay[tKey] : 0LL, tInfo.mTerrainNames[tIndex].c_str());
     }
 
-    // Overlay envanteri: tanim basina komut sayilari
     DsfCommandStatistics tStatistics;
     const bool tCountOk = tReader.countCommands(&tStatistics, &tError);
     const double tCountMs = ElapsedMs(&tClock);
@@ -213,7 +202,6 @@ int main(int pArgc, char** pArgv)
                     tEntry.first.second, tEntry.second.mChains, tEntry.second.mPoints);
     }
 
-    // Vektorler (poligon / zincir) koordinatlariyla: sayi ve nokta araligi (32 bitlik havuz olcegi kontrolu)
     long long tPolygonPoints = 0;
     long long tChainPoints = 0;
     double tChainBox[4] = {1e9, 1e9, -1e9, -1e9};
@@ -241,7 +229,6 @@ int main(int pArgc, char** pArgv)
                 tVectorsOk ? "ok" : tError.c_str(), tPolygonPoints, tChainPoints, tChainBox[0], tChainBox[2],
                 tChainBox[1], tChainBox[3]);
 
-    // Butun raster katmanlari: boyut ve deger araligi
     for (const std::string& tName : tReader.rasterNames())
     {
         DsfRaster tLayer;
@@ -256,7 +243,6 @@ int main(int pArgc, char** pArgv)
     }
     ElapsedMs(&tClock);
 
-    // DEM okuma suresi (zemin iscisi her karoda bunu yapar)
     DsfRaster tElevation;
     const bool tHasElevation = tReader.readRaster("elevation", &tElevation);
     const double tRasterMs = ElapsedMs(&tClock);

@@ -1,14 +1,12 @@
-
-// map_preview: eklentinin harita katmanlarini X-Plane OLMADAN, gercek X-Plane
-// verisiyle bir resme cizer. Gelistirirken gorsel kontrol icin.
-
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -57,8 +55,6 @@
 
 namespace
 {
-
-// OpenGL 3.0 framebuffer fonksiyonlari (opengl32.dll sadece 1.1 verir)
 typedef void(APIENTRY* GenFramebuffersFn)(GLsizei, GLuint*);
 typedef void(APIENTRY* BindFramebufferFn)(GLenum, GLuint);
 typedef void(APIENTRY* GenRenderbuffersFn)(GLsizei, GLuint*);
@@ -82,22 +78,23 @@ struct Options
     int mHeight = 800;
     std::string mOut = "preview.ppm";
     std::string mXPlane = "C:/X-Plane 11/";
-    bool mAtlasText = true;  // --xplm-text: kendi yazi atlasimiz yerine XPLMDrawString
-    bool mImageCache = false;  // --fbo: eklentideki gibi FBO resmi + ustune overlay katmanlari
+    bool mAtlasText = true;
+    bool mImageCache = false;
     bool mUi = true;
     bool mDemoDrawings = false;
     bool mFixes = false;
     std::string mCache = "terrain_cache/";
-    std::string mTerrainColors;  // --terrain-colors <dosya>: terrain_colors.json (bossa varsayilan)
-    std::vector<std::string> mHidden;  // --hide <katman kimligi> (birden fazla verilebilir)
-    // --layer-zoom <katman anahtari>:<min>[-<max>]: host gibi zoom araligi ver (birden fazla)
+    std::string mTerrainColors;
+    std::vector<std::string> mHidden;
     std::vector<std::string> mLayerZooms;
-    XMapMode mMode = XMapMode::Scenery;  // --mode scenery|vfr|ifr_low|ifr_high
-    std::vector<std::string> mShown;   // --show <katman kimligi>: varsayilan kapali katmani ac
-    bool mPaletteCollapsed = false;          // --palette-collapsed: cizim paleti katlanmis
-    std::vector<std::string> mPanelGroups;  // --panel <grup>: katman panelini bu grup acik ciz
+    bool mNoHardZoom = false;
+    std::string mOnly;
+    std::string mBenchFile;
+    XMapMode mMode = XMapMode::Scenery;
+    std::vector<std::string> mShown;
+    bool mPaletteCollapsed = false;
+    std::vector<std::string> mPanelGroups;
     bool mPanel = false;
-    // --describe x,y: o noktadaki fare aciklamasini yazdir (resim pikseli, ust = 0)
     std::vector<std::pair<double, double>> mDescribe;
 };
 
@@ -136,11 +133,11 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         }
         else if (tArg == "--fbo")
         {
-            pOut->mImageCache = true;  // harita resmi onbellegi (XMapImageCache) uzerinden ciz
+            pOut->mImageCache = true;
         }
         else if (tArg == "--xplm-text")
         {
-            pOut->mAtlasText = false;  // eski yol: XPLMDrawString (onizlemede Windows yazi tipi)
+            pOut->mAtlasText = false;
         }
         else if (tArg == "--no-ui")
         {
@@ -169,6 +166,18 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
         else if (tArg == "--hide" && tHasValue)
         {
             pOut->mHidden.push_back(pArgv[++tIndex]);
+        }
+        else if (tArg == "--bench" && tHasValue)
+        {
+            pOut->mBenchFile = pArgv[++tIndex];
+        }
+        else if (tArg == "--only" && tHasValue)
+        {
+            pOut->mOnly = pArgv[++tIndex];
+        }
+        else if (tArg == "--no-hard-zoom")
+        {
+            pOut->mNoHardZoom = true;
         }
         else if (tArg == "--layer-zoom" && tHasValue)
         {
@@ -207,7 +216,6 @@ bool ParseOptions(int pArgc, char** pArgv, Options* pOut)
     return true;
 }
 
-// Gizli pencere + OpenGL baglami (cizim pencereye degil FBO'ya yapilir)
 bool CreateGlContext(HDC* pOutDc)
 {
     WNDCLASSA tClass = {};
@@ -283,7 +291,7 @@ bool WritePpm(const std::string& pPath, int pWidth, int pHeight)
         return false;
     }
     std::fprintf(tFile, "P6\n%d %d\n255\n", pWidth, pHeight);
-    for (int tRow = pHeight - 1; tRow >= 0; --tRow)  // OpenGL alttan baslar, resim ustten
+    for (int tRow = pHeight - 1; tRow >= 0; --tRow)
     {
         std::fwrite(tPixels.data() + static_cast<size_t>(tRow) * pWidth * 3, 1, static_cast<size_t>(pWidth) * 3,
                     tFile);
@@ -308,13 +316,11 @@ void AddDemoDrawings(Drawings& pDrawings, const LatLon& pCenter, double pSpan)
     pDrawings.addVertex({pCenter.mLat + pSpan * 0.20, pCenter.mLon + pSpan * 0.70});
     pDrawings.addVertex({pCenter.mLat + pSpan * 0.05, pCenter.mLon + pSpan * 0.80});
     pDrawings.finish();
-    // Yarim kalan rota (turuncu)
     pDrawings.setMode(Drawings::Mode::Route);
     pDrawings.addVertex({pCenter.mLat - pSpan * 0.35, pCenter.mLon + pSpan * 0.10});
     pDrawings.addVertex({pCenter.mLat - pSpan * 0.25, pCenter.mLon + pSpan * 0.25});
 }
-
-}  // namespace
+}
 
 int main(int pArgc, char** pArgv)
 {
@@ -357,7 +363,6 @@ int main(int pArgc, char** pArgv)
         }
     }
 
-    // Veri
     const std::chrono::steady_clock::time_point tStart = std::chrono::steady_clock::now();
     NavDatabase tNav;
     const int tNavCount = LoadNavFromFiles(tOptions.mXPlane, tNav);
@@ -380,13 +385,11 @@ int main(int pArgc, char** pArgv)
     std::printf("data: %d nav records, %d airports with runways (%.1f s)\n", tNavCount, tRunways.count(),
                 std::chrono::duration<double>(std::chrono::steady_clock::now() - tStart).count());
 
-    // Katmanlar: eklentiyle (Plugin.cpp CreateLayers) ayni sira
-    AircraftData tAircraft;  // onizlemede ucak yok (dataref yok)
+    AircraftData tAircraft;
     Drawings tDrawings;
     TerrainPalette tPalette;
     if (!tOptions.mTerrainColors.empty())
     {
-        // Ayni ini dosyasiyla eklentinin goreceginin aynisi (ayarlari derlemeden karsilastirmak icin)
         Settings tColors;
         if (tColors.load(tOptions.mTerrainColors))
         {
@@ -399,7 +402,6 @@ int main(int pArgc, char** pArgv)
     }
     if (tPalette.usesXPlaneColors())
     {
-        // Eklentiyle ayni: sinif renkleri X-Plane'in arazi dokularindan
         XPlaneClassColors tDerived;
         std::string tReport;
         if (loadXPlaneClassColors(tOptions.mXPlane, tOptions.mCache + "xplane_palette.txt", &tDerived, &tReport))
@@ -410,8 +412,6 @@ int main(int pArgc, char** pArgv)
     }
     TerrainStore tTerrain;
     tTerrain.start(tOptions.mXPlane, tOptions.mCache, tPalette, allTerrainStyles());
-    // Dokular / vektorler haritalarin ortak merkezinde. Katmanlardan ONCE tanimli olmali
-    // (katman yikicilari merkeze haber verir: merkez onlardan sonra yok olmali).
     TerrainHub tTerrainHub(tTerrain);
     LayerManager tLayers;
     tLayers.add(std::make_unique<TerrainLayer>(tTerrainHub, tPalette));
@@ -433,11 +433,11 @@ int main(int pArgc, char** pArgv)
     tFixLayer->setVisible(tOptions.mFixes);
     tLayers.add(std::make_unique<AircraftLayer>(tAircraft));
     tLayers.add(std::make_unique<DrawingLayer>(tDrawings));
-    LayerRules::applyBuiltInZoomRanges(tLayers);  // yerlesik zoom esikleri tablodan (ZOOM-02)
+    LayerRules::applyBuiltInZoomRanges(tLayers);
     const XMapTheme& tTheme = themeFor(tOptions.mMode);
     if (tOptions.mMode != XMapMode::Scenery)
     {
-        tLayers.loadVisibility(Settings(), tTheme);  // modun varsayilan katmanlari
+        tLayers.loadVisibility(Settings(), tTheme);
     }
     for (int tIndex = 0; tIndex < tLayers.count(); ++tIndex)
     {
@@ -451,7 +451,32 @@ int main(int pArgc, char** pArgv)
             tLayer->setVisible(true);
         }
     }
-    // --layer-zoom <anahtar>:<min>[-<max>]: host gibi zoom araligi ver (yerlesik esigi asagi ceker)
+    if (!tOptions.mOnly.empty())
+    {
+        for (int tIndex = 0; tIndex < tLayers.count(); ++tIndex)
+        {
+            Layer& tLayer = *tLayers.at(tIndex);
+            const bool tKeep = tLayer.id() == tOptions.mOnly;
+            tLayer.setVisible(tKeep);
+            for (int tSub = 0; tKeep && tSub < tLayer.subLayerCount(); ++tSub)
+            {
+                tLayer.setSubLayerVisible(tSub, true);
+            }
+        }
+    }
+    if (tOptions.mNoHardZoom)
+    {
+        for (int tIndex = 0; tIndex < tLayers.count(); ++tIndex)
+        {
+            Layer& tLayer = *tLayers.at(tIndex);
+            tLayer.setBuiltInZoomRange(tLayer.minZoomEff(), tLayer.maxZoomEff(), Layer::kNoMinZoom);
+            for (int tSub = 0; tSub < tLayer.subLayerCount(); ++tSub)
+            {
+                tLayer.setSubLayerBuiltInZoomRange(tSub, tLayer.subMinZoomEff(tSub), tLayer.subMaxZoomEff(tSub),
+                                                   Layer::kNoMinZoom);
+            }
+        }
+    }
     for (const std::string& tSpec : tOptions.mLayerZooms)
     {
         const size_t tColon = tSpec.find(':');
@@ -475,7 +500,7 @@ int main(int pArgc, char** pArgv)
         const int tSub = LayerRules::subLayerIndex(tLayers, *tLayer);
         if (!tHost)
         {
-            continue;  // grup ya da haritada yok
+            continue;
         }
         if (tSub >= 0)
         {
@@ -487,7 +512,6 @@ int main(int pArgc, char** pArgv)
         }
     }
 
-    // Gorunum: pencere = tum resim, boxel = piksel
     const int tWidth = tOptions.mWidth;
     const int tHeight = tOptions.mHeight;
     RectI tArea;
@@ -505,35 +529,41 @@ int main(int pArgc, char** pArgv)
         AddDemoDrawings(tDrawings, tView.center(), (tBounds.mNorth - tBounds.mSouth) * 0.5);
     }
 
-    // Zemin arka planda uretilir: hazir olana kadar birkac kez "ciz" (istek gonder,
-    // gelen goruntuleri yukle). Sonra son kare asagida cizilir.
-    for (int tRound = 0; tRound < 600; ++tRound)
+    auto tWarmUp = [&]()
     {
-        drawContext tWarmup;
-        tWarmup.mView = &tView;
-        tWarmup.mCanvas = &tCanvas;
-        tWarmup.mTheme = &tTheme;
-        tWarmup.mArea = toRectD(tArea);
-        tWarmup.mClearArea = tWarmup.mArea;
-        tTerrainHub.beginFrame();  // karedeki doku yukleme hakki (eklentide flight loop yapar)
-        tLayers.at(0)->draw(tWarmup);
-        tRoadLayer->draw(tWarmup);  // yol vektorlerini de iste
-        tSurfaceLayer->draw(tWarmup);  // havalimani ayrintilarini da iste
-        tObjectsLayer->draw(tWarmup);  // dugumsuz heliport'larinki de
-        tAirportDetails.update();
-        const std::string tLog = tTerrain.takeLogLines() + tAirportDetails.takeLogLines();
-        if (!tLog.empty())
+        for (int tRound = 0; tRound < 600; ++tRound)
         {
-            std::printf("%s", tLog.c_str());
+            drawContext tWarmup;
+            tWarmup.mView = &tView;
+            tWarmup.mCanvas = &tCanvas;
+            tWarmup.mTheme = &tTheme;
+            tWarmup.mArea = toRectD(tArea);
+            tWarmup.mClearArea = tWarmup.mArea;
+            tTerrainHub.beginFrame();
+            for (Layer* tWarm : {tLayers.at(0), tRoadLayer, tSurfaceLayer, tObjectsLayer})
+            {
+                if (tWarm->isVisible())
+                {
+                    tWarm->setCurrentZoom(tView.zoom());
+                    tWarm->draw(tWarmup);
+                }
+            }
+            tAirportDetails.update();
+            const std::string tLog = tTerrain.takeLogLines() + tAirportDetails.takeLogLines();
+            if (!tLog.empty())
+            {
+                std::printf("%s", tLog.c_str());
+            }
+            if (tRound > 2 && tTerrain.isIdle() && tAirportDetails.pendingCount() == 0)
+            {
+                std::printf("terrain ready after %d rounds\n", tRound);
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
-        if (tRound > 2 && tTerrain.isIdle() && tAirportDetails.pendingCount() == 0)
-        {
-            std::printf("terrain ready after %d rounds\n", tRound);
-            break;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));  // iscinin son ozet satiri (goruntu sureleri)
+    };
+    tWarmUp();
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
     std::printf("%s", tTerrain.takeLogLines().c_str());
 
     glViewport(0, 0, tWidth, tHeight);
@@ -545,6 +575,68 @@ int main(int pArgc, char** pArgv)
     glClearColor(0, 0, 0, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     tCanvas.beginFrame();
+    if (!tOptions.mBenchFile.empty())
+    {
+        std::ifstream tSpec(tOptions.mBenchFile);
+        std::string tLine;
+        while (std::getline(tSpec, tLine))
+        {
+            std::istringstream tFields(tLine);
+            std::string tPlace;
+            double tLat = 0.0;
+            double tLon = 0.0;
+            std::string tOnly;
+            if (!(tFields >> tPlace >> tLat >> tLon >> tOnly))
+            {
+                continue;
+            }
+            for (int tIndex = 0; tIndex < tLayers.count(); ++tIndex)
+            {
+                Layer& tLayer = *tLayers.at(tIndex);
+                const bool tKeep = tLayer.id() == tOnly;
+                tLayer.setVisible(tKeep);
+                tLayer.setBuiltInZoomRange(Layer::kNoMinZoom, Layer::kNoMaxZoom, Layer::kNoMinZoom);
+                tLayer.clearZoomRange();
+                for (int tSub = 0; tSub < tLayer.subLayerCount(); ++tSub)
+                {
+                    tLayer.setSubLayerVisible(tSub, tKeep || tLayer.isSubLayerVisible(tSub));
+                    tLayer.setSubLayerBuiltInZoomRange(tSub, Layer::kNoMinZoom, Layer::kNoMaxZoom, Layer::kNoMinZoom);
+                    tLayer.clearSubLayerZoomRange(tSub);
+                }
+            }
+            double tZoom = 0.0;
+            while (tFields >> tZoom)
+            {
+                tView.setCenter({tLat, tLon});
+                tView.setZoom(tZoom);
+                tWarmUp();
+                double tBest = 1e9;
+                for (int tRepeat = 0; tRepeat < 3; ++tRepeat)
+                {
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    tCanvas.beginFrame();
+                    LabelPlacer tBenchLabels;
+                    drawContext tBench;
+                    tBench.mView = &tView;
+                    tBench.mCanvas = &tCanvas;
+                    tBench.mTheme = &tTheme;
+                    tBench.mArea = toRectD(tArea);
+                    tBench.mClearArea = tBench.mArea;
+                    tBenchLabels.reset(tBench.mClearArea);
+                    tBench.mLabels = &tBenchLabels;
+                    glFinish();
+                    const std::chrono::steady_clock::time_point tBegin = std::chrono::steady_clock::now();
+                    tLayers.drawAll(tBench);
+                    glFinish();
+                    tBest = (std::min)(tBest, std::chrono::duration<double, std::milli>(
+                                                  std::chrono::steady_clock::now() - tBegin).count());
+                }
+                std::printf("bench %s %s %.1f %.2f\n", tPlace.c_str(), tOnly.c_str(), tZoom, tBest);
+                std::fflush(stdout);
+            }
+        }
+        return 0;
+    }
 
     Ui::fillRect(tCanvas, tArea, tTheme.mBackground);
 
@@ -573,7 +665,7 @@ int main(int pArgc, char** pArgv)
         tContext.mClearArea.mTop -= tToolbar.height();
         tContext.mClearArea.mBottom += StatusBar::kHeight;
     }
-    tContext.mHasCursor = tOptions.mDemoDrawings;  // lastik cizgiyi gostermek icin sabit bir imlec
+    tContext.mHasCursor = tOptions.mDemoDrawings;
     tContext.mCursorX = tWidth * 0.62;
     tContext.mCursorY = tHeight * 0.30;
     tLabels.reset(tContext.mClearArea);
@@ -608,14 +700,12 @@ int main(int pArgc, char** pArgv)
     {
         const std::chrono::steady_clock::time_point tDrawStart = std::chrono::steady_clock::now();
         tLayers.drawAll(tContext);
-        // Tek kare katman cizim suresi (yerlesik zoom esiklerinin olcumu icin)
         const double tDrawMs =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tDrawStart).count();
         std::printf("draw: %.2f ms\n", tDrawMs);
     }
     for (const auto& tPoint : tOptions.mDescribe)
     {
-        // Resim pikseli (ust = 0) -> boxel (alt = 0)
         const double tY = tHeight - tPoint.second;
         std::printf("describe %.0f,%.0f: %s\n", tPoint.first, tPoint.second,
                     tLayers.describeAt(tContext, tPoint.first, tY).c_str());
@@ -625,7 +715,6 @@ int main(int pArgc, char** pArgv)
     {
         StatusBar tStatus;
         tToolbar.draw(tCanvas, -1, -1, tToolbarState);
-        // Cizim paleti: varsayilan yerinde (sag ust); --palette-collapsed ile katlanmis
         ToolPalette tToolPalette;
         tToolPalette.setCollapsed(tOptions.mPaletteCollapsed);
         RectI tPaletteBounds = tArea;
@@ -639,7 +728,6 @@ int main(int pArgc, char** pArgv)
         {
             LayerPanel tPanel;
             tPanel.setOpen(true);
-            // "--panel Airports" grubu, "--panel layer:runways" katmanin alt listesini acar
             for (const std::string& tKey : tOptions.mPanelGroups)
             {
                 tPanel.toggleExpanded(tKey.find(':') == std::string::npos ? "group:" + tKey : tKey);

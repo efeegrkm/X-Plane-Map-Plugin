@@ -5,7 +5,6 @@
 
 namespace
 {
-
 constexpr uint32_t atomId(char pA, char pB, char pC, char pD)
 {
     return (static_cast<uint32_t>(pA) << 24) | (static_cast<uint32_t>(pB) << 16) | (static_cast<uint32_t>(pC) << 8) |
@@ -30,11 +29,10 @@ const uint32_t kAtomDems = atomId('D', 'E', 'M', 'S');
 const uint32_t kAtomDemi = atomId('D', 'E', 'M', 'I');
 const uint32_t kAtomDemd = atomId('D', 'E', 'M', 'D');
 
-const size_t kHeaderSize = 12;  // "XPLNEDSF" + uint32 surum
-const size_t kFooterSize = 16;  // MD5
+const size_t kHeaderSize = 12;
+const size_t kFooterSize = 16;
 const size_t kAtomHeaderSize = 8;
 
-// Komut kimlikleri (bicim belgesindeki tablo)
 enum Command : uint8_t
 {
     kPoolSelect = 1,
@@ -69,7 +67,6 @@ enum Command : uint8_t
     kComment32 = 34,
 };
 
-// Sinir kontrollu kucuk-endian okuyucu. Tasma olursa mFailed olur ve 0 doner.
 struct Cursor
 {
     const uint8_t* mData;
@@ -149,15 +146,13 @@ void forEachAtom(const uint8_t* pData, size_t pSize, tVisitor pVisitor)
         const uint32_t tSize = tHeader.U32();
         if (tSize < kAtomHeaderSize || tPosition + tSize > pSize)
         {
-            return;  // bozuk atom: geri kalani okunamaz
+            return;
         }
         pVisitor(tId, pData + tPosition + kAtomHeaderSize, tSize - kAtomHeaderSize);
         tPosition += tSize;
     }
 }
 
-// Duzlem cozumu: ham / fark / RLE / RLE + fark. pOut bos ise atlanir.
-// TValue: uint16_t (POOL) veya uint32_t (PO32); kurallar ayni, sadece deger genisligi farkli.
 template <typename TValue>
 TValue readValue(Cursor& pCursor)
 {
@@ -192,8 +187,6 @@ bool decodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
     }
     else
     {
-        // Kontrol bayti: ust bit 1 ise bir deger (alt 7 bit) kez tekrar,
-        // 0 ise alt 7 bit kadar deger oldugu gibi
         while (static_cast<int>(tValues.size()) < pCount && !pCursor.mFailed)
         {
             const uint8_t tControl = pCursor.U8();
@@ -218,7 +211,6 @@ bool decodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
     }
     if (tDifferenced)
     {
-        // Her deger bir oncekine gore fark: toplam al (16 / 32 bit tasma beklenen davranis)
         TValue tSum = 0;
         for (TValue& tValue : tValues)
         {
@@ -232,8 +224,7 @@ bool decodePlane(Cursor& pCursor, int pCount, std::vector<TValue>* pOut)
     }
     return !pCursor.mFailed;
 }
-
-}  // namespace
+}
 
 bool DsfReader::open(const std::vector<uint8_t>& pData, std::string* pError)
 {
@@ -258,8 +249,8 @@ bool DsfReader::open(const std::vector<uint8_t>& pData, std::string* pError)
         return false;
     }
 
-    int tScaleIndex = 0;    // k. SCAL, k. POOL'a aittir
-    int tScale32Index = 0;  // k. SC32, k. PO32'ye aittir
+    int tScaleIndex = 0;
+    int tScale32Index = 0;
     bool tPoolFailed = false;
     const size_t tBodySize = pData.size() - kHeaderSize - kFooterSize;
     forEachAtom(pData.data() + kHeaderSize, tBodySize,
@@ -351,7 +342,6 @@ bool DsfReader::open(const std::vector<uint8_t>& pData, std::string* pError)
                     }
                     else if (pId == kAtomDems)
                     {
-                        // DEMI + DEMD ciftleri, DEMN adlariyla ayni sirada
                         forEachAtom(pAtom, pAtomSize,
                                     [&](uint32_t pSubId, const uint8_t* pSub, size_t pSubSize)
                                     {
@@ -397,14 +387,14 @@ bool DsfReader::readRaster(const std::string& pName, DsfRaster* pOut) const
     }
     const RasterAtoms& tAtoms = mRasters[tLayer];
     Cursor tInfo{mData->data() + tAtoms.mInfoOffset, tAtoms.mInfoSize};
-    tInfo.U8();  // surum
+    tInfo.U8();
     const int tBytesPerPixel = tInfo.U8();
     const int tFlags = tInfo.U16();
     const int tWidth = static_cast<int>(tInfo.U32());
     const int tHeight = static_cast<int>(tInfo.U32());
     const double tScale = tInfo.F32();
     const double tOffset = tInfo.F32();
-    const int tType = tFlags & 3;  // 0 float, 1 isaretli, 2 isaretsiz tamsayi
+    const int tType = tFlags & 3;
     const size_t tCount = static_cast<size_t>(tWidth) * static_cast<size_t>(tHeight);
     if (tInfo.mFailed || tWidth <= 0 || tHeight <= 0 || tType == 3 ||
         tAtoms.mDataSize < tCount * static_cast<size_t>(tBytesPerPixel) ||
@@ -456,7 +446,6 @@ int DsfReader::poolCount() const
 
 std::vector<std::string> DsfReader::readStringTable(const uint8_t* pData, size_t pSize)
 {
-    // Ardisik C dizgileri; her biri bir sifir bayt ile biter
     std::vector<std::string> tStrings;
     size_t tStart = 0;
     for (size_t tIndex = 0; tIndex < pSize; ++tIndex)
@@ -478,7 +467,7 @@ void DsfReader::readProperties(const uint8_t* pData, size_t pSize)
         const std::string& tName = tStrings[tIndex];
         const std::string& tValue = tStrings[tIndex + 1];
         mInfo.mProperties.emplace_back(tName, tValue);
-        const double tNumber = std::atof(tValue.c_str());  // tam sayi / basit ondalik: yerel ayar sorun degil
+        const double tNumber = std::atof(tValue.c_str());
         if (tName == "sim/west")
         {
             mInfo.mWest = tNumber;
@@ -552,8 +541,6 @@ bool DsfReader::readScale(const uint8_t* pData, size_t pSize, Pool* pPool) const
 
 double DsfReader::planeValue(const Pool& pPool, int pPlane, int pIndex) const
 {
-    // 16 bitlik deger 0..65535 araligindan [kaydirma, kaydirma + olcek] araligina
-    // (DSFLib: deger / 65535 * olcek + kaydirma; olcek 0 ise ham deger)
     const double tRaw = pPool.mPlanes[pPlane][static_cast<size_t>(pIndex)];
     if (pPool.mScale[pPlane] == 0.0)
     {
@@ -566,12 +553,12 @@ bool DsfReader::forEachTriangle(const std::function<void(const DsfTriangle&)>& p
 {
     if (!mData || mCommandsSize == 0)
     {
-        return true;  // komut yok: arazi yok
+        return true;
     }
     Cursor tCursor{mData->data() + mCommandsOffset, mCommandsSize};
     int tPool = -1;
     int tDefinition = 0;
-    int tPatchTerrain = -1;  // patch yoksa -1 (ucgenler yok sayilir)
+    int tPatchTerrain = -1;
     int tPatchFlags = 0;
 
     DsfTriangle tTriangle;
@@ -607,8 +594,7 @@ bool DsfReader::forEachTriangle(const std::function<void(const DsfTriangle&)>& p
         }
     };
 
-    // Serit: 0-1-2, 2-1-3, 2-3-4 ... ; yelpaze: 0-1-2, 0-2-3 ...
-    std::vector<std::pair<int, int>> tVertices;  // (havuz, nokta)
+    std::vector<std::pair<int, int>> tVertices;
     auto tEmitStrip = [&]()
     {
         for (size_t tIndex = 2; tIndex < tVertices.size(); ++tIndex)
@@ -685,8 +671,6 @@ bool DsfReader::forEachTriangle(const std::function<void(const DsfTriangle&)>& p
             }
             case kNestedPolygonRange:
             {
-                // Belge burada belirsiz; gercek XP11 dosyasinda sayac N iken N + 1
-                // indeks var (her sargi bir onceki indeksten bir sonrakine kadar)
                 tCursor.skip(2);
                 const size_t tCount = tCursor.U8();
                 tCursor.skip((tCount + 1) * 2);
@@ -703,7 +687,7 @@ bool DsfReader::forEachTriangle(const std::function<void(const DsfTriangle&)>& p
                 break;
             case kTerrainPatchFlagsLod:
                 tPatchFlags = tCursor.U8();
-                tCursor.skip(8);  // yakin / uzak LOD (float)
+                tCursor.skip(8);
                 tPatchTerrain = tDefinition;
                 tCorner = 0;
                 break;
@@ -805,7 +789,6 @@ bool DsfReader::forEachTriangle(const std::function<void(const DsfTriangle&)>& p
                 tCursor.skip(tCursor.U32());
                 break;
             default:
-                // Bicim: bilinmeyen komutun uzunlugu bilinemez, okumaya devam edilemez
                 *pError = "unknown DSF command " + std::to_string(tCommand);
                 return false;
         }
@@ -831,7 +814,6 @@ bool DsfReader::countCommands(DsfCommandStatistics* pOut, std::string* pError) c
     int tDefinition = 0;
     int tRoadSubtype = 0;
 
-    // Tanim indeksi tablonun disindaysa sayilmaz (bozuk dosyada cokme olmasin)
     auto tCountObjects = [&](long long pCount)
     {
         if (tDefinition >= 0 && tDefinition < static_cast<int>(pOut->mObjects.size()))
@@ -924,7 +906,7 @@ bool DsfReader::countCommands(DsfCommandStatistics* pOut, std::string* pError) c
             }
             case kPolygon:
             {
-                tCursor.skip(2);  // parametre (orman yogunlugu, cephe yuksekligi ...)
+                tCursor.skip(2);
                 const int tCount = tCursor.U8();
                 tCursor.skip(static_cast<size_t>(tCount) * 2);
                 tCountPolygon(1, tCount);
@@ -954,7 +936,6 @@ bool DsfReader::countCommands(DsfCommandStatistics* pOut, std::string* pError) c
             }
             case kNestedPolygonRange:
             {
-                // GERCEK VERI: sayac N iken N + 1 indeks (bkz. ForEachTriangle)
                 tCursor.skip(2);
                 const size_t tCount = tCursor.U8();
                 int tFirst = 0;
@@ -1041,7 +1022,6 @@ bool DsfReader::forEachVector(const std::function<void(const DsfPolygon&)>& pPol
         *pLon = planeValue(mPools[tPool], 0, pIndex);
         *pLat = planeValue(mPools[tPool], 1, pIndex);
     };
-    // 32 bitlik havuzdan (zincirler) bir nokta; olcek 16 bitlikle ayni kural: ham / (2^32 - 1) * olcek + kaydirma
     auto tPoint32 = [&](uint32_t pIndex, double* pLon, double* pLat)
     {
         if (tPool < 0 || tPool >= static_cast<int>(mPools32.size()) ||
@@ -1147,7 +1127,6 @@ bool DsfReader::forEachVector(const std::function<void(const DsfPolygon&)>& pPol
                 break;
             case kNetworkChain:
             {
-                // Belge: 9 ve 10 indekslere junction offset'i ekler, 11 eklemez
                 const int tCount = tCursor.U8();
                 tBeginChain();
                 for (int tIndex = 0; tIndex < tCount; ++tIndex)
@@ -1223,7 +1202,6 @@ bool DsfReader::forEachVector(const std::function<void(const DsfPolygon&)>& pPol
             }
             case kNestedPolygonRange:
             {
-                // GERCEK VERI: sayac N iken N + 1 indeks; halka k = [indeks k, indeks k + 1)
                 tBeginPolygon(tCursor.U16());
                 const int tCount = tCursor.U8();
                 std::vector<int> tBounds;

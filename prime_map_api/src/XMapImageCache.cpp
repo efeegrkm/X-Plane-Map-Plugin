@@ -9,10 +9,9 @@
 
 namespace
 {
-
-const double kMarginFraction = 0.25;  // dokunun pencereden her yandaki payi (pencere boyunun orani)
-const float kRefreshSeconds = 1.0f;   // en gec bu kadar surede bir yeniden cizim (guvenlik)
-const int kMaxTextureSide = 8192;     // dokunun en buyuk kenari (piksel); asilirsa pay kuculur
+const double kMarginFraction = 0.25;
+const float kRefreshSeconds = 1.0f;
+const int kMaxTextureSide = 8192;
 
 bool sameRect(const RectD& pFirst, const RectD& pSecond)
 {
@@ -21,7 +20,6 @@ bool sameRect(const RectD& pFirst, const RectD& pSecond)
            std::abs(pFirst.mBottom - pSecond.mBottom) < tEpsilon && std::abs(pFirst.mTop - pSecond.mTop) < tEpsilon;
 }
 
-// Mercator x farki: 180. boylam sarilmasiyla en kisa yon
 double wrapDelta(double pDelta)
 {
     if (pDelta > 0.5)
@@ -34,8 +32,7 @@ double wrapDelta(double pDelta)
     }
     return pDelta;
 }
-
-}  // namespace
+}
 
 void XMapImageCache::setMaxRate(double pRendersPerSecond)
 {
@@ -54,7 +51,6 @@ int XMapImageCache::rendersPerSecond() const
 
 RectD XMapImageCache::screenRectOfImage(const XMapView& pView, const Affine2D& pBoxelToPixel) const
 {
-    // Resimdeki bir nokta p (boxel) -> ekran: M + (c0 - c) * W + (p - M0) * W / W0
     const RectD& tViewport = pView.viewport();
     const double tWorld = pView.worldSize();
     const double tScale = tWorld / mWorldSize;
@@ -66,7 +62,6 @@ RectD XMapImageCache::screenRectOfImage(const XMapView& pView, const Affine2D& p
     double tShiftY = tMidY + (mCenterY - pView.centerMercatorY()) * tWorld - tOldMidY * tScale;
     if (std::abs(tScale - 1.0) < 1e-9)
     {
-        // Sadece kaydirma: tam piksele yuvarla (doku pikselleri ekran pikseline oturur, bulaniklik yok)
         const double tPixelsPerBoxel = pixelsPerBoxel(pBoxelToPixel);
         tShiftX = std::round(tShiftX * tPixelsPerBoxel) / tPixelsPerBoxel;
         tShiftY = std::round(tShiftY * tPixelsPerBoxel) / tPixelsPerBoxel;
@@ -89,7 +84,6 @@ bool XMapImageCache::draw(Gfx::Canvas& pCanvas, const XMapView& pView, const Aff
         mCountStart = pNow;
     }
 
-    // Pencerenin piksel dikdortgeni ve payli doku boyu (tam piksel)
     const RectD& tWindow = pView.viewport();
     const RectD tWindowPixels = transformRectBBox(pBoxelToPixel, tWindow);
     const int tMarginX = static_cast<int>(std::lround(tWindowPixels.width() * kMarginFraction));
@@ -108,7 +102,6 @@ bool XMapImageCache::draw(Gfx::Canvas& pCanvas, const XMapView& pView, const Aff
         return false;
     }
 
-    // Eski resmin pencereyi kaplayip kaplamadigina bakilir
     const bool tSizeChanged =
         tWidth != mTarget.width() || tHeight != mTarget.height() || !sameRect(tWindow, mWindowArea);
     bool tCovers = false;
@@ -136,8 +129,6 @@ bool XMapImageCache::draw(Gfx::Canvas& pCanvas, const XMapView& pView, const Aff
             return false;
         }
         const RectD tArea = transformRectBBox(tPixelToBoxel, tPixels);
-        // Resmin gorunumu: ayni zoom, genis viewport; merkez, icerik pencereyle
-        // birebir ayni yerde cizilecek sekilde kaydirilir
         XMapView tImageView = pView;
         tImageView.setViewport(tArea);
         const double tWorld = pView.worldSize();
@@ -174,11 +165,8 @@ void XMapImageCache::blit(Gfx::Canvas& pCanvas, const XMapView& pView, const Aff
     const float tRight = static_cast<float>(tRect.mRight);
     const float tBottom = static_cast<float>(tRect.mBottom);
     const float tTop = static_cast<float>(tRect.mTop);
-    // FBO dokusunda satir 0 = alt kenar (v = 0 alt)
     const std::vector<Gfx::TexturedVertex> tQuad = {{tLeft, tTop, 0.0f, 1.0f},    {tLeft, tBottom, 0.0f, 0.0f},
                                                     {tRight, tBottom, 1.0f, 0.0f}, {tLeft, tTop, 0.0f, 1.0f},
                                                     {tRight, tBottom, 1.0f, 0.0f}, {tRight, tTop, 1.0f, 1.0f}};
-    // Saydamliksiz kopya: dokunun alfasi yari saydam cizimlerde 1'in altina inebilir, ama renkler
-    // zaten opak zemin uzerinde karistirilmis durumda
     pCanvas.drawTextured(mTarget.getTexture(), tQuad, false);
 }

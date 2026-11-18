@@ -1,8 +1,4 @@
-// Havalimani OZETLERININ (pistler, kapsayan kutu, dosyadaki yer) deposu:
-//   - kaynagi (IAirportGeometrySource) arka plan thread'inde calistirir,
-//   - bitince sonucu ana thread'de devralir (Poll),
-//   - havalimanlarini 1x1 derece izgaraya koyar, ekrandakileri sorgulatir.
-// Ayrintilar (yuzeyler, cizgiler...) AirportDetailStore'da. X-Plane'e bagimli DEGIL.
+// Havalimani ozetlerinin deposu ve mekansal sorgusu.
 #ifndef PRIME_MAP_SRC_DATA_AIRPORTGEOMETRYSTORE_H
 #define PRIME_MAP_SRC_DATA_AIRPORTGEOMETRYSTORE_H
 
@@ -20,16 +16,13 @@ class AirportGeometryStore
 {
 public:
     explicit AirportGeometryStore(std::unique_ptr<IAirportGeometrySource> pSource);
-    ~AirportGeometryStore();  // calisan okuma varsa iptal edip bekler
+    ~AirportGeometryStore();
 
     AirportGeometryStore(const AirportGeometryStore&) = delete;
     AirportGeometryStore& operator=(const AirportGeometryStore&) = delete;
 
-    // Okumayi arka planda baslatir (bir kez). pCacheDirectory: kaynagin disk onbellegi (bos olabilir)
     void startLoading(const std::string& pXPlaneDirectory, const std::string& pCacheDirectory = "");
 
-    // Ana thread'den her karede. Okuma bu cagrida bittiyse true doner (bir kez);
-    // o andan sonra isReady() true'dur. Rapor: lastReport().
     bool poll();
 
     bool isLoading() const;
@@ -41,12 +34,9 @@ public:
     int count() const;
     int runwayCount() const;
     const AirportGeometry& at(int pIndex) const;
-    const AirportGeometry* find(const std::string& pId) const;  // baslik kimligiyle
-    const std::string& filePath(int pFile) const;  // AptFileLocation::mFile -> yol
+    const AirportGeometry* find(const std::string& pId) const;
+    const std::string& filePath(int pFile) const;
 
-    // pBounds'un degdigi hucrelerdeki havalimanlarinin indekslerini pOut'a ekler.
-    // Havalimani konumu = referans noktasi; havalimani bundan birkac km
-    // tasabilecegi icin cagiran sinirlari biraz genisletmeli.
     void query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
 private:
@@ -57,12 +47,10 @@ private:
     std::atomic<bool> mCancel{false};
     std::atomic<bool> mFinished{false};
 
-    // Arka plan thread'inin yazdiklari (mFinished true olduktan sonra okunur)
     AirportIndex mPending;
     std::string mPendingReport;
     bool mPendingSucceeded = false;
 
-    // Ana thread'in verisi
     std::vector<AirportGeometry> mAirports;
     std::vector<std::string> mFiles;
     std::unordered_map<std::string, int> mById;
@@ -73,4 +61,4 @@ private:
     bool mSucceeded = false;
     int mRunwayCount = 0;
 };
-#endif  // PRIME_MAP_SRC_DATA_AIRPORTGEOMETRYSTORE_H
+#endif

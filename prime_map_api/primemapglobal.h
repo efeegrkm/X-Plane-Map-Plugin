@@ -1,5 +1,4 @@
-// Prime Map export makrosu: kutuphaneyi derleyen taraf PRIME_MAP_LIBRARY tanimlar
-// (dllexport), tuketen taraf yapmaz (dllimport). Tanim CMake tarafindan yapilir.
+// DLL disa aktarim makrosu: kutuphane PRIME_MAP_LIBRARY ile dllexport, host dllimport kullanir.
 #ifndef PRIME_MAP_PRIMEMAPGLOBAL_H
 #define PRIME_MAP_PRIMEMAPGLOBAL_H
 
@@ -13,4 +12,4 @@
     #define PRIME_MAP_EXPORT __attribute__((visibility("default")))
 #endif
 
-#endif  // PRIME_MAP_PRIMEMAPGLOBAL_H
+#endif

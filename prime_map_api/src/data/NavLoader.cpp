@@ -8,9 +8,8 @@
 
 namespace
 {
-
-const int kTimeCheckInterval = 256;  // saati her kayitta degil, bu kadar kayitta bir oku
-const int kIlsSampleCount = 3;       // ILS yon kodlamasini dogrulamak icin log'a yazilacak ornek
+const int kTimeCheckInterval = 256;
+const int kIlsSampleCount = 3;
 
 using Clock = std::chrono::steady_clock;
 
@@ -19,8 +18,6 @@ double millisecondsSince(const Clock::time_point& pStart)
     return std::chrono::duration<double, std::milli>(Clock::now() - pStart).count();
 }
 
-// XPLM turunu bizim turumuze cevirir. Ilgilenmedigimiz turler
-// (suzulus yolu, marker, enlem/boylam noktasi) icin false.
 bool toNavKind(XPLMNavType pType, NavKind* pOut)
 {
     switch (pType)
@@ -50,8 +47,7 @@ bool toNavKind(XPLMNavType pType, NavKind* pOut)
             return false;
     }
 }
-
-}  // namespace
+}
 
 NavLoader::NavLoader(NavDatabase& pDatabase)
     : mDatabase(pDatabase)
@@ -71,7 +67,7 @@ bool NavLoader::step(double pBudgetMs)
         mNext = XPLMGetFirstNavAid();
         if (mNext == XPLM_NAV_NOT_FOUND)
         {
-            return false;  // nav verisi henuz hazir degil: sonraki karede tekrar dene
+            return false;
         }
         mStarted = true;
         mDatabase.clear();
@@ -123,7 +119,7 @@ void NavLoader::readOne(XPLMNavRef pRef)
     float tLon = 0.0f;
     int tFrequency = 0;
     float tHeading = 0.0f;
-    std::array<char, 32> tId = {};  // SDK: kimlik en az 32, ad en az 256 bayt
+    std::array<char, 32> tId = {};
     std::array<char, 256> tName = {};
     XPLMGetNavAidInfo(pRef, &tType, &tLat, &tLon, nullptr, &tFrequency, &tHeading, tId.data(), tName.data(),
                       nullptr);
@@ -137,7 +133,7 @@ void NavLoader::readOne(XPLMNavRef pRef)
     }
     if (isPlaceholderId(tIdText))
     {
-        return;  // "----": X-Plane'in yer tutucu kaydi (konum/yon bilgisi yok)
+        return;
     }
     tRecord.mLat = tLat;
     tRecord.mLon = tLon;
@@ -145,7 +141,7 @@ void NavLoader::readOne(XPLMNavRef pRef)
     tRecord.mId = tIdText;
     if (tRecord.mKind != NavKind::Fix)
     {
-        tRecord.mName = tNameText;  // fix'in adi kimligiyle ayni: saklama
+        tRecord.mName = tNameText;
     }
     if (tRecord.mKind == NavKind::Airport)
     {
@@ -154,8 +150,6 @@ void NavLoader::readOne(XPLMNavRef pRef)
     }
     if (tRecord.mKind == NavKind::Vor)
     {
-        // earth_nav.dat'ta VOR satirinin "yon" alani slaved variation'dir (+ = dogu).
-        // DOGRULA: SDK'nin bunu outHeading olarak verdigi X-Plane'de logdan kontrol edilecek.
         tRecord.mVariation = tHeading;
         if (mVorSamplesLogged < kIlsSampleCount)
         {
@@ -165,9 +159,6 @@ void NavLoader::readOne(XPLMNavRef pRef)
     }
     if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
     {
-        // X-Plane 11.55'te denendi: SDK yonu zaten cozulmus GERCEK yon olarak
-        // veriyor (IANC: 89.9). Dosyadaki "manyetik*360 + gercek" kodlu deger
-        // gelirse de dogru cozulsun diye Decode yine de cagriliyor.
         decodeLocalizerCourse(tHeading, &tRecord.mCourseTrue, &tRecord.mCourseMagnetic);
         if (mIlsSamplesLogged < kIlsSampleCount)
         {

@@ -11,7 +11,6 @@
 
 namespace
 {
-
 const char* kColorVertexShader = R"(#version 330 core
 layout(location = 0) in vec2 aPosition;
 layout(location = 1) in vec4 aColor;
@@ -82,7 +81,6 @@ void main()
 }
 )";
 
-// X-Plane'in bagli tuttugu nesneler cizimden once kaydedilip geri konur
 class BindingGuard
 {
 public:
@@ -91,8 +89,6 @@ public:
         glGetIntegerv(Gl::kCurrentProgram, &mProgram);
         glGetIntegerv(Gl::kVertexArrayBinding, &mArray);
         glGetIntegerv(Gl::kArrayBufferBinding, &mBuffer);
-        // X-Plane bazen yuz ayiklamayi acik birakiyor: o zaman ters yonde
-        // dizilmis ucgenler hic gorunmez. Cizim boyunca kapat.
         mCullFace = glIsEnabled(GL_CULL_FACE);
         if (mCullFace)
         {
@@ -121,7 +117,6 @@ private:
     GLboolean mCullFace = GL_FALSE;
 };
 
-// sutun oncelikli
 void multiply(const float pLeft[16], const float pRight[16], float pOut[16])
 {
     for (int tColumn = 0; tColumn < 4; ++tColumn)
@@ -151,12 +146,10 @@ GLuint compileShader(GLenum pType, const char* pSource, std::string& pError)
     }
     return tShader;
 }
-
 }
 
 namespace Gfx
 {
-
 Canvas::~Canvas()
 {
     release();
@@ -181,8 +174,6 @@ bool Canvas::init()
         return false;
     }
 
-    // Buffer'lar baglamlar arasi paylasilir; VAO'lar ilk cizimde o anki
-    // baglam icin olusturulur (BindColorArray).
     Gl::genBuffers(1, &mColorBuffer);
     Gl::genBuffers(1, &mTextureBuffer);
     Gl::genBuffers(1, &mTextBuffer);
@@ -229,7 +220,7 @@ bool Canvas::buildProgram(const char* pVertexSource, const char* pFragmentSource
     Gl::attachShader(tProgram, tVertex);
     Gl::attachShader(tProgram, tFragment);
     Gl::linkProgram(tProgram);
-    Gl::deleteShader(tVertex);  // programa baglandiktan sonra ayrica gerekmez
+    Gl::deleteShader(tVertex);
     Gl::deleteShader(tFragment);
     if (Gl::getProgramInt(tProgram, Gl::kLinkStatus) == 0)
     {
@@ -281,16 +272,12 @@ void Canvas::release()
 
 void Canvas::beginFrame()
 {
-    // X-Plane, boxel -> ekran matrislerini pencereye gore kurar (pop-out ve
-    // UI olcek dahil); ikisinin carpimi shader'a gider.
     float tModelview[16];
     float tProjection[16];
     glGetFloatv(GL_MODELVIEW_MATRIX, tModelview);
     glGetFloatv(GL_PROJECTION_MATRIX, tProjection);
     multiply(tProjection, tModelview, mMvp);
 
-    // Pop-out penceresi ayri bir openGL baglamidir: degisimi not et (VAO'lar
-    // yeniden olusturulur) ve shader'larin bu baglamda gecerli oldugunu dogrula
     mContextUsable = false;
     if (mReady)
     {
@@ -343,7 +330,7 @@ bool Canvas::beginOffscreen(renderTarget& pTarget, const RectD& pBoxels)
     {
         return false;
     }
-    flushText();  // ekrana ait bekleyen yazilar dokuya karismasin
+    flushText();
     GLint tDraw = 0;
     GLint tRead = 0;
     glGetIntegerv(Gl::kDrawFramebufferBinding, &tDraw);
@@ -369,7 +356,6 @@ bool Canvas::beginOffscreen(renderTarget& pTarget, const RectD& pBoxels)
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Ortografik: pBoxels -> [-1, 1] (sutun oncelikli)
     const float tLeft = static_cast<float>(pBoxels.mLeft);
     const float tRight = static_cast<float>(pBoxels.mRight);
     const float tBottom = static_cast<float>(pBoxels.mBottom);
@@ -392,7 +378,7 @@ void Canvas::endOffscreen()
     {
         return;
     }
-    flushText();  // dokuya ait yazilar dokuya
+    flushText();
     Gl::bindFramebuffer(Gl::kDrawFramebuffer, static_cast<GLuint>(mSavedDrawFramebuffer));
     Gl::bindFramebuffer(Gl::kReadFramebuffer, static_cast<GLuint>(mSavedReadFramebuffer));
     glViewport(mSavedViewport[0], mSavedViewport[1], mSavedViewport[2], mSavedViewport[3]);
@@ -445,7 +431,7 @@ void Canvas::flushText()
     }
     if (canDraw())
     {
-        XPLMSetGraphicsState(0, 1, 0, 0, 1, 0, 0);  // 1 doku birimi, saydamlik var
+        XPLMSetGraphicsState(0, 1, 0, 0, 1, 0, 0);
         XPLMBindTexture2d(mPendingAtlas, 0);
 
         BindingGuard tGuard;
@@ -462,13 +448,13 @@ void Canvas::flushText()
 
 void Canvas::draw(const Mesh& pMesh)
 {
-    flushText();  // once bekleyen yazilar: ust uste binme sirasi korunsun
+    flushText();
     if (!canDraw() || pMesh.isEmpty())
     {
         return;
     }
     const std::vector<ColorVertex>& tVertices = pMesh.vertices();
-    XPLMSetGraphicsState(0, 0, 0, 0, 1, 0, 0);  // doku yok, saydamlik var, derinlik yok
+    XPLMSetGraphicsState(0, 0, 0, 0, 1, 0, 0);
 
     BindingGuard tGuard;
     Gl::useProgram(mColorProgram.mId);
@@ -476,8 +462,6 @@ void Canvas::draw(const Mesh& pMesh)
     Gl::uniform4(mColorProgram.mTransformLocation, 1.0f, 1.0f, 0.0f, 0.0f);
     bindColorArray();
     Gl::bindBuffer(Gl::kArrayBuffer, mColorBuffer);
-    // Her cizimde buffer bastan ayrilir ("orphaning"): surucu eski veriyi
-    // kullanan cizimi beklemeden yeni alan verir
     Gl::bufferData(Gl::kArrayBuffer, static_cast<GLsizeiptr>(tVertices.size() * sizeof(ColorVertex)),
                    tVertices.data(), Gl::kStreamDraw);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(tVertices.size()));
@@ -509,8 +493,6 @@ void Canvas::drawStatic(const StaticMesh& pMesh, const PointF& pOffset, double p
         glDrawArrays(GL_TRIANGLES, 0, pMesh.vertexCount());
         return;
     }
-    // Kalin GL_LINES: X-Plane 11 uyumluluk (compatibility) baglaminda calisir.
-    // X-Plane'in degerini bozmamak icin eskisini okuyup geri koyariz.
     GLfloat tOldWidth = 1.0f;
     const bool tWide = pLineWidth > 1.0f;
     if (tWide)
@@ -532,7 +514,7 @@ void Canvas::drawTextured(const Texture& pTexture, const std::vector<TexturedVer
     {
         return;
     }
-    XPLMSetGraphicsState(0, 1, 0, 0, pBlend ? 1 : 0, 0, 0);  // 1 doku birimi, saydamlik istege bagli
+    XPLMSetGraphicsState(0, 1, 0, 0, pBlend ? 1 : 0, 0, 0);
     XPLMBindTexture2d(pTexture.id(), 0);
 
     BindingGuard tGuard;
@@ -544,5 +526,4 @@ void Canvas::drawTextured(const Texture& pTexture, const std::vector<TexturedVer
                    pVertices.data(), Gl::kStreamDraw);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(pVertices.size()));
 }
-
 }

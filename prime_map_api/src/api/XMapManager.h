@@ -1,6 +1,4 @@
-// prime::XMapManager: haritalarin sahibi. initialize() ortak veriyi (XMapData) ve arka plan
-// islerini baslatir; addXMap() yeni harita nesnesi verir (acilmaz), removeXMap() yazar ve
-// yok eder. Nesneyi yalnizca XMapManagerFactory olusturur / birakir.
+// Haritalarin sahibi olan yonetici: klasorler, ortak veri, harita ekleme ve kaldirma.
 #ifndef PRIME_MAP_SRC_API_XMAPMANAGER_H
 #define PRIME_MAP_SRC_API_XMAPMANAGER_H
 
@@ -17,18 +15,13 @@ class XMapData;
 
 namespace prime
 {
-
 class XMap;
-
-// C4251 (dll arayuzunde std uyeleri): kutuphane ve host ayni MSVC + /MD ile derlenmek zorunda (README),
-// bu yuzden zararsiz; derleyici bayragi /wd4251 ile tum hedeflerde kapatilir.
 
 class PRIME_MAP_EXPORT XMapManager
 {
 public:
     ~XMapManager();
 
-    // initialize() oncesi; hepsi istege bagli. Bos veri klasoru: %LOCALAPPDATA%/prime/prime-xmap
     void setDataDirectory(const std::string& pPath);
     void setCacheDirectory(const std::string& pPath);
     void setLogPrefix(const std::string& pPrefix);
@@ -36,29 +29,27 @@ public:
     void setTerrainCacheMb(int pMb);
     void setPrefetchTiles(int pTiles);
 
-    bool initialize();  // veri yuklemesi arka planda baslar; zaten calisiyorsa true
+    bool initialize();
     void shutdown();
 
     bool isInitialized() const;
     Status getStatus() const;
 
     XMap* addXMap(const XMapConfig& pConfig = {});
-    void removeXMap(XMap* pXMap);  // ayarlari yazar, nesneyi yok eder
-    XMap* findXMap(int pId) const;                   // yoksa nullptr
-    XMap* findXMap(const std::string& pName) const;  // setName ile verilen adla
+    void removeXMap(XMap* pXMap);
+    XMap* findXMap(int pId) const;
+    XMap* findXMap(const std::string& pName) const;
     std::vector<XMap*> getXMaps() const;
     int getOpenXMapCount() const;
 
     XMapManagerSettings getSettings() const;
     bool setSettings(const XMapManagerSettings& pSettings);
 
-    // Yollar initialize() oncesi de dogru doner (setDataDirectory / setCacheDirectory ya da varsayilan)
     std::string getDataDirectory() const;
     std::string getSettingsFilePath() const;
     std::string getXMapsDirectory() const;
     std::string getCacheDirectory() const;
 
-    // Katman hiyerarsisi (panel sirasi ve kurallariyla)
     std::optional<XMapLayer> parentOf(XMapLayer pLayer) const;
     std::vector<XMapLayer> childrenOf(XMapLayer pLayer) const;
     std::vector<XMapLayer> topLevelLayers() const;
@@ -75,25 +66,23 @@ private:
     XMapManager(const XMapManager&) = delete;
     XMapManager& operator=(const XMapManager&) = delete;
 
-    std::string resolvedDataDirectory() const;   // setDataDirectory ya da %LOCALAPPDATA%/prime/prime-xmap/
-    std::string resolvedCacheDirectory() const;  // setCacheDirectory ya da <veri>/cache/
+    std::string resolvedDataDirectory() const;
+    std::string resolvedCacheDirectory() const;
 
-    std::unique_ptr<::XMapData> mData;  // ortak veri ve arka plan isleri; initialize/shutdown
-    std::vector<XMap*> mXMaps;          // yasayan harita nesneleri (olusturulma sirasiyla)
+    std::unique_ptr<::XMapData> mData;
+    std::vector<XMap*> mXMaps;
     int mNextXMapId = 1;
 
-    // initialize() oncesi yapilandirma (setXxx ile gelir)
     std::string mDataDirectory;
     std::string mCacheDirectory;
     std::string mLogPrefix;
     std::function<void(std::string_view)> mLogCallback;
-    int mTerrainCacheMb = -1;  // -1: verilmedi (XMapManagerSettings varsayilani)
+    int mTerrainCacheMb = -1;
     int mPrefetchTiles = -1;
 
-    friend class XMap;                // xmap, yok olurken kendini listeden dusurur
-    friend class XMapManagerFactory;  // ozel kurucu/yikici yalnizca fabrikada
+    friend class XMap;
+    friend class XMapManagerFactory;
 };
+}
 
-}  // namespace prime
-
-#endif  // PRIME_MAP_SRC_API_XMAPMANAGER_H
+#endif

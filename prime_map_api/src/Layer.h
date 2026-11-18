@@ -1,5 +1,4 @@
-// Tum harita katmanlarinin ortak arayuzu. X-Plane'e bagimli DEGIL.
-// Yeni katman: Layer'dan ture, draw()/drawLabels() icine ciz, LayerManager'a sirayla ekle.
+// Tum harita katmanlarinin taban sinifi: gorunurluk, alt katmanlar ve zoom araligi.
 #ifndef PRIME_MAP_SRC_LAYER_H
 #define PRIME_MAP_SRC_LAYER_H
 
@@ -19,27 +18,23 @@ namespace Gfx
 class Canvas;
 }
 
-// Bir katmanin cizim icin ihtiyac duydugu her sey (her karede yeniden doldurulur)
 struct drawContext
 {
-    const XMapView* mView = nullptr;  // lat/lon <-> boxel
+    const XMapView* mView = nullptr;
     Gfx::Canvas* mCanvas = nullptr;
-    RectD mArea;                     // haritanin cizildigi alan (global boxel)
-    RectD mClearArea;                // mArea'nin seritlerle ortulmeyen kismi
-    double mPixelsPerBoxel = 1.0;    // UI olcek (%150 ise 1.5)
-    float mNow = 0.0f;               // saniye (XPLMGetElapsedTime)
+    RectD mArea;
+    RectD mClearArea;
+    double mPixelsPerBoxel = 1.0;
+    float mNow = 0.0f;
 
-    // Imlec haritanin ustundeyse (kontrollerin ustunde degil) yeri (boxel)
     bool mHasCursor = false;
     double mCursorX = 0.0;
     double mCursorY = 0.0;
 
-    // Tum katmanlarin ortak etiket yerlestiricisi (drawLabels icinde kullanilir)
     LabelPlacer* mLabels = nullptr;
 
     const XMapTheme* mTheme = &themeFor(XMapMode::Dark);
 
-    // Yazi golgesi: temanin halesi, tam opak
     Rgba labelShadow() const
     {
         return withAlpha(mTheme->mHalo, 1.0f);
@@ -49,8 +44,6 @@ struct drawContext
 class Layer
 {
 public:
-    // pId  : ayar dosyasindaki anahtar (kucuk harf, bosluksuz, ASCII)
-    // pName: katman panelinde gorunen ad (ASCII; XPLMDrawString Turkce harf cizemez)
     Layer(std::string_view pId, std::string_view pName, bool pDefaultVisible)
         : mId(pId)
         , mName(pName)
@@ -89,44 +82,35 @@ public:
         return mDefaultVisible;
     }
 
-    // flight loop'tan her karede (katman kapaliyken bile): veri yenileme
-    virtual void update(float /*pNow*/)
+    virtual void update(float )
     {
     }
 
-    // openGL baglami etkin, cizimden ONCE, sadece gorunurken. Harita goruntusunu
-    // degistiren yeni veri geldiyse true: onbellek resmi (XMapImageCache) yenilenir.
     virtual bool prepareFrame()
     {
         return false;
     }
 
-    // true: onbellek resme girmez, her karede ustune cizilir (ucak, ucus izi ...)
     virtual bool isOverlay() const
     {
         return false;
     }
 
-    // Sadece gorunurken cagrilir
     virtual void draw(const drawContext& pContext) = 0;
 
-    // Tum katmanlarin geometrisi bittikten sonra cagrilir; yazilar cizgilerin altinda kalmaz
-    virtual void drawLabels(const drawContext& /*pContext*/)
+    virtual void drawLabels(const drawContext& )
     {
     }
 
-    // Harita resminin USTUNE cizilen kisim: kenara yapisan seyler kaydirinca kaymasin
-    virtual void drawOverlay(const drawContext& /*pContext*/)
+    virtual void drawOverlay(const drawContext& )
     {
     }
 
-    // imlec altindaki seyin kisa aciklamasi; yoksa bos
-    virtual std::string describe(const drawContext& /*pContext*/, double /*pX*/, double /*pY*/) const
+    virtual std::string describe(const drawContext& , double , double ) const
     {
         return "";
     }
 
-    // kucuk sayi once yer bulur (orn. havalimani, hava yolundan once)
     virtual int labelPriority() const
     {
         return 50;
@@ -134,16 +118,16 @@ public:
 
     struct SubLayer
     {
-        std::string mId;    // ayar anahtari parcasi (kucuk harf, ASCII)
+        std::string mId;
         std::string mName;
         bool mVisible = true;
         bool mDefaultVisible = true;
-        double mMinZoom = kNoMinZoom;   // host'un verdigi aralik (mHostRange)
+        double mMinZoom = kNoMinZoom;
         double mMaxZoom = kNoMaxZoom;
-        double mBuiltInMin = kNoMinZoom;   // yerlesik gorunme esigi (LayerTable tablosundan)
+        double mBuiltInMin = kNoMinZoom;
         double mBuiltInMax = kNoMaxZoom;
-        double mHardMin = kNoMinZoom;      // olculmus sert alt sinir: altindaki istek kirpilir
-        bool mHostRange = false;           // host (veya ayar dosyasi) aralik verdi mi
+        double mHardMin = kNoMinZoom;
+        bool mHostRange = false;
     };
 
     int subLayerCount() const
@@ -156,8 +140,8 @@ public:
         return mSubLayers[static_cast<size_t>(pIndex)];
     }
 
-    // Gecersiz indeks: gorunur say (alt katmani olmayan cagiranlar bozulmasin)
-    bool isSubLayerVisible(int pIndex) const    {
+    bool isSubLayerVisible(int pIndex) const
+    {
         if (pIndex < 0 || pIndex >= subLayerCount())
         {
             return true;
@@ -186,7 +170,6 @@ public:
     static constexpr double kNoMinZoom = 0.0;
     static constexpr double kNoMaxZoom = 99.0;
 
-    // Yerlesik gorunme esigi ve sert alt sinir (LayerTable tablosu); LayerManager kurulumda uygular
     void setBuiltInZoomRange(double pMinZoom, double pMaxZoom, double pHardMinZoom)
     {
         mBuiltInMin = pMinZoom;
@@ -205,7 +188,6 @@ public:
         }
     }
 
-    // Etkin aralik: host (veya ayar dosyasi) verdiyse kirpilmis host degeri, yoksa yerlesik esik
     double minZoomEff() const
     {
         return mHostRange ? (std::max)(mMinZoom, mHardMin) : (std::max)(mBuiltInMin, mHardMin);
@@ -221,7 +203,6 @@ public:
         return mHardMin;
     }
 
-    // Host aralik verdi mi (kalici: ayar dosyasina yalnizca bu yazilir)
     bool hasHostZoomRange() const
     {
         return mHostRange;
@@ -295,19 +276,16 @@ public:
         return pIndex >= 0 && pIndex < subLayerCount() && mSubLayers[static_cast<size_t>(pIndex)].mHostRange;
     }
 
-    // LayerManager her cizimden once haritanin o anki zoom'unu verir
     void setCurrentZoom(double pZoom)
     {
         mCurrentZoom = pZoom;
     }
 
-    // Katman su anki zoom'da ciziliyor mu (kendi kutusundan bagimsiz)
     bool isInZoomRange() const
     {
         return mCurrentZoom >= minZoomEff() && mCurrentZoom <= maxZoomEff();
     }
 
-    // Gorunur alt katmanlardan biri etkin araliginda mi (yukleme / erken cikis kapilari icin)
     bool isAnySubLayerInZoomRange() const
     {
         for (int tSub = 0; tSub < subLayerCount(); ++tSub)
@@ -320,7 +298,6 @@ public:
         return false;
     }
 
-    // Alt katmanin kutusu acik VE su anki zoom araliginda; gecersiz indeks: cizilir say
     bool isSubLayerDrawn(int pIndex) const
     {
         if (pIndex < 0 || pIndex >= subLayerCount())
@@ -332,7 +309,6 @@ public:
     }
 
 protected:
-    // Yapicida sirayla cagrilir; donen indeks isSubLayerVisible icin
     int addSubLayer(std::string_view pId, std::string_view pName, bool pDefaultVisible = true)
     {
         SubLayer tSub;
@@ -349,13 +325,13 @@ private:
     std::string mName;
     bool mVisible;
     bool mDefaultVisible;
-    double mMinZoom = kNoMinZoom;      // host'un verdigi aralik (mHostRange)
+    double mMinZoom = kNoMinZoom;
     double mMaxZoom = kNoMaxZoom;
-    double mBuiltInMin = kNoMinZoom;   // yerlesik gorunme esigi (LayerTable tablosundan)
+    double mBuiltInMin = kNoMinZoom;
     double mBuiltInMax = kNoMaxZoom;
-    double mHardMin = kNoMinZoom;      // olculmus sert alt sinir: altindaki istek kirpilir
+    double mHardMin = kNoMinZoom;
     bool mHostRange = false;
-    double mCurrentZoom = 10.0;  // setCurrentZoom gelene kadar ortalama bir deger
+    double mCurrentZoom = 10.0;
     std::vector<SubLayer> mSubLayers;
 };
-#endif  // PRIME_MAP_SRC_LAYER_H
+#endif

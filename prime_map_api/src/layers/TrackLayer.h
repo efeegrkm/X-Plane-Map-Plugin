@@ -1,6 +1,4 @@
-// Ucus izi: saniyede bir ornek alinir; 50 m'den az hareket kaydedilmez,
-// 20 NM'den buyuk sicrama (yeni ucus) yeni iz parcasi baslatir.
-// En fazla kMaxPoints nokta tutulur (en eskiler silinir).
+// Ucus izi: ucagin gectigi yolu kaydeder ve cizer.
 #ifndef PRIME_MAP_SRC_LAYERS_TRACKLAYER_H
 #define PRIME_MAP_SRC_LAYERS_TRACKLAYER_H
 
@@ -20,7 +18,7 @@ public:
     void draw(const drawContext& pContext) override;
     bool isOverlay() const override
     {
-        return true;  // ucu ucakla birlikte ilerler
+        return true;
     }
 
     void clear();
@@ -34,4 +32,4 @@ private:
     float mLastSampleTime = -10.0f;
     int mPointCount = 0;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_TRACKLAYER_H
+#endif

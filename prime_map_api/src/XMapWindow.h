@@ -1,7 +1,4 @@
-// XMap pencerisinin(host tarafinin) ust duzey sahibi: XPLM penceresi (LEGACY) ya da
-// dokuya cizilen Texture modu; toolbar, paneller, ayarlar ve fare/klavye girdileri
-// burada birlesir. Cizim isini Gfx::Canvas'a, kamera isini XMapView'e devreder;
-// X-Plane callback'leri (draw, click, key) refcon uzerinden bu sinifa yonlenir.
+// Bir haritanin pencere ya da doku olarak cizimi, kendi arayuzu ve fare/klavye girdileri.
 #ifndef PRIME_MAP_SRC_XMAPWINDOW_H
 #define PRIME_MAP_SRC_XMAPWINDOW_H
 
@@ -45,7 +42,6 @@ struct drawContext;
 class XMapWindow
 {
 public:
-    // pAirports: "Go to airport" aramasi
     XMapWindow(LayerManager& pLayers, AircraftData& pAircraft, Drawings& pDrawings,
               const AirportGeometryStore& pAirports);
     ~XMapWindow();
@@ -53,24 +49,20 @@ public:
     XMapWindow(const XMapWindow&) = delete;
     XMapWindow& operator=(const XMapWindow&) = delete;
 
-    // Stil, yer, gorunurluk ... nesne ayarlariyla acar: Texture'da doku hazirligi,
-    // LEGACY stillerde XPLM penceresi
     void create();
     void destroy();
     bool isCreated() const;
 
-    // LEGACY: Embedded (cercevesiz, host yerlestirir) / Standalone; Texture'da da true.
-    // Sadece kapaliyken degisir.
     void setEmbedded(bool pEmbedded);
     bool isEmbedded() const;
     bool wantsVisible() const;
     void setTitle(const std::string& pTitle);
     const std::string& title() const;
-    void setImageCacheEnabled(bool pEnabled);  // [render] cache
+    void setImageCacheEnabled(bool pEnabled);
     bool isImageCacheEnabled() const;
-    void setMaxRenderFps(int pFps);            // [render] max_fps
+    void setMaxRenderFps(int pFps);
     int maxRenderFps() const;
-    void setXPlaneFont(bool pXPlaneFont);      // [text] renderer = xplane
+    void setXPlaneFont(bool pXPlaneFont);
     bool usesXPlaneFont() const;
     void setZoomStep(double pStep);
     double zoomStep() const;
@@ -78,7 +70,7 @@ public:
     double panStep() const;
     void setZoomLimits(double pMinZoom, double pMaxZoom);
     Settings& settingsStore();
-    void invalidateImage();  // harita resmi bir sonraki karede yeniden cizilsin
+    void invalidateImage();
 
     bool isVisible() const;
     void setVisible(bool pVisible);
@@ -86,7 +78,6 @@ public:
     void toggleControls();
     void setDiagnostics(bool pOn);
 
-    // Katman gorunurlugu mod basina saklanir (gecerli mod kaydedilip yenisi yuklenir)
     void setMapMode(XMapMode pMode);
     void nextMapMode();
     XMapMode getMapMode() const;
@@ -95,13 +86,10 @@ public:
 
     void setStatusMessage(const std::string& pMessage);
 
-    // Veri yukleniyor mu: harita bu surece max_fps hizinda yeniden cizilir
     void setDataBusy(bool pBusy);
 
-    // Flight loop'tan her karede: X dugmesiyle kapatilmanin fark edilmesi
     void update(float pNow);
 
-    // Gorunum, palet ve katman ayarlarini bellekteki ayara yazar, SettingsRevision artar
     void saveSettings();
 
     XMapView& view();
@@ -118,47 +106,42 @@ public:
     void setFollowAircraft(bool pFollow);
     bool isFollowingAircraft() const;
     void centerOnAircraft();
-    void goToAirport(int pAirport);  // haritayi tasir (ucaga dokunmaz), takibi kapatir
+    void goToAirport(int pAirport);
     bool isDiagnosticsOn() const;
-    void resetLayers();      // bu modun varsayilanlari
-    void drawingsChanged();  // DrawingsRevision artar
-    std::string exportSettings();  // [view] [tools] [layers.*]
+    void resetLayers();
+    void drawingsChanged();
+    std::string exportSettings();
     void importSettings(const std::string& pText);
     std::vector<std::pair<std::string, std::string>> describeAt(int pX, int pY);
     std::string performanceText() const;
     uint64_t settingsRevision() const;
     uint64_t drawingsRevision() const;
 
-    bool setLayerColor(prime::XMapLayer pLayer, const Rgba& pColor);  // yazilamiyorsa false
-    Rgba layerColor(prime::XMapLayer pLayer) const;                   // yazma yoksa mR < 0
+    bool setLayerColor(prime::XMapLayer pLayer, const Rgba& pColor);
+    Rgba layerColor(prime::XMapLayer pLayer) const;
     void clearLayerColor(prime::XMapLayer pLayer);
     void clearLayerColors();
     void setLayerColors(const std::map<prime::XMapLayer, Rgba>& pColors);
     const std::map<prime::XMapLayer, Rgba>& layerColors() const;
 
-    void render();  // bir kare cizer (XPLM cizim callback'iyle ayni yol; Texture: renderTexture)
+    void render();
 
-    // --- Texture modu (WindowStyle::Texture): XPLM penceresi yok, harita mTextureTarget'a cizilir ---
-    void setTextureMode(bool pTexture);  // sadece kapaliyken
+    void setTextureMode(bool pTexture);
     bool isTextureMode() const;
-    // pWidth x pHeight boxel, orijin sol-alt; pPixelsPerBoxel 0 = host'un UI olcegi
     void setTextureSize(int pWidth, int pHeight, double pPixelsPerBoxel);
     int textureWidth() const;
     int textureHeight() const;
-    // Host'un XPLM cizim callback'i icinde: gerekiyorsa dokuyu yeniden cizer. false: basilacak doku yok
     bool renderTexture();
     unsigned int textureId() const;
-    // Host'tan gelen girdi (doku koordinati, boxel); XPLM callback'leriyle ayni anlamda
     int injectMouse(int pX, int pY, XPLMMouseStatus pStatus, bool pRight);
     void injectMouseMove(int pX, int pY);
     int injectWheel(int pX, int pY, int pClicks);
-    bool injectKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey);  // klavye bizde degilse false
-    bool wantsKeyboard() const;  // arama paneli yaziyor: host klavye odagini almali
+    bool injectKey(char pKey, XPLMKeyFlags pFlags, char pVirtualKey);
+    bool wantsKeyboard() const;
 
 private:
-    void applyLayerColors();  // mLayerColors -> mTheme (mod degisince yeniden uygulanir)
+    void applyLayerColors();
 
-    // XPLM callback'leri: refcon bu nesnenin adresi
     static void drawCallback(XPLMWindowID pWindow, void* pRefcon);
     static int clickCallback(XPLMWindowID pWindow, int pX, int pY, XPLMMouseStatus pStatus, void* pRefcon);
     static int rightClickCallback(XPLMWindowID pWindow, int pX, int pY, XPLMMouseStatus pStatus,
@@ -169,15 +152,13 @@ private:
     static int wheelCallback(XPLMWindowID pWindow, int pX, int pY, int pWheel, int pClicks, void* pRefcon);
 
     void onDraw();
-    void prepareFrame();      // gorunum alani, ucak takibi, serit yerlesimi (GL gerekmez)
-    bool beginCanvasFrame();  // Canvas bu baglamda kullanilabilir mi
-    // pBoxelToPixel: UI olcegi (yoksa onbellek ve olcek yok); Texture'da harita resmi
-    // onbellegi kapalidir (zaten dokuya ciziliyor).
+    void prepareFrame();
+    bool beginCanvasFrame();
     void drawFrame(float pNow, const std::optional<Affine2D>& pBoxelToPixel, bool pUseImageCache,
                    const RectD& pScissorPixels);
     RectI textureArea() const;
-    bool prepareCanvas();      // openGL hazir mi; degilse hatayi pencereye yazar
-    void createTextRenderer(); // ilk karede: kendi yazi atlasimiz
+    bool prepareCanvas();
+    void createTextRenderer();
     void drawTooltip(const drawContext& pContext, const std::string& pText);
     int onClick(int pX, int pY, XPLMMouseStatus pStatus);
     int onRightClick(int pX, int pY, XPLMMouseStatus pStatus);
@@ -192,7 +173,6 @@ private:
     void applyLayerPanelHit(const LayerPanel::Hit& pHit);
     RectI paletteBounds() const;
     void togglePopOut();
-    // Panel acikken klavye odagi bizde (tuslar X-Plane'e gitmez)
     void setSearchOpen(bool pOpen);
     void setKeyboardFocus(bool pFocus);
     bool hasKeyboardFocus() const;
@@ -203,35 +183,35 @@ private:
     RectD clearArea() const;
     std::string hintText() const;
     void logDiagnostics(float pNow, double pPixelsPerBoxel, const RectD& pScissor);
-    uint64_t sceneSignature() const;  // degisince harita hemen yeniden cizilir
+    uint64_t sceneSignature() const;
 
     void applySettings();
     void saveDrawings();
-    void useOwnText();  // yazi cizicisi olarak bu pencereninkini sec
+    void useOwnText();
 
     LayerManager& mLayers;
     AircraftData& mAircraft;
-    Settings mSettings;  // bellekte: mod basina katman durumu, gorunum, palet
+    Settings mSettings;
     Drawings& mDrawings;
     uint64_t mSettingsRevision = 0;
     uint64_t mDrawingsRevision = 0;
-    bool mEmbedded = true;       // false: Standalone (LEGACY); Texture'da true
+    bool mEmbedded = true;
     bool mMouseInput = false;
     bool mXPlaneFont = false;
-    bool mTextPending = false;   // yazi cizici degisti: sonraki cizimde yeniden kur
-    bool mWantVisible = true;    // pencere acilinca gorunsun mu
+    bool mTextPending = false;
+    bool mWantVisible = true;
     std::string mTitle = "XMap";
     int mMaxRenderFps = 15;
     double mZoomStep = 0.5;
     double mPanStep = 0.25;
-    bool mPassClick = false;     // fare kapali: basma alttaki pencereye gecirildi
+    bool mPassClick = false;
     double mLastPixelsPerBoxel = 1.0;
 
     XPLMWindowID mWindow = nullptr;
     XMapView mView;
-    Gfx::Canvas mCanvas;  // seklin cizildigi kapi (modern openGL)
+    Gfx::Canvas mCanvas;
     bool mCanvasChecked = false;
-    std::unique_ptr<AtlasTextRenderer> mText;  // nullptr: X-Plane'in yazisi
+    std::unique_ptr<AtlasTextRenderer> mText;
     bool mContextWarned = false;
     Toolbar mToolbar;
     LayerPanel mLayerPanel;
@@ -240,11 +220,11 @@ private:
     AirportSearchPanel mSearchPanel;
     ToolPalette mToolPalette;
     XMapMode mMapMode = XMapMode::Dark;
-    XMapTheme mTheme = themeFor(XMapMode::Dark);  // etkin tema (renk yazmalari uygulanmis)
-    std::map<prime::XMapLayer, Rgba> mLayerColors;   // API setColor yazmalari
+    XMapTheme mTheme = themeFor(XMapMode::Dark);
+    std::map<prime::XMapLayer, Rgba> mLayerColors;
     StatusBar mStatusBar;
-    LabelPlacer mLabelPlacer;  // tum katmanlarin ortak etiket seyreltmesi
-    XMapImageCache mImageCache;  // harita resmi FBO'su; [render] cache = 0 ile kapali
+    LabelPlacer mLabelPlacer;
+    XMapImageCache mImageCache;
     bool mUseImageCache = true;
     bool mImageCacheWarned = false;
     uint64_t mLastSignature = 0;
@@ -252,12 +232,11 @@ private:
     bool mWasBusy = false;
     std::string mStatusMessage;
 
-    // Teshis: X-Plane kare suresi ve bizim cizim suremiz
     XPLMDataRef mFramePeriodRef = nullptr;
-    double mDrawMs = 0.0;  // yumusatilmis
+    double mDrawMs = 0.0;
 
-    RectI mArea;              // son cizimdeki harita alani (global boxel)
-    RectI mFloatingGeometry;  // X-Plane icindeyken son yer/boyut
+    RectI mArea;
+    RectI mFloatingGeometry;
     bool mHasFloatingGeometry = false;
     bool mWasVisible = false;
 
@@ -266,7 +245,6 @@ private:
     bool mDiagnostics = false;
     float mLastDiagnosticsTime = -10.0f;
 
-    // Basili tutma: esikten fazla hareket kaydirma, etmezse birakinca tiklama sayilir
     bool mPressOnMap = false;
     bool mPressMoved = false;
     bool mPaletteDrag = false;
@@ -275,25 +253,22 @@ private:
     int mDragLastX = 0;
     int mDragLastY = 0;
 
-    // Texture modu: host'a verilen doku ve yeniden cizim karari
     bool mTextureMode = false;
-    bool mTextureOpen = false;            // create / destroy
-    int mTextureWidth = 400;              // boxel
+    bool mTextureOpen = false;
+    int mTextureWidth = 400;
     int mTextureHeight = 300;
-    double mTexturePixelsPerBoxel = 0.0;  // 0: host'un UI olcegi
+    double mTexturePixelsPerBoxel = 0.0;
     Gfx::renderTarget mTextureTarget;
-    bool mTextureDirty = true;            // hiz sinirini beklemeden ciz
-    bool mTextureKeyboard = false;        // arama paneli klavye istiyor
+    bool mTextureDirty = true;
+    bool mTextureKeyboard = false;
     bool mTextureFontWarned = false;
     float mLastTextureRender = -100.0f;
-    double mTextureCenterX = 0.0;         // son cizimin gorunumu; degisince hemen ciz
+    double mTextureCenterX = 0.0;
     double mTextureCenterY = 0.0;
     double mTextureZoom = -1.0;
 
-    // Imlecin son bilinen yeri ve zamani: pop-out baglaminda XPLMGetMouseLocationGlobal
-    // guvenilir degil, cursor callback'in konumu kullanilir.
     int mMouseX = 0;
     int mMouseY = 0;
     float mMouseTime = -10.0f;
 };
-#endif  // PRIME_MAP_SRC_XMAPWINDOW_H
+#endif

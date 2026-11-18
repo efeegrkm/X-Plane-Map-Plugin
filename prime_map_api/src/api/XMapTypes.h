@@ -1,5 +1,4 @@
-// API'nin ve motorun paylastigi ortak tipler. Motor basliklari buradan kullanir;
-// PrimeMap.h ise tum api basliklarini tek yerden verir.
+// API'nin ortak tipleri, numaralandirmalari ve surum bilgisi.
 #ifndef PRIME_MAP_SRC_API_XMAPTYPES_H
 #define PRIME_MAP_SRC_API_XMAPTYPES_H
 
@@ -14,23 +13,17 @@
 
 namespace prime
 {
-
 constexpr int kVersionMajor = 1;
 constexpr int kVersionMinor = 0;
 constexpr int kVersionPatch = 0;
-PRIME_MAP_EXPORT std::string versionString();  // "1.0.0"
-PRIME_MAP_EXPORT std::string libraryPath();    // yuklu DLL'in tam yolu (alinamazsa bos)
+PRIME_MAP_EXPORT std::string versionString();
+PRIME_MAP_EXPORT std::string libraryPath();
 
-// Host'un derleme anindaki surum metni: surum sabitleri HOST ikilisine islenir (inline, DLL
-// cagrisi yok). Host ve DLL farkli surum basliklariyla derlendiyse govde farklidir; bu niyetli:
-// asagidaki eslestirme her tarafta kendi sabitleriyle derlenir.
 inline std::string hostVersionString()
 {
     return std::format("{}.{}.{}", kVersionMajor, kVersionMinor, kVersionPatch);
 }
 
-// Host'un derledigi surum ile yuklu DLL'in surumu ayni mi. Host tarafinda derlenen kisim
-// host'un sabitlerini kullanir; versionString() yuklu DLL'den gelir (1.0.0, LIF-08).
 inline bool isLibraryVersionMatching()
 {
     return versionString() == hostVersionString();
@@ -38,8 +31,8 @@ inline bool isLibraryVersionMatching()
 
 struct LatLon
 {
-    double mLat = 0.0;  // derece, kuzey +
-    double mLon = 0.0;  // derece, dogu +
+    double mLat = 0.0;
+    double mLon = 0.0;
 };
 
 struct GeoBounds
@@ -50,7 +43,6 @@ struct GeoBounds
     double mEast = 0.0;
 };
 
-// X-Plane global ekran birimi (boxel). mTop: ust kenarin y'si (y yukari artar).
 struct Geometry
 {
     int mLeft = 0;
@@ -68,16 +60,13 @@ enum class XMapMode
     Dark,
 };
 
-// Haritanin ekrana gelis yolu. Hedef ve onerilen yol Texture'dir; digerleri LEGACY: kod ve davranis
-// korunur (Texture kapsamli denenene kadar), yeni host kodunda kullanilmamalidir.
 enum class WindowStyle
 {
-    Embedded,    // LEGACY: cercevesiz ayri XPLM penceresi; host her karede setGeometry ile kendi penceresine oturtur
-    Standalone,  // LEGACY: haritanin kendi X-Plane penceresi (cerceve, tasima, boyutlama, pop-out)
-    Texture,     // pencere yok: harita bir openGL dokusuna cizilir, host istedigi yere basar (renderTexture)
+    Embedded,
+    Standalone,
+    Texture,
 };
 
-// Texture stilinde host'un iletecegi fare olaylari (injectMouse)
 enum class MouseAction
 {
     Down,
@@ -101,16 +90,15 @@ enum class DrawTool
 
 enum class DataSource
 {
-    XPlane,  // dataref'ler / FMS
-    Host,    // setAircraft / setRoute ile host verir
+    XPlane,
+    Host,
 };
 
-// Haritanin ayar dosyalari (maps/<ad>/) nasil kullanilsin
 enum class Persistence
 {
-    Off,          // dosya yok
-    SaveOnly,     // okunmaz, yazilir (kod her acilista kazanir)
-    LoadAndSave,  // varsayilan: initialize() dosyalari okur (son oturum geri gelir), degisince yazar
+    Off,
+    SaveOnly,
+    LoadAndSave,
 };
 
 struct Status
@@ -216,7 +204,7 @@ struct Rgb
 struct TerrainSettings
 {
     bool mUseXPlaneColors = true;
-    std::vector<std::pair<std::string, Rgb>> mClassColors;  // "water", "forest_conifer" ...
+    std::vector<std::pair<std::string, Rgb>> mClassColors;
     double mShadingStrength = 0.0;
     double mBlendMeters = 0.0;
     double mBlendMaxPixels = 0.0;
@@ -241,10 +229,9 @@ struct TerrainSettings
     std::vector<std::pair<double, Rgb>> mVfrBandsFeet;
 };
 
-// addXMap()'e verilen harita yapilandirmasi; her alan sonradan da ayarlanabilir
 struct XMapConfig
 {
-    std::string mName;               // ayar klasoru maps/<ad>/; bos = map_<kimlik>
+    std::string mName;
     Persistence mPersistence = Persistence::LoadAndSave;
     Geometry mGeometry;
     WindowStyle mStyle = WindowStyle::Texture;
@@ -257,8 +244,6 @@ struct XMapConfig
     bool mXPlaneFont = false;
 };
 
-// Merkezi ayarlar (prime_map.json): butun haritalarin ORTAK onbellek butceleri.
-// Sinir = taban x (1 + yuzde x (acik harita - 1) / 100); tavani asamaz.
 struct XMapManagerSettings
 {
     int mTerrainCacheMb = 1024;
@@ -271,7 +256,6 @@ struct XMapManagerSettings
     bool mAutoSave = true;
     double mAutoSaveSeconds = 2.0;
 };
+}
 
-}  // namespace prime
-
-#endif  // PRIME_MAP_SRC_API_XMAPTYPES_H
+#endif

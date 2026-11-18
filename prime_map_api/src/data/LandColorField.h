@@ -1,14 +1,4 @@
-// Zemin dokusunda arazi siniflari arasi yumusak gecis icin kara renklerinin
-// yumusatilmis alani (normalize evrisim). X-Plane'e bagimli DEGIL.
-//
-// Neden: DSF'te arazi turu ucgen basina atanmis; duz renkle boyaninca ucgenler
-// keskin mozaik olarak gorunur. X-Plane 3D sahnede bunu yuklemede urettigi kenar
-// dokulariyla yumusatir (DSF'te yok). Burada sadece KARA renkleri sabit bir yer
-// mesafesinde karistirilir: su ve kiyi keskin kalir, golge sonradan eklenir.
-//
-// Izgara: dokunun (payli) piksellerinin pFactor x pFactor bloklari tek hucre.
-// Buyuk erimde (seviye 5) hucre basina birden cok piksel dusurulur; sonuc zaten
-// yumusak oldugu icin cift dogrusal okuma farki gorunmez.
+// Arazi siniflari arasinda yumusak renk gecisi icin yumusatilmis renk alani.
 #ifndef PRIME_MAP_SRC_DATA_LANDCOLORFIELD_H
 #define PRIME_MAP_SRC_DATA_LANDCOLORFIELD_H
 
@@ -16,34 +6,26 @@
 
 struct TerrainColor;
 
-// Bir doku icin yumusatma plani. Bos plan (mPad == 0) = yumusatma yok.
 struct LandBlendPlan
 {
-    int mPad = 0;      // dokunun her kenarina eklenen pay (cikti pikseli)
-    int mFactor = 1;   // izgara hucresi = mFactor x mFactor piksel
-    int mHalfX = 0;    // kutu yari genisligi (hucre), dogu-bati
-    int mHalfY = 0;    // kutu yari genisligi (hucre), kuzey-guney
+    int mPad = 0;
+    int mFactor = 1;
+    int mHalfX = 0;
+    int mHalfY = 0;
 };
 
-// pMeters: [blend] meters. pMetersPerPixelX/Y: dokunun bir pikselinin yerdeki boyu.
-// Erim 1,5 pikselden kucukse bos plan (uzak seviyelerde filtre kendiliginden kapanir).
 LandBlendPlan planLandBlend(double pMeters, double pMetersPerPixelX, double pMetersPerPixelY,
                             double pMaxReachPixels);
 
 class LandColorField
 {
 public:
-    // pPixels: payli dokunun kenari (piksel). Hucre sayisi = ceil(pPixels / pFactor).
     void reset(int pPixels, int pFactor);
 
-    // (pPixelX, pPixelY) payli dokunun pikseli; pWeight: o pikseldeki kara ornek sayisi
     void add(int pPixelX, int pPixelY, const TerrainColor& pColor, float pWeight);
 
-    // 3 x (yatay + dikey) kutu bulanikligi (~Gaussian). Kenar disi = veri yok.
     void blur(int pHalfX, int pHalfY);
 
-    // Payli dokunun piksel MERKEZINDEKI yumusatilmis kara rengi (cift dogrusal).
-    // Cevrede hic kara yoksa false.
     bool colorAt(int pPixelX, int pPixelY, double pRgb[3]) const;
 
 private:
@@ -51,6 +33,6 @@ private:
 
     int mCells = 0;
     int mFactor = 1;
-    std::vector<float> mData;  // hucre basina 4 float: R*w, G*w, B*w toplami ve w toplami
+    std::vector<float> mData;
 };
-#endif  // PRIME_MAP_SRC_DATA_LANDCOLORFIELD_H
+#endif

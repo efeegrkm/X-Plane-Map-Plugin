@@ -11,16 +11,11 @@
 
 namespace
 {
-
-// VectorLineKind sirasi: otoyol, ana, tali, yerel, demiryolu, enerji hatti
-// Gorunme esikleri LayerTable tablosundadir (roads.motorways 7.5 ... power_lines 11.0)
 const float kWidthPixels[kVectorLineKindCount] = {2.5f, 2.0f, 1.5f, 1.0f, 1.5f, 1.0f};
-// Cizim sirasi: kucuk yollar altta, otoyol ve demiryolu ustte
 const int kDrawOrder[kVectorLineKindCount] = {5, 3, 2, 1, 0, 4};
-const int kMaxVisibleTiles = 16;   // daha uzakta yol cizilmez (zaten esiklerin altinda)
-const size_t kMaxGpuTiles = 12;    // GPU'da tutulan karo (yerel yollarla karo basina ~10-20 MB)
-const uint64_t kKeepFrames = 300;  // bu kadar karedir cizilmeyen karo atilabilir
-
+const int kMaxVisibleTiles = 16;
+const size_t kMaxGpuTiles = 12;
+const uint64_t kKeepFrames = 300;
 }
 
 RoadLayer::RoadLayer(TerrainHub& pHub)
@@ -38,12 +33,11 @@ RoadLayer::RoadLayer(TerrainHub& pHub)
 
 RoadLayer::~RoadLayer()
 {
-    mHub.removeUser(mUser);  // bu haritanin vektor isaretleri kalkar
+    mHub.removeUser(mUser);
 }
 
 bool RoadLayer::prepareFrame()
 {
-    // Vektorler ortak: baska bir haritanin aldigi karolar da bu harita icin "yeni veri"dir
     mHub.takeReadyVectors();
     const bool tChanged = mHub.vectorGeneration() != mSeenGeneration;
     mSeenGeneration = mHub.vectorGeneration();
@@ -64,7 +58,6 @@ void RoadLayer::upload(GpuTile& pTile, const XMapTheme& pTheme)
         float tPreviousY = 0.0f;
         for (size_t tIndex = 0; tIndex < tLine.mX.size(); ++tIndex)
         {
-            // Mercator, karo orijinine gore (float hassasiyeti yeter: karo ~1/360)
             const float tX = static_cast<float>(Mercator::lonToX(pTile.mWest + tLine.mX[tIndex]) - pTile.mOriginX);
             const float tY = static_cast<float>(Mercator::latToY(pTile.mSouth + tLine.mY[tIndex]) - pTile.mOriginY);
             if (tIndex > 0)
@@ -102,9 +95,9 @@ void RoadLayer::evictUnused()
         }
         if (tOldest == mTiles.end())
         {
-            return;  // hepsi yakinda kullanildi
+            return;
         }
-        mHub.releaseVectors(tOldest->second.mWest, tOldest->second.mSouth, mUser);  // kimse tutmuyorsa atilir
+        mHub.releaseVectors(tOldest->second.mWest, tOldest->second.mSouth, mUser);
         mTiles.erase(tOldest);
     }
 }
@@ -115,7 +108,7 @@ void RoadLayer::draw(const drawContext& pContext)
     mHub.takeReadyVectors();
     mSeenGeneration = mHub.vectorGeneration();
     const XMapView& tView = *pContext.mView;
-    if (!isInZoomRange() && !isAnySubLayerInZoomRange())  // butun alt esiklerin alti: yukleme de gereksiz
+    if (!isInZoomRange() && !isAnySubLayerInZoomRange())
     {
         return;
     }
@@ -128,7 +121,7 @@ void RoadLayer::draw(const drawContext& pContext)
     {
         return;
     }
-    const double tScale = tView.worldSize();  // Mercator birimi -> boxel
+    const double tScale = tView.worldSize();
     std::vector<GpuTile*> tVisible;
     for (int tLat = tSouth; tLat <= tNorth; ++tLat)
     {
@@ -138,7 +131,6 @@ void RoadLayer::draw(const drawContext& pContext)
             auto tFound = mTiles.find(SceneryIndex::tileKey(tLon, tLat));
             if (tFound == mTiles.end())
             {
-                // Ortak depoda varsa al (GPU kopyasi bu haritanin); yoksa isciden istenir
                 const std::shared_ptr<const TerrainVectors> tVectors = mHub.useVectors(tLon, tLat, mUser);
                 if (!tVectors)
                 {
@@ -162,7 +154,7 @@ void RoadLayer::draw(const drawContext& pContext)
     Gfx::Canvas& tCanvas = *pContext.mCanvas;
     for (const int tKind : kDrawOrder)
     {
-        if (!isSubLayerDrawn(mParts[tKind]))  // yerlesik esik tabloda (LayerTable)
+        if (!isSubLayerDrawn(mParts[tKind]))
         {
             continue;
         }

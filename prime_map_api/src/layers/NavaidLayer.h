@@ -1,6 +1,4 @@
-// Radyo seyrusefer yardimcilari ve fix'ler. Tek sinif, tur parametreli
-// (VOR, NDB, ILS, Fix). Zoom esikleri ve renkler NavaidLayer.cpp'deki
-// kStyles tablosunda.
+// VOR, NDB, ILS ve fix sembolleri; tur parametreli tek sinif.
 #ifndef PRIME_MAP_SRC_LAYERS_NAVAIDLAYER_H
 #define PRIME_MAP_SRC_LAYERS_NAVAIDLAYER_H
 
@@ -34,7 +32,6 @@ enum class NavaidType
 class NavaidLayer : public Layer
 {
 public:
-    // pRunways: sadece ILS katmani icin; tuyu pist esiginden baslatmak icin (bos olabilir)
     NavaidLayer(NavaidType pType, const NavDatabase& pDatabase,
                 const AirportGeometryStore* pRunways = nullptr);
 
@@ -45,15 +42,14 @@ public:
 
     struct Style
     {
-        const char* mId;            // ayar dosyasindaki anahtar
-        const char* mName;          // katman panelindeki ad
+        const char* mId;
+        const char* mName;
         bool mDefaultVisible;
-        NavKind mKinds[2];          // bu katmanin gosterdigi kayit turleri
+        NavKind mKinds[2];
         int mKindCount;
-        double mMinZoom;            // bunun altinda hic cizilmez
-        double mLabelMinZoom;       // kimlik etiketi
-        double mDetailMinZoom;      // frekans / yon
-        int mLabelPriority;         // Layer::labelPriority(kucuk = once)
+        double mLabelMinZoom;
+        double mDetailMinZoom;
+        int mLabelPriority;
         Rgba mColor;
     };
 
@@ -61,15 +57,15 @@ private:
     struct VisibleNavaid
     {
         int mIndex = 0;
-        PointF mPoint;                   // sembolun yeri (ILS: tuyun basladigi esik)
-        std::array<PointF, 3> mFeather;  // sadece ILS: sol kanat, orta uc, sag kanat
+        PointF mPoint;
+        std::array<PointF, 3> mFeather;
     };
 
     static const Style& styleFor(NavaidType pType);
 
     void collectVisible(const drawContext& pContext);
     bool computeFeather(const drawContext& pContext, int pIndex, VisibleNavaid* pOut);
-    LatLon featherOrigin(int pIndex);  // esik (bulunduysa) veya anten
+    LatLon featherOrigin(int pIndex);
     void addSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pSymbols) const;
     void addCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const;
     void drawFeathers(Gfx::Canvas& pCanvas, double pZoom) const;
@@ -77,13 +73,11 @@ private:
 
     NavaidType mType;
     const Style& mStyle;
-    Rgba mColor;  // bu karenin rengi (temadan, Draw / drawLabels basinda)
-    Rgba mHalo;   // kontur rengi (temadan)
+    Rgba mColor;
+    Rgba mHalo;
     const NavDatabase& mDatabase;
     const AirportGeometryStore* mRunways;
 
-    // ILS kayit indeksi -> tuyun basladigi nokta. Pist verisi hazir olduktan
-    // sonra her ILS icin bir kez hesaplanir.
     struct FeatherOriginCache
     {
         bool mOnThreshold;
@@ -94,4 +88,4 @@ private:
     std::vector<VisibleNavaid> mVisible;
     LabelPlacer mSymbolPlacer;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_NAVAIDLAYER_H
+#endif

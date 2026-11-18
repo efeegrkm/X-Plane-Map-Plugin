@@ -29,16 +29,16 @@ const char* kMapsFolder = "maps/";
 const char* kCacheSection = "cache";
 const char* kMemorySection = "memory";
 const char* kMapsSection = "maps";
-const float kPrefetchPeriod = 5.0f;                 // onceden yukleme listesi bu kadar saniyede bir yenilenir
-const double kTileBytesEstimate = 3.5 * 1048576.0;  // karo basina onbellek (raster + rakim + vektor)
-const double kPrecacheLimitShare = 0.8;  // bolge onbellegi, onbellek sinirinin en cok bu kadarini doldurabilir
-const float kNoticeSeconds = 8.0f;       // alt seritteki kisa bildirimlerin suresi
-const double kNavLoadBudgetMs = 4.0;     // nav verisi okunurken her karede en fazla bu kadar
+const float kPrefetchPeriod = 5.0f;
+const double kTileBytesEstimate = 3.5 * 1048576.0;
+const double kPrecacheLimitShare = 0.8;
+const float kNoticeSeconds = 8.0f;
+const double kNavLoadBudgetMs = 4.0;
 
 std::string systemPath()
 {
     std::array<char, 2048> tSystemPath = {};
-    XPLMGetSystemPath(tSystemPath.data());  // "C:\X-Plane 11\" (sonunda ayirici ile)
+    XPLMGetSystemPath(tSystemPath.data());
     return tSystemPath.data();
 }
 
@@ -52,7 +52,6 @@ void addPart(std::string* pMessage, const std::string& pPart)
     *pMessage += pPart;
 }
 
-// taban x (1 + artis% x (n - 1) / 100); tavan > 0 ise onu gecmez. taban 0 = sinirsiz (0 doner).
 double grownLimit(double pBase, int pGrowthPercent, double pMax, int pOpenMaps)
 {
     if (pBase <= 0.0)
@@ -63,7 +62,7 @@ double grownLimit(double pBase, int pGrowthPercent, double pMax, int pOpenMaps)
     double tLimit = pBase * (1.0 + std::max(0, pGrowthPercent) / 100.0 * tExtraMaps);
     if (pMax > 0.0)
     {
-        tLimit = std::min(tLimit, std::max(pMax, pBase));  // tavan tabandan kucukse taban gecerli
+        tLimit = std::min(tLimit, std::max(pMax, pBase));
     }
     return tLimit;
 }
@@ -80,8 +79,7 @@ prime::XMapManagerSettings sanitized(prime::XMapManagerSettings pSettings)
     pSettings.mAutoSaveSeconds = std::clamp(pSettings.mAutoSaveSeconds, 0.0, 3600.0);
     return pSettings;
 }
-
-}  // namespace
+}
 
 XMapData::XMapData(const XMapDataConfig& pConfig)
     : mConfig(pConfig)
@@ -99,11 +97,11 @@ XMapData::~XMapData()
 void XMapData::start()
 {
     mXPlaneDirectory = systemPath();
+    mAircraft.init();
 
     std::error_code tError;
     std::filesystem::create_directories(mConfig.mDataDirectory, tError);
     loadLibrarySettings();
-    // Palet 0: varsayilan zemin ayarlari (terrain_colors.json'si olmayan haritalar bunu kullanir)
     registerPalette(&mDefaultPalette);
     applyLimits();
     XPLMRegisterFlightLoopCallback(flightLoopCallback, -1.0f, this);
@@ -119,7 +117,7 @@ void XMapData::stop()
         XPLMUnregisterFlightLoopCallback(flightLoopCallback, this);
         mFlightLoopRegistered = false;
     }
-    mTerrainStore.stop();  // zemin iscisi: o an uretilen karoyu bitirip durur
+    mTerrainStore.stop();
     mAirportDetails->stop();
 }
 
@@ -193,8 +191,6 @@ const XMapDataStatus& XMapData::status() const
 
 int XMapData::registerPalette(TerrainPalette* pPalette)
 {
-    // Sinif renkleri X-Plane'in arazi dokularindan turetilir: ilk seferde hesaplanir,
-    // sonra onbellekten okunur; sonuc butun haritalar icin ayni
     if (pPalette->usesXPlaneColors())
     {
         if (!mDerivedLoaded)
@@ -214,7 +210,6 @@ int XMapData::registerPalette(TerrainPalette* pPalette)
             pPalette->applyDerivedColors(mDerivedColors, mDerivedCounts);
         }
     }
-    // Ayni icerik = ayni numara: ayni ayarli haritalar ayni dokulari paylasir
     Settings tText;
     pPalette->save(tText);
     const std::string tKey = tText.toText({});
@@ -265,8 +260,6 @@ std::string XMapData::mapsDirectory() const
 
 void XMapData::loadLibrarySettings()
 {
-    // Dosyadaki deger her zaman onceliklidir; dosyada olmayan anahtar host'un verdigi ilk degeri alir.
-    // Dosya yoksa (ilk acilis) olusturulur: kullanici acip duzenleyebilsin.
     Settings tFile;
     const bool tExists = tFile.load(settingsPath());
     prime::XMapManagerSettings tSettings = mSettings;
@@ -283,7 +276,7 @@ void XMapData::loadLibrarySettings()
     tSettings.mAutoSaveSeconds = tFile.getDouble(kMapsSection, "autosave_seconds", tSettings.mAutoSaveSeconds);
     mSettings = sanitized(tSettings);
     log("central settings {}: {}", tExists ? "loaded" : "created", settingsPath());
-    if (!saveLibrarySettings())  // eksik anahtarlar ve aciklama dosyada gorunsun
+    if (!saveLibrarySettings())
     {
         log("WARNING: could not write {}", settingsPath());
     }
@@ -332,7 +325,7 @@ void XMapData::applyLimits()
     mStatus.mOpenMaps = openXMapCount();
 }
 
-float XMapData::flightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
+float XMapData::flightLoopCallback(float , float , int ,
                                   void* pRefcon)
 {
     return static_cast<XMapData*>(pRefcon)->onFlightLoop();
@@ -342,8 +335,7 @@ float XMapData::onFlightLoop()
 {
     const float tNow = XPLMGetElapsedTime();
     stepLoading();
-    mHub.beginFrame();  // bu karenin doku yukleme hakki (butun haritalar icin ortak)
-    // Haritasiz prefetch: acik harita yokken ucak konumunu okuyabilmek icin (ucuz: birkac dataref)
+    mHub.beginFrame();
     const bool tAnyOpenMap =
         std::any_of(mInstances.begin(), mInstances.end(),
                     [](const prime::XMap* pInstance)
@@ -356,8 +348,6 @@ float XMapData::onFlightLoop()
     }
     updatePrefetch(tNow);
     updateStatus();
-    // Haritalar: ucak, katman verisi, durum yazisi, ayar dosyalari. Kopya liste: bir harita
-    // guncellenirken (host'un callback'i yok ama ileride olabilir) liste degisirse bozulmasin.
     const std::vector<prime::XMap*> tInstances = mInstances;
     bool tDiagnostics = false;
     for (prime::XMap* tInstance : tInstances)
@@ -365,7 +355,7 @@ float XMapData::onFlightLoop()
         tInstance->update(tNow);
         tDiagnostics = tDiagnostics || tInstance->isDiagnosticsOn();
     }
-    mTerrainStore.setDiagnostics(tDiagnostics);  // asama sureleri sadece teshis modunda loglanir
+    mTerrainStore.setDiagnostics(tDiagnostics);
     int tPending = 0;
     for (const prime::XMap* tInstance : tInstances)
     {
@@ -377,12 +367,11 @@ float XMapData::onFlightLoop()
     {
         addPart(&mStatus.mText, std::format("Loading terrain: {} image{}", tPending, tPending == 1 ? "" : "s"));
     }
-    return -1.0f;  // her karede tekrar cagir
+    return -1.0f;
 }
 
 void XMapData::stepLoading()
 {
-    // Ilk flight loop'ta (X-Plane hazir) arka plan islerini baslat
     if (!mLoadStarted)
     {
         mLoadStarted = true;
@@ -392,22 +381,19 @@ void XMapData::stepLoading()
                             allTerrainStyles());
     }
     logReport(mTerrainStore.takeLogLines());
-    mAirportDetails->update();  // onceki karede istenen havalimani ayrintilari isciye
+    mAirportDetails->update();
     logReport(mAirportDetails->takeLogLines());
     if (mAirportGeometry->poll())
     {
         log("airport index {}: {} airports, {} runways", mAirportGeometry->lastLoadSucceeded() ? "ready" : "FAILED",
             mAirportGeometry->count(), mAirportGeometry->runwayCount());
         logReport(mAirportGeometry->lastReport());
-        mAirportDetails->start();  // ayrintilar artik dosyadaki yerlerinden okunabilir
+        mAirportDetails->start();
     }
-    // Nav verisi: ana thread'de, her karede birkac ms
     if (!mNavLoader.isDone())
     {
         if (mNavLoader.step(kNavLoadBudgetMs))
         {
-            // Hava yollarinin uc noktalari nav verisinden bulunur: nav bitince basla.
-            // X-Plane'in kurali: once Custom data(guncel AIRAC), yoksa varsayilan.
             mAirways.startLoading({mXPlaneDirectory + "Custom Data/earth_awy.dat",
                                    mXPlaneDirectory + "Resources/default data/earth_awy.dat"},
                                   mNavDatabase);
@@ -425,7 +411,6 @@ void XMapData::updateStatus()
     mStatus.mAirportsReady = !mAirportGeometry->isLoading() && mAirportGeometry->count() > 0;
     mStatus.mAirwaysReady = mAirways.isReady();
     mStatus.mTerrainIndexReady = mTerrainStore.isIndexReady();
-    // Ortak kisim: her haritanin alt seridinde ayni
     std::string tMessage;
     if (!mNavLoader.isDone() && mNavLoader.visitedCount() > 0)
     {
@@ -460,10 +445,8 @@ void XMapData::updateStatus()
         addPart(&tMessage, mNotice);
     }
     mSharedText = tMessage;
-    // Zemin iscisinin o anki isi ("Building terrain +47-123"): haritalar kendi bekleyen sayisiyla yazar
     mTerrainWorkerText = mTerrainStore.statusText();
     mTerrainIdle = mTerrainStore.isIdle();
-    // Harita resmi onbellegi: veri gelirken resim hiz sinirinda yenilensin (XMapImageCache)
     mBusy = !mNavLoader.isDone() || mAirportGeometry->isLoading() || mAirportDetails->pendingCount() > 0 ||
             mAirways.isLoading() || !mTerrainIdle;
 }
@@ -517,14 +500,12 @@ void XMapData::updatePrefetch(float pNow)
             tTiles.push_back(tKey);
         }
     };
-    // Her acik haritanin ucagi ve rotasi (cogu zaman ayni ucak: tekrarlar tAdd'de elenir)
     for (prime::XMap* tInstance : mInstances)
     {
         if (!tInstance->isInitialized())
         {
             continue;
         }
-        // Ucagin onu: hareket ediyorsa gidis yonunde 120 NM'ye kadar
         const AircraftState& tAircraft = tInstance->mAircraft->state();
         LatLon tFrom = tAircraft.mPosition;
         if (tAircraft.mValid)
@@ -538,7 +519,6 @@ void XMapData::updatePrefetch(float pNow)
                 }
             }
         }
-        // FMS rotasinin kalan kismi: bacaklar ~10 NM aralikla orneklenir
         const std::vector<LatLon> tRoute =
             tInstance->mFmsLayer ? tInstance->mFmsLayer->routeAhead() : std::vector<LatLon>();
         for (size_t tIndex = 0; tIndex < tRoute.size(); ++tIndex)
@@ -557,7 +537,6 @@ void XMapData::updatePrefetch(float pNow)
             tFrom = tRoute[tIndex];
         }
     }
-    // Acik harita yoksa (ya da henuz setup olmadiysa) yine de one bak: harita ilk acilista hizli olsun
     if (tTiles.empty())
     {
         const AircraftState& tAircraft = mAircraft.state();
@@ -611,9 +590,8 @@ bool XMapData::startPrecache(const GeoBounds& pBounds)
         showNotice("Pre-cache: no installed scenery in the visible area");
         return false;
     }
-    // Onbellek siniriyla catismasin: sigmayacaksa hic baslama (CacheTrim yeni karolari silerdi)
     const double tEstimateMb = static_cast<double>(tTiles.size()) * kTileBytesEstimate / 1048576.0;
-    const int tLimitMb = mStatus.mTerrainCacheLimitMb;  // acik harita sayisina gore buyumus sinir
+    const int tLimitMb = mStatus.mTerrainCacheLimitMb;
     if (tLimitMb > 0 && tEstimateMb > tLimitMb * kPrecacheLimitShare)
     {
         showNotice(std::format("Pre-cache: area too large ({} tiles, ~{:.0f} MB; cache limit {} MB). Zoom in "
@@ -638,7 +616,6 @@ void XMapData::cancelPrecache()
 
 void XMapData::logReport(const std::string& pReport)
 {
-    // Rapor birden cok satir olabilir: her satiri ayri log satiri yap
     size_t tStart = 0;
     while (tStart < pReport.size())
     {

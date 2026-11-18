@@ -1,57 +1,50 @@
-# Prime Map API — CHANGELOG
+# Prime XMap API — Sürüm Notları
 
-## 1.0.0 (MVP yayını, 2026-11-18)
+## 1.0.0 (2026-11-18)
 
-map_tests 34.706 / 0 (5×). Öz-test'e Dark varsayılanı, zoom kırpma / ezme /
-temizleme ve sürüm denetimi adımları eklendi. X-Plane kabul testleri
-(SRS bölüm 4, test 1–11) bekleniyor.
+İlk kararlı sürüm. `map_tests` 34.768 kontrol, 0 hata. Dört derleme ağacı `/W4` ile uyarısız derlenir.
 
-- **Varsayılan mod Dark**: yeni haritalar `XMapConfig::mMode` ve
-  `XMapWindow` katman durumu dahil Dark açılır (0.26.2'de Scenery idi);
-  host eski davranış için `mMode = Vfr` vermeye devam edebilir. İkinci
-  haritanın modu Vfr; texture host'un eski `mMode` ayarı kaldırıldı.
-- **Katman zoom modeli (ZOOM-01/02)**: yerleşik görme eşikleri ve ölçülmüş
-  sert alt sınırlar tek tabloda toplandı (`engine/LayerTable.cpp`
-  `kZoomTable`, `applyBuiltInZoomRanges` kurulumda uygular). Host aralığı
-  (`setLayerZoomRange`) artık yerleşik eşiğin **yerine geçer**: yukarı
-  çekmek serbest, aşağı çekmek katman başına sert alt sınıra
-  (`getLayerHardMinZoom`) kadar serbest; altındaki istek kırpılır ve tek
-  satır uyarı yazılır (örn. pistler 3.0 isteği → 10.0; hava yolları host
-  5.0 verince zoom 5'ten çizilir). `(0, 99)` vermek host aralığını
-  kaldırır (yerleşik eşiğe döner); `min > max` reddedilir. Yeni API:
-  `getDefaultLayerZoomRange`, `getLayerHardMinZoom`; kalıcılıkta yalnız
-  host değerleri saklanır. `map_preview`'a host eşiği düşürmek için
-  `--layer-zoom <anahtar>:<min>[-<max>]` eklendi.
-- **Eşik maliyeti ölçümü (NF-PRF-06)**: `map_preview` KSEA/HNL ölçümü
-  (3 tekrar, 0.26.2 stash taban çizgisiyle karşılaştırmalı): yeni eşikler
-  tek kare maliyetini artırmıyor — iki tarafta da ~9–12 ms, fark ölçüm
-  gürültüsü içinde (headless önizleme ortamının tek kare tabanı ~9–12 ms;
-  8 ms hedefi bu ortamın tabanında yok, X-Plane içi ölçüm kabul testi 6'da).
-- **Haritasız ön yükleme (TER-05)**: açık harita yokken (ya da harita henüz
-  `initialize` edilmeden) kütüphane dataref'ten uçak konumunu okuyup
-  15..120 NM ileri karoları arka planda yükler; ilk harita açılışı sıcak
-  önbellekle başlar. Tek satır Log yazar; `setPrefetchTiles(0)` tüm ön
-  yüklemeyi kapatır.
-- **Atomik yazım dayanıklılığı (NF-REL-06)**: geçici dosya adı artık
-  benzersiz (`<yol>.<pid>.<iş>.<sayaç>.tmp`) — iki iş parçacığı aynı
-  hedefe yazarken birbirini ezmez; yeniden adlandırma okuyucu kilidi
-  (Windows ACCESS_DENIED) karşısında 10 denemeye kadar geri çekilerek
-  tekrarlar; CacheTrim çökerten kalan 1 saatten eski geçici dosyaları
-  siler (Log'da tek satır). Yeni test `testAtomicFile`: 2 iş × 1000 yazım,
-  retry'li okuyucuyla 3× temiz.
-- **Sürüm denetimi (LIF-09)**: `createXMapManager` kasıtlı olarak inline
-  derlenir — sürüm uyuşmazlığı host tarafında yakalanır ve tek satır
-  WARNING yazar (`host built with X, loaded DLL is Y at <yol>`); host
-  `isLibraryVersionMatching()` (inline, DLL çağrısı gerektirmez) ile
-  önceden denetleyebilir. Ready satırı yüklü DLL'in yolunu da verir:
-  `Prime Map API 1.0.0 ready (data: ..., cache: ..., dll: ...)`
-  (`libraryPath()`, `GetModuleHandleExW` + `GetModuleFileNameW`).
-- **Sürüm 1.0.0**: kütüphane ve resmî eklenti 1.0.0; eklenti sürümü
-  CMake'ten (`PRIME_MAP_VERSION`) gelir. MVP kapsamı: yukarıdakiler +
-  kabul testleri; sürümler arasında geriye uyumluluk sağlanmaz.
-- **Kılavuz ve mimari**: 1.0.0 içeriğiyle (yeni zoom modeli, haritasız ön
-  yükleme, atomik yazım, sürüm denetimi, eşik/sert sınır tabloları,
-  0.26.x → 1.0.0 geçişi) yeniden üretildi; SRS gereksinimleri güncellendi.
+**Varsayılan mod**
+- Yeni haritalar Dark modda açılır. Ayar dosyası olan haritalar dosyadaki modu korur.
+
+**Katman zoom aralıkları**
+- Bütün katmanların görünme eşikleri `engine/LayerTable.cpp` içindeki tek bir tabloda toplandı; VOR, NDB, ILS, fix ve havalimanı sembolleri de bu tabloya alındı.
+- Host'un verdiği aralık yerleşik eşiğin yerine geçer. Aralık yukarı çekilebilir; aşağı çekme katmanın sert alt sınırına kadar serbesttir. Sert alt sınırın altındaki istek sınıra çekilir ve `Log.txt`'ye uyarı yazılır.
+- Havalimanı sembollerinde aralık aşağı çekildiğinde bütün kategoriler aynı miktarda erkene kayar.
+- Yeni fonksiyonlar: `getDefaultLayerZoomRange`, `getLayerHardMinZoom`.
+- Sert alt sınırlar Seattle ve New York bölgelerinde katman başına ölçüldü. Ölçüt, katmanın tek başına çizim süresinin 5 ms'yi aşmamasıdır:
+
+| Katman | Yerleşik eşik | Sert alt sınır | Süre, yerleşik eşikte (ms) | Süre, sert alt sınırda (ms) |
+|---|---|---|---|---|
+| Havalimanı sembolleri | 4 | 3 | 11,1 | 10,5 |
+| VOR | 5 | 3 | 2,0 | 3,0 |
+| NDB | 7 | 3 | 0,4 | 3,2 |
+| ILS | 8,5 | 4 | 0,4 | 4,7 |
+| Fix | 9 | 7 | 1,8 | 4,3 |
+| Alçak hava yolları | 6,5 | 5 | 2,2 | 4,6 |
+| Yüksek hava yolları | 6,5 | 6 | 2,9 | 4,4 |
+| Pistler | 11 | 4 | 0,3 | 4,0 |
+| Havalimanı yüzeyleri | 10,5 | 6 | 0,5 | 3,3 |
+| Havalimanı nesneleri | 12,5 | 12 | 1,9 | 4,0 |
+| Taksi ağı | 13,5 | 9,5 | 0,3 | 0,9 |
+
+**Önceden yükleme**
+- Zemin karolarının önceden hazırlanması hiç harita açılmamışken de uçağın çevresinde ve uçuş yönünde çalışır. `setPrefetchTiles(0)` kapatır.
+
+**Önbellek**
+- Önbellek dosyaları benzersiz adlı geçici dosyalar üzerinden yazılır ve yeniden adlandırılarak yerine konur; aynı önbelleği kullanan iki yönetici birbirinin dosyasını bozmaz. Yarım kalan geçici dosyalar bir saat sonra temizlenir.
+
+**Sürüm denetimi**
+- `createXMapManager`, host'un derlendiği sürümü yüklü DLL'in sürümüyle karşılaştırır ve farklıysa uyarı yazar. Açılış satırı yüklenen DLL'in yolunu gösterir. Yeni fonksiyonlar: `libraryPath`, `isLibraryVersionMatching`.
+- Resmî eklentinin sürümü CMake'teki proje sürümünden alınır.
+
+**Kod**
+- Kaynak dosyalardaki yorumlar kaldırıldı; her başlık dosyasının başında dosya çiftinin görevini anlatan kısa bir açıklama bulunur.
+- `stb_truetype` uyarı ayarları ayrı bir nesne kütüphanesine alındı; derleme çıktısında komut satırı uyarısı kalmadı.
+- `map_preview` aracına `--only`, `--no-hard-zoom` ve `--bench` seçenekleri eklendi.
+
+**Belgeler**
+- Kullanım kılavuzu, mimari belgesi ve gereksinim belgesi 1.0.0 için yeniden yazıldı.
 
 ## 0.26.2 (ömür döngüsü güvenliği, zemin rengi düzeltmesi, 2026-11-18)
 
@@ -194,7 +187,7 @@ X-Plane'de **denenmedi** (derlendi, 30.682 test, önizleme).
 - Düzeltme: yazı çizici süreçte tek işaretçiydi, son açılan pencere alıyordu (çoklu haritada
   yazılar yanlış pencereye gidebiliyordu); her pencere çizerken kendisininkini seçer.
 - Zemin: dokusu henüz gelmemiş karo Scenery'de siyah yerine ortalama kara tonu; işçinin aşama
-  süreleri Diagnostics modunda loglanır (`TerrainProfile`). Araştırma: `docs/ZEMIN_HIZ_RAPORU.md`.
+  süreleri Diagnostics modunda loglanır (`TerrainProfile`). 
 - Davranış farkı: `[cache]` anahtarları artık harita ayarında değil `prime_map.ini`'de.
 
 ## 0.22 (ekip kalıbına geçiş, 2026-11-11)
@@ -242,7 +235,7 @@ Kütüphane sunumu ekibin kalıbına (prime-utils / prime-dbmanager / prime-buil
   doğrudan derler (iç sınıflar DLL dışına export edilmez, testler iç sınıfları
   test eder). Testler: 30.659 kontrol, 0 hata.
 
-## 1.0.0 (prime-map-plugin 0.20, 2026-11-08)
+## Önceki numaralandırma: API 1.0.0 (prime-map-plugin 0.20, 2026-11-08)
 
 İlk sürüm. Örnek/test eklentisi: `examples/map_api_test`.
 

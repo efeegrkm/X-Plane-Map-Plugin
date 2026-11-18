@@ -25,19 +25,19 @@ const char* surfaceName(int pCode)
     }
     if (pCode >= 50 && pCode <= 57)
     {
-        return "concrete";  // X-Plane 12 beton turleri
+        return "concrete";
     }
-    return "asphalt";  // 1 ve X-Plane 12 asfalt turleri
+    return "asphalt";
 }
 
 RunwaySurface surfaceFromAptCode(int pCode)
 {
     switch (pCode)
     {
-        case 3:   // cim
-        case 4:   // toprak
-        case 5:   // cakil
-        case 12:  // kuru gol yatagi
+        case 3:
+        case 4:
+        case 5:
+        case 12:
             return RunwaySurface::Unpaved;
         case 13:
             return RunwaySurface::Water;
@@ -46,6 +46,6 @@ RunwaySurface surfaceFromAptCode(int pCode)
         case 15:
             return RunwaySurface::Transparent;
         default:
-            return RunwaySurface::Paved;  // 1, 2 ve XP12'nin asfalt/beton turleri
+            return RunwaySurface::Paved;
     }
 }

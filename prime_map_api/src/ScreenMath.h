@@ -1,10 +1,7 @@
-// Ekran koordinatlari icin kucuk matematik yardimcilari. X-Plane'e bagimli DEGIL.
-// Koordinat sistemleri: lat/lon (derece), boxel (XPLM pencere/fare birimi, UI olcekli),
-// piksel (openGL cizim birimi). boxel -> piksel afin donusumudur (Affine2D).
+// Ekran koordinatlari icin dikdortgen ve afin donusum yardimcilari.
 #ifndef PRIME_MAP_SRC_SCREENMATH_H
 #define PRIME_MAP_SRC_SCREENMATH_H
 
-// Ekranda bir nokta (boxel). Cizim icin float hassasiyeti yeterli.
 struct PointF
 {
     float mX = 0.0f;
@@ -13,7 +10,6 @@ struct PointF
 
 struct Affine2D
 {
-    // (x, y) -> (mA*x + mB*y + mTx,  mC*x + mD*y + mTy)
     double mA = 1.0;
     double mB = 0.0;
     double mC = 0.0;
@@ -28,7 +24,6 @@ struct Affine2D
     }
 };
 
-// dikdortgen(sol, ust, sag, alt). y yukari dogru artar: ust > alt.
 struct RectD
 {
     double mLeft = 0.0;
@@ -86,25 +81,18 @@ struct RectI
     }
 };
 
-// openGL modelview + projection matrislerinden "cizim koordinati -> pencere
-// pikseli" afin donusumu. Matrisler sutun oncelikli; perspektif gelirse false.
 bool affineFromGL(const float pModelview[16], const float pProjection[16], const int pViewport[4],
                   Affine2D* pOut);
 
-// pSecond(pFirst(p)) donusumunu tek donusume indirger
 Affine2D compose(const Affine2D& pSecond, const Affine2D& pFirst);
 
-// Ters donusum. Determinant ~0 ise false.
 bool invert(const Affine2D& pMatrix, Affine2D* pOut);
 
-// Dikdortgenin 4 kosesini donusturup onlari kapsayan dikdortgeni verir
 RectD transformRectBBox(const Affine2D& pMatrix, const RectD& pRect);
 
-// Iki dikdortgenin kesisimi; kesismiyorsa false
 bool intersectRect(const RectD& pFirst, const RectD& pSecond, RectD* pOut);
 
 RectD toRectD(const RectI& pRect);
 
-// API Geometry (sol-ust kose + boyut, boxel) -> RectI. X-Plane'de y yukari artar: alt kenar = ust - yukseklik.
 RectI rectFromTopLeft(int pLeft, int pTop, int pWidth, int pHeight);
-#endif  // PRIME_MAP_SRC_SCREENMATH_H
+#endif

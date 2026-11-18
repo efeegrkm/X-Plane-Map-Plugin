@@ -1,7 +1,4 @@
-// XMapApiCalls.h
-// SDK_BOUND: Prime XMap API'nin her cagrisi ayri bir metotta. Test eklentisinin geri kalani
-// (pencere, dugmeler) haritaya SADECE bu sinif uzerinden erisir. Bir host eklentisi kendi
-// dugmelerini bu metotlara (ya da dogrudan API'ye) baglar.
+// Test eklentisinin haritaya eristigi tek sinif: API'nin her cagrisi ayri bir metottur.
 #ifndef PRIME_MAP_TEST_SRC_XMAPAPICALLS_H
 #define PRIME_MAP_TEST_SRC_XMAPAPICALLS_H
 
@@ -17,19 +14,14 @@
 class XMapApiCalls
 {
 public:
-    // --- Kutuphane ---
-    bool initLibrary(const std::string& pLogPrefix, const std::string& pDataDirectory);  // bos: varsayilan
+    bool initLibrary(const std::string& pLogPrefix, const std::string& pDataDirectory);
     void shutdownLibrary();
     bool isInitialized() const;
     prime::Status getStatus() const;
-    prime::XMapManager* manager() const;  // initLibrary ile yaratilan yonetici (yoksa nullptr)
+    prime::XMapManager* manager() const;
     std::string versionString() const;
 
-    // --- Harita penceresi ---
-    // Ayar klasoru stile gore ayri (maps/ui_test_texture, maps/ui_test_standalone)
     bool openXMap(const prime::Geometry& pGeometry, prime::WindowStyle pStyle, bool pUi, bool pMouse);
-    // 0.23 fabrika ornegi: ikinci, bagimsiz bir harita (ayar klasoru maps/second/). Zaten aciksa
-    // kapatir. Acildiysa true.
     bool openSecondXMap();
     void closeXMap();
     bool isOpen() const;
@@ -46,9 +38,8 @@ public:
     bool isMouseInputEnabled() const;
     prime::WindowStyle getStyle() const;
 
-    // --- Doku (WindowStyle::Texture): harita penceresiz dokuya cizilir, biz basariz ---
-    bool setTextureSize(int pWidth, int pHeight);  // boxel; doku pikseli UI olcegine gore otomatik
-    bool renderTexture();                          // bizim cizim callback'imiz icinde
+    bool setTextureSize(int pWidth, int pHeight);
+    bool renderTexture();
     unsigned int getTextureId() const;
     bool injectMouse(int pX, int pY, prime::MouseAction pAction, prime::MouseButton pButton);
     void injectMouseMove(int pX, int pY);
@@ -56,7 +47,6 @@ public:
     bool injectKey(char pKey, int pFlags, char pVirtualKey);
     bool wantsKeyboard() const;
 
-    // --- Gorunum ---
     void setCenter(double pLat, double pLon);
     prime::LatLon getCenter() const;
     void setZoom(double pZoom);
@@ -83,12 +73,10 @@ public:
     prime::LatLon screenToGeo(int pX, int pY) const;
     bool geoToScreen(double pLat, double pLon, int* pX, int* pY) const;
 
-    // --- Mod ---
     void setMode(prime::XMapMode pMode);
     prime::XMapMode getMode() const;
     void nextMode();
 
-    // --- Katmanlar ---
     void setLayerVisible(prime::XMapLayer pLayer, bool pVisible);
     bool isLayerVisible(prime::XMapLayer pLayer) const;
     void toggleLayer(prime::XMapLayer pLayer);
@@ -105,7 +93,6 @@ public:
     std::optional<prime::XMapLayer> layerFromKey(const std::string& pKey) const;
     bool isLayerDefaultVisible(prime::XMapLayer pLayer, prime::XMapMode pMode) const;
 
-    // --- Cizimler ---
     void setDrawTool(prime::DrawTool pTool);
     prime::DrawTool getDrawTool() const;
     bool addDrawingPoint(double pLat, double pLon);
@@ -118,7 +105,6 @@ public:
     std::string exportDrawings() const;
     bool importDrawings(const std::string& pText);
 
-    // --- Ucak, iz, rota ---
     void setAircraftSource(prime::DataSource pSource);
     prime::DataSource getAircraftSource() const;
     void setAircraft(const prime::AircraftState& pState);
@@ -128,11 +114,9 @@ public:
     prime::DataSource getRouteSource() const;
     void setRoute(const std::vector<prime::RouteWaypoint>& pWaypoints, int pActive);
 
-    // --- Sorgu ---
     std::vector<prime::XMapObject> queryAt(double pLat, double pLon) const;
     std::vector<prime::XMapObject> queryAtScreen(int pX, int pY) const;
 
-    // --- Ayarlar ---
     std::string exportSettings() const;
     bool importSettings(const std::string& pText);
     prime::TerrainSettings getTerrainSettings() const;
@@ -142,7 +126,6 @@ public:
     uint64_t getSettingsRevision() const;
     uint64_t getDrawingsRevision() const;
 
-    // --- On onbellek, teshis ---
     bool precacheVisibleArea();
     bool precacheArea(const prime::GeoBounds& pArea);
     void cancelPrecache();
@@ -151,7 +134,7 @@ public:
 
 private:
     prime::XMap* mXMap = nullptr;
-    prime::XMap* mSecondXMap = nullptr;  // openSecondXMap
-    prime::XMapManager* mManager = nullptr;  // sahibi; destroyXMapManager ile birakilir
+    prime::XMap* mSecondXMap = nullptr;
+    prime::XMapManager* mManager = nullptr;
 };
-#endif  // PRIME_MAP_TEST_SRC_XMAPAPICALLS_H
+#endif

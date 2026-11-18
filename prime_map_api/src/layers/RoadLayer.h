@@ -1,7 +1,4 @@
-// DSF yol agi (otoyol..demiryolu, enerji hatti). Veri TerrainStore'dan karo
-// karo gelir; her karonun cizgileri bir kez GPU'ya yuklenir (Mercator'da karo
-// orijinine gore), her karede sadece olcek + kaydirma ile cizilir.
-// Renkler temadan; kalinliklar ekran pikseli (tur basina sabit).
+// DSF yol agi: otoyollar, yollar, demiryollari ve enerji hatlari.
 #ifndef PRIME_MAP_SRC_LAYERS_ROADLAYER_H
 #define PRIME_MAP_SRC_LAYERS_ROADLAYER_H
 
@@ -32,8 +29,8 @@ private:
         int mSouth = 0;
         std::shared_ptr<const TerrainVectors> mVectors;
         std::array<Gfx::StaticMesh, kVectorLineKindCount> mMeshes;
-        const XMapTheme* mUploadedTheme = nullptr;  // renk koselerde: tema degisince yeniden yuklenir
-        double mOriginX = 0.0;  // karonun guney-bati kosesinin Mercator koordinati
+        const XMapTheme* mUploadedTheme = nullptr;
+        double mOriginX = 0.0;
         double mOriginY = 0.0;
         uint64_t mLastFrame = 0;
     };
@@ -42,10 +39,10 @@ private:
     void evictUnused();
 
     TerrainHub& mHub;
-    int mUser = 0;                 // bu haritanin TerrainHub numarasi
-    uint64_t mSeenGeneration = 0;  // en son gorulen TerrainHub::VectorGeneration
-    std::unordered_map<int, GpuTile> mTiles;  // SceneryIndex::TileKey
+    int mUser = 0;
+    uint64_t mSeenGeneration = 0;
+    std::unordered_map<int, GpuTile> mTiles;
     std::array<int, kVectorLineKindCount> mParts = {};
     uint64_t mFrame = 0;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_ROADLAYER_H
+#endif

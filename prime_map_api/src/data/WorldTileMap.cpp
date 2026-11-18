@@ -19,7 +19,7 @@ bool WorldTileMap::loadBytes(const std::vector<uint8_t>& pBytes)
 {
     if (pBytes.size() != kFileSize)
     {
-        clear();  // beklenmeyen bicim: tahmin etme, kullanma
+        clear();
         return false;
     }
     mTiles.assign(pBytes.begin() + kHeaderSize, pBytes.end());

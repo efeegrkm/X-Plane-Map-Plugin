@@ -1,6 +1,4 @@
-// Havalimanlari (X-Plane nav verisi; XPLMNavigation xplm_Nav_Airport).
-// Kategori/zoom esikleri AirportLayer.cpp'deki kCategoryStyles'ta.
-// Semboller ust uste binerse sonra geleni atlanir; once buyukler gelir.
+// Havalimani sembolleri ve etiketleri; kategoriye gore zoom yogunlugu.
 #ifndef PRIME_MAP_SRC_LAYERS_AIRPORTLAYER_H
 #define PRIME_MAP_SRC_LAYERS_AIRPORTLAYER_H
 
@@ -16,7 +14,6 @@ enum class AirportKind : unsigned char;
 class AirportLayer : public Layer
 {
 public:
-    // pGeometry: apt.dat ozeti (kule bilgisi icin, VFR renkleri); bos olabilir
     explicit AirportLayer(const NavDatabase& pDatabase, const AirportGeometryStore* pGeometry = nullptr);
 
     void draw(const drawContext& pContext) override;
@@ -24,7 +21,7 @@ public:
     std::string describe(const drawContext& pContext, double pX, double pY) const override;
     int labelPriority() const override
     {
-        return 10;  // en onemli etiketler
+        return 10;
     }
 
     enum class Category
@@ -43,7 +40,7 @@ private:
         float mX;
         float mY;
         Category mCategory;
-        Rgba mColor;       // temadan: kategori veya kule rengi
+        Rgba mColor;
         Rgba mLabelColor;
     };
 
@@ -52,8 +49,8 @@ private:
 
     const NavDatabase& mDatabase;
     const AirportGeometryStore* mGeometry;
-    std::vector<int> mQuery;               // izgara sorgusunun sonucu (her karede yeniden)
-    std::vector<VisibleAirport> mVisible;  // bu karede cizilenler (etiketler bunlara yazilir)
-    LabelPlacer mSymbolPlacer;             // semboller ust uste binmesin
+    std::vector<int> mQuery;
+    std::vector<VisibleAirport> mVisible;
+    LabelPlacer mSymbolPlacer;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_AIRPORTLAYER_H
+#endif

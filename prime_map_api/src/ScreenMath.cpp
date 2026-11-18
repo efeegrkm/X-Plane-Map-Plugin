@@ -5,8 +5,6 @@
 
 namespace
 {
-
-// 4x4 sutun oncelikli carpim: pOut = pFirst * pSecond
 void matMul4(const float* pFirst, const float* pSecond, double* pOut)
 {
     for (int tCol = 0; tCol < 4; ++tCol)
@@ -22,25 +20,20 @@ void matMul4(const float* pFirst, const float* pSecond, double* pOut)
         }
     }
 }
-
-}  // namespace
+}
 
 bool affineFromGL(const float pModelview[16], const float pProjection[16], const int pViewport[4],
                   Affine2D* pOut)
 {
-    // M = Projection * ModelView : cizim koordinati -> "clip" koordinati
     double tM[16];
     matMul4(pProjection, pModelview, tM);
 
-    // 2B (ortografik) cizimde w her zaman sabittir: m[3] = m[7] = 0.
     if (std::fabs(tM[3]) > 1e-9 || std::fabs(tM[7]) > 1e-9 || std::fabs(tM[15]) < 1e-12)
     {
         return false;
     }
     const double tW = tM[15];
 
-    // clip -> NDC (-1..1):   ndc = clip / w
-    // NDC -> piksel:         px = vx + (ndc + 1) / 2 * vw
     const double tHalfW = pViewport[2] * 0.5;
     const double tHalfH = pViewport[3] * 0.5;
 
@@ -57,7 +50,6 @@ bool affineFromGL(const float pModelview[16], const float pProjection[16], const
 
 Affine2D compose(const Affine2D& pSecond, const Affine2D& pFirst)
 {
-    // s(f(p)) = S_lin * (F_lin * p + F_t) + S_t
     Affine2D tResult;
     tResult.mA = pSecond.mA * pFirst.mA + pSecond.mB * pFirst.mC;
     tResult.mB = pSecond.mA * pFirst.mB + pSecond.mB * pFirst.mD;

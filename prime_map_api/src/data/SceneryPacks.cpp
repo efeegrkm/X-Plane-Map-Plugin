@@ -5,20 +5,18 @@
 
 namespace
 {
-
 bool isAbsolutePath(const std::string& pPath)
 {
     return (pPath.size() > 1 && pPath[1] == ':') || (!pPath.empty() && (pPath[0] == '/' || pPath[0] == '\\'));
 }
-
-}  // namespace
+}
 
 std::vector<std::string> parseSceneryPacks(const std::string& pIniText, const std::string& pXPlaneDirectory)
 {
     std::vector<std::string> tPacks;
     std::istringstream tStream(pIniText);
     std::string tLine;
-    const std::string tPrefix = "SCENERY_PACK ";  // sonundaki bosluk: _DISABLED satirlarini disarida birakir
+    const std::string tPrefix = "SCENERY_PACK ";
     while (std::getline(tStream, tLine))
     {
         if (!tLine.empty() && tLine.back() == '\r')
@@ -32,7 +30,7 @@ std::vector<std::string> parseSceneryPacks(const std::string& pIniText, const st
         std::string tPack = tLine.substr(tPrefix.size());
         if (tPack == "*GLOBAL_AIRPORTS*")
         {
-            tPack = "Custom Scenery/Global Airports/";  // X-Plane 12 kisaltmasi
+            tPack = "Custom Scenery/Global Airports/";
         }
         if (!tPack.empty() && tPack.back() != '/' && tPack.back() != '\\')
         {

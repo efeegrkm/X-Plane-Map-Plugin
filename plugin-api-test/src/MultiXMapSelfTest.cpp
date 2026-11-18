@@ -1,4 +1,3 @@
-// MultiXMapSelfTest.cpp
 #include "MultiXMapSelfTest.h"
 
 #include <cmath>
@@ -11,12 +10,11 @@
 
 namespace
 {
-
 using prime::XMapLayer;
 
 const char* kFlagFile = "selftest.flag";
-const float kDrawWait = 3.0f;     // 2. asamadan once haritalar bu kadar cizilsin (s)
-const float kCleanupWait = 2.0f;  // 3. asamadan once (s)
+const float kDrawWait = 3.0f;
+const float kCleanupWait = 2.0f;
 
 bool nearEqual(double pA, double pB, double pTolerance)
 {
@@ -34,13 +32,11 @@ void write(const std::string& pLine)
     XPLMDebugString(("[plugin-api-test] SELFTEST " + pLine + "\n").c_str());
 }
 
-// taban x (1 + artis% x (n - 1) / 100): kutuphanenin sinir formulu (PrimeMap.h XMapManagerSettings)
 int grownLimit(int pBase, int pGrowthPercent, int pOpenMaps)
 {
     return static_cast<int>(std::lround(pBase * (1.0 + pGrowthPercent / 100.0 * (pOpenMaps - 1))));
 }
-
-}  // namespace
+}
 
 MultiXMapSelfTest::~MultiXMapSelfTest()
 {
@@ -66,7 +62,7 @@ bool MultiXMapSelfTest::startIfRequested(const std::string& pPluginDirectory, pr
     return true;
 }
 
-float MultiXMapSelfTest::flightLoopCallback(float /*pSinceLastCall*/, float /*pSinceLastLoop*/, int /*pCounter*/,
+float MultiXMapSelfTest::flightLoopCallback(float , float , int ,
                                            void* pRefcon)
 {
     return static_cast<MultiXMapSelfTest*>(pRefcon)->step();
@@ -85,7 +81,7 @@ float MultiXMapSelfTest::step()
     {
         runCleanup();
         mPhase = 3;
-        return 0.0f;  // bitti: bir daha cagirma
+        return 0.0f;
     }
     return -1.0f;
 }
@@ -100,7 +96,6 @@ void MultiXMapSelfTest::runImmediate()
 {
     prime::XMapManager& tLibrary = *mManager;
 
-    // --- Kutuphane: surum, klasorler, merkezi ayarlar
     Check(prime::isLibraryVersionMatching(), "VersionString", prime::versionString());
     Check(!tLibrary.getDataDirectory().empty() && !tLibrary.getCacheDirectory().empty() &&
               !tLibrary.getXMapsDirectory().empty(),
@@ -119,7 +114,6 @@ void MultiXMapSelfTest::runImmediate()
           "getSettings returns the new values");
     mMapsBefore = tLibrary.getOpenXMapCount();
 
-    // --- Fabrika: nesne pencere acilmadan olusur, butun ayarlar onceden verilir
     mFirst = tLibrary.addXMap();
     Check(mFirst != nullptr, "addXMap() returns a map object");
     if (!mFirst)
@@ -132,7 +126,7 @@ void MultiXMapSelfTest::runImmediate()
     Check(mFirst->setName("selftest_a") && mFirst->getName() == "selftest_a", "setName / getName");
     Check(mFirst->getSettingsDirectory() == tLibrary.getXMapsDirectory() + "selftest_a/", "getSettingsDirectory",
           mFirst->getSettingsDirectory());
-    mFirst->setPersistence(prime::Persistence::SaveOnly);  // kod her acilista kazansin, dosya yine yazilsin
+    mFirst->setPersistence(prime::Persistence::SaveOnly);
     Check(mFirst->getPersistence() == prime::Persistence::SaveOnly, "setPersistence / getPersistence");
     mFirst->setStyle(prime::WindowStyle::Embedded);
     mFirst->setGeometry({900, 720, 420, 300});
@@ -172,7 +166,6 @@ void MultiXMapSelfTest::runImmediate()
     mFirst->getLayerZoomRange(XMapLayer::AirwaysLow, &tMinZoom, &tMaxZoom);
     Check(nearEqual(tMinZoom, 8.0, 1e-9), "group zoom range reaches its layers",
           std::format("{} {}", tMinZoom, tMaxZoom));
-    // Yerlesik zoom esikleri (1.0.0): tablo degeri, sert sinir kirpmasi, host ezmesi, clear
     double tDefMin = 0.0;
     double tDefMax = 0.0;
     mFirst->getDefaultLayerZoomRange(XMapLayer::Terrain, &tDefMin, &tDefMax);
@@ -192,13 +185,21 @@ void MultiXMapSelfTest::runImmediate()
     mFirst->getLayerZoomRange(XMapLayer::Terrain, &tMinZoom, &tMaxZoom);
     Check(nearEqual(tMinZoom, 5.0, 1e-9), "clear restores the built-in threshold",
           std::format("{} {}", tMinZoom, tMaxZoom));
+    mFirst->setLayerZoomRange(XMapLayer::Fixes, 7.0, 99.0);
+    mFirst->getLayerZoomRange(XMapLayer::Fixes, &tMinZoom, &tMaxZoom);
+    Check(nearEqual(tMinZoom, 7.0, 1e-9), "fixes can be shown earlier than their built-in threshold",
+          std::format("{} {}", tMinZoom, tMaxZoom));
+    mFirst->setLayerZoomRange(XMapLayer::Fixes, 5.0, 99.0);
+    mFirst->getLayerZoomRange(XMapLayer::Fixes, &tMinZoom, &tMaxZoom);
+    Check(nearEqual(tMinZoom, mFirst->getLayerHardMinZoom(XMapLayer::Fixes), 1e-9),
+          "fixes request below the hard minimum is clamped", std::format("{} {}", tMinZoom, tMaxZoom));
+    mFirst->clearLayerZoomRange(XMapLayer::Fixes);
     Check(!mFirst->setLayerZoomRange(XMapLayer::Vor, 12.0, 9.0), "inverted zoom range is refused");
     Check(!mFirst->setName("other"), "setName refused while the map is open");
     Check(fileExists(mFirst->getSettingsDirectory() + "map_settings.json") &&
               fileExists(mFirst->getSettingsDirectory() + "terrain_colors.json"),
           "settings files created by Open");
 
-    // --- Ikinci harita: bagimsiz
     mSecond = tLibrary.addXMap();
     Check(mSecond != nullptr && mSecond->getId() != mFirst->getId(), "second map has its own id");
     if (!mSecond)
@@ -221,7 +222,6 @@ void MultiXMapSelfTest::runImmediate()
               tLibrary.findXMap("no_such_map") == nullptr,
           "findXMap by name / id");
 
-    // Gorunum
     Check(nearEqual(mFirst->getCenter().mLat, 47.45, 1e-6) && nearEqual(mSecond->getCenter().mLat, 49.0, 1e-6),
           "independent centers");
     mFirst->setZoom(12.0);
@@ -233,7 +233,6 @@ void MultiXMapSelfTest::runImmediate()
     mSecond->setZoom(17.0);
     Check(nearEqual(mSecond->getZoom(), prime::XMap::maxZoom(), 1e-9), "map 2 keeps the default zoom limit (16.5)");
     mSecond->setZoom(8.0);
-    // Mod ve katmanlar
     Check(mFirst->getMode() == prime::XMapMode::Vfr && mSecond->getMode() == prime::XMapMode::Dark,
           "independent modes");
     mSecond->setMode(prime::XMapMode::Scenery);
@@ -243,20 +242,17 @@ void MultiXMapSelfTest::runImmediate()
     Check(mFirst->isLayerVisible(XMapLayer::Roads) ==
               tLibrary.isLayerDefaultVisible(XMapLayer::Roads, prime::XMapMode::Vfr),
           "hiding a layer on map 2 keeps map 1");
-    // Cizimler
     mFirst->setDrawTool(prime::DrawTool::Point);
     Check(mFirst->addDrawingPoint(47.5, -122.3), "drawing on map 1");
     Check(mFirst->getShapes().size() == 1 && mSecond->getShapes().empty(), "independent drawings");
     Check(mSecond->getDrawTool() == prime::DrawTool::Pan, "independent draw tools");
     mFirst->setDrawTool(prime::DrawTool::Pan);
-    // Ucak kaynagi
     mFirst->setAircraftSource(prime::DataSource::Host);
     prime::AircraftState tAircraft;
     tAircraft.mValid = true;
     tAircraft.mPosition = {40.0, 30.0};
     mFirst->setAircraft(tAircraft);
     Check(mSecond->getAircraftSource() == prime::DataSource::XPlane, "independent aircraft sources");
-    // Zemin ayarlari
     const prime::TerrainSettings tSecondTerrain = mSecond->getTerrainSettings();
     prime::TerrainSettings tFirstTerrain = mFirst->getTerrainSettings();
     tFirstTerrain.mShadingStrength = 0.95;
@@ -266,7 +262,6 @@ void MultiXMapSelfTest::runImmediate()
               nearEqual(mSecond->getTerrainSettings().mShadingStrength, tSecondTerrain.mShadingStrength, 1e-9),
           "independent terrain settings");
 
-    // --- Ortak onbellek: sinirlar acik harita sayisiyla buyur
     const prime::Status tStatus = tLibrary.getStatus();
     const int tOpen = mMapsBefore + 2;
     Check(tStatus.mOpenMaps == tOpen, "Status::mOpenMaps", std::format("{}", tStatus.mOpenMaps));
@@ -292,7 +287,6 @@ void MultiXMapSelfTest::runAfterDraw()
     mFirst->queryAtScreen(tGeometry.mLeft + tGeometry.mWidth / 2, tGeometry.mTop - tGeometry.mHeight / 2);
     Check(true, "queryAtScreen on an open map (no crash)");
 
-    // --- Kapat: nesne ve ayarlari kalir
     const int tOpenBefore = tLibrary.getOpenXMapCount();
     mFirst->close();
     Check(!mFirst->isInitialized() && !mFirst->isVisible(), "Close");
@@ -303,8 +297,7 @@ void MultiXMapSelfTest::runAfterDraw()
           "closed map keeps its settings and drawings");
     Check(mSecond->isInitialized(), "closing map 1 keeps map 2 open");
 
-    // --- Oncelik kurali: LoadAndSave'de Open, dosyadaki degeri kodla verilenin yerine koyar
-    mFirst->setMode(prime::XMapMode::IfrLow);  // kapaliyken kodla
+    mFirst->setMode(prime::XMapMode::IfrLow);
     mFirst->setPersistence(prime::Persistence::LoadAndSave);
     Check(mFirst->initialize(), "reopen");
     Check(mFirst->getMode() == prime::XMapMode::Vfr, "LoadAndSave: the file (VFR) wins over the pre-open value",
@@ -319,7 +312,7 @@ void MultiXMapSelfTest::runAfterDraw()
     mFirst->getLayerZoomRange(XMapLayer::AirwaysHigh, &tMinZoom, &tMaxZoom);
     Check(nearEqual(tMinZoom, 8.0, 1e-6), "layer zoom range restored from the file");
     Check(nearEqual(mFirst->getMaxZoomLimit(), 14.0, 1e-6), "zoom limits restored from the file");
-    mFirst->setMode(prime::XMapMode::IfrHigh);  // acikken: her zaman uygulanir
+    mFirst->setMode(prime::XMapMode::IfrHigh);
     Check(mFirst->getMode() == prime::XMapMode::IfrHigh, "a setting made after Open always applies");
 }
 
@@ -339,9 +332,8 @@ void MultiXMapSelfTest::runCleanup()
     Check(tLibrary.getOpenXMapCount() == mMapsBefore, "maps released: open count back",
           std::format("{}", tLibrary.getOpenXMapCount()));
     Check(tLibrary.findXMap("selftest_a") == nullptr, "released map is no longer found");
-    tLibrary.setSettings(mOriginalSettings);  // prime_map.json eski haline
+    tLibrary.setSettings(mOriginalSettings);
 
-    // --- LIF-08: shutdown sonrasi genel metot cagrilari guvenli no-op (isaretci gecerli kalir)
     prime::XMap* tLif08 = tLibrary.addXMap();
     Check(tLif08 != nullptr, "lif08: map object created");
     if (tLif08)
@@ -365,12 +357,12 @@ void MultiXMapSelfTest::runCleanup()
         Check(tLif08->getTerrainSettings().mClassColors.empty(),
               "lif08: terrain settings are default after shutdown");
         Check(!tLif08->precacheArea(prime::GeoBounds{}), "lif08: precacheArea is a no-op after shutdown");
-        tLif08->setZoom(5.0);  // ikinci dalga: uyari yalnizca ilk cagida yazilir, tekrarlananda sessiz
+        tLif08->setZoom(5.0);
         tLif08->clearAllColors();
         tLif08->injectMouseMove(0, 0);
         Check(tLif08->getZoom() == 0.0 && !tLif08->isPoppedOut() && !tLif08->wantsKeyboard(),
               "lif08: repeated calls stay no-op");
-        mManager->removeXMap(tLif08);  // yonetici nesnesi yasar: harita guvenle silinir
+        mManager->removeXMap(tLif08);
     }
     write(std::format("DONE: {} passed, {} failed", mPassed, mFailed));
 }

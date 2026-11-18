@@ -1,4 +1,3 @@
-
 #include "BackgroundJob.h"
 
 #include <utility>
@@ -17,7 +16,7 @@ bool BackgroundJob::start(std::function<void()> pWork)
     }
     if (mThread.joinable())
     {
-        mThread.join();  // onceki bitmis isin thread'i
+        mThread.join();
     }
     mRunning = true;
     mFinished.store(false);

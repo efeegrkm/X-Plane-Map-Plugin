@@ -1,6 +1,4 @@
-// Baglama bagli (context) vertex array (VAO) tutucusu. VAO'lar pop-out
-// baglamlarina paylasilmaz; yanlis baglamdaki VAO'yu baglamak X-Plane'i
-// coker. Baglam degistirse (Gl::ContextGeneration) VAO yeniden olusturulur.
+// GL baglamina ozel vertex array tutucusu; baglam degisince yeniden olusturulur.
 #ifndef PRIME_MAP_SRC_GFX_CONTEXTVERTEXARRAY_H
 #define PRIME_MAP_SRC_GFX_CONTEXTVERTEXARRAY_H
 
@@ -8,7 +6,6 @@
 
 namespace Gfx
 {
-
 class ContextVertexArray
 {
 public:
@@ -20,12 +17,8 @@ public:
     ContextVertexArray(const ContextVertexArray&) = delete;
     ContextVertexArray& operator=(const ContextVertexArray&) = delete;
 
-    // Su anki baglam icin gecerli VAO'yu verir; yeni olusturuldugunda pSetup
-    // o VAO bagliyken cagrilir. Donuste VAO bagli kalir.
     unsigned int get(const std::function<void()>& pSetup);
 
-    // Olusturuldugu baglam etkinse siler, degilse sadece unutur
-    // (olu baglamin adini silmek gecersizdir).
     void release();
 
 private:
@@ -33,6 +26,5 @@ private:
     unsigned int mGeneration = 0;
     unsigned int mArray = 0;
 };
-
 }
-#endif  // PRIME_MAP_SRC_GFX_CONTEXTVERTEXARRAY_H
+#endif

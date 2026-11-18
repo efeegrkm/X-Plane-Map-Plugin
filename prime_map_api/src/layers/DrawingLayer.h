@@ -1,6 +1,4 @@
-// Kullanicinin haritaya cizdikleri (Drawings modeli): noktalar, rotalar,
-// bolgeler ve yarim kalan cizim. Etiketler diger katmanlarinkinden oncelikli:
-// yerleri Draw'da ayrilir, yazilari drawLabels'ta cizilir.
+// Kullanici cizimlerinin harita uzerinde gosterimi.
 #ifndef PRIME_MAP_SRC_LAYERS_DRAWINGLAYER_H
 #define PRIME_MAP_SRC_LAYERS_DRAWINGLAYER_H
 
@@ -21,26 +19,23 @@ public:
 
     void draw(const drawContext& pContext) override;
     void drawLabels(const drawContext& pContext) override;
-    // Yarim kalan cizim varken imlece giden kesikli cizgi her karede degisir: o surece ustte cizilir
     bool isOverlay() const override;
 
 private:
     struct PendingLabel
     {
         std::string mText;
-        int mX;  // yazinin sol alt kosesi
+        int mX;
         int mY;
     };
 
-    // Lat/lon listesini, uzun parcalari buyuk daire boyunca bolerek ekrana cevirir
     static std::vector<Gfx::Point> projectPath(const XMapView& pView, const std::vector<LatLon>& pPoints,
                                                bool pClosed);
     static Gfx::Point project(const XMapView& pView, const LatLon& pPoint);
     void addLabel(const drawContext& pContext, const std::string& pText, const Gfx::Point& pAnchor);
-    // Kesikli cizgi (yarim cizimin son kosesinden imlece "lastik")
     static void addDashedLine(const Gfx::Point& pFrom, const Gfx::Point& pTo, Gfx::OutlinedLines& pLines);
 
     const Drawings& mDrawings;
     std::vector<PendingLabel> mLabels;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_DRAWINGLAYER_H
+#endif

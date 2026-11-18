@@ -2,7 +2,6 @@
 
 namespace
 {
-
 bool isSpace(char pChar)
 {
     return pChar == ' ' || pChar == '\t' || pChar == '\r' || pChar == '\n';
@@ -12,8 +11,7 @@ bool isDigit(char pChar)
 {
     return pChar >= '0' && pChar <= '9';
 }
-
-}  // namespace
+}
 
 AptLine::AptLine(std::string_view pText)
     : mCursor(pText.data())
@@ -49,7 +47,6 @@ bool AptLine::readInt(int& pOut)
         tValue = tValue * 10 + (*tAt - '0');
         ++tAt;
     }
-    // "12.5" gibi ondalik bir alan tamsayi olarak okunmasin
     if (tAt < mEnd && !isSpace(*tAt))
     {
         return false;

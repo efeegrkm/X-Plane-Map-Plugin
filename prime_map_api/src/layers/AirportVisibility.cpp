@@ -8,9 +8,7 @@
 
 namespace
 {
-
-const double kQueryMarginDeg = 0.05;  // havalimani referansindan disari tasan kisim icin
-
+const double kQueryMarginDeg = 0.05;
 }
 
 void findVisibleAirports(const XMapView& pView, const AirportGeometryStore& pStore, std::vector<int>& pScratch,

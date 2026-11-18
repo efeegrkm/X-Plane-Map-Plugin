@@ -11,8 +11,6 @@
 
 namespace
 {
-
-// earth_nav.dat (1150): "<tur> <enlem> <boylam> <rakim> <frekans> <menzil> <yon> <kimlik> <...ad>"
 void LoadNav(const std::string& pPath, NavDatabase& pDatabase)
 {
     std::ifstream tFile(pPath);
@@ -61,7 +59,7 @@ void LoadNav(const std::string& pPath, NavDatabase& pDatabase)
         tRecord.mId = tId;
         if (tRecord.mKind == NavKind::Vor)
         {
-            tRecord.mVariation = static_cast<float>(tHeading);  // slaved variation, + = dogu
+            tRecord.mVariation = static_cast<float>(tHeading);
         }
         if (tRecord.mKind == NavKind::Ils || tRecord.mKind == NavKind::Localizer)
         {
@@ -71,7 +69,6 @@ void LoadNav(const std::string& pPath, NavDatabase& pDatabase)
     }
 }
 
-// earth_fix.dat (1101): "<enlem> <boylam> <kimlik> <...>"
 void LoadFixes(const std::string& pPath, NavDatabase& pDatabase)
 {
     std::ifstream tFile(pPath);
@@ -96,7 +93,6 @@ void LoadFixes(const std::string& pPath, NavDatabase& pDatabase)
     }
 }
 
-// apt.dat: baslik (1/16/17) + 1302 datum_lat / datum_lon; yoksa ilk pist ucu
 void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSeen, NavDatabase& pDatabase)
 {
     std::ifstream tFile(pPath);
@@ -106,7 +102,7 @@ void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSe
     bool tHasPosition = false;
     auto tFlush = [&]()
     {
-        if (tHasCurrent && tHasPosition && pSeen.insert(tCurrent.mId).second)  // ayni ICAO: once gelen kazanir
+        if (tHasCurrent && tHasPosition && pSeen.insert(tCurrent.mId).second)
         {
             pDatabase.add(tCurrent);
         }
@@ -171,7 +167,6 @@ void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSe
         }
         else if (tCode == 100 && !tHasPosition)
         {
-            // Datum yoksa ilk pistin ilk ucu: genislik + 6 alandan sonra uc adi, enlem, boylam
             double tSkip = 0.0;
             std::string tEndName;
             double tLat = 0.0;
@@ -190,15 +185,13 @@ void LoadAirports(const std::string& pPath, std::unordered_set<std::string>& pSe
     }
     tFlush();
 }
-
-}  // namespace
+}
 
 int LoadNavFromFiles(const std::string& pXPlaneDirectory, NavDatabase& pDatabase)
 {
     pDatabase.clear();
     LoadNav(pXPlaneDirectory + "Resources/default data/earth_nav.dat", pDatabase);
     LoadFixes(pXPlaneDirectory + "Resources/default data/earth_fix.dat", pDatabase);
-    // Havalimanlari: X-Plane'in sirasiyla (scenery_packs.ini, sonra default apt.dat)
     const std::vector<std::string> tFiles = AptDatIndexer::aptFiles(pXPlaneDirectory);
     std::unordered_set<std::string> tSeen;
     for (const std::string& tFile : tFiles)

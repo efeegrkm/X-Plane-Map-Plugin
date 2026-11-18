@@ -1,5 +1,4 @@
-// 1x1 derecelik hucrelere bolunmus cografi izgara (spatial index).
-// X-Plane'e bagimli DEGIL. NavDatabase ve pist verisi bunu kullanir.
+// 1x1 derecelik hucrelere bolunmus mekansal indeks.
 #ifndef PRIME_MAP_SRC_GEOGRID_H
 #define PRIME_MAP_SRC_GEOGRID_H
 
@@ -10,7 +9,7 @@
 
 struct GridItem
 {
-    uint32_t mIndex;  // kaydin, sahibinin listesindeki sirasi
+    uint32_t mIndex;
     float mLat;
     float mLon;
 };
@@ -24,9 +23,6 @@ public:
 
     int count() const;
 
-    // pBounds'un degdigi hucrelerdeki kayit numaralarini pOut'a EKLER
-    // (hucre hassasiyetinde: sinirin biraz disindakiler de gelebilir).
-    // Bati/dogu 180. boylami gecebilir (ornek: 179 .. 181).
     void query(const GeoBounds& pBounds, std::vector<int>& pOut) const;
 
     static int cellIndex(float pLat, float pLon);
@@ -35,4 +31,4 @@ private:
     std::vector<uint32_t> mCellStart;
     std::vector<uint32_t> mItems;
 };
-#endif  // PRIME_MAP_SRC_GEOGRID_H
+#endif

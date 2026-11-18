@@ -10,14 +10,12 @@
 
 namespace
 {
-
-const float kSampleInterval = 1.0f;   // saniye
-const double kMinMoveNm = 0.03;       // ~55 m: bundan az hareket kaydedilmez
-const double kJumpNm = 20.0;          // bundan buyuk sicrama: yeni iz parcasi
-const int kMaxPoints = 20000;         // ~5.5 saatlik ucus
-const float kMinScreenStep = 1.5f;    // ekranda bundan yakin noktalar atlanir (boxel)
+const float kSampleInterval = 1.0f;
+const double kMinMoveNm = 0.03;
+const double kJumpNm = 20.0;
+const int kMaxPoints = 20000;
+const float kMinScreenStep = 1.5f;
 const Rgba kTrackColor = {0.98f, 0.78f, 0.05f, 0.95f};
-
 }
 
 TrackLayer::TrackLayer(const AircraftData& pAircraft)
@@ -48,7 +46,7 @@ void TrackLayer::update(float pNow)
         }
         if (tMoved > kJumpNm)
         {
-            mSegments.emplace_back();  // ucak tasindi: eski izle birlestirme
+            mSegments.emplace_back();
         }
     }
     if (mSegments.empty())
@@ -65,7 +63,6 @@ void TrackLayer::update(float pNow)
 
 void TrackLayer::trimOldest()
 {
-    // En eski parcanin ilk %5'ini sil (her noktada silmek yavas olurdu)
     std::vector<LatLon>& tOldest = mSegments.front();
     const size_t tRemove = std::max<size_t>(1, kMaxPoints / 20);
     if (tOldest.size() <= tRemove)
@@ -91,7 +88,7 @@ void TrackLayer::draw(const drawContext& pContext)
             if (!tScreen.empty() && std::fabs(tNew.mX - tScreen.back().mX) < kMinScreenStep &&
                 std::fabs(tNew.mY - tScreen.back().mY) < kMinScreenStep)
             {
-                continue;  // uzaktan bakinca ust uste binen noktalar: cizgi icin gereksiz
+                continue;
             }
             tScreen.push_back(tNew);
         }

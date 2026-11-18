@@ -10,13 +10,11 @@
 
 namespace
 {
-
-// Ayrinti esikleri (yerlesik gorunme esigi LayerTable tablosundadir)
 const double kLabelMinZoom = 8.0;
 const double kArrowMinZoom = 9.0;
-const double kDensifyNm = 20.0;        // uzun segmentler buyuk daire boyunca bolunur
-const size_t kMaxSegments = 6000;      // FPS korumasi
-const float kMinLabelLength = 90.0f;   // ekranda bundan kisa segmente ad yazilmaz (boxel)
+const double kDensifyNm = 20.0;
+const size_t kMaxSegments = 6000;
+const float kMinLabelLength = 90.0f;
 const double kEdgeMarginDeg = 0.2;
 }
 
@@ -58,7 +56,7 @@ void AirwayLayer::draw(const drawContext& pContext)
     {
         if (mSeenStamp[tIndex] == mStamp)
         {
-            continue;  // uzun segment: baska bir hucreden zaten geldi
+            continue;
         }
         mSeenStamp[tIndex] = mStamp;
         const AirwaySegment& tSegment = mAirways.at(tIndex);
@@ -86,7 +84,6 @@ void AirwayLayer::draw(const drawContext& pContext)
         tVisible.mToY = tScreen.back().mY;
         mVisible.push_back(tVisible);
 
-        // Tek yonlu segment: ortada yon oku (">" seklinde iki kisa cizgi)
         if (tArrows && tSegment.mDirection != 'N')
         {
             const float tSign = (tSegment.mDirection == 'F') ? 1.0f : -1.0f;

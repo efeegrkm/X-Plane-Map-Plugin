@@ -43,7 +43,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${XPSDK}/CHeaders/XPLM
 target_compile_definitions(${PROJECT_NAME} PRIVATE
                            XPLM200=1 XPLM210=1 XPLM300=1 XPLM301=1
                            IBM=1 APL=0 LIN=0 _CRT_SECURE_NO_WARNINGS NOMINMAX WIN32_LEAN_AND_MEAN
-                           PRIME_MAP_VERSION="${PROJECT_VERSION}")  # PluginMain kVersion kaynagi
+                           PRIME_MAP_VERSION="${PROJECT_VERSION}")
 target_compile_options(${PROJECT_NAME} PRIVATE /W4 /wd4251 /utf-8 /permissive-)
 target_link_libraries(${PROJECT_NAME} PRIVATE
     prime-map-api

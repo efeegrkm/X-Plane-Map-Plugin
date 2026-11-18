@@ -1,12 +1,3 @@
-// PluginMain.cpp
-// Prime XMap Plugin'in ince kabugu: X-Plane giris noktalari, menu ve prime/map/* komutlari.
-// Haritaya SADECE genel API (PrimeMap.h) uzerinden erisir.
-//
-// Ayar dosyalarini kutuphane yonetir (eklenti dosya okumaz / yazmaz): veri klasoru kutuphanenin
-// varsayilani (%LOCALAPPDATA%/prime/prime-xmap).
-//
-// akis(fabrika): addXMap() -> setName / setStyle / ... -> initialize(). Ikinci harita ayni
-// yolla, baska bir adla acilir: iki harita birbirinden bagimsiz gezilir ve ayarlanir.
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -23,13 +14,12 @@
 
 namespace
 {
-
 #ifndef PRIME_MAP_VERSION
 #define PRIME_MAP_VERSION "1.0.0"
 #endif
-const char* kVersion = PRIME_MAP_VERSION;  // CMake'ten tanim olarak gelir (project VERSION)
-const char* kMainMapName = "main";      // ayar klasoru: maps/main/
-const char* kSecondMapName = "second";  // ayar klasoru: maps/second/
+const char* kVersion = PRIME_MAP_VERSION;
+const char* kMainMapName = "main";
+const char* kSecondMapName = "second";
 
 void debugLine(const std::string& pText)
 {
@@ -60,9 +50,9 @@ private:
     void createMenu();
     void toggleDiagnostics();
 
-    prime::XMap* mXMap = nullptr;              // ana harita (maps/main)
-    prime::XMap* mSecondXMap = nullptr;        // istege bagli ikinci harita (maps/second)
-    prime::XMapManager* mManager = nullptr;   // sahibi; destroyXMapManager ile birakilir
+    prime::XMap* mXMap = nullptr;
+    prime::XMap* mSecondXMap = nullptr;
+    prime::XMapManager* mManager = nullptr;
 
     XPLMMenuID mMenu = nullptr;
     int mDiagnosticsItem = -1;
@@ -83,7 +73,7 @@ void PrimeMapPlugin::start()
         mManager = prime::XMapManagerFactory::createXMapManager();
     }
     mManager->setLogPrefix("[prime-map-plugin]");
-    mManager->initialize();  // veri klasoru: kutuphanenin varsayilani (%LOCALAPPDATA%/prime/prime-xmap)
+    mManager->initialize();
 
     openMainMap();
     createCommands();
@@ -98,7 +88,6 @@ void PrimeMapPlugin::stop()
     {
         XPLMUnregisterCommandHandler(tCommand, commandCallback, 1, this);
     }
-    // Haritalar birakilinca ayarlari kutuphane tarafindan yazilir ve pencereleri kapanir
     if (mSecondXMap)
     {
         mManager->removeXMap(mSecondXMap);
@@ -112,7 +101,7 @@ void PrimeMapPlugin::stop()
     if (mManager)
     {
         mManager->shutdown();
-        prime::XMapManagerFactory::destroyXMapManager(mManager);  // kalan haritalar da birakilir
+        prime::XMapManagerFactory::destroyXMapManager(mManager);
         mManager = nullptr;
     }
     if (mMenu)
@@ -124,8 +113,6 @@ void PrimeMapPlugin::stop()
 
 void PrimeMapPlugin::openMainMap()
 {
-    // Fabrika: once nesne, sonra ayarlar, en son initialize. Burada verilenler ILK acilisin
-    // varsayilanlaridir; maps/main/map_settings.json varsa initialize onu okur (kullanicinin son hali).
     if (!mManager)
     {
         return;
@@ -140,19 +127,17 @@ void PrimeMapPlugin::openMainMap()
     mXMap->setTitle("Prime XMap");
     mXMap->setIsUiVisible(true);
     mXMap->setIsMouseInputEnabled(true);
-    mXMap->setVisible(false);  // ilk kurulumda gizli: menuden / komutla acilir
-    mXMap->initialize();       // yer verilmedi: kutuphane ekranin ortasina, %70 boyutunda acar
+    mXMap->setVisible(false);
+    mXMap->initialize();
 }
 
 void PrimeMapPlugin::toggleSecondMap()
 {
-    // Coklu harita ornegi: ikinci harita ilkinden bagimsizdir (gorunum, mod, katmanlar, cizimler,
-    // zemin ayarlari, dosyalar); onbellek ortaktir. Kapatilinca nesne birakilir (ayarlari yazilir).
     if (mSecondXMap)
     {
         if (mManager)
         {
-            mManager->removeXMap(mSecondXMap);  // ayarlari yazilir, pencere kapanir
+            mManager->removeXMap(mSecondXMap);
         }
         mSecondXMap = nullptr;
         return;
@@ -171,20 +156,18 @@ void PrimeMapPlugin::toggleSecondMap()
     mSecondXMap->setTitle("Prime XMap 2");
     mSecondXMap->setIsUiVisible(true);
     mSecondXMap->setIsMouseInputEnabled(true);
-    mSecondXMap->setMode(prime::XMapMode::Vfr);  // ilk acilista ana haritadan farkli gorunsun
+    mSecondXMap->setMode(prime::XMapMode::Vfr);
     if (mXMap)
     {
-        // Ilk acilista ana haritanin yaninda, yari boyutta (sonraki acilislarda dosyadaki yer)
         const prime::Geometry tMain = mXMap->getGeometry();
         mSecondXMap->setGeometry({tMain.mLeft + 40, tMain.mTop - 40, tMain.mWidth * 2 / 3, tMain.mHeight * 2 / 3});
     }
     mSecondXMap->initialize();
-    mSecondXMap->setVisible(true);  // dosyada gizli kaydedilmis olsa da menuden acilinca gorunsun
+    mSecondXMap->setVisible(true);
 }
 
 void PrimeMapPlugin::createCommands()
 {
-    // Kullanici bu komutlari Settings -> Keyboard'da "prime/map" ile arayip tusa atayabilir
     mToggleCommand = XPLMCreateCommand("prime/map/toggle", "XMap: show / hide the map window");
     mControlsCommand = XPLMCreateCommand("prime/map/controls", "XMap: show / hide the controls");
     mDiagnosticsCommand = XPLMCreateCommand("prime/map/diagnostics", "XMap: toggle diagnostics mode");
@@ -201,7 +184,6 @@ void PrimeMapPlugin::createCommands()
 
 void PrimeMapPlugin::createMenu()
 {
-    // Plugins > Prime XMap Plugin
     XPLMMenuID tPluginsMenu = XPLMFindPluginsMenu();
     const int tSlot = XPLMAppendMenuItem(tPluginsMenu, "Prime XMap Plugin", nullptr, 0);
     mMenu = XPLMCreateMenu("Prime XMap Plugin", tPluginsMenu, tSlot, menuCallback, this);
@@ -209,7 +191,6 @@ void PrimeMapPlugin::createMenu()
     XPLMAppendMenuItemWithCommand(mMenu, "Show / hide controls", mControlsCommand);
     XPLMAppendMenuItemWithCommand(mMenu, "Next map mode", mNextModeCommand);
     XPLMAppendMenuItemWithCommand(mMenu, "Open / close second map", mSecondMapCommand);
-    // Karsilastirma icin X-Plane'in kendi haritasi (X-Plane'in hazir komutu)
     XPLMCommandRef tXPlaneMapCommand = XPLMFindCommand("sim/map/show_current");
     if (tXPlaneMapCommand)
     {
@@ -237,8 +218,6 @@ void PrimeMapPlugin::toggleDiagnostics()
         XPLMCheckMenuItem(mMenu, mDiagnosticsItem, mXMap->isDiagnosticsOn() ? xplm_Menu_Checked : xplm_Menu_Unchecked);
     }
 }
-
-// --- Callback'ler ------------------------------------------------------------
 
 void PrimeMapPlugin::menuCallback(void* pMenuRef, void* pItemRef)
 {
@@ -296,16 +275,11 @@ int PrimeMapPlugin::onCommand(XPLMCommandRef pCommand, XPLMCommandPhase pPhase)
     {
         toggleSecondMap();
     }
-    return 0;  // komut bizim; baska kimse islemesin
+    return 0;
 }
 
 std::unique_ptr<PrimeMapPlugin> gPlugin;
-
-}  // namespace
-
-// ============================================================================
-// X-Plane'in cagirdigi giris noktalari
-// ============================================================================
+}
 
 PLUGIN_API int XPluginStart(char* pOutName, char* pOutSignature, char* pOutDescription)
 {
@@ -335,6 +309,6 @@ PLUGIN_API void XPluginDisable()
 {
 }
 
-PLUGIN_API void XPluginReceiveMessage(XPLMPluginID /*pFrom*/, int /*pMessage*/, void* /*pParam*/)
+PLUGIN_API void XPluginReceiveMessage(XPLMPluginID , int , void* )
 {
 }

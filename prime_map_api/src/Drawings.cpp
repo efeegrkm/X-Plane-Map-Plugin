@@ -1,4 +1,3 @@
-
 #include "Drawings.h"
 
 #include <locale>
@@ -44,7 +43,7 @@ void Drawings::addVertex(const LatLon& pPoint)
     {
         case Mode::Pan:
         {
-            return;  // gezinme modunda isaretleme yok
+            return;
         }
 
         case Mode::Point:
@@ -191,8 +190,8 @@ std::string Drawings::labelOf(const Shape& pShape)
 std::string Drawings::serialize() const
 {
     std::ostringstream tStream;
-    tStream.imbue(std::locale::classic());  // ondalik ayirici her zaman nokta
-    tStream.precision(12);  // ~0.1 mm: kayit/yukleme koordinati bozmasin
+    tStream.imbue(std::locale::classic());
+    tStream.precision(12);
     tStream << "# Prime XMap Plugin drawings: P = point, R = route, A = area (region)."
                " <type> <number> <lat> <lon> ...\n";
     for (const Shape& tShape : mShapes)

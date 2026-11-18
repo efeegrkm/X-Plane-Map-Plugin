@@ -1,11 +1,4 @@
-// X-Plane'in kendi nav veritabanini SDK ile (XPLMGetFirstNavAid /
-// XPLMGetNextNavAid / XPLMGetNavAidInfo) gezip NavDatabase'i doldurur.
-// Dosya okumaz: X-Plane'in o an yuklu verisini kullanir, boylece haritadaki
-// navaid'ler simulatordekiyle birebir aynidir.
-//
-// XPLM fonksiyonlari sadece ana thread'den cagrilabilir; is karelere
-// bolunur: her karede (flight loop) en fazla pBudgetMs milisaniye.
-// ~250 bin kayit birkac saniyede biter.
+// X-Plane nav veritabanini SDK uzerinden karelere bolerek NavDatabase'e yukler.
 #ifndef PRIME_MAP_SRC_DATA_NAVLOADER_H
 #define PRIME_MAP_SRC_DATA_NAVLOADER_H
 
@@ -18,11 +11,10 @@ class NavLoader
 public:
     explicit NavLoader(NavDatabase& pDatabase);
 
-    // Bir adim calisir. Yukleme bittiyse (veya zaten bitmisse) true doner.
     bool step(double pBudgetMs);
 
     bool isDone() const;
-    int visitedCount() const;  // simdiye kadar gezilen kayit (ilerleme yazisi icin)
+    int visitedCount() const;
 
 private:
     void readOne(XPLMNavRef pRef);
@@ -34,6 +26,6 @@ private:
     int mVisited = 0;
     int mIlsSamplesLogged = 0;
     int mVorSamplesLogged = 0;
-    double mElapsedMs = 0.0;  // toplam harcanan sure (log icin)
+    double mElapsedMs = 0.0;
 };
-#endif  // PRIME_MAP_SRC_DATA_NAVLOADER_H
+#endif

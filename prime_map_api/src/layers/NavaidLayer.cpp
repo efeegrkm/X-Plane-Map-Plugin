@@ -14,38 +14,32 @@
 
 namespace
 {
-
-// Katman turlerinin tablosu (sira NavaidType ile ayni olmali)
 const auto kStyles = std::to_array<NavaidLayer::Style>({
-    {"vor", "VOR / DME", true, {NavKind::Vor, NavKind::Dme}, 2, 5.0, 6.5, 8.0, 20, {0.30f, 0.85f, 0.75f, 1.0f}},
-    {"ndb", "NDB", true, {NavKind::Ndb, NavKind::Ndb}, 1, 7.0, 8.0, 9.0, 30, {0.80f, 0.60f, 1.00f, 1.0f}},
-    {"ils", "ILS / LOC", true, {NavKind::Ils, NavKind::Localizer}, 2, 8.5, 10.0, 10.0, 40, {1.00f, 0.62f, 0.30f, 1.0f}},
-    {"fix", "Fixes", false, {NavKind::Fix, NavKind::Fix}, 1, 9.0, 10.0, 99.0, 60, {0.72f, 0.80f, 0.88f, 1.0f}},
+    {"vor", "VOR / DME", true, {NavKind::Vor, NavKind::Dme}, 2, 6.5, 8.0, 20, {0.30f, 0.85f, 0.75f, 1.0f}},
+    {"ndb", "NDB", true, {NavKind::Ndb, NavKind::Ndb}, 1, 8.0, 9.0, 30, {0.80f, 0.60f, 1.00f, 1.0f}},
+    {"ils", "ILS / LOC", true, {NavKind::Ils, NavKind::Localizer}, 2, 10.0, 10.0, 40, {1.00f, 0.62f, 0.30f, 1.0f}},
+    {"fix", "Fixes", false, {NavKind::Fix, NavKind::Fix}, 1, 10.0, 99.0, 60, {0.72f, 0.80f, 0.88f, 1.0f}},
 });
 
-const size_t kMaxSymbols = 3000;   // FPS korumasi
-const double kEdgeMargin = 20.0;   // boxel
-const double kFeatherNm = 10.0;        // ILS tuyunun boyu
-const double kFeatherHalfAngle = 3.0;  // derece (gercek localizer ~ +-2.5; okunurluk icin biraz genis)
-// Tuy dolgusunun saydamligi zoom'a gore azalir: yaklastikca tuy ekrandan
-// buyuk olur, alttaki her seyi kapatmasin.
-const float kFeatherFillAlphaFar = 0.40f;   // zoom <= kFeatherFadeStart
-const float kFeatherFillAlphaNear = 0.07f;  // zoom >= kFeatherFadeEnd
+const size_t kMaxSymbols = 3000;
+const double kEdgeMargin = 20.0;
+const double kFeatherNm = 10.0;
+const double kFeatherHalfAngle = 3.0;
+const float kFeatherFillAlphaFar = 0.40f;
+const float kFeatherFillAlphaNear = 0.07f;
 const double kFeatherFadeStart = 10.0;
 const double kFeatherFadeEnd = 13.0;
-const double kFeatherOutlineMaxZoom = 12.0;  // bundan yakinda koyu kontur cizilmez
+const double kFeatherOutlineMaxZoom = 12.0;
 
 const float kVorRadius = 6.0f;
-const float kDmeBoxRadius = 8.5f;  // VOR/DME'nin cevresindeki kare (kosegen yaricapi)
+const float kDmeBoxRadius = 8.5f;
 const float kNdbRadius = 7.0f;
 const float kFixRadius = 4.5f;
 
-// VOR pusula gulu
 const double kRoseMinZoom = 7.5;
-const float kRoseRadiusMin = 34.0f;  // boxel; zoom arttikca buyur
+const float kRoseRadiusMin = 34.0f;
 const float kRoseRadiusMax = 70.0f;
 
-// Gorunen alani pMarginNm kadar genislet (ILS tuyu antenden uzaga tasar)
 GeoBounds expandBounds(const GeoBounds& pBounds, double pMarginNm)
 {
     const double tLatMargin = pMarginNm / 60.0;
@@ -59,8 +53,6 @@ GeoBounds expandBounds(const GeoBounds& pBounds, double pMarginNm)
     return tResult;
 }
 
-// nav.dat frekansi: VOR/DME/ILS MHz * 100 (11340 -> "113.40"), NDB kHz.
-// TACAN'da SDK kanal numarasi verir: "CH85".
 std::string formatFrequency(NavKind pKind, int pFrequency)
 {
     if (pKind == NavKind::Ndb)
@@ -73,7 +65,6 @@ std::string formatFrequency(NavKind pKind, int pFrequency)
     }
     return std::format("{}.{:02d}", pFrequency / 100, pFrequency % 100);
 }
-
 }
 
 NavaidLayer::NavaidLayer(NavaidType pType, const NavDatabase& pDatabase, const AirportGeometryStore* pRunways)
@@ -99,7 +90,7 @@ void NavaidLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
     const XMapView& tView = *pContext.mView;
-    if (!mDatabase.isReady() || tView.zoom() < mStyle.mMinZoom)
+    if (!mDatabase.isReady() || !isInZoomRange())
     {
         return;
     }
@@ -134,7 +125,6 @@ void NavaidLayer::collectVisible(const drawContext& pContext)
 
         if (mType == NavaidType::Ils)
         {
-            // Tuy ekrana degiyorsa ciz (anten disarida olsa bile); seyreltme yok
             if (!computeFeather(pContext, tIndex, &tNavaid))
             {
                 continue;
@@ -158,7 +148,7 @@ void NavaidLayer::collectVisible(const drawContext& pContext)
             }
             if (pContext.mLabels)
             {
-                pContext.mLabels->reserve(tBox);  // hicbir katmanin etiketi bu sembolu ortmesin
+                pContext.mLabels->reserve(tBox);
             }
         }
         mVisible.push_back(tNavaid);
@@ -180,13 +170,13 @@ LatLon NavaidLayer::featherOrigin(int pIndex)
     const LatLon tAntenna = {tRecord.mLat, tRecord.mLon};
     if (!mRunways || !mRunways->isReady())
     {
-        return tAntenna;  // pist verisi henuz yok: simdilik anten (onbellege yazma)
+        return tAntenna;
     }
     FeatherOriginCache tEntry;
     tEntry.mOnThreshold = findLocalizerThreshold(tAntenna, tRecord.mCourseTrue, *mRunways, &tEntry.mOrigin);
     if (!tEntry.mOnThreshold)
     {
-        tEntry.mOrigin = tAntenna;  // LDA/SDF gibi kayik localizer: anteni kullan
+        tEntry.mOrigin = tAntenna;
     }
     mOrigins.emplace(pIndex, tEntry);
     return tEntry.mOrigin;
@@ -194,8 +184,6 @@ LatLon NavaidLayer::featherOrigin(int pIndex)
 
 bool NavaidLayer::computeFeather(const drawContext& pContext, int pIndex, VisibleNavaid* pOut)
 {
-    // Ucak localizer'a course yonunde yaklasir; yani yaklasma hatti pist
-    // esiginden geriye (course + 180) dogru uzanir.
     const NavRecord& tRecord = mDatabase.at(pIndex);
     const LatLon tOrigin = featherOrigin(pIndex);
     pOut->mPoint = pContext.mView->toScreen(tOrigin);
@@ -203,7 +191,7 @@ bool NavaidLayer::computeFeather(const drawContext& pContext, int pIndex, Visibl
     const double tSideNm = kFeatherNm / std::cos(kFeatherHalfAngle * 3.14159265358979 / 180.0);
     pOut->mFeather = {
         pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing - kFeatherHalfAngle, tSideNm)),
-        pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing, kFeatherNm * 0.92)),  // ortada centik
+        pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing, kFeatherNm * 0.92)),
         pContext.mView->toScreen(destinationPoint(tOrigin, tBackBearing + kFeatherHalfAngle, tSideNm)),
     };
 
@@ -234,7 +222,6 @@ void NavaidLayer::draw(const drawContext& pContext)
     mColor = pContext.mTheme->mNavaid[static_cast<int>(mType)];
     mHalo = pContext.mTheme->mHalo;
 
-    // VFR / IFR: VOR'larin cevresinde manyetik kuzeye donuk pusula gulu
     if (mType == NavaidType::Vor && pContext.mTheme->mVorRose && pContext.mView->zoom() >= kRoseMinZoom)
     {
         Gfx::Mesh tRose;
@@ -259,7 +246,6 @@ void NavaidLayer::draw(const drawContext& pContext)
         addSymbol(tNavaid, tSymbols);
         if (mType != NavaidType::Fix)
         {
-            // Ortadaki dolu nokta (fix haric)
             tCenters.addDisc(tNavaid.mPoint, mType == NavaidType::Ndb ? 2.5f : 1.6f, mColor);
         }
     }
@@ -287,7 +273,7 @@ void NavaidLayer::addSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pS
             pSymbols.addRegularPolygon(pNavaid.mPoint, kFixRadius, 3, 90.0f, tWidth, mColor);
             break;
         case NavKind::Ndb:
-            pSymbols.addDottedCircle(pNavaid.mPoint, kNdbRadius, 12, 2.5f, mColor);  // noktali cember
+            pSymbols.addDottedCircle(pNavaid.mPoint, kNdbRadius, 12, 2.5f, mColor);
             break;
         default:
             break;
@@ -296,8 +282,6 @@ void NavaidLayer::addSymbol(const VisibleNavaid& pNavaid, Gfx::OutlinedLines& pS
 
 void NavaidLayer::addCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx::Mesh& pRose) const
 {
-    // Cember + her 10 derecede centik (30'larda uzun), manyetik kuzeyde ok.
-    // Manyetik kuzey gercek kuzeyden mVariation (+ = dogu) kadar saga doner.
     const NavRecord& tRecord = mDatabase.at(pNavaid.mIndex);
     if (tRecord.mKind != NavKind::Vor)
     {
@@ -319,7 +303,6 @@ void NavaidLayer::addCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx
         pRose.addLine(tInner, tOuter, tTick % 9 == 0 ? 1.6f : 1.0f, tColor);
         if (tTick == 0)
         {
-            // Manyetik kuzey: cemberin disinda kucuk ok
             const PointF tTip = {pNavaid.mPoint.mX + tSin * (tRadius + 8.0f),
                                  pNavaid.mPoint.mY + tCos * (tRadius + 8.0f)};
             const PointF tLeft = {tOuter.mX - tCos * 3.5f, tOuter.mY + tSin * 3.5f};
@@ -331,8 +314,6 @@ void NavaidLayer::addCompassRose(const VisibleNavaid& pNavaid, double pZoom, Gfx
 
 void NavaidLayer::drawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
 {
-    // Yari saydam dolgu: tuyun sag yarisi (haritalardaki klasik gorunum).
-    // Saydamlik zoom'a gore azalir (kFeatherFadeStart .. kFeatherFadeEnd).
     const double tFade = std::clamp((pZoom - kFeatherFadeStart) / (kFeatherFadeEnd - kFeatherFadeStart), 0.0, 1.0);
     const float tFillAlpha =
         kFeatherFillAlphaFar + static_cast<float>(tFade) * (kFeatherFillAlphaNear - kFeatherFillAlphaFar);
@@ -344,8 +325,6 @@ void NavaidLayer::drawFeathers(Gfx::Canvas& pCanvas, double pZoom) const
     }
     pCanvas.draw(tFill);
 
-    // Kontur: esik -> sol kanat -> orta -> sag kanat -> esik, ve orta cizgi.
-    // Uzaktan bakinca koyu kontur okunurluk saglar; yakinda gereksiz kalinlik yapar.
     Gfx::Mesh tOutline;
     Gfx::Mesh tLines;
     const bool tWithOutline = pZoom < kFeatherOutlineMaxZoom;
@@ -380,7 +359,6 @@ void NavaidLayer::drawLabels(const drawContext& pContext)
         const std::string tText = formatLabel(mDatabase.at(tNavaid.mIndex), tDetail);
         if (mType == NavaidType::Ils)
         {
-            // ILS etiketi tuyun dis ucunda
             XMapSymbols::drawLabelNear(*pContext.mLabels, tNavaid.mFeather[1].mX, tNavaid.mFeather[1].mY, 6.0f, tText,
                                       mColor, tShadow);
         }
@@ -402,8 +380,6 @@ std::string NavaidLayer::formatLabel(const NavRecord& pRecord, bool pDetail) con
     const std::string tFrequency = formatFrequency(pRecord.mKind, pRecord.mFrequency);
     if (mType == NavaidType::Ils)
     {
-        // Pilotlar manyetik yonu kullanir. X-Plane 11 SDK'si sadece gercek yonu
-        // verdigi icin cogu zaman "T" (true) ile gosterilir.
         if (pRecord.mCourseMagnetic >= 0)
         {
             return std::format("{} {}  {:03d}", pRecord.mId, tFrequency, pRecord.mCourseMagnetic);
@@ -413,7 +389,7 @@ std::string NavaidLayer::formatLabel(const NavRecord& pRecord, bool pDetail) con
     return std::format("{} {}", pRecord.mId, tFrequency);
 }
 
-std::string NavaidLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
+std::string NavaidLayer::describe(const drawContext& , double pX, double pY) const
 {
     const float tRadius = (mType == NavaidType::Fix ? kFixRadius : kDmeBoxRadius) + 3.0f;
     for (const VisibleNavaid& tNavaid : mVisible)

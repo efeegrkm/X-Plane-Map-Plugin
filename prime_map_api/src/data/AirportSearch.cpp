@@ -10,13 +10,12 @@
 
 namespace
 {
-
 const int kNoMatch = 99;
-const size_t kMinContainsLength = 3;  // "ad icinde gecer" eslesmesi icin en az bu kadar harf
-const double kFitFraction = 0.6;      // havalimani pencerenin bu kadarini kaplasin
+const size_t kMinContainsLength = 3;
+const double kFitFraction = 0.6;
 const double kMinFitZoom = 10.0;
 const double kMaxFitZoom = 15.0;
-const double kDefaultFitZoom = 13.5;  // kapsayan kutusu olmayan (helipad) havalimani
+const double kDefaultFitZoom = 13.5;
 
 char toUpper(char pChar)
 {
@@ -35,7 +34,6 @@ bool startsWith(const std::string& pText, const std::string& pPrefix)
     return pText.compare(0, pPrefix.size(), pPrefix) == 0;
 }
 
-// Eslesme derecesi (kucuk = iyi), eslesmezse kNoMatch. pQuery buyuk harfli.
 int matchRank(const AirportGeometry& pAirport, const std::string& pQuery)
 {
     const std::string tId = upper(pAirport.mId);
@@ -54,7 +52,6 @@ int matchRank(const AirportGeometry& pAirport, const std::string& pQuery)
     {
         return kNoMatch;
     }
-    // Kelime basi mi? (ilk karakter ya da oncesi harf/rakam degil)
     for (size_t tAt = tFound; tAt != std::string::npos; tAt = tName.find(pQuery, tAt + 1))
     {
         const bool tWordStart = tAt == 0 || !std::isalnum(static_cast<unsigned char>(tName[tAt - 1]));
@@ -66,7 +63,6 @@ int matchRank(const AirportGeometry& pAirport, const std::string& pQuery)
     return pQuery.size() >= kMinContainsLength ? 3 : kNoMatch;
 }
 
-// Ayni derecede siralama: buyuk havalimani once
 double longestRunwayNm(const AirportGeometry& pAirport)
 {
     double tLongest = 0.0;
@@ -76,8 +72,7 @@ double longestRunwayNm(const AirportGeometry& pAirport)
     }
     return tLongest;
 }
-
-}  // namespace
+}
 
 std::vector<int> findAirports(const AirportGeometryStore& pStore, std::string_view pQuery, int pMaxResults)
 {
@@ -137,7 +132,6 @@ LatLon airportCenter(const AirportGeometry& pAirport)
 double zoomToFitAirport(const AirportGeometry& pAirport, double pViewWidth, double pViewHeight)
 {
     const GeoBounds& tBounds = pAirport.mBounds;
-    // Mercator birimi (0..1) cinsinden kutu; dunya kenari = 256 * 2^zoom boxel
     const double tWidth = Mercator::lonToX(tBounds.mEast) - Mercator::lonToX(tBounds.mWest);
     const double tHeight = Mercator::latToY(tBounds.mNorth) - Mercator::latToY(tBounds.mSouth);
     if (tWidth <= 0.0 || tHeight <= 0.0 || pViewWidth <= 0.0 || pViewHeight <= 0.0)

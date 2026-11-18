@@ -12,13 +12,11 @@
 
 namespace
 {
-
 const Rgba kPointColor = {0.0f, 0.72f, 0.95f, 1.0f};
 const Rgba kRouteColor = {0.0f, 0.72f, 0.95f, 1.0f};
 const Rgba kRegionColor = {0.10f, 0.78f, 0.38f, 1.0f};
 const Rgba kRegionFill = {0.10f, 0.78f, 0.38f, 0.25f};
 
-// Alt katmanlar (yapicidaki addSubLayer sirasi). Yarim kalan cizim her zaman gorunur.
 enum DrawingPart
 {
     kPartPoints,
@@ -46,10 +44,9 @@ const Rgba kWhite = {1.0f, 1.0f, 1.0f, 1.0f};
 const Rgba kMarkerCenter = {0.05f, 0.12f, 0.20f, 1.0f};
 const Rgba kLabelColor = {0.95f, 0.97f, 1.0f, 1.0f};
 
-const double kDensifyNm = 5.0;     // uzun parcalar bu araliklarla bolunur (egri dogru cizilsin)
-const float kDashLength = 8.0f;    // lastik cizginin kesik boyu (boxel)
-const float kLineWidth = 2.5f;     // rota / bolge kenari (boxel)
-
+const double kDensifyNm = 5.0;
+const float kDashLength = 8.0f;
+const float kLineWidth = 2.5f;
 }
 
 DrawingLayer::DrawingLayer(const Drawings& pDrawings)
@@ -98,8 +95,6 @@ void DrawingLayer::addLabel(const drawContext& pContext, const std::string& pTex
     {
         return;
     }
-    // Yazi isaretin sag ustune; yeri hemen ayrilir ki baska katmanlarin
-    // etiketleri bunun ustune binmesin
     PendingLabel tLabel;
     tLabel.mText = pText;
     tLabel.mX = static_cast<int>(pAnchor.mX) + 10;
@@ -183,7 +178,6 @@ void DrawingLayer::draw(const drawContext& pContext)
                 const std::vector<Gfx::Point> tCorners = projectPath(tView, tShape.mPoints, true);
                 if (!tShape.mTriangles.empty())
                 {
-                    // Ucgenler kose indeksleriyle verilir: koseleri yogunlastirmadan cevir
                     std::vector<Gfx::Point> tVertices;
                     for (const LatLon& tVertex : tShape.mPoints)
                     {
@@ -209,7 +203,6 @@ void DrawingLayer::draw(const drawContext& pContext)
         }
     }
 
-    // Yarim kalan cizim
     if (const Drawings::Shape* tCurrent = mDrawings.current())
     {
         const bool tRegion = tCurrent->mKind == Drawings::ShapeKind::Region;
@@ -233,12 +226,11 @@ void DrawingLayer::draw(const drawContext& pContext)
         }
         if (pContext.mHasCursor && !tCurrent->mPoints.empty())
         {
-            // Son koseden imlece kesikli cizgi: nereye tiklarsan oraya baglanacak
             const Gfx::Point tCursor = {static_cast<float>(pContext.mCursorX), static_cast<float>(pContext.mCursorY)};
             addDashedLine(project(tView, tCurrent->mPoints.back()), tCursor, tLines);
             if (tRegion && tCurrent->mPoints.size() >= 2)
             {
-                addDashedLine(tCursor, project(tView, tCurrent->mPoints.front()), tLines);  // bolge kapanacak
+                addDashedLine(tCursor, project(tView, tCurrent->mPoints.front()), tLines);
             }
         }
         if (tCurrent->mKind == Drawings::ShapeKind::Route && tCurrent->mPoints.size() >= 2)
@@ -263,7 +255,7 @@ bool DrawingLayer::isOverlay() const
     return mDrawings.current() != nullptr;
 }
 
-void DrawingLayer::drawLabels(const drawContext& /*pContext*/)
+void DrawingLayer::drawLabels(const drawContext& )
 {
     for (const PendingLabel& tLabel : mLabels)
     {

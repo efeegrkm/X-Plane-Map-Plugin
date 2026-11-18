@@ -5,28 +5,26 @@
 
 namespace
 {
-
 const double kPi = 3.14159265358979323846;
 const double kSunAltitudeDeg = 45.0;
-const double kShadeGain = 1.8;          // isik farkinin parlakliga cevrimi
+const double kShadeGain = 1.8;
 const double kMinFactor = 0.45;
 const double kMaxFactor = 1.55;
-const double kSlopeToneHalf = 0.5;      // egim bu degerdeyken (~27 derece) slope_tone'un yarisi uygulanir
+const double kSlopeToneHalf = 0.5;
 const double kFeetPerMeter = 3.28084;
-const double kNoDepthSeaLevel = -10.0;  // GERCEK VERI: verisi olmayan deniz hucresi -10
-const double kContourHalfWidth = 0.6;   // kontur cizgisinin yari genisligi (piksel)
-const double kContourDarkening = 0.55;  // tam guclu konturda renk bu oranda koyulasir
+const double kNoDepthSeaLevel = -10.0;
+const double kContourHalfWidth = 0.6;
+const double kContourDarkening = 0.55;
 
 struct Light
 {
-    double mAzimuthDeg;  // kuzeyden saat yonunde (315 = kuzeybati)
+    double mAzimuthDeg;
     double mWeight;
 };
 
 const Light kMultiLights[] = {{225.0, 0.10}, {270.0, 0.25}, {315.0, 0.40}, {360.0, 0.25}};
 const Light kSingleLight[] = {{315.0, 1.0}};
-
-}  // namespace
+}
 
 double reliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters, double pFinestCellMeters)
 {
@@ -40,10 +38,6 @@ double reliefExaggeration(const TerrainReliefParams& pParams, double pCellMeters
 double reliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, double pExaggeration,
                     const TerrainReliefParams& pParams)
 {
-    // Duz arazi esigi: DEM tam metre saklanir; neredeyse duz ovada 1 m'lik basamaklar (~%1 egim)
-    // abartmayla cizgi cizgi dalga gibi gorunuyordu (onizleme, Gustavus). Kucuk egim yumusakca bastirilir:
-    // s -> s * s^2 / (s^2 + s0^2). s0 = %2 iken (olculdu): %1,1 basamak etkisi %23'e iner, %5 yamac
-    // %86'sini, %15 ve ustu tamamini korur.
     double tSlopeEast = pSlopeEast;
     double tSlopeNorth = pSlopeNorth;
     const double tSlopeSquared = pSlopeEast * pSlopeEast + pSlopeNorth * pSlopeNorth;
@@ -54,7 +48,6 @@ double reliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, dou
         tSlopeNorth *= tKeep;
     }
 
-    // Yuzey normali (-dz/dx, -dz/dy, 1) / uzunluk; x dogu, y kuzey
     const double tDzDx = tSlopeEast * pExaggeration;
     const double tDzDy = tSlopeNorth * pExaggeration;
     const double tLength = std::sqrt(tDzDx * tDzDx + tDzDy * tDzDy + 1.0);
@@ -67,15 +60,13 @@ double reliefFactor(double pSlopeEast, double pSlopeNorth, double pStrength, dou
     for (int tIndex = 0; tIndex < tCount; ++tIndex)
     {
         const double tAzimuth = tLights[tIndex].mAzimuthDeg * kPi / 180.0;
-        const double tSunX = std::sin(tAzimuth) * std::cos(tAltitude);  // dogu bileseni
-        const double tSunY = std::cos(tAzimuth) * std::cos(tAltitude);  // kuzey bileseni
+        const double tSunX = std::sin(tAzimuth) * std::cos(tAltitude);
+        const double tSunY = std::cos(tAzimuth) * std::cos(tAltitude);
         const double tDot = (-tDzDx * tSunX - tDzDy * tSunY + tSunZ) / tLength;
         tLight += tLights[tIndex].mWeight * std::max(0.0, tDot);
     }
-    // Duz arazinin isigi (agirliklar toplami 1): sin(yukseklik). Fark parlakliga cevrilir.
     double tFactor = 1.0 + (tLight - tSunZ) * kShadeGain * pStrength;
 
-    // Egim tonu: dik yamac isiktan bagimsiz biraz koyu (daglar duz renk gibi durmasin)
     const double tSlope = std::sqrt(tSlopeEast * tSlopeEast + tSlopeNorth * tSlopeNorth);
     tFactor *= 1.0 - pParams.mSlopeTone * tSlope / (tSlope + kSlopeToneHalf);
     return std::clamp(tFactor, kMinFactor, kMaxFactor);
@@ -101,17 +92,16 @@ void vfrBandColor(double pMeters, double pFeetPerPixel, const TerrainVfrParams& 
     pRgb[2] = 0.0;
     if (pFeetPerPixel <= 1e-9)
     {
-        tSet(tBand, 1.0);  // egim yok / bilinmiyor: keskin bant
+        tSet(tBand, 1.0);
         return;
     }
-    // Alt ve ust sinira uzaklik (piksel). Ilk bandin alt siniri yok (deniz seviyesi alti da ilk bant).
     const double tToLower = tBand > 0 ? (tFeet - pParams.mBandFeet[tBand]) / pFeetPerPixel : 1e9;
     const double tToUpper =
         tBand + 1 < kVfrBandCount ? (pParams.mBandFeet[tBand + 1] - tFeet) / pFeetPerPixel : 1e9;
     double tOwn = 1.0;
     if (tToLower < 0.5)
     {
-        tOwn = 0.5 + tToLower;  // sinirda 0.5: iki bant esit karisir
+        tOwn = 0.5 + tToLower;
         tSet(tBand - 1, 1.0 - tOwn);
     }
     else if (tToUpper < 0.5)
@@ -145,8 +135,6 @@ double depthDarkening(double pSeaLevel, const TerrainWaterParams& pParams)
 
 double coastBandLightening(double pDistancePixels, double pBandPixels, const TerrainWaterParams& pParams)
 {
-    // Serit kiyi cizgisinin (1 piksel) arkasindan baslar: cizginin hemen yani acilirsa kiyi
-    // kontrastini kaybeder, kucuk goller bulanik gorunur (onizlemede goruldu)
     const double tFromLine = pDistancePixels - 1.0;
     if (pBandPixels < 0.5 || tFromLine >= pBandPixels || pParams.mBandStrength <= 0.0)
     {
@@ -158,7 +146,6 @@ double coastBandLightening(double pDistancePixels, double pBandPixels, const Ter
 
 void distanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDistance, std::vector<float>* pOut)
 {
-    // 3-4 chamfer: dik komsu 3, capraz komsu 4 birim; iki gecis (ileri, geri). Sonuc / 3 = piksel.
     const float tInfinity = pMaxDistance * 3.0f + 4.0f;
     const size_t tCount = static_cast<size_t>(pSize) * pSize;
     std::vector<float> tUnits(tCount);
@@ -225,10 +212,6 @@ void distanceToLand(const std::vector<uint8_t>& pLand, int pSize, float pMaxDist
 
 void coastlineStrength(const std::vector<float>& pLandFraction, int pSize, std::vector<float>* pOut)
 {
-    // Cizgi suyun tarafinda tek piksel (ilk surumde 3x3 ortalama 2-3 piksel genis ve bulanikti):
-    //   kara agirlikli piksel (oran >= 0.5)       : karisik ise (1 - oran) * 2, tam kara ise 0
-    //   su agirlikli piksel, 4 komsudan biri kara : en buyuk komsu kara orani
-    // Kaba seviyelerde oran ondalikli oldugu icin cizgi kendiliginden yumusak kenarlidir.
     pOut->assign(static_cast<size_t>(pSize) * pSize, 0.0f);
     auto tAt = [&](int pColumn, int pRow)
     {
@@ -245,7 +228,7 @@ void coastlineStrength(const std::vector<float>& pLandFraction, int pSize, std::
             const float tOwn = tAt(tColumn, tRow);
             if (tOwn < 0.0f)
             {
-                continue;  // veri yok
+                continue;
             }
             float tStrength = 0.0f;
             if (tOwn >= 0.5f)

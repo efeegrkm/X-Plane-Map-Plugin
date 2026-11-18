@@ -1,5 +1,4 @@
-// Kullanicinin ucagi: burun yonune donmus sembol + yon cizgisi; ekranda
-// sabit boyutta (zoom'dan bagimsiz). Katman listesinin en ustunde olmali.
+// Kullanici ucagi sembolu ve yon cizgisi.
 #ifndef PRIME_MAP_SRC_LAYERS_AIRCRAFTLAYER_H
 #define PRIME_MAP_SRC_LAYERS_AIRCRAFTLAYER_H
 
@@ -15,10 +14,10 @@ public:
     void draw(const drawContext& pContext) override;
     bool isOverlay() const override
     {
-        return true;  // her karede hareket eder: harita resminin ustune
+        return true;
     }
 
 private:
     const AircraftData& mAircraft;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_AIRCRAFTLAYER_H
+#endif

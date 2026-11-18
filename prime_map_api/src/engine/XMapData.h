@@ -1,5 +1,4 @@
-// Haritalarin ORTAK verisi ve her karede ilerleyen ortak isler (surecte tek). Onbellek ortaktir:
-// sinirlari acik harita sayisina gore buyur (applyLimits). Kendi flight loop'unu kaydeder.
+// Bir yoneticinin haritalari arasinda paylasilan veri ve her karede ilerleyen ortak isler.
 #ifndef PRIME_MAP_SRC_ENGINE_XMAPDATA_H
 #define PRIME_MAP_SRC_ENGINE_XMAPDATA_H
 
@@ -24,33 +23,30 @@
 
 namespace prime
 {
-
-class XMap;  // ortak veriye baglanan harita nesnesi (api/XMap.h)
-}  // namespace prime
+class XMap;
+}
 
 struct XMapDataConfig
 {
-    std::string mDataDirectory;   // sonunda ayirici ile; altinda prime_map.json, maps/
-    std::string mCacheDirectory;  // sonunda ayirici ile; altinda terrain/ ve airports/
-    // prime_map.json'da karsiligi olmayan anahtarlarin ilk degeri (host'un XMapManagerSettings'i)
+    std::string mDataDirectory;
+    std::string mCacheDirectory;
     prime::XMapManagerSettings mDefaults;
 };
 
-// Yukleme durumu (API Status'un ic karsiligi)
 struct XMapDataStatus
 {
     bool mNavReady = false;
     bool mAirportsReady = false;
     bool mAirwaysReady = false;
     bool mTerrainIndexReady = false;
-    int mTerrainPendingImages = 0;  // butun gorunur haritalarin toplami
+    int mTerrainPendingImages = 0;
     bool mPrecacheRunning = false;
     int mPrecacheDone = 0;
     int mPrecacheTotal = 0;
-    std::string mText;              // ortak durum + toplam bekleyen zemin
+    std::string mText;
     int mOpenMaps = 0;
-    int mTerrainCacheLimitMb = 0;   // su an gecerli disk siniri (0 = sinirsiz)
-    int mTextureLimitMb = 0;        // su an gecerli doku butcesi
+    int mTerrainCacheLimitMb = 0;
+    int mTextureLimitMb = 0;
 };
 
 class XMapData
@@ -60,17 +56,15 @@ public:
     ~XMapData();
     XMapData(const XMapData&) = delete;
     XMapData& operator=(const XMapData&) = delete;
-    void start();  // merkezi ayarlar, palet, flight loop (Init)
-    void stop();   // isciler durur (Shutdown)
-    bool isRunning() const { return mRunning; }  // Start ile Stop arasinda true
+    void start();
+    void stop();
+    bool isRunning() const { return mRunning; }
 
-    // --- Haritalar ---
-    void addInstance(prime::XMap* pInstance);     // harita nesnesi olustu (henuz acik olmayabilir)
-    void removeInstance(prime::XMap* pInstance);  // harita nesnesi yok oluyor
-    void openXMapsChanged();                       // bir harita acildi / kapandi: sinirlari yeniden hesapla
+    void addInstance(prime::XMap* pInstance);
+    void removeInstance(prime::XMap* pInstance);
+    void openXMapsChanged();
     int openXMapCount() const;
 
-    // --- Ortak depolar (katmanlar bunlara bakar) ---
     TerrainHub& hub();
     TerrainStore& terrain();
     NavDatabase& navs();
@@ -80,24 +74,17 @@ public:
     const AirportGeometryStore& airports() const;
     const XMapDataStatus& status() const;
 
-    // --- Zemin paletleri (harita basina ayar) ---
-    // Paleti hazirlar: [palette] source = xplane ise X-Plane dokularindan turetilen renkler uygulanir;
-    // ayni icerikli palet daha once tanitildiysa onun numarasi doner, yoksa depoya eklenir.
     int registerPalette(TerrainPalette* pPalette);
 
-    // --- Merkezi ayarlar (prime_map.json) ---
     const prime::XMapManagerSettings& managerSettings() const;
-    void setManagerSettings(const prime::XMapManagerSettings& pSettings);  // uygular + dosyaya yazar
-    std::string settingsPath() const;        // <veri>/prime_map.json
+    void setManagerSettings(const prime::XMapManagerSettings& pSettings);
+    std::string settingsPath() const;
     const std::string& dataDirectory() const;
     const std::string& cacheDirectory() const;
-    std::string mapsDirectory() const;       // <veri>/maps/
-    // Bolge onbellegi: alanin kurulu DSF karolarini diske hazirlar. Baslamazsa false (neden: durum metni)
+    std::string mapsDirectory() const;
     bool startPrecache(const GeoBounds& pBounds);
     void cancelPrecache();
-    // Veri yukleniyor mu (harita resmi bu surece hiz sinirinda yenilenir)
     bool isBusy() const;
-    // Ortak durum metni (yukleme, bildirim); haritalar kendi "Loading terrain" yazisini ekler
     const std::string& sharedStatusText() const;
     const std::string& terrainWorkerStatus() const;
     bool isTerrainIdle() const;
@@ -111,40 +98,39 @@ private:
     void updatePrefetch(float pNow);
     void loadLibrarySettings();
     bool saveLibrarySettings() const;
-    void applyLimits();  // acik harita sayisina gore disk siniri, doku butcesi, bellek olcegi
+    void applyLimits();
     static void logReport(const std::string& pReport);
 
     XMapDataConfig mConfig;
     prime::XMapManagerSettings mSettings;
     NavDatabase mNavDatabase;
-    NavLoader mNavLoader{mNavDatabase};  // mNavDatabase'den sonra tanimli olmali
+    NavLoader mNavLoader{mNavDatabase};
     std::unique_ptr<AirportGeometryStore> mAirportGeometry;
-    std::unique_ptr<AirportDetailStore> mAirportDetails;  // mAirportGeometry'ye bagli
+    std::unique_ptr<AirportDetailStore> mAirportDetails;
     bool mLoadStarted = false;
     AirwayDatabase mAirways;
-    TerrainPalette mDefaultPalette;  // palet 0: varsayilan zemin ayarlari
+    TerrainPalette mDefaultPalette;
     TerrainStore mTerrainStore;
-    TerrainHub mHub{mTerrainStore};  // mTerrainStore'dan sonra tanimli olmali
+    TerrainHub mHub{mTerrainStore};
     std::string mXPlaneDirectory;
-    // X-Plane dokularindan turetilen sinif renkleri (bir kez hesaplanir / onbellekten okunur)
     bool mDerivedLoaded = false;
     bool mDerivedOk = false;
     std::array<TerrainColor, kTerrainClassCount> mDerivedColors = {};
     std::array<int, kTerrainClassCount> mDerivedCounts = {};
-    std::map<std::string, int> mPaletteIds;  // palet metni -> TerrainStore numarasi
-    std::vector<prime::XMap*> mInstances;  // yasayan harita nesneleri (acik ya da degil)
-    AircraftData mAircraft;                // acik harita yokken prefetch ucagi (dataref kaynagi)
-    bool mMaplessPrefetchLogged = false;   // haritasiz prefetch tek satir log (bir kez)
+    std::map<std::string, int> mPaletteIds;
+    std::vector<prime::XMap*> mInstances;
+    AircraftData mAircraft;
+    bool mMaplessPrefetchLogged = false;
     float mLastPrefetch = -100.0f;
     bool mPrecacheRunning = false;
     std::string mNotice;
     float mNoticeUntil = 0.0f;
     bool mFlightLoopRegistered = false;
-    bool mRunning = false;  // Start/Stop arasinda true
+    bool mRunning = false;
     bool mBusy = false;
     bool mTerrainIdle = true;
     std::string mSharedText;
     std::string mTerrainWorkerText;
     XMapDataStatus mStatus;
 };
-#endif  // PRIME_MAP_SRC_ENGINE_XMAPDATA_H
+#endif

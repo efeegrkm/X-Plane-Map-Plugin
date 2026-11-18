@@ -1,19 +1,11 @@
-// X-Plane'in sahne paketi sirasi (Custom Scenery/scenery_packs.ini).
-// X-Plane'e bagimli DEGIL.
-//
-//   SCENERY_PACK Custom Scenery/LTFM Istanbul/     -> etkin, en ustteki en oncelikli
-//   SCENERY_PACK_DISABLED Custom Scenery/Eski/     -> atlanir
-//   SCENERY_PACK *GLOBAL_AIRPORTS*                 -> X-Plane 12 kisaltmasi
-//   SCENERY_PACK D:/Manzara/Ortho/                 -> mutlak yol
+// Custom Scenery/scenery_packs.ini dosyasindan sahne paketi sirasini okur.
 #ifndef PRIME_MAP_SRC_DATA_SCENERYPACKS_H
 #define PRIME_MAP_SRC_DATA_SCENERYPACKS_H
 
 #include <string>
 #include <vector>
 
-// Etkin paketlerin klasorleri (sonunda '/' ile), oncelik sirasiyla
 std::vector<std::string> parseSceneryPacks(const std::string& pIniText, const std::string& pXPlaneDirectory);
 
-// <X-Plane>/Custom Scenery/scenery_packs.ini'yi okuyup parseSceneryPacks'e verir
 std::vector<std::string> readSceneryPacks(const std::string& pXPlaneDirectory);
-#endif  // PRIME_MAP_SRC_DATA_SCENERYPACKS_H
+#endif

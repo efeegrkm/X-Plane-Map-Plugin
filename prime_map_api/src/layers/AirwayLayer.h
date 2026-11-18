@@ -1,5 +1,4 @@
-// Hava yollari (earth_awy.dat, AirwayDatabase). Alcak ve yuksek hava yollari
-// ayri katmandir (ayri ac/kapa dugmesi).
+// Alcak ve yuksek hava yollari, adlari ve yon oklari.
 #ifndef PRIME_MAP_SRC_LAYERS_AIRWAYLAYER_H
 #define PRIME_MAP_SRC_LAYERS_AIRWAYLAYER_H
 
@@ -13,14 +12,13 @@ class AirwayDatabase;
 class AirwayLayer : public Layer
 {
 public:
-    // pHigh: true = yuksek (seviye 2), false = alcak (seviye 1) hava yollari
     AirwayLayer(const AirwayDatabase& pAirways, bool pHigh);
 
     void draw(const drawContext& pContext) override;
     void drawLabels(const drawContext& pContext) override;
     int labelPriority() const override
     {
-        return 70;  // cok sayida: diger etiketlerden sonra, kalan bos yerlere
+        return 70;
     }
 
 private:
@@ -36,8 +34,8 @@ private:
     const AirwayDatabase& mAirways;
     bool mHigh;
     std::vector<int> mQuery;
-    std::vector<uint32_t> mSeenStamp;  // ayni segmenti bir karede iki kez cizmemek icin
+    std::vector<uint32_t> mSeenStamp;
     uint32_t mStamp = 0;
     std::vector<VisibleSegment> mVisible;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_AIRWAYLAYER_H
+#endif

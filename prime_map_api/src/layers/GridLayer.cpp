@@ -9,18 +9,14 @@
 
 namespace
 {
+const double kMinSpacing = 90.0;
 
-const double kMinSpacing = 90.0;  // iki izgara cizgisi arasi en az bu kadar boxel
-
-// Bir dongude [pFrom, pTo] araligindaki pStep katlarini gezmek icin
-// baslangic ve bitis indeksi (kayan nokta birikimi olmasin diye indeksle gezilir)
 void stepRange(double pFrom, double pTo, double pStep, long long* pFirst, long long* pLast)
 {
     *pFirst = static_cast<long long>(std::ceil(pFrom / pStep - 1e-9));
     *pLast = static_cast<long long>(std::floor(pTo / pStep + 1e-9));
 }
 
-// Boylami -180..180 araligina getir (etiket icin)
 double normalizeLon(double pLon)
 {
     double tLon = std::fmod(pLon + 180.0, 360.0);
@@ -30,7 +26,6 @@ double normalizeLon(double pLon)
     }
     return tLon - 180.0;
 }
-
 }
 
 GridLayer::GridLayer()
@@ -51,7 +46,6 @@ void GridLayer::draw(const drawContext& pContext)
     const float tTop = static_cast<float>(pContext.mArea.mTop);
     Gfx::Mesh tLines;
 
-    // Boylam cizgileri (dikey). 1 boxel kalinlik, piksel sinirina oturur.
     long long tFirst = 0;
     long long tLast = 0;
     stepRange(tBounds.mWest, tBounds.mEast, tStep, &tFirst, &tLast);
@@ -61,7 +55,6 @@ void GridLayer::draw(const drawContext& pContext)
         tLines.addLine({tX, tBottom}, {tX, tTop}, 1.0f, pContext.mTheme->mGridLine);
     }
 
-    // Enlem cizgileri (yatay)
     stepRange(tBounds.mSouth, tBounds.mNorth, tStep, &tFirst, &tLast);
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
@@ -80,7 +73,6 @@ void GridLayer::drawOverlay(const drawContext& pContext)
     const LatLon tCenter = tView.center();
     const RectD& tClear = pContext.mClearArea;
 
-    // Boylam etiketleri: alt kenarda, cizginin hemen saginda
     long long tFirst = 0;
     long long tLast = 0;
     stepRange(tBounds.mWest, tBounds.mEast, tStep, &tFirst, &tLast);
@@ -95,7 +87,6 @@ void GridLayer::drawOverlay(const drawContext& pContext)
                  formatGridLabel(normalizeLon(tIndex * tStep), false, tStep), pContext.mTheme->mGridLabel);
     }
 
-    // Enlem etiketleri: sol kenarda, cizginin hemen ustunde
     stepRange(tBounds.mSouth, tBounds.mNorth, tStep, &tFirst, &tLast);
     for (long long tIndex = tFirst; tIndex <= tLast; ++tIndex)
     {
@@ -111,7 +102,6 @@ void GridLayer::drawOverlay(const drawContext& pContext)
 
 double GridLayer::stepFor(const drawContext& pContext)
 {
-    // Boylam yonunde 1 derece kac boxel (Mercator'da her enlemde ayni)
     const double tBoxelsPerDegree = pContext.mView->worldSize() / 360.0;
     return chooseGridStepDeg(tBoxelsPerDegree, kMinSpacing);
 }

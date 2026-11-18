@@ -4,18 +4,15 @@
 
 namespace
 {
+const int kMargin = 4;
+const int kGap = 4;
+const int kGroupGap = 14;
 
-const int kMargin = 4;      // serit kenari ile dugme arasi
-const int kGap = 4;         // iki dugme arasi
-const int kGroupGap = 14;   // dugme gruplari arasi
-
-// Dugme gruplari (soldan saga). ToolbarAction::None = gruplar arasi ayirici.
 const std::vector<ToolbarAction> kGeneralGroup = {
     ToolbarAction::Layers,         ToolbarAction::XMapMode, ToolbarAction::None, ToolbarAction::FollowAircraft,
     ToolbarAction::CenterAircraft, ToolbarAction::goToAirport, ToolbarAction::None, ToolbarAction::drawTools};
-const std::vector<ToolbarAction> kWindowGroup = {ToolbarAction::HideControls, ToolbarAction::popOut};  // sagdan sola
-
-}  // namespace
+const std::vector<ToolbarAction> kWindowGroup = {ToolbarAction::HideControls, ToolbarAction::popOut};
+}
 
 int Toolbar::rowWidth(const std::vector<ToolbarAction>& pActions, const ToolbarState& pState)
 {
@@ -35,7 +32,6 @@ int Toolbar::placeRow(const std::vector<ToolbarAction>& pActions, int pX, int pT
     {
         if (tAction == ToolbarAction::None)
         {
-            // Ayirici: boslugun ortasinda ince cizgi
             const int tGapStart = tX - (pRightToLeft ? -kGap : kGap);
             const int tGapEnd = tX + (pRightToLeft ? -kGroupGap : kGroupGap);
             mDividers.push_back((tGapStart + tGapEnd) / 2);

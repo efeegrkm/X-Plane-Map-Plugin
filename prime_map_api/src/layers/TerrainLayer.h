@@ -1,6 +1,4 @@
-// Zemin: X-Plane sahnesinin (DSF) arazisi; su, sehir, orman, kabartma golgesi.
-// Dokular haritalarin ORTAK TerrainHub'inda durur; palet (zemin ayarlari)
-// harita basinasdir. Ince seviye hazir olana kadar en iyi kaba seviye gosterilir.
+// DSF arazisinden uretilen zemin dokularinin cizimi.
 #ifndef PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H
 #define PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H
 
@@ -18,11 +16,9 @@
 class TerrainLayer : public Layer
 {
 public:
-    // pPaletteId: paletin TerrainStore'daki numarasi (TerrainStore::addPalette; Start'a verilen 0)
     TerrainLayer(TerrainHub& pHub, const TerrainPalette& pPalette, int pPaletteId = 0);
     ~TerrainLayer() override;
 
-    // Bu haritanin zemin ayarlari degisti: yeni dokular bu paletle istenir
     void setPalette(const TerrainPalette& pPalette, int pPaletteId);
     int paletteId() const;
 
@@ -31,28 +27,25 @@ public:
 
     int textureCount() const;
 
-    // "Loading terrain" yazisi icin: kaba yedek ya da bos gorunen her an > 0
     int pendingTextureCount() const;
 
 private:
     const Gfx::Texture* useTexture(const TerrainImageKey& pKey);
     static int desiredLevel(double pPixelsPerDegree);
-    // pLevel: TerrainStore::kDetailLevel (1/32 derece) veya kFineLevel (1/128 derece)
     void drawDetailChunks(Gfx::Canvas& pCanvas, const XMapView& pView, const GeoBounds& pBounds, int pLevel, int pLon,
                           int pLat, double pTileWest, int pStyle, int pAreas,
                           std::vector<Gfx::TexturedVertex>& pStrips);
-    // Anahtar: bu haritanin palet numarasiyla
     TerrainImageKey keyOf(int pLon, int pLat, int pLevel, int pChunk, int pStyle, int pAreas) const;
 
-    int mForestPart = -1;   // alt katman: DSF orman poligonlari (Scenery)
-    int mBuiltUpPart = -1;  // alt katman: yerlesim alanlari (Scenery: sinif rengi, VFR: sari)
-    TerrainHub& mHub;        // ortak dokular (haritalar arasi)
-    TerrainStore& mStore;    // mHub.store(): istekler ve karo durumu
+    int mForestPart = -1;
+    int mBuiltUpPart = -1;
+    TerrainHub& mHub;
+    TerrainStore& mStore;
     TerrainPalette mPalette;
     int mPaletteId = 0;
-    int mUser = 0;           // bu haritanin TerrainHub numarasi
+    int mUser = 0;
     uint64_t mSeenGeneration = 0;
     int mPendingThisFrame = 0;
     int mPendingLastFrame = 0;
 };
-#endif  // PRIME_MAP_SRC_LAYERS_TERRAINLAYER_H
+#endif

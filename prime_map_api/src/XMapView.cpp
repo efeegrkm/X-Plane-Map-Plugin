@@ -4,9 +4,8 @@
 
 namespace
 {
-
 const double kPi = 3.14159265358979323846;
-const double kEarthRadiusM = 6378137.0;  // Web Mercator'un kullandigi dunya yaricapi
+const double kEarthRadiusM = 6378137.0;
 
 double clamp(double pValue, double pLow, double pHigh)
 {
@@ -21,17 +20,14 @@ double clamp(double pValue, double pLow, double pHigh)
     return pValue;
 }
 
-// x'i 0..1 araligina sar (dunya dogu-bati yonunde tekrar eder)
 double wrapX(double pX)
 {
     return pX - std::floor(pX);
 }
-
-}  // namespace
+}
 
 namespace Mercator
 {
-
 double lonToX(double pLon)
 {
     return (pLon + 180.0) / 360.0;
@@ -40,7 +36,6 @@ double lonToX(double pLon)
 double latToY(double pLat)
 {
     const double tLat = clamp(pLat, -kMaxLat, kMaxLat) * kPi / 180.0;
-    // kMaxLat yuvarlanmis bir sayi: sonuc 1'i cok az asabilir, kirpilir
     return clamp(0.5 + std::log(std::tan(kPi / 4.0 + tLat / 2.0)) / (2.0 * kPi), 0.0, 1.0);
 }
 
@@ -54,8 +49,7 @@ double yToLat(double pY)
     const double tMercator = (pY - 0.5) * 2.0 * kPi;
     return (2.0 * std::atan(std::exp(tMercator)) - kPi / 2.0) * 180.0 / kPi;
 }
-
-}  // namespace Mercator
+}
 
 void XMapView::setViewport(const RectD& pBoxels)
 {
@@ -86,7 +80,7 @@ double XMapView::centerMercatorY() const
 
 void XMapView::setCenterMercator(double pX, double pY)
 {
-    mCenterX = pX - std::floor(pX);  // 180. boylamda sarilma
+    mCenterX = pX - std::floor(pX);
     mCenterY = pY;
     clampCenter();
 }
@@ -192,7 +186,6 @@ LatLon XMapView::boxelToLatLon(double pX, double pY) const
 
 void XMapView::panByBoxels(double pDeltaX, double pDeltaY)
 {
-    // Icerik fareyle birlikte hareket etsin diye merkez ters yone kayar
     const double tWorld = worldSize();
     mCenterX -= pDeltaX / tWorld;
     mCenterY -= pDeltaY / tWorld;
@@ -204,14 +197,12 @@ void XMapView::zoomAt(double pX, double pY, double pDelta)
     const double tMidX = (mViewport.mLeft + mViewport.mRight) * 0.5;
     const double tMidY = (mViewport.mBottom + mViewport.mTop) * 0.5;
 
-    // Imlecin altindaki nokta (Mercator birimi), zoom'dan once
     const double tOldWorld = worldSize();
     const double tPointX = mCenterX + (pX - tMidX) / tOldWorld;
     const double tPointY = mCenterY + (pY - tMidY) / tOldWorld;
 
     setZoom(mZoom + pDelta);
 
-    // Ayni nokta yine imlecin altina dussun diye merkezi yeniden hesapla
     const double tNewWorld = worldSize();
     mCenterX = tPointX - (pX - tMidX) / tNewWorld;
     mCenterY = tPointY - (pY - tMidY) / tNewWorld;
@@ -229,7 +220,6 @@ GeoBounds XMapView::boundsOf(const RectD& pBoxels) const
     const double tMidX = (mViewport.mLeft + mViewport.mRight) * 0.5;
     const double tMidY = (mViewport.mBottom + mViewport.mTop) * 0.5;
 
-    // Bati/dogu sarilmaz (WrapX yok): 180. boylami gecen alan -180..180 disina tasar
     GeoBounds tBounds;
     tBounds.mWest = Mercator::xToLon(mCenterX + (pBoxels.mLeft - tMidX) / tWorld);
     tBounds.mEast = Mercator::xToLon(mCenterX + (pBoxels.mRight - tMidX) / tWorld);

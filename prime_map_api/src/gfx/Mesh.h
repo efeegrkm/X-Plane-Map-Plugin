@@ -1,5 +1,4 @@
-// Cizilecek seklin CPU'daki hali (renkli ucgen listesi); openGL'den bagimsiz,
-// testlerde denenir. Neden ucgen: glLineWidth guvenilir degil. Birimler: boxel.
+// Cizilecek seklin islemcideki hali: renkli ucgenlerden cizgi, daire ve cerceve.
 #ifndef PRIME_MAP_SRC_GFX_MESH_H
 #define PRIME_MAP_SRC_GFX_MESH_H
 
@@ -10,7 +9,6 @@
 
 namespace Gfx
 {
-
 using Point = PointF;
 
 struct ColorVertex
@@ -20,7 +18,6 @@ struct ColorVertex
     Rgba mColor;
 };
 
-// u, v: doku koordinati 0..1
 struct TexturedVertex
 {
     float mX = 0.0f;
@@ -39,20 +36,17 @@ public:
     const std::vector<ColorVertex>& vertices() const;
 
     void addTriangle(const Point& pA, const Point& pB, const Point& pC, const Rgba& pColor);
-    // koseler cevre boyunca sirayla
     void addQuad(const Point& pA, const Point& pB, const Point& pC, const Point& pD, const Rgba& pColor);
     void addRect(const RectD& pRect, const Rgba& pColor);
     void addDisc(const Point& pCenter, float pRadius, const Rgba& pColor);
     void addIndexed(const std::vector<Point>& pPoints, const std::vector<int>& pIndices, const Rgba& pColor);
 
     void addLine(const Point& pFrom, const Point& pTo, float pWidth, const Rgba& pColor);
-    // Koseler bevel birlestirilir (sivri acida tasmaz); pClosed son noktayi ilkine baglar.
     void addPolyline(const std::vector<Point>& pPoints, bool pClosed, float pWidth, const Rgba& pColor);
     void addDashedLine(const Point& pFrom, const Point& pTo, float pWidth, float pDash, float pGap,
                        const Rgba& pColor);
     void addFrame(const RectD& pRect, float pWidth, const Rgba& pColor);
     void addRing(const Point& pCenter, float pRadius, float pWidth, const Rgba& pColor);
-    // pStartDeg: ilk kosenin acisi (0 = sag, 90 = yukari)
     void addRegularPolygon(const Point& pCenter, float pRadius, int pSides, float pStartDeg, float pWidth,
                            const Rgba& pColor);
     void addDottedCircle(const Point& pCenter, float pRadius, int pCount, float pDotSize, const Rgba& pColor);
@@ -65,8 +59,6 @@ private:
     std::vector<ColorVertex> mVertices;
 };
 
-// Once TUM konturlar, sonra TUM renkli cizgiler cizilir; boylece bir cizginin
-// konturu digerinin ustune binmez.
 class OutlinedLines
 {
 public:
@@ -93,6 +85,5 @@ private:
     Mesh mOutline;
     Mesh mFill;
 };
-
 }
-#endif  // PRIME_MAP_SRC_GFX_MESH_H
+#endif

@@ -7,29 +7,26 @@
 
 namespace
 {
+const int kLzmaLevel = 4;
+const unsigned kLzmaDictionary = 1u << 22;
+const size_t kPropsSize = LZMA_PROPS_SIZE;
+const size_t kHeaderSize = kPropsSize + 4;
 
-const int kLzmaLevel = 4;                 // 0..9; 4 = orta (hiz oncelikli, 5 SDK varsayilani)
-const unsigned kLzmaDictionary = 1u << 22;  // 4 MB: bir karonun butun verisi (2,9 MB) sigar
-const size_t kPropsSize = LZMA_PROPS_SIZE;  // 5
-const size_t kHeaderSize = kPropsSize + 4;  // ozellikler + ham boyut
-
-void* lzmaAlloc(ISzAllocPtr /*pAllocator*/, size_t pSize)
+void* lzmaAlloc(ISzAllocPtr , size_t pSize)
 {
     return std::malloc(pSize);
 }
 
-void lzmaFree(ISzAllocPtr /*pAllocator*/, void* pAddress)
+void lzmaFree(ISzAllocPtr , void* pAddress)
 {
     std::free(pAddress);
 }
 
 const ISzAlloc kAllocator = {lzmaAlloc, lzmaFree};
-
-}  // namespace
+}
 
 namespace ElevationCodec
 {
-
 bool packBytes(const std::vector<uint8_t>& pBytes, std::vector<uint8_t>* pOut)
 {
     CLzmaEncProps tProps;
@@ -88,7 +85,6 @@ bool compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std:
         return false;
     }
 
-    // 1-2) Satir ici fark, bayt duzlemlerine ayrilmis: [dusuk baytlar ... | yuksek baytlar ...]
     std::vector<uint8_t> tPlanes(tCount * 2);
     for (int tRow = 0; tRow < pHeight; ++tRow)
     {
@@ -104,13 +100,11 @@ bool compress(const std::vector<int16_t>& pValues, int pWidth, int pHeight, std:
         }
     }
 
-    // 3) LZMA
     CLzmaEncProps tProps;
     LzmaEncProps_Init(&tProps);
     tProps.level = kLzmaLevel;
     tProps.dictSize = kLzmaDictionary;
     tProps.numThreads = 1;
-    // Sikismayan veri biraz buyuyebilir: ham boyut + %5 + 64 KB yeter (SDK onerisi)
     SizeT tDestinationSize = tPlanes.size() + tPlanes.size() / 20 + (1 << 16);
     pOut->assign(kHeaderSize + tDestinationSize, 0);
     SizeT tPropsSize = kPropsSize;
@@ -144,7 +138,7 @@ bool decompress(const uint8_t* pData, size_t pSize, int pWidth, int pHeight, std
     }
     if (tRawSize != tCount * 2)
     {
-        return false;  // baska boyutta bir izgara: bozuk ya da eski dosya
+        return false;
     }
 
     std::vector<uint8_t> tPlanes(tRawSize);
@@ -153,13 +147,11 @@ bool decompress(const uint8_t* pData, size_t pSize, int pWidth, int pHeight, std
     ELzmaStatus tStatus = LZMA_STATUS_NOT_SPECIFIED;
     const SRes tResult = LzmaDecode(tPlanes.data(), &tDestinationSize, pData + kHeaderSize, &tSourceSize, pData,
                                     static_cast<unsigned>(kPropsSize), LZMA_FINISH_END, &tStatus, &kAllocator);
-    // Bitis isareti yazilmadi: veri tam ham boyutta biter (LZMA_STATUS_MAYBE_FINISHED_WITHOUT_MARK)
     if (tResult != SZ_OK || tDestinationSize != tRawSize)
     {
         return false;
     }
 
-    // Farklari geri topla
     pOut->resize(tCount);
     for (int tRow = 0; tRow < pHeight; ++tRow)
     {
@@ -174,5 +166,4 @@ bool decompress(const uint8_t* pData, size_t pSize, int pWidth, int pHeight, std
     }
     return true;
 }
-
-}  // namespace ElevationCodec
+}

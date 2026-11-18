@@ -6,14 +6,11 @@
 
 namespace
 {
-
-// Izgara araliklari (derece), kucukten buyuge
 const auto kGridSteps = std::to_array<double>({
     0.5 / 60.0, 1.0 / 60.0, 2.0 / 60.0, 5.0 / 60.0, 10.0 / 60.0, 20.0 / 60.0, 30.0 / 60.0,
     1.0,        2.0,        5.0,        10.0,       20.0,        30.0,
 });
-
-}  // namespace
+}
 
 std::string formatLatLon(const LatLon& pPoint)
 {
@@ -33,7 +30,6 @@ std::string formatGridLabel(double pDegrees, bool pIsLatitude, double pStepDegre
         tHemisphere = pDegrees >= 0 ? 'E' : 'W';
     }
 
-    // Dakikanin 1/10'una yuvarla (kayan nokta hatasi 29.9999 gibi gorunmesin)
     const double tTenthsOfMinute = std::floor(std::fabs(pDegrees) * 600.0 + 0.5);
     const int tWholeDegrees = static_cast<int>(tTenthsOfMinute / 600.0);
     const double tMinutes = (tTenthsOfMinute - tWholeDegrees * 600.0) / 10.0;
@@ -68,7 +64,6 @@ double chooseScaleBarNm(double pNmPerBoxel, double pMaxBoxels)
         return 0.0;
     }
     const double tMaxNm = pNmPerBoxel * pMaxBoxels;
-    // tMaxNm'den kucuk en buyuk 1/2/5 x 10^n
     const double tPower = std::pow(10.0, std::floor(std::log10(tMaxNm)));
     const std::array<double, 3> tMultipliers = {5.0, 2.0, 1.0};
     for (double tMultiplier : tMultipliers)

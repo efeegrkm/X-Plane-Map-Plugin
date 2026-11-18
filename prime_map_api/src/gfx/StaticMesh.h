@@ -1,5 +1,4 @@
-// GPU'da KALICI sekil: Mercator koordinatlari bir kez yuklenir; kaydirma/zoom
-// sadece iki uniform ile GPU'da yapilir (her karede yeniden gonderme FPS dusurur).
+// GPU'da kalici sekil; kaydirma ve olcek her karede yalnizca uniform ile verilir.
 #ifndef PRIME_MAP_SRC_GFX_STATICMESH_H
 #define PRIME_MAP_SRC_GFX_STATICMESH_H
 
@@ -10,11 +9,10 @@
 
 namespace Gfx
 {
-
 enum class Primitive
 {
     Triangles,
-    Lines,  // 1 piksel
+    Lines,
 };
 
 class StaticMesh
@@ -28,24 +26,20 @@ public:
     StaticMesh(const StaticMesh&) = delete;
     StaticMesh& operator=(const StaticMesh&) = delete;
 
-    // openGL baglami etkinken, ana thread'de
     void upload(const std::vector<ColorVertex>& pVertices, Primitive pPrimitive);
 
     bool isEmpty() const;
     int vertexCount() const;
     Primitive getPrimitive() const;
-    // VAO su anki baglamda baglanir (pop-out'ta yeniden olusur; buffer
-    // baglamlar arasi paylasildigi icin koseler yeniden yuklenmez).
     void bindVertexArray() const;
 
 private:
     void release();
 
-    mutable ContextVertexArray mArray;  // baglam basina; cizerken tembel olusturulur
+    mutable ContextVertexArray mArray;
     unsigned int mBuffer = 0;
     int mCount = 0;
     Primitive mPrimitive = Primitive::Triangles;
 };
-
 }
-#endif  // PRIME_MAP_SRC_GFX_STATICMESH_H
+#endif

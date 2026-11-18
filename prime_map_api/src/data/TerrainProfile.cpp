@@ -5,10 +5,8 @@
 
 namespace TerrainProfile
 {
-
 namespace
 {
-
 const std::array<const char*, static_cast<size_t>(Stage::Count)> kNames = {
     "dsf_unpack", "dsf_triangles", "dsf_vectors", "overlays",   "fill_areas",    "cache_save",
     "elev_build", "elev_pack",     "load_raster", "load_elev",  "load_vectors",  "triangles",
@@ -22,8 +20,7 @@ struct Totals
 };
 
 thread_local Totals gTotals;
-
-}  // namespace
+}
 
 void add(Stage pStage, double pMilliseconds)
 {
@@ -58,5 +55,4 @@ ScopedStage::~ScopedStage()
 {
     add(mStage, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - mStart).count());
 }
-
-}  // namespace TerrainProfile
+}

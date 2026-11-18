@@ -8,8 +8,6 @@
 
 namespace
 {
-
-// Yazinin kapladigi kutu (biraz pay ile): seyreltme bu kutuyla yapilir
 RectD textBox(int pTextX, int pBaseY, int pWidth, int pHeight)
 {
     RectD tBox;
@@ -19,12 +17,10 @@ RectD textBox(int pTextX, int pBaseY, int pWidth, int pHeight)
     tBox.mTop = pBaseY + pHeight + 1;
     return tBox;
 }
-
 }
 
 namespace XMapSymbols
 {
-
 bool drawLabelNear(LabelPlacer& pPlacer, float pX, float pY, float pGap, std::string_view pText,
                    const Rgba& pColor, const Rgba& pShadow)
 {
@@ -59,5 +55,4 @@ bool drawLabelCentered(LabelPlacer& pPlacer, float pX, float pY, std::string_vie
     Ui::textShadowed(tTextX, tBaseY, pText, pColor, pShadow);
     return true;
 }
-
 }

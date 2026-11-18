@@ -13,10 +13,9 @@
 
 namespace
 {
-
 namespace Fs = std::filesystem;
 
-const int kMaxMipSide = 64;  // bu kenardan kucuk ilk mip seviyesi okunur (birkac KB)
+const int kMaxMipSide = 64;
 const char* kTerrainFolder = "Resources/default scenery/1000 world terrain/terrain10";
 
 uint32_t u32At(const uint8_t* pData)
@@ -25,7 +24,6 @@ uint32_t u32At(const uint8_t* pData)
            (static_cast<uint32_t>(pData[2]) << 16) | (static_cast<uint32_t>(pData[3]) << 24);
 }
 
-// RGB565 -> 8 bit kanallar
 void expand565(uint16_t pValue, int pRgb[3])
 {
     pRgb[0] = ((pValue >> 11) & 31) * 255 / 31;
@@ -33,7 +31,6 @@ void expand565(uint16_t pValue, int pRgb[3])
     pRgb[2] = (pValue & 31) * 255 / 31;
 }
 
-// DXT renk blogu (8 bayt): 4x4 pikselin renklerini toplar. pFourColor: DXT3/5 her zaman 4 renk
 void addColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long long* pCount)
 {
     const uint16_t tC0 = static_cast<uint16_t>(pBlock[0] | (pBlock[1] << 8));
@@ -52,7 +49,7 @@ void addColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long 
         else
         {
             tPalette[2][tChannel] = (tPalette[0][tChannel] + tPalette[1][tChannel]) / 2;
-            tPalette[3][tChannel] = 0;  // DXT1 3 renk modu: 3 = saydam (sayilmaz)
+            tPalette[3][tChannel] = 0;
         }
     }
     const uint32_t tIndices = u32At(pBlock + 4);
@@ -71,7 +68,6 @@ void addColorBlock(const uint8_t* pBlock, bool pFourColor, double pSum[3], long 
     }
 }
 
-// .ter dosyasindan BASE_TEX yolu (dosyanin klasorune gore); yoksa bos
 std::string baseTexture(const Fs::path& pTerPath)
 {
     std::ifstream tFile(pTerPath);
@@ -89,8 +85,7 @@ std::string baseTexture(const Fs::path& pTerPath)
     }
     return "";
 }
-
-}  // namespace
+}
 
 bool averageDdsColor(const std::string& pPath, TerrainColor* pOut)
 {
@@ -107,7 +102,7 @@ bool averageDdsColor(const std::string& pPath, TerrainColor* pOut)
     const bool tFourCc = (tFormatFlags & 0x4) != 0;
     const std::string tCode(reinterpret_cast<const char*>(tHeader + 84), 4);
     const int tBitCount = static_cast<int>(u32At(tHeader + 88));
-    int tBlockBytes = 0;  // 0: sikistirmasiz 32 bit
+    int tBlockBytes = 0;
     if (tFourCc)
     {
         tBlockBytes = (tCode == "DXT1") ? 8 : ((tCode == "DXT3" || tCode == "DXT5") ? 16 : -1);
@@ -120,7 +115,6 @@ bool averageDdsColor(const std::string& pPath, TerrainColor* pOut)
     {
         return false;
     }
-    // Mip zinciri: ilk kenari kMaxMipSide'dan kucuk seviyeyi bul, ondan oncekilerin boyutunu atla
     auto tLevelBytes = [&](int pWidth, int pHeight)
     {
         if (tBlockBytes > 0)
@@ -148,7 +142,7 @@ bool averageDdsColor(const std::string& pPath, TerrainColor* pOut)
     long long tCount = 0;
     if (tBlockBytes > 0)
     {
-        const size_t tColorOffset = (tBlockBytes == 16) ? 8 : 0;  // DXT3/5: once 8 bayt alfa
+        const size_t tColorOffset = (tBlockBytes == 16) ? 8 : 0;
         for (size_t tBlock = 0; tBlock + tBlockBytes <= tData.size(); tBlock += tBlockBytes)
         {
             addColorBlock(tData.data() + tBlock + tColorOffset, tBlockBytes == 16, tSum, &tCount);
@@ -158,7 +152,7 @@ bool averageDdsColor(const std::string& pPath, TerrainColor* pOut)
     {
         for (size_t tPixel = 0; tPixel + 4 <= tData.size(); tPixel += 4)
         {
-            tSum[0] += tData[tPixel + 2];  // BGRA
+            tSum[0] += tData[tPixel + 2];
             tSum[1] += tData[tPixel + 1];
             tSum[2] += tData[tPixel];
             ++tCount;
@@ -195,7 +189,6 @@ bool loadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::strin
     }
     const std::string tKey = std::format("xplane-palette-v1|{}|{}", tTerFiles.size(), tTotalSize);
 
-    // Onbellek: "anahtar" satiri + sinif basina "indeks sayi R G B"
     if (!pCachePath.empty())
     {
         std::ifstream tCache(pCachePath);
@@ -237,7 +230,7 @@ bool loadXPlaneClassColors(const std::string& pXPlaneDirectory, const std::strin
         TerrainColor tColor;
         if (tTexture.empty() || !averageDdsColor(tTexture, &tColor))
         {
-            continue;  // PNG / bilinmeyen bicim: sayilmaz
+            continue;
         }
         const int tIndex = static_cast<int>(tClass);
         tSums[tIndex][0] += tColor.mR;

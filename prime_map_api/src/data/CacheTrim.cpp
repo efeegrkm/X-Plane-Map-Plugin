@@ -9,22 +9,18 @@
 
 namespace
 {
-
 namespace fs = std::filesystem;
 
-// Silme durunca toplam bu orana iner (sinirin hemen altinda her karoda yeniden silinmesin)
 const double kTrimTarget = 0.9;
-// Bundan eski .tmp dosyalari cokerkenden kalmis sayilir ve silinir (canli yazimlar: saniyeler)
 const auto kStaleTempAge = std::chrono::hours(1);
 
 struct TileFiles
 {
     std::vector<fs::path> mPaths;
     uint64_t mBytes = 0;
-    fs::file_time_type mNewest = fs::file_time_type::min();  // karonun en son kullanilan dosyasi
+    fs::file_time_type mNewest = fs::file_time_type::min();
 };
 
-// "+47-123" bicimi mi (SceneryIndex::TileName)
 bool isTileStem(const std::string& pStem)
 {
     if (pStem.size() != 7)
@@ -42,8 +38,7 @@ bool isTileStem(const std::string& pStem)
     }
     return true;
 }
-
-}  // namespace
+}
 
 void touchCacheFile(const std::string& pPath)
 {
@@ -64,7 +59,6 @@ CacheTrimResult trimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
         {
             continue;
         }
-        // Cokerkenden kalan gecici dosya: 1 saatten eski .tmp'ler silinir (canli yazimlar dokunulmaz)
         const std::string tFilename = tIterator->path().filename().string();
         if (tFilename.size() > 4 && tFilename.compare(tFilename.size() - 4, 4, ".tmp") == 0)
         {
@@ -85,7 +79,6 @@ CacheTrimResult trimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
             }
             continue;
         }
-        // Sadece karo adli dosyalar ("+47-123.<uzanti>")
         const std::string tStem = tIterator->path().stem().string();
         if (!isTileStem(tStem))
         {
@@ -117,7 +110,7 @@ CacheTrimResult trimTileCache(const std::string& pDirectory, uint64_t pMaxBytes)
     std::sort(tOrder.begin(), tOrder.end(),
               [](const TileFiles* pFirst, const TileFiles* pSecond)
               {
-                  return pFirst->mNewest < pSecond->mNewest;  // en eski once
+                  return pFirst->mNewest < pSecond->mNewest;
               });
     const uint64_t tTarget = static_cast<uint64_t>(static_cast<double>(pMaxBytes) * kTrimTarget);
     uint64_t tRemaining = tResult.mTotalBytes;

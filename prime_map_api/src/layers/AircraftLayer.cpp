@@ -11,9 +11,8 @@
 
 namespace
 {
-
 const double kPi = 3.14159265358979323846;
-const float kSymbolScale = 1.1f;     // sembol birimi -> boxel
+const float kSymbolScale = 1.1f;
 const float kHeadingLineLength = 40.0f;
 const Rgba kFillColor = {1.0f, 0.85f, 0.1f, 1.0f};
 const Rgba kHeadingColor = {1.0f, 0.85f, 0.1f, 0.8f};
@@ -25,15 +24,12 @@ struct Vertex
     float mY;
 };
 
-// Ucak silueti, burun yukarida (+y). Birim: yaklasik 1 boxel.
-// Disaridaki koyu kontur bu sirayla cizilir (saat yonunde).
 const auto kOutline = std::to_array<Vertex>({
     {0.0f, 14.0f},  {1.6f, 11.0f},  {1.6f, 4.0f},    {12.0f, -1.0f},   {12.0f, -3.5f},  {1.6f, -1.0f},
     {1.6f, -8.0f},  {5.5f, -11.0f}, {5.5f, -13.0f},  {0.0f, -12.0f},   {-5.5f, -13.0f}, {-5.5f, -11.0f},
     {-1.6f, -8.0f}, {-1.6f, -1.0f}, {-12.0f, -3.5f}, {-12.0f, -1.0f},  {-1.6f, 4.0f},   {-1.6f, 11.0f},
 });
 
-// Ayni siluetin ucgenleri (dolgu). Her satir bir ucgen.
 const auto kFill = std::to_array<Vertex>({
     {0.0f, 14.0f}, {1.6f, 11.0f}, {-1.6f, 11.0f},
     {-1.6f, 11.0f}, {1.6f, 11.0f}, {1.6f, -8.0f},
@@ -49,9 +45,6 @@ const auto kFill = std::to_array<Vertex>({
     {-1.6f, -8.0f}, {0.0f, -12.0f}, {-5.5f, -13.0f},
 });
 
-// Sembol noktasini burun yonune dondurup ekrandaki yerine tasir.
-// Yon saat yonunde, kuzeyden (0 = kuzey, 90 = dogu); Mercator acilari
-// korudugu icin gercek yon dogrudan kullanilir.
 class SymbolTransform
 {
 public:
@@ -74,7 +67,6 @@ private:
     float mSin;
     float mCos;
 };
-
 }
 
 AircraftLayer::AircraftLayer(const AircraftData& pAircraft)
@@ -94,7 +86,6 @@ void AircraftLayer::draw(const drawContext& pContext)
     const PointF tCenter = pContext.mView->toScreen(tState.mPosition);
     const SymbolTransform tTransform(tCenter, tState.mHeadingDeg);
 
-    // Etiketler ucagin ustune yazilmasin
     if (pContext.mLabels)
     {
         const double tHalf = 16.0 * kSymbolScale;
@@ -111,7 +102,6 @@ void AircraftLayer::draw(const drawContext& pContext)
     tMesh.addLine(tTransform.apply({0.0f, 14.0f}), tTransform.apply({0.0f, 14.0f + kHeadingLineLength}), 2.0f,
                   kHeadingColor);
 
-    // Koyu kontur (her zemin renginde okunur kalsin), ustune sari dolgu
     std::vector<PointF> tOutline;
     for (const Vertex& tVertex : kOutline)
     {

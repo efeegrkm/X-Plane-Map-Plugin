@@ -6,14 +6,12 @@
 
 namespace
 {
-
 const int kPadding = 8;
 const int kTitleHeight = 20;
 const int kRowHeight = 22;
 const int kBoxSize = 14;
 const int kMinWidth = 130;
-
-}  // namespace
+}
 
 bool ModePanel::isOpen() const
 {

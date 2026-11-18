@@ -9,7 +9,6 @@
 
 namespace
 {
-
 const int kPadding = 8;
 const int kTitleHeight = 20;
 const int kInputHeight = 22;
@@ -17,9 +16,8 @@ const int kRowHeight = 20;
 const int kWidth = 320;
 const int kMaxResults = 8;
 const size_t kMaxQueryLength = 40;
-const int kIdColumn = 52;  // kimlik sutununun genisligi (ad bunun saginda)
-
-}  // namespace
+const int kIdColumn = 52;
+}
 
 AirportSearchPanel::AirportSearchPanel(const AirportGeometryStore& pAirports)
     : mAirports(pAirports)
@@ -49,7 +47,6 @@ void AirportSearchPanel::toggle()
 
 void AirportSearchPanel::layout(const RectI& pAnchor)
 {
-    // Sonuc yoksa da bir satirlik yer (bilgi yazisi)
     const int tRows = std::max(1, static_cast<int>(mResults.size()));
     mRect.mLeft = pAnchor.mLeft;
     mRect.mRight = pAnchor.mLeft + kWidth;
@@ -87,7 +84,6 @@ void AirportSearchPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bo
     Ui::frameRect(pCanvas, mRect, Ui::kBorder);
     Ui::text(mRect.mLeft + kPadding, mRect.mTop - kPadding - 12, "GO TO AIRPORT", Ui::kTextGrey);
 
-    // Yazi kutusu: odak bizdeyse acik mavi cerceve ve yanip sonen imlec
     const RectI tInput = inputRect();
     Ui::fillRect(pCanvas, tInput, Ui::kButton);
     Ui::frameRect(pCanvas, tInput, pFocused ? Ui::kButtonActiveBorder : Ui::kBorder);
@@ -130,7 +126,6 @@ void AirportSearchPanel::draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bo
         const AirportGeometry& tAirport = mAirports.at(mResults[tIndex]);
         const int tY = tRow.mBottom + tRowTextOffset;
         Ui::text(tRow.mLeft + 4, tY, tAirport.mId, Ui::kTextWhite);
-        // Ad: satira sigmazsa sondan kisaltilir
         std::string tName = tAirport.mName;
         const int tNameWidth = tRow.width() - kIdColumn - 8;
         while (!tName.empty() && Ui::textWidth(tName) > tNameWidth)

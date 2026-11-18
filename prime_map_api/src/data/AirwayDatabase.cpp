@@ -11,13 +11,11 @@
 
 namespace
 {
-
 const int kTypeNdb = 2;
 const int kTypeVhf = 3;
 const int kTypeFix = 11;
-const int kMaxCellsPerSegment = 400;  // cok uzun segmentler (okyanus asiri) icin ust sinir
+const int kMaxCellsPerSegment = 400;
 
-// Nav kaydinin hava yolu dosyasindaki tur koduna uyup uymadigi
 bool kindMatches(NavKind pKind, int pType)
 {
     switch (pType)
@@ -33,7 +31,6 @@ bool kindMatches(NavKind pKind, int pType)
     }
 }
 
-// Kimlik -> nav kayitlari (fix, NDB, VOR, DME); uc nokta aramak icin
 class EndpointIndex
 {
 public:
@@ -50,7 +47,6 @@ public:
         }
     }
 
-    // Iki ucun adaylari arasindan birbirine en yakin cifti secer
     bool resolve(const AirwayLine& pLine, LatLon* pOutFrom, LatLon* pOutTo) const
     {
         const auto tFromRange = mById.equal_range(pLine.mFromId);
@@ -90,8 +86,7 @@ private:
     const NavDatabase& mNav;
     std::unordered_multimap<std::string, int> mById;
 };
-
-}  // namespace
+}
 
 bool AirwayDatabase::parseLine(const std::string& pLine, AirwayLine* pOut)
 {
@@ -141,7 +136,7 @@ bool AirwayDatabase::loadFile(const std::string& pPath, const NavDatabase& pNav,
         AirwaySegment tSegment;
         if (!tIndex.resolve(tParsed, &tSegment.mFrom, &tSegment.mTo))
         {
-            ++tUnresolved;  // uc nokta nav verisinde yok (farkli AIRAC dongusu vb.)
+            ++tUnresolved;
             continue;
         }
         tSegment.mHigh = tParsed.mLevel == 2;
@@ -158,7 +153,6 @@ bool AirwayDatabase::loadFile(const std::string& pPath, const NavDatabase& pNav,
 
 void AirwayDatabase::buildGrid()
 {
-    // Her segmenti, kapsayan kutusunun degdigi her 1x1 derece hucreye koy
     std::vector<GridItem> tItems;
     for (int tIndex = 0; tIndex < count(); ++tIndex)
     {
@@ -167,7 +161,6 @@ void AirwayDatabase::buildGrid()
         double tEast = std::fmax(tSegment.mFrom.mLon, tSegment.mTo.mLon);
         if (tEast - tWest > 180.0)
         {
-            // 180. boylami geciyor: iki ucun hucresine koymak yeterli (nadir)
             tItems.push_back({static_cast<uint32_t>(tIndex), static_cast<float>(tSegment.mFrom.mLat),
                               static_cast<float>(tSegment.mFrom.mLon)});
             tItems.push_back({static_cast<uint32_t>(tIndex), static_cast<float>(tSegment.mTo.mLat),
@@ -199,7 +192,6 @@ void AirwayDatabase::startLoading(const std::vector<std::string>& pPaths, const 
     mJob.start(
         [this, pPaths, &pNav]()
         {
-            // ARKA PLAN THREAD'i: XPLM yok; sonuc mSegments/mGrid/mReport'a yazilir
             for (const std::string& tPath : pPaths)
             {
                 if (loadFile(tPath, pNav, mJob.cancelFlag(), &mReport))

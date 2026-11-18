@@ -11,14 +11,13 @@
 
 namespace
 {
-
 const double kLabelMinZoom = 11.5;
 const double kOverrunMinZoom = 12.0;
 const double kMarkingMinZoom = 13.0;
-const double kQueryMarginDeg = 0.1;   // havalimani merkezinden pist ucuna ~ birkac km
-const double kEdgeMargin = 40.0;      // boxel
-const float kMinHalfWidth = 1.0f;     // cok uzaktan bakinca bile pist 2 boxel gorunsun
-const float kEdgeWidth = 2.0f;        // pist kenar cizgisi (boxel): kritik cizgi, 2 piksel
+const double kQueryMarginDeg = 0.1;
+const double kEdgeMargin = 40.0;
+const float kMinHalfWidth = 1.0f;
+const float kEdgeWidth = 2.0f;
 
 enum RunwayPart
 {
@@ -38,12 +37,12 @@ int partOf(const Runway& pRunway)
     }
     return pRunway.mSurface == RunwaySurface::Paved ? kPartPaved : kPartUnpaved;
 }
-const float kMinLength = 3.0f;        // bundan kisa pist cizilmez (havalimani simgesi yeter)
-const float kLabelGap = 10.0f;        // pist numarasinin uctan uzakligi (boxel)
-const double kDashMeters = 30.0;      // orta hat kesik uzunlugu (gercek pistlerde ~36 m)
+const float kMinLength = 3.0f;
+const float kLabelGap = 10.0f;
+const double kDashMeters = 30.0;
 
-const Rgba kPavedColor = {0.22f, 0.23f, 0.26f, 1.0f};    // koyu asfalt: zemin renklerinden ayrilsin
-const Rgba kUnpavedColor = {0.52f, 0.44f, 0.30f, 1.0f};  // toprak/cim pist: kahverengimsi
+const Rgba kPavedColor = {0.22f, 0.23f, 0.26f, 1.0f};
+const Rgba kUnpavedColor = {0.52f, 0.44f, 0.30f, 1.0f};
 const Rgba kWaterColor = {0.30f, 0.50f, 0.80f, 0.85f};
 const Rgba kSnowColor = {0.85f, 0.88f, 0.92f, 1.0f};
 const Rgba kOverrunColor = {0.33f, 0.34f, 0.37f, 1.0f};
@@ -63,7 +62,6 @@ const Rgba& surfaceColor(RunwaySurface pSurface)
             return kPavedColor;
     }
 }
-
 }
 
 RunwayLayer::RunwayLayer(const AirportGeometryStore& pStore)
@@ -82,7 +80,7 @@ void RunwayLayer::collectVisible(const drawContext& pContext)
 {
     mVisible.clear();
     const XMapView& tView = *pContext.mView;
-    if (!mStore.isReady() || !isInZoomRange())  // yerlesik esik 11.0 (LayerTable tablosu)
+    if (!mStore.isReady() || !isInZoomRange())
     {
         return;
     }
@@ -107,7 +105,7 @@ void RunwayLayer::collectVisible(const drawContext& pContext)
         {
             if (!isSubLayerDrawn(partOf(tRunway)))
             {
-                continue;  // bu tur pist (kara / su) panelden kapatildi
+                continue;
             }
             ScreenRunway tScreen;
             tScreen.mRunway = &tRunway;
@@ -125,7 +123,6 @@ void RunwayLayer::collectVisible(const drawContext& pContext)
                 continue;
             }
 
-            // Ekranda gorunuyor mu (pistin kapsayan kutusu alana degiyor mu)
             const float tMinX = std::fmin(tScreen.mEndX[0], tScreen.mEndX[1]);
             const float tMaxX = std::fmax(tScreen.mEndX[0], tScreen.mEndX[1]);
             const float tMinY = std::fmin(tScreen.mEndY[0], tScreen.mEndY[1]);
@@ -149,7 +146,6 @@ void RunwayLayer::collectVisible(const drawContext& pContext)
 void RunwayLayer::addRectangle(Gfx::Mesh& pMesh, const ScreenRunway& pRunway, float pFrom, float pTo,
                                float pHalfWidth, const Rgba& pColor)
 {
-    // Normal: pist yonunun 90 derece dondurulmusu
     const float tNormalX = -pRunway.mDirY * pHalfWidth;
     const float tNormalY = pRunway.mDirX * pHalfWidth;
     const float tStartX = pRunway.mEndX[0] + pRunway.mDirX * pFrom;
@@ -170,7 +166,6 @@ void RunwayLayer::draw(const drawContext& pContext)
     const double tZoom = pContext.mView->zoom();
     Gfx::Mesh tMesh;
 
-    // Blast pad / overrun: pistin iki ucundan disari
     if (tZoom >= kOverrunMinZoom && isSubLayerDrawn(kPartOverruns))
     {
         for (const ScreenRunway& tRunway : mVisible)
@@ -189,10 +184,6 @@ void RunwayLayer::draw(const drawContext& pContext)
         }
     }
 
-    // Once TUM pistlerin acik kenari, sonra TUM yuzeyler: kesisen pistlerde
-    // birinin kenari digerinin yuzeyini cizmesin
-    // Kenar rengi temadan (Scenery/VFR acik, IFR koyu). Uzaktan gorunen ince
-    // pist: koyu zeminde acik cizgi, acik zeminde (VFR/IFR) koyu cizgi.
     const XMapTheme& tTheme = *pContext.mTheme;
     const Rgba& tEdgeColor = tTheme.mRunwayEdge;
     for (const ScreenRunway& tRunway : mVisible)
@@ -207,7 +198,6 @@ void RunwayLayer::draw(const drawContext& pContext)
     {
         if (tRunway.mRunway->mSurface != RunwaySurface::Transparent)
         {
-            // uzaktan(cok dar) pist: koyu dolgu gorunmez, acik renkli cizgi olarak ciz
             const bool tThin = tRunway.mHalfWidth < 2.0f;
             addRectangle(tMesh, tRunway, 0.0f, tRunway.mLength, tRunway.mHalfWidth,
                          tThin && !tTheme.mLight ? tEdgeColor : surfaceColor(tRunway.mRunway->mSurface));
@@ -229,16 +219,14 @@ void RunwayLayer::draw(const drawContext& pContext)
 
 void RunwayLayer::addMarkings(Gfx::Mesh& pMesh, const ScreenRunway& pRunway)
 {
-    // Esikler: kaydirilmis esik varsa uctan o kadar iceride
     const float tThreshold0 = static_cast<float>(pRunway.mRunway->mEnds[0].mDisplacedThresholdM) *
                               pRunway.mBoxelsPerMeter;
     const float tThreshold1 = pRunway.mLength - static_cast<float>(pRunway.mRunway->mEnds[1].mDisplacedThresholdM) *
                                                     pRunway.mBoxelsPerMeter;
-    const float tBar = 1.5f;  // esik cizgisinin kalinligi (boxel)
+    const float tBar = 1.5f;
     addRectangle(pMesh, pRunway, tThreshold0, tThreshold0 + tBar, pRunway.mHalfWidth * 0.85f, kMarkingColor);
     addRectangle(pMesh, pRunway, tThreshold1 - tBar, tThreshold1, pRunway.mHalfWidth * 0.85f, kMarkingColor);
 
-    // Orta hat: esikler arasinda kesikli (bosluk = kesik boyu)
     const float tDash = std::fmax(static_cast<float>(kDashMeters) * pRunway.mBoxelsPerMeter, 3.0f);
     const float tLineHalf = std::fmax(pRunway.mHalfWidth * 0.03f, 0.5f);
     for (float tAt = tThreshold0 + tDash; tAt + tDash < tThreshold1 - tDash; tAt += 2.0f * tDash)
@@ -255,7 +243,6 @@ void RunwayLayer::drawLabels(const drawContext& pContext)
     }
     for (const ScreenRunway& tRunway : mVisible)
     {
-        // Uc 0'in numarasi pistin uc 0 tarafinin disinda, uc 1'inki obur tarafta
         for (int tEnd = 0; tEnd < 2; ++tEnd)
         {
             const float tSign = (tEnd == 0) ? -1.0f : 1.0f;
@@ -270,11 +257,10 @@ void RunwayLayer::drawLabels(const drawContext& pContext)
     }
 }
 
-std::string RunwayLayer::describe(const drawContext& /*pContext*/, double pX, double pY) const
+std::string RunwayLayer::describe(const drawContext& , double pX, double pY) const
 {
     for (const ScreenRunway& tRunway : mVisible)
     {
-        // Imlec, pist ekseni koordinatinda: boyuna (0..boy) ve enine (yari genislik)
         const float tDeltaX = static_cast<float>(pX) - tRunway.mEndX[0];
         const float tDeltaY = static_cast<float>(pY) - tRunway.mEndY[0];
         const float tAlong = tDeltaX * tRunway.mDirX + tDeltaY * tRunway.mDirY;

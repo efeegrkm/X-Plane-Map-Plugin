@@ -1,6 +1,4 @@
-// "Go to airport" dugmesinin altinda acilan arama paneli. Ucagin konumuna
-// dokunmaz: sadece haritayi secilen havalimanina goturur. Panel sadece cizer,
-// klavye tuslari XMapWindow'dan gelir.
+// Haritanin kendi arayuzundeki havalimani arama paneli.
 #ifndef PRIME_MAP_SRC_UI_AIRPORTSEARCHPANEL_H
 #define PRIME_MAP_SRC_UI_AIRPORTSEARCHPANEL_H
 
@@ -21,30 +19,26 @@ class AirportSearchPanel
 public:
     struct Hit
     {
-        bool mInside = false;  // panelin ustunde (tiklama haritaya gecmez)
-        bool mInput = false;   // yazi kutusuna tiklandi (klavye odagi alinir)
-        int mAirport = -1;     // tiklanan sonucun AirportGeometryStore indeksi
+        bool mInside = false;
+        bool mInput = false;
+        int mAirport = -1;
     };
 
     explicit AirportSearchPanel(const AirportGeometryStore& pAirports);
 
     bool isOpen() const;
-    void setOpen(bool pOpen);  // kapaninca metin ve sonuclar silinir
+    void setOpen(bool pOpen);
     void toggle();
 
-    // pAnchor: "Go to airport" dugmesi; panel onun altina acilir
     void layout(const RectI& pAnchor);
-    // pFocused: klavye odagi bizde (imlec yanip soner); pNow: saniye (yanip sonme icin)
     void draw(Gfx::Canvas& pCanvas, int pMouseX, int pMouseY, bool pFocused, float pNow) const;
     Hit hitTest(int pX, int pY) const;
 
-    // Klavye (XMapWindow'dan)
-    void typeCharacter(char pChar);  // yazdirilabilir ASCII; digerleri yok sayilir
+    void typeCharacter(char pChar);
     void backspace();
-    void moveSelection(int pDelta);  // +1 asagi, -1 yukari
-    int selectedAirport() const;     // secili sonucun indeksi; sonuc yoksa -1
+    void moveSelection(int pDelta);
+    int selectedAirport() const;
 
-    // Havalimani ozetleri henuz hazir degilken yazilan metin, hazir olunca aranir
     void refresh();
 
 private:
@@ -57,7 +51,7 @@ private:
     std::string mQuery;
     std::vector<int> mResults;
     int mSelected = 0;
-    bool mSearchedWhenReady = false;  // son arama ozetler hazirken mi yapildi
+    bool mSearchedWhenReady = false;
     RectI mRect;
 };
-#endif  // PRIME_MAP_SRC_UI_AIRPORTSEARCHPANEL_H
+#endif

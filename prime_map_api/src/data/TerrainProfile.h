@@ -1,13 +1,4 @@
-// Zemin iscisinin asama sureleri (olcum icin). X-Plane'e bagimli DEGIL.
-// Sureler thread'e ozel (thread_local) toplanir: zemin iscisi, onizleme ve
-// testler birbirini bozmaz, kilit yok. takeReport ozet alir, sayaclar sifirlanir.
-//
-//   tek karo uretimi : DsfUnpack -> DsfTriangles -> DsfVectors -> Overlays
-//                      -> FillAreas -> CacheSave -> ElevationBuild -> ElevationPack
-//   onbellekten      : loadRaster, loadElevation, loadVectors
-//   yakin zoom       : triangles(DSF ucgenleri)
-//   doku             : imageClasses, ImageBlur, imageCoast, imageCompose,
-//                      imageDetail, Bleed
+// Zemin uretim asamalarinin sure olcumu.
 #ifndef PRIME_MAP_SRC_DATA_TERRAINPROFILE_H
 #define PRIME_MAP_SRC_DATA_TERRAINPROFILE_H
 
@@ -16,7 +7,6 @@
 
 namespace TerrainProfile
 {
-
 enum class Stage
 {
     DsfUnpack,
@@ -42,7 +32,6 @@ enum class Stage
 
 void add(Stage pStage, double pMilliseconds);
 
-// "asama adet x ortalama ms (toplam)" satiri; bossa "". Sayaclari sifirlar.
 std::string takeReport();
 
 class ScopedStage
@@ -58,6 +47,5 @@ private:
     Stage mStage;
     std::chrono::steady_clock::time_point mStart;
 };
-
-}  // namespace TerrainProfile
-#endif  // PRIME_MAP_SRC_DATA_TERRAINPROFILE_H
+}
+#endif

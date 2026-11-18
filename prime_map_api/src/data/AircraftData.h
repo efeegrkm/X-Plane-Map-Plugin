@@ -1,5 +1,4 @@
-// Kullanicinin ucaginin konumu ve yonu, X-Plane dataref'lerinden.
-// Ucak katmani, ucus izi ve "ucagi takip et" ayni veriyi buradan okur.
+// Kullanici ucaginin konum, yon, hiz ve irtifasi; X-Plane'den ya da host'tan.
 #ifndef PRIME_MAP_SRC_DATA_AIRCRAFTDATA_H
 #define PRIME_MAP_SRC_DATA_AIRCRAFTDATA_H
 
@@ -9,22 +8,21 @@
 
 struct AircraftState
 {
-    bool mValid = false;        // ucak yuklenmis ve konum anlamli mi
+    bool mValid = false;
     LatLon mPosition = {0.0, 0.0};
-    double mHeadingDeg = 0.0;   // gercek (true) burun yonu, derece
+    double mHeadingDeg = 0.0;
     double mGroundSpeedKt = 0.0;
-    double mAltitudeFt = 0.0;   // deniz seviyesinden
+    double mAltitudeFt = 0.0;
 };
 
 class AircraftData
 {
 public:
-    void init();     // dataref'leri bul (XPluginStart icinde)
-    void refresh();  // dataref'leri oku (ana thread'den, her karede)
+    void init();
+    void refresh();
 
     const AircraftState& state() const;
 
-    // API: ucak durumunu host verir (true) ya da dataref'ler (false, varsayilan)
     void setFromHost(bool pFromHost);
     bool isFromHost() const;
     void setHostState(const AircraftState& pState);
@@ -39,4 +37,4 @@ private:
     AircraftState mHostState;
     bool mFromHost = false;
 };
-#endif  // PRIME_MAP_SRC_DATA_AIRCRAFTDATA_H
+#endif
