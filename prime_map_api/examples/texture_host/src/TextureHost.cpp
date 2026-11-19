@@ -191,7 +191,6 @@ void TextureHost::draw()
     {
         return;
     }
-    // Cizim cagrisina cull face acik girilebilir; dokuyen dortgen back-face sayilip kirpilmasin
     GLboolean tCullWasOn = GL_FALSE;
     glGetBooleanv(GL_CULL_FACE, &tCullWasOn);
     glDisable(GL_CULL_FACE);
