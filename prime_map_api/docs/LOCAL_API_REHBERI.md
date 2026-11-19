@@ -1,9 +1,12 @@
 # Prime XMap API — Sıfırdan Host Eklentisi Rehberi (yerel çalışma notu)
 
 > Bu dosya kişisel çalışma notudur, repoya pushlanmaz (.gitignore'da).
-> Amaç: prime-map-api kütüphanesini 1.0.0 sürümüyle sıfırdan bir X-Plane eklentisine
+> Amaç: prime-map-api kütüphanesini 1.1.0 sürümüyle sıfırdan bir X-Plane eklentisine
 > harita olarak gömmenin tüm adımlarını tek yerde toplamak. Referans örnek:
-> `examples/texture_host/`.
+> `examples/texture_host/`. Sürüm 1.1.0 (1.0.0 numarası eski numaralandırmada
+> kullanıldığı için atlandı); belgeler `docs/tools/` altındaki Markdown
+> kaynaklarından (`PrimeMap_API.md`, `MIMARI.md`, `layer_table.tsv`) `build_docs.py`
+> ile üretilir.
 
 ---
 
@@ -97,8 +100,16 @@ createXMapManager() -> setXxx + initialize() -> addXMap() + setXxx -> xmap->init
 mManager = prime::XMapManagerFactory::createXMapManager();   // kurucu ozel; fabrika zorunlu
 mManager->setLogPrefix("[my-host]");                         // Log.txt satir oneki
 mManager->setDataDirectory(findPluginDirectory());           // ayarlar + onbellek klasoru
+if (!prime::isLibraryVersionMatching()) { /* tek satir WARNING zaten Log'da; istersen kendin denetle */ }
 if (!mManager->initialize()) { /* Log.txt'ye bak */ }
 ```
+
+- `createXMapManager` kasitli olarak INLINE'dir: host'un derleme anındaki sürüm sabitleri
+  host ikilisine işlenir. Derlediğin başlık ile yüklü `prime_map.dll` uyuşmazsa fabrika
+  tek satır WARNING yazar (`host built with X, loaded DLL is Y at <yol>`); kendin görmek
+  için `prime::isLibraryVersionMatching()` (inline, DLL çağrısı gerektirmez), yüklü DLL'in
+  yolunu `prime::libraryPath()` verir. Ready satırı da yolu yazar:
+  `Prime Map API 1.1.0 ready (data: ..., cache: ..., dll: ...)`.
 
 - `setDataDirectory` verilmezse varsayilan `%LOCALAPPDATA%/prime/prime-xmap` kullanilir.
   **Kendi klasorunu ver**: resmi Prime XMap eklentisiyle ayar/onbellek paylasilmasin.
@@ -111,7 +122,7 @@ if (!mManager->initialize()) { /* Log.txt'ye bak */ }
 prime::XMapConfig tConfig;
 tConfig.mName       = "main";                        // ayarlar <veri>/maps/main/
 tConfig.mStyle      = prime::WindowStyle::Texture;   // ONERILEN yol (Embedded/Standalone LEGACY)
-tConfig.mMode       = prime::XMapMode::Vfr;          // Scenery / Vfr / IfrLow / IfrHigh / Dark
+tConfig.mMode       = prime::XMapMode::Dark;         // 1.1.0'da VARSAYILAN Dark; eski gorunum icin Vfr ver
 tConfig.mUiVisible  = true;                          // haritanin kendi seritleri/panelleri dokunun icinde
 tConfig.mMouseInput = true;                          // fare/tekerlek inject* ile gelir
 tConfig.mPersistence = prime::Persistence::LoadAndSave;  // varsayilan: dosya okunur+yazilir
@@ -199,7 +210,7 @@ Kural: `wantsKeyboard()` true iken odagi tut; istemezse birak — yoksa kullanic
 | `mName` | ayar klasoru `maps/<ad>/` (bos = `map_<id>`) |
 | `mPersistence` | `Off` / `SaveOnly` / `LoadAndSave` (varsayilan: oku+yaz) |
 | `mStyle` | `Texture` (onerilen) / `Embedded` / `Standalone` (LEGACY) |
-| `mMode` | `Scenery / Vfr / IfrLow / IfrHigh / Dark` |
+| `mMode` | `Scenery / Vfr / IfrLow / IfrHigh / Dark` (1.1.0'da varsayılan Dark) |
 | `mUiVisible`, `mMouseInput` | kendi UI ve fare durumu |
 | `mImageCache`, `mMaxRenderFps`, `mXPlaneFont` | performans/yazi secenekleri |
 
@@ -265,11 +276,32 @@ mXMap->setIsLayerVisible(prime::XMapLayer::Fixes, true);
 mXMap->showOnlyLayers({prime::XMapLayer::Vor, prime::XMapLayer::Ndb});
 mXMap->resetLayersToDefaults();
 
+// 1.1.0 zoom modeli: butun katmanlarin yerlesik esigi ve olculmus sert alt siniri tek
+// tabloda (engine/LayerTable.cpp kZoomTable). Host'un verdigi aralik yerlesik esigin
+// YERINE GECER: yukari cekmek serbest, asagi cekmek katmanin sert alt sinirina kadar.
+// Altindaki istek sinira kirpilir ve Log'a tek satir uyarı yazilir ("min ... clamped to ...").
 mXMap->setLayerZoomRange(prime::XMapLayer::Fixes, 10.5, 99.0);        // 10.5'ten yakinda cizilir
+mXMap->setLayerZoomRange(prime::XMapLayer::AirwaysLow, 5.0, 99.0);    // yerlesik 6.5 -> sert sinir 5.0'a kadar asagi cekilir
+mXMap->setLayerZoomRange(prime::XMapLayer::Runways, 3.0, 99.0);       // sert sinir 4.0: Log'da "clamped to 4"
 mXMap->setLayerZoomRange(prime::XMapLayer::AirwaysGroup, 8.0, 99.0);  // grup: cocuklara yayilir
+mXMap->setLayerZoomRange(prime::XMapLayer::Fixes, 0.0, 99.0);         // (0, 99): host araligini kaldirir, yerlesik esige doner
+mXMap->clearLayerZoomRange(prime::XMapLayer::Fixes);                  // yukarıdakinin aynisi
+
+double tMin = 0, tMax = 0;
+mXMap->getDefaultLayerZoomRange(prime::XMapLayer::Fixes, &tMin, &tMax);  // yerlesik esik cifti (9, 99)
+mXMap->getLayerHardMinZoom(prime::XMapLayer::Fixes);                     // olculmus sert alt sinir (7)
 
 prime::LayerState st = mXMap->getLayerState(prime::XMapLayer::Runways);  // Off / On / Mixed
 ```
+
+Notlar:
+- Host aralığı `map_settings.json`'un `layer_zoom` bölümünde kalıcıdır; yerleşik değerler
+  saklanmaz (dosyada olmayan katman yerleşik eşiğe döner).
+- `min > max` reddedilir (no-op + uyarı); eşik değişimi maliyetsizdir: çizim kapıları
+  etkin aralıkla çalışır, harita resmi yenilenir.
+- Harita açılmamışken de (host `addXMap` + `initialize` etmeden) kütüphane uçak konumu
+  çevresindeki karoları arka planda yükler; ilk harita açılışı sıcak önbellekle başlar.
+  `setPrefetchTiles(0)` tüm ön yüklemeyi kapatır (Log'da tek satır bilgi yazar).
 
 Hiyerarsi sorgusu (kendi panelini yazarsan): `parentOf`, `childrenOf`, `topLevelLayers`,
 `kindOf`, `layerName`, `layerKey`, `isLayerDefaultVisible(layer, mode)` — hepsi manager'da.
@@ -357,6 +389,9 @@ mXMap->setDiagnostics(true);                      // DIAG satirlari Log.txt'ye
 5. Veri klasorunu host'a ozel ver; baska host ile ayar/onbellek paylasma.
 6. C4251: `/W4` ile `/wd4251` ekle (pragma kullanilmaz).
 7. Tum XPLM pencere callback'lerini doldur (hiçbiri null birakilmamali — SDK istegi).
+8. Sürüm uyuşmazlığı: başlıkları güncelleyip DLL'i güncellemediysen fabrika Log'a
+   `host built with X, loaded DLL is Y at <yol>` yazar; `prime::isLibraryVersionMatching()`
+   ile açılışta kendin de denetleyebilirsin.
 
 ## 14. API hiz basvurusu (konulara gore)
 
@@ -366,7 +401,7 @@ mXMap->setDiagnostics(true);                      // DIAG satirlari Log.txt'ye
 | Görünüm | `setStyle`, `setTitle`, `setGeometry`, `setVisible`, `bringToFront`, `setPoppedOut`, `setIsUiVisible` |
 | Kamera | `setCenter`, `setZoom`, `setZoomLimits`, `zoomIn/Out`, `pan*`, `fitBounds`, `getVisibleBounds`, `getMetersPerBoxel` |
 | Texture | `setTextureSize`, `renderTexture`, `getTextureId/Width/Height`, `injectMouse/Move/Wheel/Key`, `wantsKeyboard` |
-| Katmanlar | `setIsLayerVisible`, `toggleLayer`, `showOnlyLayers`, `getLayerState`, `set/get/clearLayerZoomRange`, `resetLayersToDefaults` |
+| Katmanlar | `setIsLayerVisible`, `toggleLayer`, `showOnlyLayers`, `getLayerState`, `set/get/clearLayerZoomRange`, `getDefaultLayerZoomRange`, `getLayerHardMinZoom`, `resetLayersToDefaults` |
 | Renkler | `setColor/getColor/clearColor/clearAllColors`, `getTerrainSettings`, `setTerrainSettings`, `exportTerrainSettings` |
 | Veri kaynaklari | `setAircraftSource/RouteSource`, `setAircraft`, `setRoute`, `clearTrack` |
 | Cizimler | `setDrawTool`, `addDrawingPoint`, `finishDrawing`, `undoDrawing`, `clearDrawings`, `getShapes`, `removeShape` |
@@ -375,6 +410,8 @@ mXMap->setDiagnostics(true);                      // DIAG satirlari Log.txt'ye
 | Onbellek | `precacheVisibleArea`, `precacheArea`, `cancelPrecache`, `setImageCache`, `setMaxRenderFps`, `setXPlaneFont` |
 | Kalicilik | `saveSettings`, `setPersistence`, `getSettingsDirectory`, `exportSettings`, `importSettings` |
 | Teshis | `setDiagnostics`, `isDiagnosticsOn`, `onRender`, `update` |
+| Surum | `prime::versionString()`, `prime::libraryPath()`, `prime::isLibraryVersionMatching()` |
 
 Kaynak ornek: `examples/texture_host/src/TextureHost.cpp` — en kucuk tam host.
-Detayli arayuz: `PrimeMap.h` + `docs/PrimeMap_API.html`.
+Detayli arayuz: `PrimeMap.h` + `docs/PrimeMap_API.html` (kaynak: `docs/tools/PrimeMap_API.md`,
+uretim: `docs/tools/build_docs.py`, katman tablosu: `docs/tools/layer_table.tsv`).

@@ -13,16 +13,23 @@
 
 - Dort agac (a22=test, e22=texture-host, api22=api-test/preview) /W4 ile temiz derleniyor
   (a22 plugin + map_tests'i de uretir; ev makinesinde a22/e22/api22 + plugin-api-test t22).
-- map_tests: 34.706 kontrol / 0 hata (v1.0.0; 5 kez kosuldu).
-- Surum 1.0.0 (MVP yayini): XMapTypes.h kVersionMajor/Minor/Patch = 1/0/0; api ve eklenti
-  CMakeLists project VERSION 1.0.0; eklenti kVersion CMake'ten (PRIME_MAP_VERSION).
-  Yeni: varsayilan mod Dark; katman zoom esik tablosu (kZoomTable) + host araligi + sert alt
-  sinir (getDefaultLayerZoomRange / getLayerHardMinZoom); haritasiz on yukleme (setPrefetchTiles(0)
-  kapatir); benzersiz gecici dosyali atomik yazim + CacheTrim eski .tmp temizligi;
-  isLibraryVersionMatching / libraryPath / inline createXMapManager (sürüm uyarisi).
-  Belgeler (PrimeMap_API, MIMARI, SRS, CHANGELOG) 1.0.0 icerigiyle yenilendi, PDF'ler yeniden uretildi.
-  X-Plane kabul testleri (SRS bolum 4, test 1-11) bekleniyor; onay gelince SRS durumu
-  "Yayin adayi (1.0.0-rc)" -> "Yayin 1.0.0" yapilir.
+- map_tests: 34.768 kontrol / 0 hata (v1.1.0; 19.11 sabahi dogrulandi).
+- Surum 1.1.0 (MVP yayini): XMapTypes.h kVersionMajor/Minor/Patch = 1/1/0; api ve eklenti
+  CMakeLists project VERSION 1.1.0 (XMapTypes.h ile CMake surumu CMake'te carpraz denetlenir);
+  eklenti kVersion CMake'ten (PRIME_MAP_VERSION). 1.0.0 numarasi eski numaralandirmada
+  kullanildigi icin atlandi.
+  Icerik: varsayilan mod Dark; tum esikler tek tabloda (kZoomTable; VOR/NDB/ILS/fix/hsym
+  dahil) + host araligi + olculmus sert alt sinir (map_preview --bench, Seattle+New York,
+  olcut: katman basina 5 ms; getDefaultLayerZoomRange / getLayerHardMinZoom); haritasiz on
+  yukleme (AircraftData.init hatasi duzeltildi; setPrefetchTiles(0) kapatir); benzersiz
+  gecici dosyali atomik yazim (random_device + steady_clock etiketi, process.h yok) +
+  CacheTrim eski .tmp temizligi; isLibraryVersionMatching / libraryPath / inline
+  createXMapManager (surum uyarisi); stb_truetype ayri object library (D9025 yok);
+  kaynak yorumlari temizlendi; dokuman hatti Markdown kaynakli
+  (docs/tools/{PrimeMap_API.md, MIMARI.md, layer_table.tsv, build_docs.py}).
+  Belgeler (PrimeMap_API, MIMARI, SRS, CHANGELOG) 1.1.0 icerigiyle yenilendi.
+  X-Plane kabul testleri (SRS bolum 4, test 1-14) bekleniyor; onay gelince SRS durumu
+  "Yayin adayi (1.1.0-rc)" -> "Yayin 1.1.0" yapilir.
 - X-Plane 11'e deploy edildi: prime-map-plugin\64 ve plugin-api-test\64 (prime_map.dll +
   win.xpl, 18.11 aksam derlemeleriyle ayni; MAP_DEPLOY X-Plane kapaliyken kopyaladi).
 - #pragma temizligi TAMAM: 90 adet #pragma once -> include guard; C4251 yerine /wd4251 tum
