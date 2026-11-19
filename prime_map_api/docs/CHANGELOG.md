@@ -1,5 +1,13 @@
 # Prime XMap API — Sürüm Notları
 
+## 1.1.1 (2026-11-19)
+
+X-Plane kabul testlerinden dönen iki düzeltme. `map_tests` 34.768 kontrol, 0 hata.
+
+**Düzeltmeler**
+- Ayar dosyasından yüklenen mod, çizime de uygulanıyor. Daha önce panel yeni modu gösterirken çizim eski temada kalıyordu; `applySettings` şimdi temayı da eşitliyor.
+- Texture-host örneği dokuyu basmadan önce `GL_CULL_FACE` durumunu kaydedip kapatıyor ve çizimden sonra geri yüklüyor. X-Plane'in cull face açık bıraktığı durumlarda doku dörtgeni kırpılıyor ve pencere boş kalıyordu.
+
 ## 1.1.0 (2026-11-19)
 
 İlk kararlı sürüm. 1.0.0 numarası daha önceki numaralandırmada kullanıldığı için bu sürüm 1.1.0 olarak yayımlanır. `map_tests` 34.768 kontrol, 0 hata. Dört derleme ağacı `/W4` ile uyarısız derlenir.

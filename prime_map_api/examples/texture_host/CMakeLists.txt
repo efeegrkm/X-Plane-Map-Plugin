@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)
-project(texture-host VERSION 1.1.0 LANGUAGES CXX)
+project(texture-host VERSION 1.1.1 LANGUAGES CXX)
 
 set(PRIME_MAP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." CACHE PATH "prime_map_api klasoru (PrimeMap.h burada)")
 set(COTS_DIR "C:/workspace/cots" CACHE PATH "Ucuncu taraf bilesenler (X-Plane-SDK, lzma, earcut, stb)")

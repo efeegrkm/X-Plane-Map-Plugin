@@ -15,7 +15,7 @@
 namespace
 {
 #ifndef PRIME_MAP_VERSION
-#define PRIME_MAP_VERSION "1.1.0"
+#define PRIME_MAP_VERSION "1.1.1"
 #endif
 const char* kVersion = PRIME_MAP_VERSION;
 const char* kMainMapName = "main";

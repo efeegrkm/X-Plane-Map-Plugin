@@ -1,6 +1,6 @@
 # Prime XMap API
 
-X-Plane 11 eklentilerine gömülen katmanlı harita kütüphanesi. Sürüm 1.1.0.
+X-Plane 11 eklentilerine gömülen katmanlı harita kütüphanesi. Sürüm 1.1.1.
 
 Harita yalnızca o bilgisayardaki X-Plane verisini kullanır: zemin ve yollar DSF sahne dosyalarından, havalimanları `apt.dat` dosyalarından, navaid'ler X-Plane nav veritabanından, hava yolları `earth_awy.dat` dosyasından, uçak ve rota dataref'lerden ve FMS'ten gelir. Host eklenti haritayı bir OpenGL dokusu olarak alır ve kendi penceresinde ya da panelinde istediği yere basar.
 

@@ -15,7 +15,7 @@ namespace prime
 {
 constexpr int kVersionMajor = 1;
 constexpr int kVersionMinor = 1;
-constexpr int kVersionPatch = 0;
+constexpr int kVersionPatch = 1;
 PRIME_MAP_EXPORT std::string versionString();
 PRIME_MAP_EXPORT std::string libraryPath();
 

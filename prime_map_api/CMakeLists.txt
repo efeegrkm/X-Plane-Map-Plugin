@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 cmake_policy(SET CMP0091 NEW)
-project(prime-map-api VERSION 1.1.0 LANGUAGES C CXX)
+project(prime-map-api VERSION 1.1.1 LANGUAGES C CXX)
 
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/src/api/XMapTypes.h" _pm_ver REGEX "constexpr int kVersion(Major|Minor|Patch) *= *[0-9]+")
 foreach(_pm_m IN ITEMS Major Minor Patch)

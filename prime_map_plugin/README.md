@@ -1,6 +1,6 @@
 # prime_map_plugin
 
-Prime XMap'in resmî X-Plane 11 eklentisi. Sürüm 1.1.0.
+Prime XMap'in resmî X-Plane 11 eklentisi. Sürüm 1.1.1.
 
 Haritanın bütün işlevi `prime_map_api` kütüphanesindedir. Bu proje yalnızca X-Plane giriş noktalarını, menüyü ve komutları içerir ve haritaya yalnızca genel API ile erişir. Eklenti haritayı kendi X-Plane penceresinde (`WindowStyle::Standalone`) açar.
 
@@ -21,7 +21,7 @@ Menü: **Plugins → Prime XMap Plugin**.
 
 ## Dosyalar
 
-Eklenti kütüphanenin varsayılan veri klasörünü kullanır: `%LOCALAPPDATA%\prime\prime-xmap\`. Ana harita `maps/main/`, ikinci harita `maps/second/` altında saklanır. `Log.txt`'deki `Prime Map API 1.1.0 ready (data: ...)` satırı klasörün tam yolunu gösterir.
+Eklenti kütüphanenin varsayılan veri klasörünü kullanır: `%LOCALAPPDATA%\prime\prime-xmap\`. Ana harita `maps/main/`, ikinci harita `maps/second/` altında saklanır. `Log.txt`'deki `Prime Map API 1.1.1 ready (data: ...)` satırı klasörün tam yolunu gösterir.
 
 ## Derleme ve kurulum
 

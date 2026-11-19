@@ -4,9 +4,9 @@
 |---|---|
 | Belge | SRS-PXM-001 |
 | Ürün | Prime XMap API (kütüphane `prime_map.dll`, CMake hedefi `prime-map-api`) |
-| Belgenin anlattığı sürüm | 1.1.0 |
-| Tarih | 2026-11-18 |
-| Durum | Yayın adayı (1.1.0-rc): kod tamam, X-Plane kabul testleri bekleniyor |
+| Belgenin anlattığı sürüm | 1.1.1 |
+| Tarih | 2026-11-19 |
+| Durum | Yayın 1.1.1: X-Plane kabul testleri tamamlandı |
 | Yapı | ISO/IEC/IEEE 29148:2018 "Software Requirements Specification" içerik yapısı (IEEE 830'un yerini alan standart) |
 
 ## Değişiklik geçmişi
@@ -17,6 +17,7 @@
 | 0.2 | 2026-11-18 | 0.26.2: LIF-08 / NF-REL-01 (shutdown sonrası güvenli no-op), STY-06 (TerrainBuiltUp rengi zemine bağlandı), NF-REL-05 (koşul bazlı test beklemeleri), MUL-05 (ortak önbellek, izole ayarlar) eklendi; MUL-04'e canlı senkron notu |
 | 0.3 | 2026-11-18 | 1.1.0: MODE-03 (varsayılan mod Dark), ZOOM-01 ve ZOOM-02 (yerleşik eşik tablosu, host aralığı, sert alt sınır), TER-05 (açık harita yokken ön yükleme), LIF-09 (sürüm denetimi), NF-PRF-06 (eşik maliyeti), NF-REL-06 (atomik yazım dayanıklılığı); kabul testleri 1–11 |
 | 0.4 | 2026-11-18 | 1.1.0 düzeltmeleri: VOR, NDB, ILS, fix ve havalimanı sembolleri zoom tablosuna alındı; sert alt sınırlar katman başına ölçüldü (NF-PRF-06); haritasız ön yüklemenin uçak verisi başlatıldı (TER-05); STY-01 renk verilebilen katman sayısı 15 olarak düzeltildi; KIS-04 yorum kuralı güncellendi; kabul testleri 12–14 eklendi |
+| 0.5 | 2026-11-19 | 1.1.1: ayar dosyasından yüklenen modun teması çizime uygulanıyor (panel-çizim tutarlılığı); texture-host örneğine cull face koruması; durum "Yayın" olarak güncellendi |
 
 ---
 
@@ -24,7 +25,7 @@
 
 ### 1.1 Amaç
 
-Bu belge Prime XMap API'nin gereksinimlerini tanımlar ve her gereksinim için **bugünkü durumu** (1.1.0) kaydeder. Belgenin
+Bu belge Prime XMap API'nin gereksinimlerini tanımlar ve her gereksinim için **bugünkü durumu** (1.1.1) kaydeder. Belgenin
 hedefi şudur:
 
 > **Bir X-Plane eklentisi, API ile haritanın her öğesi üzerinde tam kontrole sahip olmalıdır:** haritayı istediği yere ve
@@ -60,7 +61,7 @@ Belge hem hedefi (ne olmalı) hem durumu (ne var, ne eksik) gösterir; eksikler 
 
 - Her gereksinim tek bir doğrulanabilir ifadedir; "-meli / -malı" zorunluluk bildirir.
 - **Öncelik:** Z (Zorunlu), Ö (Önemli), İ (İsteğe bağlı).
-- **Durum (1.1.0):**
+- **Durum (1.1.1):**
 
 | Kod | Anlamı |
 |---|---|
@@ -77,7 +78,7 @@ Belge hem hedefi (ne olmalı) hem durumu (ne var, ne eksik) gösterir; eksikler 
 
 | Belge | Ne |
 |---|---|
-| `docs/PrimeMap_API.pdf` | Kullanım kılavuzu ve API referansı (1.1.0) |
+| `docs/PrimeMap_API.pdf` | Kullanım kılavuzu ve API referansı (1.1.1) |
 | `docs/MIMARI.pdf` | Mimari |
 | `README.md` | Derleme, testler, araçlar |
 | `examples/texture_host/` | En küçük tam host |
@@ -169,7 +170,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | LIF-06 | Harita kapatılıp aynı durumla yeniden açılabilmeli; bırakılınca ayarları yazılmalı. | Z | K | S | |
 | LIF-07 | Yol sorguları (veri / harita / ayar / önbellek klasörü) `initialize` öncesi de doğru dönmeli. | Ö | U | İ | 0.26 |
 | LIF-08 | `shutdown` açık haritaları güvenle kapatmalı; sonrasında harita metotları çökmemeli (no-op). | Z | K | S | 0.26.2: tüm genel metotlar tek koruma mekanizmasında (`XMap::alive`): tek seferlik Log uyarısı + false / boş / varsayılan dönüş. `removeXMap` / `destroyXMapManager` sonrası işaretçi geçersizdir (nesne silinir); bu durum kod tarafında korunamaz, host işaretçiyi kullanmamalı |
-| LIF-09 | Host'un derlendiği sürümle yüklü DLL'in sürümü uyuşmuyorsa fabrika tek satır WARNING yazmalı ve host sürümü kendisi denetleyebilmeli (`isLibraryVersionMatching()`); ready satırı yüklü DLL'in yolunu yazmalı. | Z | K | İ, S | 1.1.0: inline eşleştirme host tarafında derlenir; `libraryPath()`; öz-test `isLibraryVersionMatching` kontrolü |
+| LIF-09 | Host'un derlendiği sürümle yüklü DLL'in sürümü uyuşmuyorsa fabrika tek satır WARNING yazmalı ve host sürümü kendisi denetleyebilmeli (`isLibraryVersionMatching()`); ready satırı yüklü DLL'in yolunu yazmalı. | Z | K | İ, S | 1.1.1: inline eşleştirme host tarafında derlenir; `libraryPath()`; öz-test `isLibraryVersionMatching` kontrolü |
 
 #### 3.2.2 Yerleştirme ve çizim (EMB) — Texture hedef yolu
 
@@ -211,7 +212,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 | Kimlik | Gereksinim | Ö | Durum | Doğ. | Not / kanıt |
 |---|---|---|---|---|---|
 | MODE-01 | En az 5 hazır mod sunulmalı (Scenery, VFR, IFR Low, IFR High, Dark); her modun katman durumu ayrı saklanmalı. | Z | K | T, X | |
-| MODE-03 | Yeni haritanın varsayılan modu Dark olmalı; host kendi modunu `XMapConfig::mMode` ile verebilmeli. | Z | K | T, S | 1.1.0: `XMapConfig::mMode` (Dark); öz-test "default mode is Dark"; `map_tests` Dark varsayılan testleri |
+| MODE-03 | Yeni haritanın varsayılan modu Dark olmalı; host kendi modunu `XMapConfig::mMode` ile verebilmeli. | Z | K | T, S | 1.1.1: `XMapConfig::mMode` (Dark); öz-test "default mode is Dark"; `map_tests` Dark varsayılan testleri; ayarlardan yüklenen modun teması çizime uygulanır |
 | MODE-02 | Host kendi temasını tanımlayabilmeli (bütün renkler, kalınlıklar, katman varsayılanları) ve adlandırıp seçebilmeli. | Ö | Y | — | Temalar `XMapTheme.cpp`'de sabit |
 
 #### 3.2.6 Katman görünürlüğü (LAY)
@@ -227,9 +228,9 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 
 | Kimlik | Gereksinim | Ö | Durum | Doğ. | Not / kanıt |
 |---|---|---|---|---|---|
-| ZOOM-01 | Her katman / alt katman için en küçük ve en büyük görünme zoom'u verilebilmeli, okunabilmeli, kaldırılabilmeli. | Z | K | T, S | 1.1.0: host aralığı yerleşik eşiğin **yerine geçer**; `getLayerZoomRange` etkili değeri verir; `clearLayerZoomRange` yerleşik eşiğe döner; `(0, 99)` host aralığını kaldırır; `min > max` reddedilir |
+| ZOOM-01 | Her katman / alt katman için en küçük ve en büyük görünme zoom'u verilebilmeli, okunabilmeli, kaldırılabilmeli. | Z | K | T, S | 1.1.1: host aralığı yerleşik eşiğin **yerine geçer**; `getLayerZoomRange` etkili değeri verir; `clearLayerZoomRange` yerleşik eşiğe döner; `(0, 99)` host aralığını kaldırır; `min > max` reddedilir |
 | ZOOM-02 | Yerleşik görünme eşiği API ile değiştirilebilmeli (aşağı çekme ölçülmüş sert alt sınıra kadar). | Z | K | T, S, A | Bütün katmanların eşikleri `engine/LayerTable.cpp` `kZoomTable` tablosundadır; VOR, NDB, ILS, fix ve havalimanı sembolleri dahil. Sert alt sınırın altındaki istek sınıra çekilir ve uyarı yazılır. Sert alt sınırlar Seattle ve New York'ta katman başına ölçüldü (NF-PRF-06). `getDefaultLayerZoomRange`, `getLayerHardMinZoom` |
-| ZOOM-03 | Katman içi ayrıntı eşikleri (etiketler, oklar, işaretler, küçük / büyük havalimanı) ayrı ayarlanabilmeli. | Ö | Y | — | 1.1.0'da bilinçli kapsam dışı: ayrıntı eşikleri (etiket, ok, gösterge, lamba boyu) kodda kalır |
+| ZOOM-03 | Katman içi ayrıntı eşikleri (etiketler, oklar, işaretler, küçük / büyük havalimanı) ayrı ayarlanabilmeli. | Ö | Y | — | 1.1.1'de bilinçli kapsam dışı: ayrıntı eşikleri (etiket, ok, gösterge, lamba boyu) kodda kalır |
 
 #### 3.2.8 Görsel stil (STY)
 
@@ -347,7 +348,7 @@ X-Plane 11 (11.50+), Windows x64, OpenGL 3.3+ (X-Plane 11 uyumluluk bağlamı), 
 
 | Düzey | Araç | Kapsam |
 |---|---|---|
-| Birim / bileşen | `map_tests` (`-DMAP_TESTS=ON`, X-Plane'siz) | Görünüm, katman kuralları, ayarlar (JSON), çizimler, apt.dat, DSF, zemin raster / rakım / renk, temalar, `rectFromTopLeft`, zoom eşik tablosu, `Layer` etkin aralık modeli, atomik yazım ... (1.1.0: 34.768 kontrol, 0 hata) |
+| Birim / bileşen | `map_tests` (`-DMAP_TESTS=ON`, X-Plane'siz) | Görünüm, katman kuralları, ayarlar (JSON), çizimler, apt.dat, DSF, zemin raster / rakım / renk, temalar, `rectFromTopLeft`, zoom eşik tablosu, `Layer` etkin aralık modeli, atomik yazım ... (1.1.1: 34.768 kontrol, 0 hata) |
 | Görsel | `map_preview` | Katman kodu gerçek X-Plane verisiyle resme çizilir; `--bench` katman başına çizim süresini ölçer |
 | X-Plane içi otomatik | `plugin-api-test` + `selftest.flag` → `MultiXMapSelfTest` | Fabrika, bağımsız harita, ayar dosyaları, sınırlar; Dark varsayılanı, zoom kırpma / ezme / temizleme, sürüm denetimi; Log'da `SELFTEST DONE` |
 | X-Plane içi elle | `plugin-api-test` (Texture penceresi), `examples/texture_host`, `prime_map_plugin` | Yerleştirme, takip, girdi, arayüz, kalıcılık |
