@@ -1481,6 +1481,7 @@ void XMapWindow::applySettings()
     mView.setZoom(mSettings.getDouble(kViewSection, "zoom", mView.zoom()));
     mFollowAircraft = mSettings.getBool(kViewSection, "follow_aircraft", mFollowAircraft);
     mMapMode = modeFromId(mSettings.getString(kViewSection, "mode", themeFor(mMapMode).mId), mMapMode);
+    mTheme = themeFor(mMapMode);
     mShowControls = mSettings.getBool(kViewSection, "show_controls", mShowControls);
     mMouseInput = mSettings.getBool(kViewSection, "mouse_input", mMouseInput);
     const double tZoomStep = mSettings.getDouble(kViewSection, "zoom_step", mZoomStep);

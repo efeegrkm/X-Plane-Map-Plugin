@@ -191,6 +191,10 @@ void TextureHost::draw()
     {
         return;
     }
+    // Cizim cagrisina cull face acik girilebilir; dokuyen dortgen back-face sayilip kirpilmasin
+    GLboolean tCullWasOn = GL_FALSE;
+    glGetBooleanv(GL_CULL_FACE, &tCullWasOn);
+    glDisable(GL_CULL_FACE);
     XPLMSetGraphicsState(0, 1, 0, 0, 0, 0, 0);
     XPLMBindTexture2d(static_cast<int>(mXMap->getTextureId()), 0);
     glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -204,6 +208,10 @@ void TextureHost::draw()
     glTexCoord2f(0.0f, 1.0f);
     glVertex2i(mMapLeft, mMapBottom + mMapHeight);
     glEnd();
+    if (tCullWasOn == GL_TRUE)
+    {
+        glEnable(GL_CULL_FACE);
+    }
 }
 
 int TextureHost::forwardClick(int pX, int pY, XPLMMouseStatus pStatus, prime::MouseButton pButton, bool* pPressed)
